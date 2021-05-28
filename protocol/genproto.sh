@@ -1,0 +1,1 @@
+protoc --elixir_out=plugins=grpc:../host_core/lib/host_core/capcom capcom.proto

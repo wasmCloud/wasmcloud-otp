@@ -1,0 +1,17 @@
+[package]
+name = "hostcore_wasmcloud_native"
+version = "0.1.0"
+authors = []
+edition = "2018"
+
+[lib]
+name = "hostcore_wasmcloud_native"
+path = "src/lib.rs"
+crate-type = ["dylib"]
+
+[dependencies]
+rustler = "0.21.1"
+lazy_static = "1.0"
+serde_rustler = "0.1.0"
+nkeys = "0.1.0"
+wascap = "0.6.0"
