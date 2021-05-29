@@ -3,7 +3,10 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     alias Phoenix.PubSub
 
     require Logger
-   
+
+    # TODO - reconcile the fact that linkdefs and claims are being stored in th is
+    # map AND in ETS storage under their respective manager processes.
+
     defmodule State do
         defstruct [:actors, :providers, :linkdefs, :refmaps, :claims]
     end
@@ -22,6 +25,9 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
         ldtopic = "wasmbus.rpc.#{prefix}.*.*.linkdefs.*"
         {:ok, _sub} = Gnat.sub(:lattice_nats, self(), ldtopic)
+
+        claimstopic = "wasmbus.rpc.#{prefix}.claims.put"
+        {:ok, _sub} = Gnat.sub(:lattice_nats, self(), claimstopic)
 
         {:ok, state}
     end
@@ -42,6 +48,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
 
     @impl true
+    def handle_call(:claims_query, _from, state) do
+        {:reply, state.claims, state}
+    end
+
+    @impl true
     def handle_info({:msg, 
                         %{body: body,
                         topic: topic}
@@ -52,6 +63,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
                 handle_event(state, body)
             String.contains?(topic, ".linkdefs.") ->
                 handle_linkdef(state, body, topic)
+            String.contains?(topic, ".claims.") ->
+                handle_claims(state, body, topic)
         end  
         IO.inspect state      
 
@@ -70,6 +83,10 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         GenServer.call(:state_monitor, :linkdef_query)
     end
 
+    def get_claims() do
+        GenServer.call(:state_monitor, :claims_query)
+    end
+
     defp handle_linkdef(state, body, topic) do
         Logger.info "Handling linkdef state update"
         cmd = topic |> String.split(".") |> Enum.at(6)
@@ -84,6 +101,20 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         end        
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
         %State{state | linkdefs: linkdefs }
+    end
+
+    defp handle_claims(state, body, topic) do
+        Logger.info "Handling claims state"
+        cmd = topic |> String.split(".") |> Enum.at(4)
+        claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end) 
+        
+        cmap = if cmd == "put" do
+            Map.put(state.claims, claims.public_key, claims)
+        else
+            Map.delete(state.claims, claims.public_key)
+        end
+        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:claims, cmap})
+        %State{ state | claims: cmap }
     end
 
 

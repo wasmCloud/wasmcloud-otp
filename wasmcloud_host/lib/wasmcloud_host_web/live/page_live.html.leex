@@ -25,3 +25,12 @@
     <% end %>
   </article>
 </section>
+<section class="row">
+  <article class="column">
+    <h2>Claims</h2>
+    <%= for {k, v} <- @claims do %>
+      <span><%= k %></span>
+      <span><%= v.name%></span>
+    <% end %>
+  </article>
+</section>

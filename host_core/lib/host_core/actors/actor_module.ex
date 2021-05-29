@@ -34,11 +34,15 @@ defmodule HostCore.Actors.ActorModule do
     end
 
     def current_invocation(pid) do
-        GenServer.call(pid, {:get_invocation})
+        GenServer.call(pid, :get_invocation)
     end
 
     def api_version(pid) do
-        GenServer.call(pid, {:get_api_ver})
+        GenServer.call(pid, :get_api_ver)
+    end
+
+    def claims(pid) do 
+        GenServer.call(pid, :get_claims)
     end
 
     @impl true
@@ -56,12 +60,16 @@ defmodule HostCore.Actors.ActorModule do
         perform_invocation(agent, operation, payload)        
     end
 
-    def handle_call({:get_api_ver}, _from, agent) do
+    def handle_call(:get_api_ver, _from, agent) do
         {:reply, Agent.get(agent, fn content -> content.api_version end), agent}
     end
 
+    def handle_call(:get_claims, _from, agent) do
+        {:reply, Agent.get(agent, fn content -> content.claims end), agent}
+    end
+
     @impl true
-    def handle_call({:get_invocation}, _from, agent) do
+    def handle_call(:get_invocation, _from, agent) do
         Logger.info("Getting invocation")
         {:reply, Agent.get(agent, fn content -> content.invocation end), agent}
     end
@@ -90,12 +98,16 @@ defmodule HostCore.Actors.ActorModule do
         IO.inspect(ir)        
 
         Gnat.pub(:lattice_nats, reply_to, 
-                 ir |> Msgpax.pack!(iodata: true) )
+                 ir |> Msgpax.pack!())
         {:noreply, agent}
     end
 
 
     defp start_actor(claims, bytes) do
+        IO.inspect claims 
+
+        HostCore.ClaimsManager.put_claims(claims)
+        
         {:ok, agent} = Agent.start_link fn -> %State{claims: claims} end
         PidMap.put(claims.public_key, self()) # Register this process with the public key
         if claims.call_alias != nil do

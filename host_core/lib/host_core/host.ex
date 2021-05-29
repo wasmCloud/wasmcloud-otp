@@ -68,6 +68,7 @@ defmodule HostCore.Host do
     def configure_ets() do
         :ets.new(:provider_registry, [:named_table, :set, :public])
         :ets.new(:linkdef_registry, [:named_table, :set, :public])
+        :ets.new(:claims_registry, [:named_table, :set, :public])
     end
 
     def lattice_prefix() do
