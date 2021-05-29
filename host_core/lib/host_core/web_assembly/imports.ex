@@ -65,8 +65,31 @@ defmodule HostCore.WebAssembly.Imports do
         
         Logger.info("host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
 
-        # Validate that this actor is allowed to make this call
+        # Start auth chain by looking up the link definition for this call
+        HostCore.LinkdefsManager.lookup_link_definition(actor, namespace, binding)
+        |> authorize(actor, 
+                     binding,
+                     namespace, 
+                     operation,
+                     payload, 
+                     claims,
+                     seed,
+                     prefix, 
+                     provider_key,
+                     state) 
+        |> finish()
+        
+    end
 
+    defp authorize({:ok, ld}, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key, state) do
+        # TODO - check claims to make sure actor is authorized
+        {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key}
+    end
+    defp authorize(:error, _actor, _binding, _namespace, _operation, _payload, _claims, _seed, _prefix, _provider_key, _state) do
+        :error
+    end
+
+    defp finish({:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key, state}) do
         # Do host call work
         {code, res } = 
             HostCore.Lattice.RpcClient.perform_invocation(
@@ -87,6 +110,10 @@ defmodule HostCore.WebAssembly.Imports do
         end
 
         code
+    end
+
+    defp finish(:error) do
+        0
     end
 
     defp host_response(_api_type, context, agent, ptr) do 
