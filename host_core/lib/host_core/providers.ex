@@ -11,20 +11,6 @@ defmodule HostCore.Providers do
             [pk] -> {:ok, pk}
             [] -> :error
         end
-    end
-
-    def lookup_link_definition(actor, contract_id, link_name) do
-        case :ets.lookup(:linkdef_registry, {actor, contract_id, link_name}) do
-            [ld] -> {:ok, ld}
-            [] -> :error
-        end
-    end
-
-    def put_link_definition(actor, contract_id, link_name, provider_key, values) do
-        key = {actor, contract_id, link_name}
-        map = %{values: values, provider_key: provider_key}
-
-        :ets.insert(:linkdef_registry, {key, map})
-    end
+    end    
 
 end

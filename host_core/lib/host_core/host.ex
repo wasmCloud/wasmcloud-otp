@@ -56,7 +56,7 @@ defmodule HostCore.Host do
     * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.get` - Query all link defss for this provider. (queue subscribed)
     * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.del` - Remove a link def.                                                            
     * `wasmbus.rpc.{prefix}.claims.put` - Publish discovered claims
-    * `wasmbus.rpc.{prefix}.claims.get` - Query all claims (queue subscribed by hosts)
+    * `wasmbus.rpc.{prefix}.claims.get` - Query all claims (queue subscribed by hosts)    
     * `wasmbus.rpc.{prefix}.ref_maps.put` - Publish a reference map, e.g. OCI ref -> PK, call alias -> PK
     * `wasmbus.rpc.{prefix}.ref_maps.get` - Query all reference maps (queue subscribed by hosts)
     """

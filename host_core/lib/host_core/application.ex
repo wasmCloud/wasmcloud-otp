@@ -13,7 +13,8 @@ defmodule HostCore.Application do
       {HostCore.Host, strategy: :one_for_one, name: Host},
       {HostCore.Actors.PidMap, strategy: :one_for_one, name: HostCore.Actors.PidMap},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
-      {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot}      
+      {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot},
+      {HostCore.LinkdefsManager, strategy: :one_for_one, name: LinkdefsManager}
     ]   
 
     # See https://hexdocs.pm/elixir/Supervisor.html

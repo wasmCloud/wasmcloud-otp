@@ -17,7 +17,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         state = %State{ actors: [], providers: [], linkdefs: %{}, refmaps: %{}, claims: %{}}
         prefix = HostCore.Host.lattice_prefix()
         topic = "wasmbus.ctl.#{prefix}.events"
-        IO.puts topic
+        
         {:ok, _sub} = Gnat.sub(:control_nats, self(), topic)
 
         {:ok, state}
