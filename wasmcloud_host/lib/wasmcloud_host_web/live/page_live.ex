@@ -7,9 +7,11 @@ defmodule WasmcloudHostWeb.PageLive do
   def mount(_params, _session, socket) do
     WasmcloudHostWeb.Endpoint.subscribe "lattice:state"
     
-    {:ok, assign(socket, 
+    {:ok, socket |> assign(
        actors: WasmcloudHost.Lattice.StateMonitor.get_actors(),
-       providers: WasmcloudHost.Lattice.StateMonitor.get_providers())
+       providers: WasmcloudHost.Lattice.StateMonitor.get_providers(),
+       linkdefs: WasmcloudHost.Lattice.StateMonitor.get_linkdefs()
+      )
     }
   end
 
@@ -20,6 +22,10 @@ defmodule WasmcloudHostWeb.PageLive do
 
   def handle_info({:providers, providers}, socket) do
     {:noreply, assign(socket, providers: providers )}
+  end
+
+  def handle_info({:linkdefs, linkdefs}, socket) do
+    {:noreply, assign(socket, linkdefs: linkdefs )}
   end
 
 end
