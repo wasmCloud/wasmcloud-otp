@@ -1,9 +1,10 @@
 #[macro_use]
 extern crate rustler;
 
-use rustler::{Binary, Encoder, Env, Term};
-use wascap::prelude::*;
 use nkeys::KeyPair;
+use rustler::Binary;
+use rustler::Error;
+use wascap::prelude::*;
 
 #[derive(NifStruct)]
 #[module = "HostCore.WasmCloud.Native.Claims"]
@@ -17,33 +18,28 @@ pub struct Claims {
     tags: Option<Vec<String>>,
 }
 
+#[derive(Debug, Copy, Clone, NifUnitEnum)]
+pub enum KeyType {
+    Server,
+    Cluster,
+    Operator,
+    Account,
+    User,
+    Module,
+    Provider,
+}
+
 mod atoms;
 
-/*
-
-   N - Server
-   C - Cluster
-   O - Operator
-   A - Account
-   U - User
-   M - Module
-   V - Service / Service Provider
-   P - Private Key
-*/
-
-rustler::rustler_export_nifs! {
+rustler::init!(
     "Elixir.HostCore.WasmCloud.Native",
-    [
-        ("extract_claims", 1, extract_claims),
-        ("generate_key", 1, generate_key)
-    ],
-    None
-}
+    [extract_claims, generate_key]
+);
 
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
 /// in the form of a simple struct that will bubble its way up to Elixir as a native struct
-fn extract_claims<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, rustler::Error> {
-    let binary: Binary = args[0].decode()?;
+#[rustler::nif]
+fn extract_claims(binary: Binary) -> Result<Claims, Error> {
     let bytes = binary.as_slice();
 
     let extracted = match wasm::extract_claims(&bytes) {
@@ -82,23 +78,11 @@ fn extract_claims<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, rustl
         tags: m.tags,
     };
 
-    Ok(out.encode(env))
+    Ok(out)
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum KeyType {
-    Server,
-    Cluster,
-    Operator,
-    Account,
-    User,
-    Module,
-    Provider,
-}
-
-
-fn generate_key<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, rustler::Error> {
-    let key_type = keytype_from_term(&args[0])?;
+#[rustler::nif]
+fn generate_key<'a>(key_type: KeyType) -> Result<(String, String), Error> {
     let kp = match key_type {
         KeyType::Server => KeyPair::new_server(),
         KeyType::Cluster => KeyPair::new_cluster(),
@@ -111,26 +95,5 @@ fn generate_key<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, rustler
     let seed = kp.seed().unwrap();
     let pk = kp.public_key();
 
-    Ok((pk, seed).encode(env))
-}
-
-fn keytype_from_term(term: &Term) -> Result<KeyType, rustler::Error> {
-    let key_type = term
-        .atom_to_string()
-        .map_err(|_| rustler::Error::RaiseTerm(Box::new("Must be given a valid key type atom.")))?;
-
-    Ok(match key_type.as_str() {
-        "server" => KeyType::Server,
-        "cluster" => KeyType::Cluster,
-        "operator" => KeyType::Operator,
-        "account" => KeyType::Account,
-        "user" => KeyType::User,
-        "module" => KeyType::Module,
-        "provider" => KeyType::Provider,
-        _ => {
-            return Err(rustler::Error::RaiseTerm(Box::new(
-                "Key type must be one of `server`, `cluster`, `operator`, `account`, `user`, `module`, or `provider`.",
-            )))
-        }    
-    })
+    Ok((pk, seed))
 }

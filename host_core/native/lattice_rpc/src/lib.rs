@@ -5,21 +5,15 @@ use rpcclient::{serialize, LatticeRpcClient};
 use rustler::{Binary, Encoder, Env, Error, Term};
 
 mod atoms {
-    rustler_atoms! {
-        atom ok;
+    rustler::atoms! {
+        ok
         //atom error;
         //atom __true__ = "true";
         //atom __false__ = "false";
     }
 }
 
-rustler::rustler_export_nifs! {
-    "Elixir.HostCore.Lattice.RpcClient",
-    [
-        ("perform_invocation", 9, perform_invocation)
-    ],
-    None
-}
+rustler::init!("Elixir.HostCore.Lattice.RpcClient", [perform_invocation]);
 
 // Yes, this is copied and not re-used. Yes, it's worth it.
 #[derive(NifStruct)]
@@ -46,17 +40,20 @@ pub struct Claims {
 /// * `claims` - Claims of the actor in question
 /// * `seed` - The seed key required for signing an invocation
 /// * `prefix` - The lattice namespace prefix for the current connection
-fn perform_invocation<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, rustler::Error> {
-    let actor: String = args[0].decode()?;
-    let mut binding: String = args[1].decode()?;
-    let namespace: String = args[2].decode()?;
-    let operation: String = args[3].decode()?;
-    let payload: Binary = args[4].decode()?;
+#[rustler::nif]
+fn perform_invocation<'a>(
+    actor: String,
+    binding: String,
+    namespace: String,
+    operation: String,
+    payload: Binary,
+    _claims: Claims,
+    seed: String,
+    prefix: String,
+    provider_key: String,
+) -> Result<Vec<u8>, Error> {
+    let mut binding = binding.clone();
     let bytes = payload.as_slice();
-    let claims: Claims = args[5].decode()?;
-    let seed: String = args[6].decode()?;
-    let prefix: String = args[7].decode()?;
-    let provider_key: String = args[8].decode()?;
 
     if binding.is_empty() {
         binding = "default".to_string();
@@ -78,10 +75,6 @@ fn perform_invocation<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, r
         &provider_key,
     );
     let resbytes = serialize(res)
-        .map_err(|e| rustler::Error::Atom("Failed to serialize invocation result"))?;
-    Ok(resbytes.encode(env))
-}
-
-fn is_actor(ns: &str) -> bool {
-    ns.len() == 56 && ns.starts_with("M")
+        .map_err(|_e| rustler::Error::Atom("Failed to serialize invocation result"))?;
+    Ok(resbytes)
 }
