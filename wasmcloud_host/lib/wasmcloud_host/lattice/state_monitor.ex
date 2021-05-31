@@ -16,11 +16,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
 
     @impl true
-    def init(opts) do
-        state = %State{ actors: [], providers: [], linkdefs: %{}, refmaps: %{}, claims: %{}}
+    def init(_opts) do
+        state = %State{ actors: %{}, providers: [], linkdefs: %{}, refmaps: %{}, claims: %{}}
         prefix = HostCore.Host.lattice_prefix()
-        
-        topic = "wasmbus.ctl.#{prefix}.events"        
+
+        topic = "wasmbus.ctl.#{prefix}.events"
         {:ok, _sub} = Gnat.sub(:control_nats, self(), topic)
 
         ldtopic = "wasmbus.rpc.#{prefix}.*.*.linkdefs.*"
@@ -53,7 +53,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
 
     @impl true
-    def handle_info({:msg, 
+    def handle_info({:msg,
                         %{body: body,
                         topic: topic}
                     }, state) do
@@ -65,12 +65,12 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
                 handle_linkdef(state, body, topic)
             String.contains?(topic, ".claims.") ->
                 handle_claims(state, body, topic)
-        end  
-        IO.inspect state      
+        end
+        IO.inspect state
 
         {:noreply, state}
     end
-    
+
     def get_actors() do
         GenServer.call(:state_monitor, :actor_query)
     end
@@ -98,7 +98,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
             Map.put(state.linkdefs, key, map)
         else
             Map.delete(state.linkdefs, key)
-        end        
+        end
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
         %State{state | linkdefs: linkdefs }
     end
@@ -106,8 +106,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     defp handle_claims(state, body, topic) do
         Logger.info "Handling claims state"
         cmd = topic |> String.split(".") |> Enum.at(4)
-        claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end) 
-        
+        claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
+
         cmap = if cmd == "put" do
             Map.put(state.claims, claims.public_key, claims)
         else
@@ -120,38 +120,54 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     defp handle_event(state, body) do
         evt = body
-                |> Cloudevents.from_json!        
+                |> Cloudevents.from_json!
         process_event(state, evt)
-    end        
-    
-    defp process_event(state, 
+    end
+
+    defp process_event(state,
         %Cloudevents.Format.V_1_0.Event{
             data: %{
             "public_key" => pk
             },
-            datacontenttype: "application/json",        
+            source: source_host,
+            datacontenttype: "application/json",
             type: "com.wasmcloud.lattice.actor_started"
         }
       ) do
 
-        actors = [pk | state.actors ]
+        actors = add_actor(pk, source_host, state.actors)
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
         %State{state | actors: actors}
     end
 
-    defp process_event(state, 
+    defp process_event(state,
         %Cloudevents.Format.V_1_0.Event{
             data: %{
             "public_key" => pk
             },
-            datacontenttype: "application/json",        
+            datacontenttype: "application/json",
             type: "com.wasmcloud.lattice.provider_started"
         }
       ) do
-        
+
         providers = [pk | state.providers ]
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:providers, providers})
         %State{state | providers: providers}
     end
-    
+
+    #
+    # %{
+    #    "Mxxxxx"  : %{
+    #       "Nxxxxx": 3,
+    #       "Nxxxxy": 2,
+    #    }
+    #  }
+    def add_actor(pk, host, previous_map) do
+        actor_map = Map.get(previous_map, pk, %{})
+        count = Map.get(actor_map, host, 0)
+        count = count + 1
+        actor_map = Map.put(actor_map, host, count)
+        Map.put(previous_map, pk, actor_map)
+    end
+
 end
