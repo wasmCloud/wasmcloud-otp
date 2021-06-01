@@ -1,5 +1,6 @@
 defmodule HostCore.Actors.ActorModule do
-    use GenServer, restart: :transient
+    # Do not automatically restart this process
+    use GenServer, restart: :temporary
 
     require Logger
     alias HostCore.WebAssembly.Imports
@@ -90,8 +91,6 @@ defmodule HostCore.Actors.ActorModule do
     end
 
     defp start_actor(claims, bytes) do
-        IO.inspect claims
-
         HostCore.ClaimsManager.put_claims(claims)
 
         {:ok, agent} = Agent.start_link fn -> %State{claims: claims} end
@@ -182,4 +181,29 @@ defmodule HostCore.Actors.ActorModule do
 
         Gnat.pub(:control_nats, topic, msg)
     end
+
+    def publish_actor_stopped(actor_pk, remaining_count) do
+        prefix = HostCore.Host.lattice_prefix()
+        stamp = DateTime.utc_now() |> DateTime.to_iso8601
+        host = HostCore.Host.host_key()
+        msg = %{
+            specversion: "1.0",
+            time: stamp,
+            type: "com.wasmcloud.lattice.actor_stopped",
+            source: "#{host}",
+            datacontenttype: "application/json",
+            id: UUID.uuid4(),
+            data: %{
+                public_key: actor_pk,
+                running_instances: remaining_count,
+            }
+        }
+        |> Cloudevents.from_map!()
+        |> Cloudevents.to_json()
+        topic = "wasmbus.ctl.#{prefix}.events"
+
+        Gnat.pub(:control_nats, topic, msg)
+    end
+
+
 end

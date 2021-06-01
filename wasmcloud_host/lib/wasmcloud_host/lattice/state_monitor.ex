@@ -142,8 +142,21 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     defp process_event(state,
         %Cloudevents.Format.V_1_0.Event{
+            data: %{"public_key" => public_key,
+                    "running_instances" => remaining_count},
+            datacontenttype: "application/json",
+            source: source_host,
+            type: "com.wasmcloud.lattice.actor_stopped"}) do
+
+        actors = set_actor_count(public_key, source_host, remaining_count, state.actors)
+        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
+        %State{state | actors: actors}
+    end
+
+    defp process_event(state,
+        %Cloudevents.Format.V_1_0.Event{
             data: %{
-            "public_key" => pk
+                "public_key" => pk
             },
             datacontenttype: "application/json",
             type: "com.wasmcloud.lattice.provider_started"
@@ -166,6 +179,12 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         actor_map = Map.get(previous_map, pk, %{})
         count = Map.get(actor_map, host, 0)
         count = count + 1
+        actor_map = Map.put(actor_map, host, count)
+        Map.put(previous_map, pk, actor_map)
+    end
+
+    defp set_actor_count(pk, host, count, previous_map) do
+        actor_map = Map.get(previous_map, pk, %{})
         actor_map = Map.put(actor_map, host, count)
         Map.put(previous_map, pk, actor_map)
     end

@@ -8,6 +8,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   @impl true
   def init(_init_arg) do
+    Process.flag(:trap_exit, true)
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
@@ -24,16 +25,39 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
+
   @doc """
   Produces a map with the key being the public key of the actor and the value being a _list_
   of all of the pids (running instances) of that actor.
   """
   def all_actors() do
-    Supervisor.which_children(HostCore.Actors.ActorSupervisor)
-    |> Enum.map(fn {_id, pid, _type_, _modules} ->
-      {HostCore.Actors.ActorModule.claims(pid).public_key, pid}
-    end)
+    actors_by_pid()
     |> Enum.group_by(fn {k, _p} -> k end, fn {_k, p} -> p end)
+  end
+
+  def find_actor(public_key) do
+    Map.get(all_actors(), public_key, [])
+  end
+
+  def terminate_actor(public_key, count) when count > 0 do
+    remaining = Map.get(all_actors(), public_key, []) |> Enum.count()
+    remaining = max(remaining - count, 0)
+
+    HostCore.Actors.ActorModule.publish_actor_stopped(public_key, remaining)
+
+
+    Map.get(all_actors(), public_key, [])
+    |> Enum.take(count)
+    |> Enum.each(fn pid -> Process.exit(pid, :kill) end)
+
+    {:ok}
+  end
+
+  defp actors_by_pid() do
+    Supervisor.which_children(HostCore.Actors.ActorSupervisor)
+    |>
+    Enum.map(fn {_id, pid, _type_, _modules} ->
+      {HostCore.Actors.ActorModule.claims(pid).public_key, pid} end)
   end
 
 end
