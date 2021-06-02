@@ -35,6 +35,10 @@ module.exports = (env, options) => {
           }
         },
         {
+          test: /\.svg$/,
+          loader: 'svg-inline-loader'
+        },
+        {
           test: /\.[s]?css$/,
           use: [
             MiniCssExtractPlugin.loader,
@@ -48,6 +52,6 @@ module.exports = (env, options) => {
       new MiniCssExtractPlugin({ filename: '../css/app.css' }),
       new CopyWebpackPlugin([{ from: 'static/', to: '../' }])
     ]
-    .concat(devMode ? [new HardSourceWebpackPlugin()] : [])
+      .concat(devMode ? [new HardSourceWebpackPlugin()] : [])
   }
 };

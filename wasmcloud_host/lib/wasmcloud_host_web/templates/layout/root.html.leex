@@ -1,28 +1,137 @@
 <!DOCTYPE html>
+<!--
+* CoreUI Pro based Bootstrap Admin Template
+* @version v3.2.0
+* @link https://coreui.io/pro/
+* Copyright (c) 2020 creativeLabs Łukasz Holeczek
+* License (https://coreui.io/pro/license)
+-->
 <html lang="en">
   <head>
-    <meta charset="utf-8"/>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <base href="./">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <meta name="description" content="wasmCloud - From Napkin to Production, via the Cloud">
+    <meta name="author" content="wasmCloud Team">
+    <meta name="keyword" content="WebAssembly,Rust,wasm,Open,Source,wasmCloud,Dashboard">
     <%= csrf_meta_tag() %>
-    <%= live_title_tag assigns[:page_title] || "WasmcloudHost", suffix: " · Phoenix Framework" %>
+    <%= live_title_tag assigns[:page_title] || "wasmCloud Dashboard", suffix: " · Phoenix Framework" %>
+    <!-- Main styles for this application-->
     <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
+    <!-- Includes all JS files in /js/ -->
     <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
   </head>
-  <body>
-    <header>
-      <section class="container">
-        <nav role="navigation">
-          <ul>
-            <li><a href="https://hexdocs.pm/phoenix/overview.html">Get Started</a></li>
-            
-          </ul>
-        </nav>
-        <a href="https://phoenixframework.org/" class="phx-logo">
-          <img src="<%= Routes.static_path(@conn, "/images/phoenix.png") %>" alt="Phoenix Framework Logo"/>
-        </a>
-      </section>
-    </header>
-    <%= @inner_content %>
+  <!-- Main body -->
+  <body class="c-app c-no-layout-transition">
+    <div class="c-sidebar c-sidebar-dark c-sidebar-fixed c-sidebar-lg-show" id="sidebar">
+      <div class="c-sidebar-brand d-md-down-none">
+        <!-- Expanded logo -->
+        <div class="c-sidebar-brand-full" alt="wasmCloud Horizontal">
+          <img width="200px" src="<%= Routes.static_path(@conn, "/images/wasmcloud_horizontal_white.png") %>">
+        </div>
+        <!-- Collapsed logo -->
+        <div class="c-sidebar-brand-minimized" alt="wasmCloud Minimized">
+          <img width="36px" src="<%= Routes.static_path(@conn, "/images/wasmcloud_inversed.png") %>">
+        </div>
+      </div>
+      <!-- Navigation sidebar -->
+      <ul class="c-sidebar-nav">
+        <li class="c-sidebar-nav-item"><a class="c-sidebar-nav-link" href="index.html">
+            <svg class="c-sidebar-nav-icon">
+              <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-speedometer") %>"></use>
+            </svg> Dashboard<span class="badge badge-info">NEW</span></a></li>
+      </ul>
+      <!-- Toggles navigation collapse -->
+      <button class="c-sidebar-minimizer c-class-toggler" type="button" data-target="_parent" data-class="c-sidebar-unfoldable"></button>
+    </div>
+    <div class="c-sidebar c-sidebar-lg c-sidebar-light c-sidebar-right c-sidebar-overlaid" id="aside">
+      <button class="c-sidebar-close c-class-toggler" type="button" data-target="_parent" data-class="c-sidebar-show">
+        <svg class="c-icon">
+          <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-x") %>"></use>
+        </svg>
+      </button>
+    </div>
+    <div class="c-wrapper">
+      <header class="c-header c-header-light c-header-fixed">
+        <button class="c-header-toggler c-class-toggler d-lg-none mfe-auto" type="button" data-target="#sidebar" data-class="c-sidebar-show">
+          <svg class="c-icon c-icon-lg">
+            <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-menu") %>"></use>
+          </svg>
+        </button><a class="c-header-brand d-lg-none c-header-brand-sm-up-center" href="#">
+          <svg width="118" height="46" alt="CoreUI Logo">
+            <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#full") %>"></use>
+          </svg></a>
+        <button class="c-header-toggler c-class-toggler mfs-3 d-md-down-none" type="button" data-target="#sidebar" data-class="c-sidebar-lg-show" responsive="true">
+          <svg class="c-icon c-icon-lg">
+            <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-menu") %>"></use>
+          </svg>
+        </button>
+        <ul class="c-header-nav mfs-auto">
+          <li class="c-header-nav-item px-3 c-d-legacy-none">
+            <button class="c-class-toggler c-header-nav-btn" type="button" id="header-tooltip" data-target="body" data-class="c-dark-theme" data-toggle="c-tooltip" data-placement="bottom" title="Toggle Light/Dark Mode">
+              <svg class="c-icon c-d-dark-none">
+                <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-moon") %>"></use>
+              </svg>
+              <svg class="c-icon c-d-default-none">
+                <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-sun") %>"></use>
+              </svg>
+            </button>
+          </li>
+        </ul>
+        <ul class="c-header-nav">
+          <li class="c-header-nav-item dropdown"><a class="c-header-nav-link" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
+              <div class="c-avatar"><img class="c-avatar-img" src="<%= Routes.static_path(@conn, "/images/wasmcloud_extraspace.png") %>" alt="wasmCloud logo"></div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-right pt-0"><a class="dropdown-item" href="#">
+                <svg class="c-icon mfe-2">
+                  <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-bell") %>"></use>
+                </svg> Updates<span class="badge badge-info mfs-auto">42</span></a><a class="dropdown-item" href="#">
+                <svg class="c-icon mfe-2">
+                  <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-account-logout") %>"></use>
+                </svg> Logout</a></div>
+          </li>
+          <button class="c-header-toggler c-class-toggler mfe-md-3" type="button" data-target="#aside" data-class="c-sidebar-show">
+            <svg class="c-icon c-icon-lg">
+              <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-applications-settings") %>"></use>
+            </svg>
+          </button>
+        </ul>
+        <div class="c-subheader justify-content-between px-3">
+          <!-- Breadcrumb-->
+          <ol class="breadcrumb border-0 m-0 px-0 px-md-3">
+            <li class="breadcrumb-item">Home</li>
+            <li class="breadcrumb-item"><a href="#">Admin</a></li>
+            <li class="breadcrumb-item active">Dashboard</li>
+            <!-- Breadcrumb Menu-->
+          </ol>
+        </div>
+      </header>
+      <div class="c-body">
+        <main class="c-main">
+          <div class="container-fluid">
+            <div class="fade-in">
+              <div class="row"></div>
+                <!-- Displays view -->
+                <%= @inner_content %>
+              <!-- /.row-->
+            </div>
+          </div>
+        </main>
+      </div>
+      <footer class="c-footer">
+        <div><a href="https://coreui.io">CoreUI</a> © 2020 creativeLabs.</div>
+        <div class="mfs-auto">Powered by&nbsp;<a href="https://coreui.io/pro/">CoreUI Pro</a></div>
+      </footer>
+    </div>
+
+    <!-- Transition on-load -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function(event) {
+        setTimeout(function() {
+          document.body.classList.remove('c-no-layout-transition')
+        }, 2000);
+      });
+    </script>
   </body>
 </html>
