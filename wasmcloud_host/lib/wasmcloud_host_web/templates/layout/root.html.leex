@@ -14,33 +14,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <meta name="description" content="wasmCloud - From Napkin to Production, via the Cloud">
     <meta name="author" content="wasmCloud Team">
-    <meta name="keyword" content="Bootstrap,Admin,Template,Open,Source,jQuery,CSS,HTML,RWD,Dashboard">
+    <meta name="keyword" content="WebAssembly,Rust,wasm,Open,Source,wasmCloud,Dashboard">
     <%= csrf_meta_tag() %>
     <%= live_title_tag assigns[:page_title] || "wasmCloud Dashboard", suffix: " · Phoenix Framework" %>
     <!-- Main styles for this application-->
     <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
     <!-- Includes all JS files in /js/ -->
-
-          <!--<use xlink:href="<%= Routes.static_path(@conn, "/coreui/coreui-pro.svg#full") %>"></use>-->
     <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
   </head>
+  <!-- Main body -->
   <body class="c-app c-no-layout-transition">
     <div class="c-sidebar c-sidebar-dark c-sidebar-fixed c-sidebar-lg-show" id="sidebar">
       <div class="c-sidebar-brand d-md-down-none">
-
+        <!-- Expanded logo -->
         <div class="c-sidebar-brand-full" alt="wasmCloud Horizontal">
           <img width="200px" src="<%= Routes.static_path(@conn, "/images/wasmcloud_horizontal_white.png") %>">
         </div>
+        <!-- Collapsed logo -->
         <div class="c-sidebar-brand-minimized" alt="wasmCloud Minimized">
           <img width="36px" src="<%= Routes.static_path(@conn, "/images/wasmcloud_inversed.png") %>">
         </div>
       </div>
+      <!-- Navigation sidebar -->
       <ul class="c-sidebar-nav">
         <li class="c-sidebar-nav-item"><a class="c-sidebar-nav-link" href="index.html">
             <svg class="c-sidebar-nav-icon">
               <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-speedometer") %>"></use>
             </svg> Dashboard<span class="badge badge-info">NEW</span></a></li>
       </ul>
+      <!-- Toggles navigation collapse -->
       <button class="c-sidebar-minimizer c-class-toggler" type="button" data-target="_parent" data-class="c-sidebar-unfoldable"></button>
     </div>
     <div class="c-sidebar c-sidebar-lg c-sidebar-light c-sidebar-right c-sidebar-overlaid" id="aside">
@@ -110,6 +112,7 @@
           <div class="container-fluid">
             <div class="fade-in">
               <div class="row"></div>
+                <!-- Displays view -->
                 <%= @inner_content %>
               <!-- /.row-->
             </div>
@@ -122,6 +125,7 @@
       </footer>
     </div>
 
+    <!-- Transition on-load -->
     <script>
       document.addEventListener("DOMContentLoaded", function(event) {
         setTimeout(function() {
@@ -129,6 +133,5 @@
         }, 2000);
       });
     </script>
-
   </body>
 </html>
