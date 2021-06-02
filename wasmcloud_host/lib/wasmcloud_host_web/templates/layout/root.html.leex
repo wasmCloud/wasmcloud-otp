@@ -11,34 +11,29 @@
     <base href="./">
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <%# <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-    <meta name="description" content="CoreUI - Open Source Bootstrap Admin Template">
-    <meta name="author" content="Łukasz Holeczek">
-    <meta name="keyword" content="Bootstrap,Admin,Template,Open,Source,jQuery,CSS,HTML,RWD,Dashboard"> %>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <meta name="description" content="wasmCloud - From Napkin to Production, via the Cloud">
+    <meta name="author" content="wasmCloud Team">
+    <meta name="keyword" content="Bootstrap,Admin,Template,Open,Source,jQuery,CSS,HTML,RWD,Dashboard">
     <%= csrf_meta_tag() %>
     <%= live_title_tag assigns[:page_title] || "wasmCloud Dashboard", suffix: " · Phoenix Framework" %>
     <!-- Main styles for this application-->
     <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
     <!-- Includes all JS files in /js/ -->
+
+          <!--<use xlink:href="<%= Routes.static_path(@conn, "/coreui/coreui-pro.svg#full") %>"></use>-->
     <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
-    <!-- <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/main.js") %>"></script> -->
-    <!-- CoreUI and necessary plugins-->
-    <!-- <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/coreui.bundle.min.js") %>"></script> -->
-    <!--[if IE]><!-->
-    <!-- <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/svgxuse.min.js") %>"></script> -->
-    <!--<![endif]-->
-    <!-- Plugins and scripts required by this view-->
-    <!-- <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/coreui-utils.min.js") %>"></script> -->
   </head>
   <body class="c-app c-no-layout-transition">
     <div class="c-sidebar c-sidebar-dark c-sidebar-fixed c-sidebar-lg-show" id="sidebar">
       <div class="c-sidebar-brand d-md-down-none">
-        <svg class="c-sidebar-brand-full" width="118" height="46" alt="CoreUI Logo">
-          <use xlink:href="<%= Routes.static_path(@conn, "/coreui/coreui-pro.svg#full") %>"></use>
-        </svg>
-        <svg class="c-sidebar-brand-minimized" width="46" height="46" alt="CoreUI Logo">
-          <use xlink:href="<%= Routes.static_path(@conn, "/coreui/coreui-pro.svg#signet") %>"></use>
-        </svg>
+
+        <div class="c-sidebar-brand-full" alt="wasmCloud Horizontal">
+          <img width="200px" src="<%= Routes.static_path(@conn, "/images/wasmcloud_horizontal_white.png") %>">
+        </div>
+        <div class="c-sidebar-brand-minimized" alt="wasmCloud Minimized">
+          <img width="36px" src="<%= Routes.static_path(@conn, "/images/wasmcloud_inversed.png") %>">
+        </div>
       </div>
       <ul class="c-sidebar-nav">
         <li class="c-sidebar-nav-item"><a class="c-sidebar-nav-link" href="index.html">
@@ -63,7 +58,7 @@
           </svg>
         </button><a class="c-header-brand d-lg-none c-header-brand-sm-up-center" href="#">
           <svg width="118" height="46" alt="CoreUI Logo">
-            <use xlink:href="<%= Routes.static_path(@conn, "/coreui/coreui-pro.svg#full") %>"></use>
+            <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#full") %>"></use>
           </svg></a>
         <button class="c-header-toggler c-class-toggler mfs-3 d-md-down-none" type="button" data-target="#sidebar" data-class="c-sidebar-lg-show" responsive="true">
           <svg class="c-icon c-icon-lg">
@@ -84,7 +79,7 @@
         </ul>
         <ul class="c-header-nav">
           <li class="c-header-nav-item dropdown"><a class="c-header-nav-link" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
-              <div class="c-avatar"><img class="c-avatar-img" src="<%= Routes.static_path(@conn, "/coreui/avatars/6.jpg") %>" alt="user@email.com"></div>
+              <div class="c-avatar"><img class="c-avatar-img" src="<%= Routes.static_path(@conn, "/images/wasmcloud_extraspace.png") %>" alt="wasmCloud logo"></div>
             </a>
             <div class="dropdown-menu dropdown-menu-right pt-0"><a class="dropdown-item" href="#">
                 <svg class="c-icon mfe-2">
