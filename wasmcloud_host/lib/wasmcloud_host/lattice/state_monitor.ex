@@ -17,7 +17,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     @impl true
     def init(_opts) do
-        state = %State{ actors: %{}, providers: [], linkdefs: %{}, refmaps: %{}, claims: %{}}
+        state = %State{ actors: %{}, providers: %{}, linkdefs: %{}, refmaps: %{}, claims: %{}}
         prefix = HostCore.Host.lattice_prefix()
 
         topic = "wasmbus.ctl.#{prefix}.events"
@@ -156,16 +156,51 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     defp process_event(state,
         %Cloudevents.Format.V_1_0.Event{
             data: %{
-                "public_key" => pk
+                "public_key"  => pk,
+                "link_name"   => link_name,
+                "contract_id" => _contract_id
             },
+            source: source_host,
             datacontenttype: "application/json",
             type: "com.wasmcloud.lattice.provider_started"
         }
       ) do
 
-        providers = [pk | state.providers ]
+        providers = add_provider(pk, link_name, source_host, state.providers)
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:providers, providers})
         %State{state | providers: providers}
+    end
+
+    defp process_event(state,
+        %Cloudevents.Format.V_1_0.Event{
+            data: %{"link_name" => _link_name,
+                   "public_key" => _pk},
+            datacontenttype: "application/json",
+            source: _source_host,
+            type: "com.wasmcloud.lattice.provider_stopped"}) do
+
+        providers = state.providers
+        # TODO - remove provider from list
+
+        %State{state | providers: providers}
+    end
+
+    # This map is keyed by provider public key, which then contains a sub-map
+    # keyed by link name. The value corresponding to the link name key is a list
+    # of hosts on which that provider-link combo is running.
+    #
+    # %{
+    #    "Vxxxxxx": %{
+    #       "default" => ["Nxxxx"],
+    #       "special" => ["Nxxxx"]
+    #    }
+    # }
+    def add_provider(pk, link_name, host, previous_map) do
+        provider_map = Map.get(previous_map, pk, %{})
+        link_map = Map.get(provider_map, link_name, %{})
+        hosts_list = Map.get(link_map, link_name, [])
+        link_map = Map.put(link_map, link_name, [ host | hosts_list ])
+        Map.put(provider_map, pk, link_map)
     end
 
     #

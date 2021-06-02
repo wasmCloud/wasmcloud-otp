@@ -15,7 +15,9 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
 
     def start_executable_provider(path, public_key, link_name, contract_id) do
-        DynamicSupervisor.start_child(__MODULE__, {ProviderModule, {:executable, path, public_key, link_name, contract_id}})
+      # TODO - block the attempt to start the same triplet (pk, link, contract) twice
+
+      DynamicSupervisor.start_child(__MODULE__, {ProviderModule, {:executable, path, public_key, link_name, contract_id}})
     end
 
     def handle_info({:EXIT, _pid, reason}, state) do
@@ -36,7 +38,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
       if length(provs) == 1 do
         [{{pk, ln}, pid}] = provs
-        ProviderModule.cleanup(pid)
+        ProviderModule.cleanup(pid) # removes underlying OS process if one exists
         ProviderModule.publish_provider_stopped(pk, ln)
         Process.exit(pid, :manual_shutdown)
       end
