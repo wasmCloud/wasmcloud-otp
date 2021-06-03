@@ -42,4 +42,3 @@ npm-debug.log
 *.so
 
 .elixir_ls/
-httpserver
