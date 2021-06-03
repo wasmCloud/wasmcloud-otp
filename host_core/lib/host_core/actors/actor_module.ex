@@ -1,6 +1,6 @@
 defmodule HostCore.Actors.ActorModule do
     # Do not automatically restart this process
-    use GenServer, restart: :temporary
+    use GenServer, restart: :transient
 
     require Logger
     alias HostCore.WebAssembly.Imports
@@ -42,6 +42,10 @@ defmodule HostCore.Actors.ActorModule do
         GenServer.call(pid, :get_claims)
     end
 
+    def halt(pid) do
+        GenServer.call(pid, :halt_and_cleanup)
+    end
+
     @impl true
     def init({claims, bytes}) do
         start_actor(claims, bytes)
@@ -59,6 +63,14 @@ defmodule HostCore.Actors.ActorModule do
     def handle_call(:get_invocation, _from, agent) do
         Logger.info("Getting invocation")
         {:reply, Agent.get(agent, fn content -> content.invocation end), agent}
+    end
+
+    @impl true
+    def handle_call(:halt_and_cleanup, _from, agent) do
+        # Add cleanup if necessary here...
+        Logger.info("Actor instance termination requested")
+
+        {:stop, :normal, :ok, agent}
     end
 
     @impl true
@@ -91,7 +103,9 @@ defmodule HostCore.Actors.ActorModule do
     end
 
     defp start_actor(claims, bytes) do
+        Registry.register(Registry.ActorRegistry, claims.public_key, %{})
         HostCore.ClaimsManager.put_claims(claims)
+
 
         {:ok, agent} = Agent.start_link fn -> %State{claims: claims} end
         if claims.call_alias != nil do
