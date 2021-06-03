@@ -9,7 +9,8 @@ defmodule HostCore.Application do
     children = [
       # Starts a worker by calling: HostCore.Worker.start_link(arg)
       # {HostCore.Worker, arg}
-      {Registry, keys: :unique, name: EntityRegistry},
+      {Registry, keys: :unique, name: Registry.ProviderRegistry},
+      {Registry, keys: :duplicate, name: Registry.ActorRegistry},
       {HostCore.Host, strategy: :one_for_one, name: Host},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot},

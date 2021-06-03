@@ -32,23 +32,9 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
     def terminate_provider(public_key, link_name) do
 
-      provs = providers_by_pid()
-      |> Enum.filter(fn { {pk, ln}, _pid} -> pk == public_key && ln == link_name end)
-      |> Enum.take(1)
-
-      if length(provs) == 1 do
-        [{{pk, ln}, pid}] = provs
-        ProviderModule.cleanup(pid) # removes underlying OS process if one exists
-        ProviderModule.publish_provider_stopped(pk, ln)
-        Process.exit(pid, :manual_shutdown)
-      end
-
-    end
-
-    defp providers_by_pid() do
-      Supervisor.which_children(__MODULE__)
-      |> Enum.map(fn {_id, pid, _type_, _modules} ->
-        { ProviderModule.identity_tuple(pid), pid} end)
+      [{pid, _val}] = Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
+      Logger.info("About to terminate child process")
+      ProviderModule.halt(pid)
     end
 
 end

@@ -1,5 +1,6 @@
 defmodule HostCore.Actors.ActorSupervisor do
   use DynamicSupervisor
+  alias HostCore.Actors.ActorModule
   require Logger
 
   def start_link(init_arg) do
@@ -40,15 +41,17 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def terminate_actor(public_key, count) when count > 0 do
-    remaining = Map.get(all_actors(), public_key, []) |> Enum.count()
-    remaining = max(remaining - count, 0)
+    precount = Supervisor.which_children(HostCore.Actors.ActorSupervisor) |> length
+
+    children =
+      Registry.lookup(Registry.ActorRegistry, public_key)
+      |> Enum.take(count)
+      |> Enum.map(fn {pid, _v} -> pid end)
+
+    remaining = max(precount-count, 0)
+    children |> Enum.each(fn pid -> ActorModule.halt(pid) end)
 
     HostCore.Actors.ActorModule.publish_actor_stopped(public_key, remaining)
-
-
-    Map.get(all_actors(), public_key, [])
-    |> Enum.take(count)
-    |> Enum.each(fn pid -> Process.exit(pid, :kill) end)
 
     {:ok}
   end

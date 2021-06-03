@@ -1,5 +1,5 @@
 defmodule HostCore.Providers.ProviderModule do
-    use GenServer, restart: :temporary
+    use GenServer, restart: :transient
     require Logger
 
     defmodule State do
@@ -17,14 +17,19 @@ defmodule HostCore.Providers.ProviderModule do
         GenServer.call(pid, :identity_tuple)
     end
 
-    def cleanup(pid) do
-        GenServer.cast(pid, :cleanup)
+    def halt(pid) do
+        GenServer.call(pid, :halt_cleanup)
     end
 
 
     @impl true
     def init({:executable, path, public_key, link_name, contract_id}) do
         Logger.info("Starting executable capability provider at  '#{path}'")
+
+        # In case we want to know the contract ID of this provider, we can look it up as the
+        # bound value in the registry.
+        Registry.register(Registry.ProviderRegistry, {public_key, link_name}, contract_id)
+
         port = Port.open({:spawn, "#{path}"}, [:binary])
         {:os_pid, pid} = Port.info(port, :os_pid)
 
@@ -41,26 +46,19 @@ defmodule HostCore.Providers.ProviderModule do
     end
 
     @impl true
-    def handle_call(:cleanup, _from, state) do
+    def handle_call(:halt_cleanup, _from, state) do
+        # Elixir cleans up ports, but it doesn't always clean up the OS process it created
+        # for that port. TODO - find a clean, reliable way of killing these processes.
         if state.os_pid != nil do
             System.cmd("kill", ["-9", "#{state.os_pid}"])
         end
-        {:noreply, state}
+        publish_provider_stopped(state.public_key, state.link_name)
+        {:stop, :normal, :ok, state}
     end
 
     @impl true
     def handle_call(:identity_tuple, _from, state) do
         {:reply, {state.public_key, state.link_name}, state}
-    end
-
-    @impl true
-    def handle_call(:get_pk, _from, state) do
-        {:reply, state.public_key, state}
-    end
-
-    @impl true
-    def handle_call(:get_link_name, _from, state) do
-        {:reply, state.link_name, state}
     end
 
     @impl true
