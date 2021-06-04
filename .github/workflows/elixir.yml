@@ -1,0 +1,79 @@
+name: HostCore Elixir CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  MIX_ENV: test
+  working-directory: ./host_core
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        elixir: [1.12.1, 1.12.1-otp-23]
+        otp: [23.0, 23.3.4.1]
+    
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup elixir
+      working-directory: ${{env.working-directory}}
+      uses: actions/setup-elixir@v1
+      with:
+        elixir-version: ${{ matrix.elixir }} # Define the elixir version [required]
+        otp-version: ${{ matrix.otp }} # Define the OTP version [required]
+
+    - name: Retrieve Mix Dependencies Cache
+      working-directory: ${{env.working-directory}}
+      uses: actions/cache@v1
+      id: mix-cache #id to use in retrieve action
+      with:
+        path: deps
+        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+
+    - name: Install Mix Dependencies
+      working-directory: ${{env.working-directory}}
+      if: steps.mix-cache.outputs.cache-hit != 'true'
+      run: |
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+        
+    - name: Check Formatting
+      working-directory: ${{env.working-directory}}
+      run: mix format --check-formatted
+
+    - name: Run Credo
+      working-directory: ${{env.working-directory}}
+      run: mix credo --strict
+
+    - name: Run Tests
+      working-directory: ${{env.working-directory}}
+      run: mix test
+
+    - name: Retrieve PLT Cache
+      working-directory: ${{env.working-directory}}
+      uses: actions/cache@v1
+      id: plt-cache
+      with:
+        path: priv/plts
+        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+
+    - name: Create PLTs
+      working-directory: ${{env.working-directory}}
+      if: steps.plt-cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p priv/plts
+        mix dialyzer --plt
+    - name: Run dialyzer
+      working-directory: ${{env.working-directory}}
+      run: mix dialyzer --no-check --halt-exit-status
+
+# Thank you https://hashrocket.com/blog/posts/build-the-ultimate-elixir-ci-with-github-actions for this action setup
