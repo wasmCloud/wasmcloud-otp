@@ -39,7 +39,7 @@ jobs:
       id: mix-cache #id to use in retrieve action
       with:
         path: deps
-        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, 'host_core/mix.lock')) }}
 
     - name: Install Mix Dependencies
       working-directory: ${{env.working-directory}}
@@ -66,7 +66,7 @@ jobs:
       id: plt-cache
       with:
         path: priv/plts
-        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles(format('{0}{1}', github.workspace, 'host_core/mix.lock')) }}
 
     - name: Create PLTs
       working-directory: ${{env.working-directory}}
