@@ -86,7 +86,6 @@ defmodule HostCore.Actors.ActorModule do
     Logger.info("Received invocation on #{topic}")
     # TODO - handle failure
     {:ok, inv} = Msgpax.unpack(body)
-    IO.inspect(inv)
     # TODO error handle
     # TODO refactor perform invocation so it's not required to run from inside handle_call
     {:ok, response} = perform_invocation(agent, inv["operation"], :binary.list_to_bin(inv["msg"]))
@@ -127,7 +126,6 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp perform_invocation(agent, operation, payload) do
-    IO.inspect(payload)
     Logger.info("performing invocation #{operation}")
     raw_state = Agent.get(agent, fn content -> content end)
 

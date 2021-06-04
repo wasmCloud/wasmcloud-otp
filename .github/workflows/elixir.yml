@@ -51,6 +51,7 @@ jobs:
         
     - name: Check Formatting
       working-directory: ${{env.working-directory}}
+      continue-on-error: true # Don't fail entire action with refactoring opportunities
       run: mix format --check-formatted
 
     - name: Run Credo
