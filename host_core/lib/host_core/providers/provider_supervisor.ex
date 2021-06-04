@@ -13,12 +13,16 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def start_executable_provider(path, public_key, link_name, contract_id) do
-    # TODO - block the attempt to start the same triplet (pk, link, contract) twice
+    case Registry.count_match(Registry.ProviderRegistry, {public_key, link_name}, :_) do
+      0 ->
+        DynamicSupervisor.start_child(
+          __MODULE__,
+          {ProviderModule, {:executable, path, public_key, link_name, contract_id}}
+        )
 
-    DynamicSupervisor.start_child(
-      __MODULE__,
-      {ProviderModule, {:executable, path, public_key, link_name, contract_id}}
-    )
+      _ ->
+        {:error, "Provider is already running on this host"}
+    end
   end
 
   def handle_info({:EXIT, _pid, reason}, state) do
@@ -37,32 +41,30 @@ defmodule HostCore.Providers.ProviderSupervisor do
     ProviderModule.halt(pid)
   end
 
+  @doc """
+  Produces a list of tuples in the form of {public_key, link_name, contract_id}
+  of all of the current providers running
+  """
   def all_providers() do
-    children()
-    |> get_key()
-    |> get_value()
-  end
-
-  defp children() do
     Supervisor.which_children(HostCore.Providers.ProviderSupervisor)
-  end
-
-  defp get_key(children) do
-    children
-    |> Enum.flat_map(fn {_id, pid, _type, _modules} ->
-      Registry.keys(Registry.ProviderRegistry, pid)
+    |> Enum.map(fn {_d, pid, _type, _modules} ->
+      provider_for_pid(pid)
     end)
   end
 
-  defp get_value(provlist) do
-    provlist
-    |> Enum.map(fn {pk, link_name} ->
-      {pk, link_name,
-       Registry.lookup(Registry.ProviderRegistry, {pk, link_name}) |> clean_lookup()}
-    end)
+  def provider_for_pid(pid) do
+    case List.first(Registry.keys(Registry.ProviderRegistry, pid)) do
+      {public_key, link_name} ->
+        {public_key, link_name, lookup_contract_id(public_key, link_name)}
+
+      nil ->
+        nil
+    end
   end
 
-  defp clean_lookup([{_pid, contract_id}]) do
-    contract_id
+  defp lookup_contract_id(public_key, link_name) do
+    Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
+    |> Enum.map(fn {_pid, contract_id} -> contract_id end)
+    |> List.first()
   end
 end
