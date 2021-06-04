@@ -13,16 +13,17 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def start_executable_provider(path, public_key, link_name, contract_id) do
-    case Registry.count_match(Registry.ProviderRegistry, {public_key, link_name}, :_) do
-      0 ->
-        DynamicSupervisor.start_child(
-          __MODULE__,
-          {ProviderModule, {:executable, path, public_key, link_name, contract_id}}
-        )
+    # TODO - block the attempt to start the same triplet (pk, link, contract) twice
 
-      _ ->
-        {:error, "Provider is already running on this host"}
-    end
+    DynamicSupervisor.start_child(
+      __MODULE__,
+      {ProviderModule, {:executable, path, public_key, link_name, contract_id}}
+    )
+  end
+
+  def handle_info({:EXIT, _pid, reason}, state) do
+    Logger.info("A child process died: #{reason}")
+    {:noreply, state}
   end
 
   def handle_info(msg, state) do
@@ -34,32 +35,5 @@ defmodule HostCore.Providers.ProviderSupervisor do
     [{pid, _val}] = Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
     Logger.info("About to terminate child process")
     ProviderModule.halt(pid)
-  end
-
-  @doc """
-  Produces a list of tuples in the form of {public_key, link_name, contract_id}
-  of all of the current providers running
-  """
-  def all_providers() do
-    Supervisor.which_children(HostCore.Providers.ProviderSupervisor)
-    |> Enum.map(fn {_d, pid, _type, _modules} ->
-      provider_for_pid(pid)
-    end)
-  end
-
-  def provider_for_pid(pid) do
-    case List.first(Registry.keys(Registry.ProviderRegistry, pid)) do
-      {public_key, link_name} ->
-        {public_key, link_name, lookup_contract_id(public_key, link_name)}
-
-      nil ->
-        nil
-    end
-  end
-
-  defp lookup_contract_id(public_key, link_name) do
-    Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
-    |> Enum.map(fn {_pid, contract_id} -> contract_id end)
-    |> List.first()
   end
 end

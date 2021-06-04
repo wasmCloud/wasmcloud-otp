@@ -31,10 +31,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   of all of the pids (running instances) of that actor.
   """
   def all_actors() do
-    Supervisor.which_children(HostCore.Actors.ActorSupervisor)
-    |> Enum.map(fn {_id, pid, _type_, _modules} ->
-      {List.first(Registry.keys(Registry.ActorRegistry, pid)), pid}
-    end)
+    actors_by_pid()
     |> Enum.group_by(fn {k, _p} -> k end, fn {_k, p} -> p end)
   end
 
@@ -56,5 +53,12 @@ defmodule HostCore.Actors.ActorSupervisor do
     HostCore.Actors.ActorModule.publish_actor_stopped(public_key, remaining)
 
     {:ok}
+  end
+
+  defp actors_by_pid() do
+    Supervisor.which_children(HostCore.Actors.ActorSupervisor)
+    |> Enum.map(fn {_id, pid, _type_, _modules} ->
+      {HostCore.Actors.ActorModule.claims(pid).public_key, pid}
+    end)
   end
 end

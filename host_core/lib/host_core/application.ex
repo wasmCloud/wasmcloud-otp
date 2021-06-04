@@ -22,8 +22,7 @@ defmodule HostCore.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: HostCore.Supervisor]
 
-    IO.puts "Starting Host Core"
+    IO.puts("Starting Host Core")
     Supervisor.start_link(children, opts)
   end
-
 end

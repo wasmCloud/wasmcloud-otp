@@ -103,7 +103,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp start_actor(claims, bytes) do
-    Registry.register(Registry.ActorRegistry, claims.public_key, claims)
+    Registry.register(Registry.ActorRegistry, claims.public_key, %{})
     HostCore.ClaimsManager.put_claims(claims)
 
     {:ok, agent} = Agent.start_link(fn -> %State{claims: claims} end)
