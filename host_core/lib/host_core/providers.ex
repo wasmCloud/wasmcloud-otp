@@ -1,4 +1,7 @@
-defmodule HostCore.Providers do        
+defmodule HostCore.Providers do
+    @moduledoc """
+    Documentation for `HostCore.Providers`.
+    """
 
     @doc """
     Retrieves a provider's public key from the cache using a tuple of the namespace
@@ -11,6 +14,6 @@ defmodule HostCore.Providers do
             [pk] -> {:ok, pk}
             [] -> :error
         end
-    end    
+    end
 
 end
