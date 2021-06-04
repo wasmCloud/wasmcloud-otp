@@ -34,7 +34,9 @@ defmodule HostCore.MixProject do
       {:rustler, "~> 0.21.1"},
       {:gnat, "~> 1.2"},
       {:cloudevents, "~> 0.4.0"},
-      {:uuid, "~> 1.1"}
+      {:uuid, "~> 1.1"},
+      {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false}
       # {:grpc, "~> 0.5.0-beta.1"}
       # { :benchwarmer, "~> 0.0.2" }
       # {:dep_from_hexpm, "~> 0.3.0"},

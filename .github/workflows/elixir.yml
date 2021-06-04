@@ -76,6 +76,6 @@ jobs:
         mix dialyzer --plt
     - name: Run dialyzer
       working-directory: ${{env.working-directory}}
-      run: mix dialyzer --no-check --halt-exit-status
+      run: mix dialyzer --no-check
 
 # Thank you https://hashrocket.com/blog/posts/build-the-ultimate-elixir-ci-with-github-actions for this action setup
