@@ -1,4 +1,8 @@
 defmodule HostCore.Providers do
+  @moduledoc """
+  Documentation for `HostCore.Providers`.
+  """
+
   @doc """
   Retrieves a provider's public key from the cache using a tuple of the namespace
   and link name as a key. For example, to get the public key of the provider currently

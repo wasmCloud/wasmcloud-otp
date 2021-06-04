@@ -86,6 +86,7 @@ defmodule HostCore.Actors.ActorModule do
     Logger.info("Received invocation on #{topic}")
     # TODO - handle failure
     {:ok, inv} = Msgpax.unpack(body)
+    IO.inspect(inv)
     # TODO error handle
     # TODO refactor perform invocation so it's not required to run from inside handle_call
     {:ok, response} = perform_invocation(agent, inv["operation"], :binary.list_to_bin(inv["msg"]))
@@ -102,7 +103,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp start_actor(claims, bytes) do
-    Registry.register(Registry.ActorRegistry, claims.public_key, %{})
+    Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.ClaimsManager.put_claims(claims)
 
     {:ok, agent} = Agent.start_link(fn -> %State{claims: claims} end)
@@ -126,6 +127,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp perform_invocation(agent, operation, payload) do
+    IO.inspect(payload)
     Logger.info("performing invocation #{operation}")
     raw_state = Agent.get(agent, fn content -> content end)
 
