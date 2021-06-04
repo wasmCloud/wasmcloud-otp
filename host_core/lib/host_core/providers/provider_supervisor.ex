@@ -25,11 +25,6 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  def handle_info({:EXIT, _pid, reason}, state) do
-    Logger.info("A child process died: #{reason}")
-    {:noreply, state}
-  end
-
   def handle_info(msg, state) do
     Logger.error("Supervisor received unexpected message: #{inspect(msg)}")
     {:noreply, state}
