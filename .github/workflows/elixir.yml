@@ -14,8 +14,13 @@ jobs:
   build:
     strategy:
       matrix:
-        elixir: [1.12.1, 1.12.1-otp-23]
-        otp: [23.0, 23.3.4.1]
+        elixir: [1.12.1] #, 1.12.1-otp-23]
+        otp: [23.0] #, 23.3.4.1]
+    services:
+      nats:
+        image: nats
+        ports:
+          - 4222:4222
     
     name: Build and test
     runs-on: ubuntu-latest
@@ -24,7 +29,6 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Setup elixir
-      working-directory: ${{env.working-directory}}
       uses: actions/setup-elixir@v1
       with:
         elixir-version: ${{ matrix.elixir }} # Define the elixir version [required]
