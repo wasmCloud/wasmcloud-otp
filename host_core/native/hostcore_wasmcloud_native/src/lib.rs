@@ -18,6 +18,12 @@ pub struct Claims {
     tags: Option<Vec<String>>,
 }
 
+#[derive(NifUnitEnum)]
+pub enum TargetType {
+    Actor,
+    Provider,
+}
+
 #[derive(Debug, Copy, Clone, NifUnitEnum)]
 pub enum KeyType {
     Server,
@@ -30,10 +36,16 @@ pub enum KeyType {
 }
 
 mod atoms;
+mod inv;
 
 rustler::init!(
     "Elixir.HostCore.WasmCloud.Native",
-    [extract_claims, generate_key]
+    [
+        extract_claims,
+        generate_key,
+        generate_invocation_bytes,
+        validate_antiforgery
+    ]
 );
 
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
@@ -96,4 +108,43 @@ fn generate_key<'a>(key_type: KeyType) -> Result<(String, String), Error> {
     let pk = kp.public_key();
 
     Ok((pk, seed))
+}
+
+#[rustler::nif]
+fn generate_invocation_bytes<'a>(
+    host_seed: String,
+    origin: String, // always comes from actor
+    target_type: TargetType,
+    target_key: String,
+    target_contract_id: String,
+    target_link_name: String,
+    operation: String,
+    msg: Binary,
+) -> Result<Vec<u8>, Error> {
+    let inv = inv::Invocation::new(
+        &KeyPair::from_seed(&host_seed).unwrap(),
+        inv::WasmCloudEntity::Actor(origin.into()),
+        if let TargetType::Actor = target_type {
+            inv::WasmCloudEntity::Actor(target_key.to_string())
+        } else {
+            inv::WasmCloudEntity::Capability {
+                link_name: target_link_name.into(),
+                contract_id: target_contract_id.into(),
+                id: target_key.into(),
+            }
+        },
+        &operation,
+        msg.as_slice().to_vec(),
+    );    
+    Ok(inv::serialize(&inv).unwrap())
+}
+
+#[rustler::nif]
+fn validate_antiforgery<'a>(inv: Binary) -> Result<(), Error> {    
+    inv::deserialize::<inv::Invocation>(inv.as_slice())
+        .map_err(|_e| rustler::Error::Atom("Failed to deserialize invocation"))
+        .and_then(|i| {
+            i.validate_antiforgery()
+                .map_err(|_e| rustler::Error::Atom("Validation of invocation/AF token failed"))
+        })
 }

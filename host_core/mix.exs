@@ -12,9 +12,6 @@ defmodule HostCore.MixProject do
         hostcore_wasmcloud_native: [
           mode: if(Mix.env() == :prod, do: :release, else: :debug)
         ],
-        lattice_rpc: [
-          mode: if(Mix.env() == :prod, do: :release, else: :debug)
-        ]
       ],
       deps: deps(),
       dialyzer: dialyzer()

@@ -98,7 +98,7 @@ defmodule HostCore.Actors.ActorModule do
 
     IO.inspect(ir)
 
-    Gnat.pub(:lattice_nats, reply_to, ir |> Msgpax.pack!())
+    Gnat.pub(:lattice_nats, reply_to, ir |> Msgpax.pack!() |> IO.iodata_to_binary)
     {:noreply, agent}
   end
 
