@@ -40,3 +40,5 @@ npm-debug.log
 /priv/static/
 
 *.so
+
+.elixir_ls/

@@ -16,11 +16,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
 
     @impl true
-    def init(opts) do
-        state = %State{ actors: [], providers: [], linkdefs: %{}, refmaps: %{}, claims: %{}}
+    def init(_opts) do
+        state = %State{ actors: %{}, providers: %{}, linkdefs: %{}, refmaps: %{}, claims: %{}}
         prefix = HostCore.Host.lattice_prefix()
-        
-        topic = "wasmbus.ctl.#{prefix}.events"        
+
+        topic = "wasmbus.ctl.#{prefix}.events"
         {:ok, _sub} = Gnat.sub(:control_nats, self(), topic)
 
         ldtopic = "wasmbus.rpc.#{prefix}.*.*.linkdefs.*"
@@ -53,7 +53,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
 
     @impl true
-    def handle_info({:msg, 
+    def handle_info({:msg,
                         %{body: body,
                         topic: topic}
                     }, state) do
@@ -65,12 +65,12 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
                 handle_linkdef(state, body, topic)
             String.contains?(topic, ".claims.") ->
                 handle_claims(state, body, topic)
-        end  
-        IO.inspect state      
+        end
+        IO.inspect state
 
         {:noreply, state}
     end
-    
+
     def get_actors() do
         GenServer.call(:state_monitor, :actor_query)
     end
@@ -98,7 +98,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
             Map.put(state.linkdefs, key, map)
         else
             Map.delete(state.linkdefs, key)
-        end        
+        end
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
         %State{state | linkdefs: linkdefs }
     end
@@ -106,8 +106,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     defp handle_claims(state, body, topic) do
         Logger.info "Handling claims state"
         cmd = topic |> String.split(".") |> Enum.at(4)
-        claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end) 
-        
+        claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
+
         cmap = if cmd == "put" do
             Map.put(state.claims, claims.public_key, claims)
         else
@@ -120,38 +120,108 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     defp handle_event(state, body) do
         evt = body
-                |> Cloudevents.from_json!        
+                |> Cloudevents.from_json!
         process_event(state, evt)
-    end        
-    
-    defp process_event(state, 
+    end
+
+    defp process_event(state,
         %Cloudevents.Format.V_1_0.Event{
             data: %{
             "public_key" => pk
             },
-            datacontenttype: "application/json",        
+            source: source_host,
+            datacontenttype: "application/json",
             type: "com.wasmcloud.lattice.actor_started"
         }
       ) do
 
-        actors = [pk | state.actors ]
+        actors = add_actor(pk, source_host, state.actors)
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
         %State{state | actors: actors}
     end
 
-    defp process_event(state, 
+    defp process_event(state,
+        %Cloudevents.Format.V_1_0.Event{
+            data: %{"public_key" => public_key,
+                    "running_instances" => remaining_count},
+            datacontenttype: "application/json",
+            source: source_host,
+            type: "com.wasmcloud.lattice.actor_stopped"}) do
+
+        actors = set_actor_count(public_key, source_host, remaining_count, state.actors)
+        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
+        %State{state | actors: actors}
+    end
+
+    defp process_event(state,
         %Cloudevents.Format.V_1_0.Event{
             data: %{
-            "public_key" => pk
+                "public_key"  => pk,
+                "link_name"   => link_name,
+                "contract_id" => _contract_id
             },
-            datacontenttype: "application/json",        
+            source: source_host,
+            datacontenttype: "application/json",
             type: "com.wasmcloud.lattice.provider_started"
         }
       ) do
-        
-        providers = [pk | state.providers ]
+
+        providers = add_provider(pk, link_name, source_host, state.providers)
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:providers, providers})
         %State{state | providers: providers}
     end
-    
+
+    defp process_event(state,
+        %Cloudevents.Format.V_1_0.Event{
+            data: %{"link_name" => _link_name,
+                   "public_key" => _pk},
+            datacontenttype: "application/json",
+            source: _source_host,
+            type: "com.wasmcloud.lattice.provider_stopped"}) do
+
+        providers = state.providers
+        # TODO - remove provider from list
+
+        %State{state | providers: providers}
+    end
+
+    # This map is keyed by provider public key, which then contains a sub-map
+    # keyed by link name. The value corresponding to the link name key is a list
+    # of hosts on which that provider-link combo is running.
+    #
+    # %{
+    #    "Vxxxxxx": %{
+    #       "default" => ["Nxxxx"],
+    #       "special" => ["Nxxxx"]
+    #    }
+    # }
+    def add_provider(pk, link_name, host, previous_map) do
+        provider_map = Map.get(previous_map, pk, %{})
+        link_map = Map.get(provider_map, link_name, %{})
+        hosts_list = Map.get(link_map, link_name, [])
+        link_map = Map.put(link_map, link_name, [ host | hosts_list ])
+        Map.put(provider_map, pk, link_map)
+    end
+
+    #
+    # %{
+    #    "Mxxxxx"  : %{
+    #       "Nxxxxx": 3,
+    #       "Nxxxxy": 2,
+    #    }
+    #  }
+    def add_actor(pk, host, previous_map) do
+        actor_map = Map.get(previous_map, pk, %{})
+        count = Map.get(actor_map, host, 0)
+        count = count + 1
+        actor_map = Map.put(actor_map, host, count)
+        Map.put(previous_map, pk, actor_map)
+    end
+
+    defp set_actor_count(pk, host, count, previous_map) do
+        actor_map = Map.get(previous_map, pk, %{})
+        actor_map = Map.put(actor_map, host, count)
+        Map.put(previous_map, pk, actor_map)
+    end
+
 end

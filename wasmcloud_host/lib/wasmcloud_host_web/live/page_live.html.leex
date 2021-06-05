@@ -5,8 +5,8 @@
 <section class="row">
   <article class="column">
     <h2>Actors</h2>
-    <%= for actor <- @actors do %>
-      <span><%= actor %></span>
+    <%= for {actor, instance_count} <- @actors do %>
+      <span><%= actor %> (<%= instance_count %>)</span>
     <% end %>
   </article>
   <article class="column">
