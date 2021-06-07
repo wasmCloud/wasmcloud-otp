@@ -2,6 +2,7 @@ defmodule HostCore.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
+  require Logger
 
   use Application
 
@@ -22,7 +23,7 @@ defmodule HostCore.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: HostCore.Supervisor]
 
-    IO.puts("Starting Host Core")
+    Logger.info("Starting Host Core")
     Supervisor.start_link(children, opts)
   end
 end
