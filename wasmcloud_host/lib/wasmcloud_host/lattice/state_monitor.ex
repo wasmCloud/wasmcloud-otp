@@ -66,7 +66,6 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
             String.contains?(topic, ".claims.") ->
                 handle_claims(state, body, topic)
         end
-        IO.inspect state
 
         {:noreply, state}
     end
