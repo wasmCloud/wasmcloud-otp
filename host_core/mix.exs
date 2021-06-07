@@ -14,7 +14,7 @@ defmodule HostCore.MixProject do
         ]
       ],
       deps: deps(),
-      dialyzer: dialyzer()
+			dialyzer: [plt_add_deps: :apps_direct]
     ]
   end
 
@@ -44,11 +44,4 @@ defmodule HostCore.MixProject do
     ]
   end
 
-  # Setup dialyzer
-  defp dialyzer do
-    [
-      plt_core_path: "priv/plts",
-      plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
-    ]
-  end
 end
