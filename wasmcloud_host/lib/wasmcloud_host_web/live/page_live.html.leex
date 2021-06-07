@@ -1,36 +1,101 @@
-<section class="phx-hero">
-  <h1>wasmCloud Host</h1>
-  <p>From Napkin to Production, via the Cloud</p>
-
-<section class="row">
-  <article class="column">
-    <h2>Actors</h2>
-    <%= for {actor, instance_count} <- @actors do %>
-      <span><%= actor %> (<%= instance_count %>)</span>
-    <% end %>
-  </article>
-  <article class="column">
-    <h2>Providers</h2>
-    <%= for provider <- @providers do %>
-      <span><%= provider %></span>
-    <% end %>
-  </article>
-  <article class="column">
-    <h2>Link Definitions</h2>
-    <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
-      <span><%= actor_id %></span>
-      <span><%= contract_id %></span>
-      <span><%= link_name %></span>
-      <span><%= v.provider_key %></span>
-    <% end %>
-  </article>
-</section>
-<section class="row">
-  <article class="column">
-    <h2>Claims</h2>
-    <%= for {k, v} <- @claims do %>
-      <span><%= k %></span>
-      <span><%= v.name%></span>
-    <% end %>
-  </article>
-</section>
+<div class="col-sm-12 col-xl-12">
+  <div class="jumbotron jumbotron-fluid">
+    <div class="container">
+      <h1 class="display-3">wasmCloud Host</h1>
+      <p class="lead">From Napkin to Production, via the Cloud</p>
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="col-lg-12">
+    <div class="card">
+      <div class="card-header">
+        <h3>Actors</h3>
+      </div>
+      <div class="card-body">
+        <table class="table table-responsive-sm table-bordered table-striped table-sm">
+          <thead>
+            <tr>
+              <th>Actor ID</th>
+              <th>Name</th>
+              <th>Instance Count</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for {actor, instance_count} <- @actors do %>
+              <tr>
+                <td><%= actor %></td>
+                <%= for {k, v} <- @claims do %>
+                  <%= if k == actor do %>
+                    <td><%= v.name %> </td>
+                  <% end %>
+                <% end %>
+                <td><%= instance_count %></td>
+                <td><span class="badge badge-success">Healthy</span></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- /.col-->
+</div>
+<div class="row">
+  <div class="col-lg-12">
+    <div class="card">
+      <div class="card-header">
+        <h3>Providers</h3>
+      </div>
+      <div class="card-body">
+        <table class="table table-responsive-sm table-bordered table-striped table-sm">
+          <thead>
+            <tr>
+              <th>Provider ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for provider <- @providers do %>
+              <tr>
+                <td><%= provider %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="col-lg-12">
+    <div class="card">
+      <div class="card-header">
+        <h3>Link Definitions</h3>
+      </div>
+      <div class="card-body">
+        <table class="table table-responsive-sm table-bordered table-striped table-sm">
+          <thead>
+            <tr>
+              <th>Actor ID</th>
+              <th>Contract ID</th>
+              <th>Link Name</th>
+              <th>Provider ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
+              <td>
+                <tr><%= actor_id %></tr>
+                <tr><%= contract_id %></tr>
+                <tr><%= link_name %></tr>
+                <tr><%= v.provider_key %></tr>
+              </td>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- /.col-->
+</div>

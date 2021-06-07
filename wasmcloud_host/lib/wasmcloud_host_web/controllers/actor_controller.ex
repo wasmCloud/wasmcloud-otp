@@ -9,10 +9,8 @@ defmodule WasmcloudHostWeb.ActorController do
       {:ok, bytes} = File.read(upload.path)
 
       if replicas = params["replicas"] do
-        Enum.each(
-          1..String.to_integer(replicas),
-          fn _ -> HostCore.Actors.ActorSupervisor.start_actor(bytes) end
-        )
+        1..String.to_integer(replicas)
+        |> Enum.each(fn _ -> HostCore.Actors.ActorSupervisor.start_actor(bytes) end)
       end
     end
 
