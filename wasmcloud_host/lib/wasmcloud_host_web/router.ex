@@ -18,6 +18,7 @@ defmodule WasmcloudHostWeb.Router do
     pipe_through :browser
 
     live "/", PageLive, :index
+    post "/start_actor", ActorController, :start_actor
   end
 
   # Other scopes may use custom stacks.

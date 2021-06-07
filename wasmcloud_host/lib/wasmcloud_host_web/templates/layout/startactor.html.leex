@@ -1,0 +1,31 @@
+<div class="card">
+  <div class="card-header"><strong>Start Actor</strong></div>
+  <div class="card-body">
+    <%# <form class="form-horizontal" action="javascript:testThing()" method="post" enctype="multipart/form-data"> %>
+    <form class="form-horizontal" onSubmit="(evt) => console.log(evt)" action="/start_actor" method="post" enctype="multipart/form-data">
+      <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
+      <div class="form-group row">
+        <label class="col-md-3 col-form-label" for="file-input">From File </label>
+        <div class="col-md-9">
+          <input id="file-input" type="file" name="actor_file" accept=".wasm">
+        </div>
+      </div>
+      <div class="form-group row">
+        <label class="col-md-3 col-form-label" for="text-input">From OCI</label>
+        <div class="col-md-9">
+          <input class="form-control" id="text-input" type="text" name="actor_ociref" placeholder="wasmcloud.azurecr.io/echo:0.2.1">
+        </div>
+      </div>
+      <div class="form-group row">
+        <label class="col-md-3 col-form-label" for="text-input">Replicas</label>
+        <div class="col-md-9">
+          <input class="form-control" id="number-input" type="number" name="replicas" placeholder="1" value="1"><span class="help-block">Enter how many instances of this actor you want</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-sm btn-primary" type="submit" value="Submit"> Submit</button>
+        <button class="btn btn-sm btn-danger" type="reset"> Reset</button>
+      </div>
+    </form>
+  </div>
+</div>

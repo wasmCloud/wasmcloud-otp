@@ -112,8 +112,9 @@
           <div class="container-fluid">
             <div class="fade-in">
               <div class="row"></div>
-                <!-- Displays view -->
-                <%= @inner_content %>
+              <!-- Displays view -->
+              <%= @inner_content %>
+              <%= render("startactor.html", message: "Hello!") %>
               <!-- /.row-->
             </div>
           </div>
@@ -124,7 +125,6 @@
         <div class="mfs-auto">Powered by&nbsp;<a href="https://coreui.io/pro/">CoreUI Pro</a></div>
       </footer>
     </div>
-
     <!-- Transition on-load -->
     <script>
       document.addEventListener("DOMContentLoaded", function(event) {
