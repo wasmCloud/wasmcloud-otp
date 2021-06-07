@@ -294,3 +294,46 @@ pub fn deserialize<'de, T: Deserialize<'de>>(
         Err(e) => Err(format!("Failed to de-serialize: {}", e).into()),
     }
 }
+
+
+#[cfg(test)]
+mod test {
+    use super::{Invocation, WasmCloudEntity};
+    use wascap::prelude::KeyPair;
+
+    #[test]
+    fn invocation_antiforgery() {
+        let hostkey = KeyPair::new_server();
+        // As soon as we create the invocation, the claims are baked and signed with the hash embedded.
+        let inv = Invocation::new(
+            &hostkey,
+            WasmCloudEntity::Actor("testing".into()),
+            WasmCloudEntity::Capability {
+                id: "Vxxx".to_string(),
+                contract_id: "wasmcloud:messaging".into(),
+                link_name: "default".into(),
+            },
+            "OP_TESTING",
+            vec![1, 2, 3, 4],
+        );
+
+        // Obviously an invocation we just created should pass anti-forgery check
+        assert!(inv.validate_antiforgery().is_ok());
+
+        // Let's tamper with the invocation and we should hit the hash check first
+        let mut bad_inv = inv.clone();
+        bad_inv.target = WasmCloudEntity::Actor("BADACTOR-EXFILTRATOR".into());
+        assert!(bad_inv.validate_antiforgery().is_err());
+
+        // Alter the payload and we should also hit the hash check
+        let mut really_bad_inv = inv.clone();
+        really_bad_inv.msg = vec![5, 4, 3, 2];
+        assert!(really_bad_inv.validate_antiforgery().is_err());
+
+        // And just to double-check the routing address
+        assert_eq!(
+            inv.target_url(),
+            "wasmbus://wasmcloud/messaging/default/Vxxx/OP_TESTING"
+        );
+    }
+}
