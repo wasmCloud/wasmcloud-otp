@@ -9,8 +9,21 @@
 <div class="row">
   <div class="col-lg-12">
     <div class="card">
-      <div class="card-header">
-        <h3>Actors</h3>
+      <div class="card-header justify-content-between">
+        <div class="row justify-content-between">
+          <div class="col-lg-2 col-sm-3">
+            <h3>Actors</h3>
+          </div>
+          <div class="mfe-2">
+            <div class="dropdown d-inline-block">
+              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
+              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                <a class="dropdown-item" href="#">From File</a>
+                <a class="dropdown-item" href="#">From OCI</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="card-body">
         <table class="table table-responsive-sm table-bordered table-striped table-sm">
