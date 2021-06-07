@@ -1,21 +1,21 @@
-rustler::rustler_atoms! {
-    atom ok;
-    atom error;
+rustler::atoms! {
+    ok,
+    error,
 
     /// Server key type
-    atom server;
+    server,
     /// Cluster key type
-    atom cluster;
+    cluster,
     /// Operator key type
-    atom operator;
+    operator,
     /// Account key type
-    atom account;
+    account,
     /// User key type
-    atom user;
+    user,
     /// Module key type (actor)
-    atom module;
+    module,
     /// Service provider key type
-    atom provider;
+    provider,
     //atom __true__ = "true";
     //atom __false__ = "false";
 }

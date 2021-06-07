@@ -10,8 +10,13 @@ path = "src/lib.rs"
 crate-type = ["dylib"]
 
 [dependencies]
-rustler = "0.21.1"
+rustler = "0.22.0-rc.1"
 lazy_static = "1.0"
-serde_rustler = "0.1.0"
+serde = {version = "1.0.126", features = ["derive"] }
 nkeys = "0.1.0"
 wascap = "0.6.0"
+ring = "0.16.20"
+uuid = {version = "0.8.2", features = ["v4"]}
+data-encoding = "2.3.2"
+rmp = "0.8.10"
+rmp-serde = "0.15.4"
