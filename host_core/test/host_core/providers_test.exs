@@ -16,6 +16,7 @@ defmodule HostCore.ProvidersTest do
       )
 
     Process.sleep(1000)
+
     assert HostCore.Providers.ProviderSupervisor.all_providers() == [
              {@httpserver_key, @httpserver_link, @httpserver_contract}
            ]
@@ -33,7 +34,10 @@ defmodule HostCore.ProvidersTest do
         @httpserver_link,
         @httpserver_contract
       )
-    Process.sleep(1000) # give provider a moment to load
+
+    # give provider a moment to load
+    Process.sleep(1000)
+
     assert HostCore.Providers.ProviderSupervisor.all_providers() == [
              {@httpserver_key, @httpserver_link, @httpserver_contract}
            ]

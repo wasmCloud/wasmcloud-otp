@@ -11,7 +11,7 @@ defmodule HostCore.MixProject do
       rustler_crates: [
         hostcore_wasmcloud_native: [
           mode: if(Mix.env() == :prod, do: :release, else: :debug)
-        ],
+        ]
       ],
       deps: deps(),
       dialyzer: dialyzer()

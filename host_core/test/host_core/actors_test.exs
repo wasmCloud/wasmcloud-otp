@@ -11,7 +11,6 @@ defmodule HostCore.ActorsTest do
   @httpserver_link "default"
   @httpserver_contract "wasmcloud:httpserver"
 
-
   test "can load actors" do
     {:ok, bytes} = File.read("priv/actors/echo_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
@@ -36,30 +35,36 @@ defmodule HostCore.ActorsTest do
 
     {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
-    req = %{
-      body: "hello",
-      header: %{},
-      path: "/",
-      queryString: "",
-      method: "GET"
-    } |> Msgpax.pack!() |> IO.iodata_to_binary()
+    req =
+      %{
+        body: "hello",
+        header: %{},
+        path: "/",
+        queryString: "",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
 
-    inv = HostCore.WasmCloud.Native.generate_invocation_bytes(
-      seed,
-      "system",
-      :provider,
-      @httpserver_key,
-      @httpserver_contract,
-      @httpserver_link,
-      "HandleRequest",
-      req)
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HandleRequest",
+        req
+      )
 
     topic = "wasmbus.rpc.default.#{@echo_key}"
 
-    res = case Gnat.request(:lattice_nats, topic, inv,  receive_timeout: 2_000) do
-      {:ok, %{body: body}} -> body
-      {:error, :timeout} -> :fail
-    end
+    res =
+      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+        {:ok, %{body: body}} -> body
+        {:error, :timeout} -> :fail
+      end
 
     assert res != :fail
     HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
@@ -71,7 +76,8 @@ defmodule HostCore.ActorsTest do
     assert payload["header"] == %{}
     assert payload["status"] == "OK"
     assert payload["statusCode"] == 200
-    assert payload["body"] == "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"HEYOOO\",\"headers\":{},\"body\":[104,101,108,108,111]}"
 
+    assert payload["body"] ==
+             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"HEYOOO\",\"headers\":{},\"body\":[104,101,108,108,111]}"
   end
 end
