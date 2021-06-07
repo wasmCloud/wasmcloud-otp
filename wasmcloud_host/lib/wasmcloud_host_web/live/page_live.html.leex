@@ -38,7 +38,14 @@
           <tbody>
             <%= for {actor, instance_count} <- @actors do %>
               <tr>
-                <td><%= actor %></td>
+                <td>
+                  <button class="btn btn-primary btn-sm" id="showtoast" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')">
+                    <%= String.slice(actor, 0..4) %>...
+                    <svg class="c-icon">
+                      <use xlink:href="/coreui/free.svg#cil-clipboard"></use>
+                    </svg>&nbsp;
+                  </button>
+                </td>
                 <%= for {k, v} <- @claims do %>
                   <%= if k == actor do %>
                     <td><%= v.name %> </td>
