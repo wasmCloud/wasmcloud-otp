@@ -15,22 +15,27 @@ defmodule HostCore.WasmCloud.NativeTest do
   test "produces invocation bytes" do
     {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
-    req = %{
-      body: "hello",
-      header: %{},
-      path: "/",
-      method: "GET"
-    } |> Msgpax.pack!() |> IO.iodata_to_binary()
+    req =
+      %{
+        body: "hello",
+        header: %{},
+        path: "/",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
 
-    inv = HostCore.WasmCloud.Native.generate_invocation_bytes(
-      seed,
-      "system",
-      :provider,
-      @httpserver_key,
-      @httpserver_contract,
-      @httpserver_link,
-      "HandleRequest",
-      req)
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HandleRequest",
+        req
+      )
 
     decinv = inv |> Msgpax.unpack!()
 

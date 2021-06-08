@@ -11,10 +11,10 @@ defmodule HostCore.MixProject do
       rustler_crates: [
         hostcore_wasmcloud_native: [
           mode: if(Mix.env() == :prod, do: :release, else: :debug)
-        ],
+        ]
       ],
       deps: deps(),
-      dialyzer: dialyzer()
+      dialyzer: [plt_add_deps: :apps_direct]
     ]
   end
 
@@ -34,19 +34,13 @@ defmodule HostCore.MixProject do
       {:rustler, "~> 0.21.1"},
       {:gnat, "~> 1.2"},
       {:cloudevents, "~> 0.4.0"},
-      {:uuid, "~> 1.1"}
+      {:uuid, "~> 1.1"},
+      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false}
       # {:grpc, "~> 0.5.0-beta.1"}
       # { :benchwarmer, "~> 0.0.2" }
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-    ]
-  end
-
-  # Setup dialyzer
-  defp dialyzer do
-    [
-      plt_core_path: "priv/plts",
-      plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
     ]
   end
 end

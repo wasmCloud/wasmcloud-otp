@@ -19,6 +19,10 @@ erl_crash.dump
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 
+# Ignore dialyzer artifacts
+/priv/plts/*.plt
+/priv/plts/*.plt.hash
+
 # Ignore package tarball (built via "mix hex.build").
 host_core-*.tar
 

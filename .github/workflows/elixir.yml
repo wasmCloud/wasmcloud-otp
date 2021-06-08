@@ -14,29 +14,32 @@ jobs:
   build:
     strategy:
       matrix:
-        elixir: [1.12.1, 1.12.1-otp-23]
-        otp: [23.0, 23.3.4.1]
+        elixir: [1.12.1] #, 1.12.1-otp-23]
+        otp: [23.0] #, 23.3.4.1]
+    services:
+      nats:
+        image: nats
+        ports:
+          - 4222:4222
     
     name: Build and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     steps:
     - uses: actions/checkout@v2
 
     - name: Setup elixir
-      working-directory: ${{env.working-directory}}
       uses: actions/setup-elixir@v1
       with:
         elixir-version: ${{ matrix.elixir }} # Define the elixir version [required]
         otp-version: ${{ matrix.otp }} # Define the OTP version [required]
 
     - name: Retrieve Mix Dependencies Cache
-      working-directory: ${{env.working-directory}}
       uses: actions/cache@v1
       id: mix-cache #id to use in retrieve action
       with:
-        path: deps
-        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        path: host_core/deps
+        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, 'host_core/mix.lock')) }}
 
     - name: Install Mix Dependencies
       working-directory: ${{env.working-directory}}
@@ -44,7 +47,7 @@ jobs:
       run: |
         mix local.rebar --force
         mix local.hex --force
-        mix deps.get
+        mix do deps.get, deps.compile
         
     - name: Check Formatting
       working-directory: ${{env.working-directory}}
@@ -52,19 +55,19 @@ jobs:
 
     - name: Run Credo
       working-directory: ${{env.working-directory}}
+      continue-on-error: true # Don't fail entire action with refactoring opportunities for now
       run: mix credo --strict
 
     - name: Run Tests
       working-directory: ${{env.working-directory}}
       run: mix test
-
+      
     - name: Retrieve PLT Cache
-      working-directory: ${{env.working-directory}}
       uses: actions/cache@v1
       id: plt-cache
       with:
-        path: priv/plts
-        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        path: host_core/priv/plts
+        key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles(format('{0}{1}', github.workspace, 'host_core/mix.lock')) }}
 
     - name: Create PLTs
       working-directory: ${{env.working-directory}}
@@ -74,6 +77,6 @@ jobs:
         mix dialyzer --plt
     - name: Run dialyzer
       working-directory: ${{env.working-directory}}
-      run: mix dialyzer --no-check --halt-exit-status
+      run: mix dialyzer --no-check
 
 # Thank you https://hashrocket.com/blog/posts/build-the-ultimate-elixir-ci-with-github-actions for this action setup
