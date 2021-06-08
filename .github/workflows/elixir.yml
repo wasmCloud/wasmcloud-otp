@@ -61,9 +61,6 @@ jobs:
     - name: Run Tests
       working-directory: ${{env.working-directory}}
       run: mix test
-
-    - name: Install dialyzer
-      run: sudo apt-get install -y erlang-dialyzer
       
     - name: Retrieve PLT Cache
       uses: actions/cache@v1
