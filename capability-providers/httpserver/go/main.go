@@ -18,7 +18,27 @@ import (
 	"os"
 
 	nats "github.com/nats-io/nats.go"
+	msgpack "github.com/vmihailenco/msgpack/v5"
 )
+
+type CapabilityConfiguration struct {
+	Module string            `msgpack:"module"`
+	Values map[string]string `msgpack:"values"`
+}
+
+type Invocation struct {
+}
+
+/*
+pub struct Invocation {
+   ??? pub origin: WasmCloudEntity,
+   ??? pub target: WasmCloudEntity,
+    pub operation: String,
+    pub msg: Vec<u8>,
+    pub id: String,
+    pub encoded_claims: String,
+    pub host_id: String,
+}*/
 
 func main() {
 	lattice_prefix := os.Getenv("LATTICE_RPC_PREFIX")
@@ -59,3 +79,23 @@ func HelloServer(w http.ResponseWriter, r *http.Request) {
 nc.Subscribe("foo", func(m *nats.Msg) {
     fmt.Printf("Received a message: %s\n", string(m.Data))
 })*/
+
+// this is here just to remind us how to use msgpack.
+func ExampleMarshal() {
+	type Item struct {
+		Foo string
+	}
+
+	b, err := msgpack.Marshal(&Item{Foo: "bar"})
+	if err != nil {
+		panic(err)
+	}
+
+	var item Item
+	err = msgpack.Unmarshal(b, &item)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(item.Foo)
+	// Output: bar
+}
