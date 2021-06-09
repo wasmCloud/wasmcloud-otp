@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	nats "github.com/nats-io/nats.go"
 	msgpack "github.com/vmihailenco/msgpack/v5"
@@ -46,7 +45,7 @@ pub struct Invocation {
 }*/
 
 var (
-	servers map[string]*http.Server
+	serverCancels map[string]context.CancelFunc
 )
 
 func main() {
@@ -70,45 +69,51 @@ func main() {
 	nc.Subscribe(lddel_topic, func(m *nats.Msg) {
 		fmt.Printf("Received: %s\n", string(m.Data))
 
-		// Need to figure out how to stop the server
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		servers["Mxxxx"].Shutdown(ctx)
+		// Trigger the cancel context for the server
+		serverCancels["Mxxxx"]()
 	})
+
 	nc.Subscribe(ldput_topic, func(m *nats.Msg) {
-		fmt.Printf("Received: %s\n", string(m.Data))
 		var linkdef LinkDefinition
 		err := msgpack.Unmarshal(m.Data, &linkdef)
 		if err != nil {
-			panic(err)
+			fmt.Printf("Failed to unpack msgpack: %s\n", err)
+			return
 		}
+		fmt.Println("Received link definition PUT")
+
+		ctx, closeServer := context.WithCancel(context.Background())
+		serverCancels["Mxxxx"] = closeServer
 
 		srv := createHttpServer(8080) // TODO: get port from link def
-		srv.ListenAndServe()
-		servers["Mxxxx"] = srv
+		go func() {
+			<-ctx.Done()
+			fmt.Println("Shutting down HTTP server for Mxxxxx")
+			srv.Shutdown(ctx)
+		}()
 
-		// Here we start an HTTP server based on the PORT value in the `values` list
-		// on the link definition
-		http.HandleFunc("/", HelloServer)
-		http.ListenAndServe(":8080", nil)
+		go func() {
+			http.HandleFunc("/", handleRequest)
+			fmt.Printf("Listening for requests...\n")
+			srv.ListenAndServe()
+		}()
 	})
 
 }
 
 func createHttpServer(port int) *http.Server {
+	fmt.Printf("Creating HTTP server on port %d", port)
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 
 	return srv
 }
 
-func HelloServer(w http.ResponseWriter, r *http.Request) {
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+	// 1. create an invocation out of the incoming request (invocation wrapping Request type)
+	// 2. send to core via NATS request
+	// 3. convert InvocationResponse to http response
 	fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
 }
-
-/*
-nc.Subscribe("foo", func(m *nats.Msg) {
-    fmt.Printf("Received a message: %s\n", string(m.Data))
-})*/
 
 // this is here just to remind us how to use msgpack.
 func ExampleMarshal() {
