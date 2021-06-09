@@ -13,9 +13,11 @@ package main
 */
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	nats "github.com/nats-io/nats.go"
 	msgpack "github.com/vmihailenco/msgpack/v5"
@@ -69,6 +71,9 @@ func main() {
 		fmt.Printf("Received: %s\n", string(m.Data))
 
 		// Need to figure out how to stop the server
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		servers["Mxxxx"].Shutdown(ctx)
 	})
 	nc.Subscribe(ldput_topic, func(m *nats.Msg) {
 		fmt.Printf("Received: %s\n", string(m.Data))
