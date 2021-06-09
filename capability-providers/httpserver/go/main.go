@@ -21,9 +21,12 @@ import (
 	msgpack "github.com/vmihailenco/msgpack/v5"
 )
 
-type CapabilityConfiguration struct {
-	Module string            `msgpack:"module"`
-	Values map[string]string `msgpack:"values"`
+type LinkDefinition struct {
+	ActorID    string            `msgpack:"actor_id"`
+	ProviderID string            `msgpack:"provider_id"`
+	LinkName   string            `msgpack:"link_name"`
+	ContractID string            `msgpack:"contract_id"`
+	Values     map[string]string `msgpack:"values"`
 }
 
 type Invocation struct {
@@ -40,6 +43,10 @@ pub struct Invocation {
     pub host_id: String,
 }*/
 
+var (
+	servers map[string]*http.Server
+)
+
 func main() {
 	lattice_prefix := os.Getenv("LATTICE_RPC_PREFIX")
 	provider_key := os.Getenv("PROVIDER_KEY")
@@ -55,20 +62,38 @@ func main() {
 	nc.Subscribe(rpc_topic, func(m *nats.Msg) {
 		fmt.Printf("Received: %s\n", string(m.Data))
 	})
-	nc.Subscribe(ldget_topic, func(m *nats.Msg) {
+	nc.QueueSubscribe(ldget_topic, ldget_topic, func(m *nats.Msg) {
 		fmt.Printf("Received: %s\n", string(m.Data))
 	})
 	nc.Subscribe(lddel_topic, func(m *nats.Msg) {
 		fmt.Printf("Received: %s\n", string(m.Data))
+
+		// Need to figure out how to stop the server
 	})
 	nc.Subscribe(ldput_topic, func(m *nats.Msg) {
 		fmt.Printf("Received: %s\n", string(m.Data))
+		var linkdef LinkDefinition
+		err := msgpack.Unmarshal(m.Data, &linkdef)
+		if err != nil {
+			panic(err)
+		}
 
-		// Here we start an HTTP server based on the data (a ConfigurationValues struct that has `module` (actor), and `values` (Map<string, string>)
+		srv := createHttpServer(8080) // TODO: get port from link def
+		srv.ListenAndServe()
+		servers["Mxxxx"] = srv
+
+		// Here we start an HTTP server based on the PORT value in the `values` list
+		// on the link definition
 		http.HandleFunc("/", HelloServer)
 		http.ListenAndServe(":8080", nil)
 	})
 
+}
+
+func createHttpServer(port int) *http.Server {
+	srv := &http.Server{Addr: fmt.Sprintf(":%d", port)}
+
+	return srv
 }
 
 func HelloServer(w http.ResponseWriter, r *http.Request) {
