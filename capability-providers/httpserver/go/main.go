@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -161,16 +162,42 @@ func main() {
 
 func createHttpServer(actorID string, port int) *http.Server {
 	fmt.Printf("Creating HTTP server on port %d\n", port)
-	srv := &http.Server{Addr: fmt.Sprintf(":%d", port)}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleActorRequest(actorID, w, r)
+	})
+	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: handler}
 
 	return srv
 }
 
-func handleRequest(w http.ResponseWriter, r *http.Request) {
-	// 0. Figure out which actor corresponds to this request (target of invocation)
-	// 1. create an invocation out of the incoming request (invocation wrapping Request type)
+func handleActorRequest(actorID string, w http.ResponseWriter, r *http.Request) {
+	origin := WasmCloudEntity{ //TODO: get these values from provider info
+		PublicKey:  "VASD",
+		LinkName:   "default",
+		ContractID: "wasmcloud:httpserver",
+	}
+	target := WasmCloudEntity{
+		PublicKey: actorID,
+	}
+	msg, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Println("Failed to read HTTP request body")
+	}
+	invocation := Invocation{
+		Origin:        origin,
+		Target:        target,
+		Operation:     "HandleRequest",
+		Msg:           msg,
+		ID:            "",
+		EncodedClaims: "",
+		HostID:        "",
+	}
 	// 2. send to core via NATS request
 	// 3. convert InvocationResponse to http response
+	fmt.Printf("HANDLER INVOKED: %s\n", invocation)
+}
+
+func handleRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, %s!", r.URL)
 }
 
