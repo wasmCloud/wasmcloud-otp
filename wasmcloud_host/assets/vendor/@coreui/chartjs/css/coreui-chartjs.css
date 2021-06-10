@@ -1,0 +1,57 @@
+@charset "UTF-8";
+/*!
+ * CoreUI Plugins - Chart.js for CoreUI 3
+ * @version vv2.0.0-beta.0
+ * @link https://coreui.io
+ * Copyright (c) 2019 creativeLabs Łukasz Holeczek
+ * Licensed under MIT (https://coreui.io/license/plugins/chart.js)
+ */
+.c-chartjs-tooltip {
+  position: absolute;
+  z-index: 1021;
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  padding: 0.25rem 0.5rem;
+  color: #fff;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transition: all 0.25s ease;
+  -webkit-transform: translate(-50%, 0);
+  transform: translate(-50%, 0);
+  border-radius: 0.25rem;
+}
+
+.c-chartjs-tooltip .c-tooltip-header {
+  margin-bottom: 0.5rem;
+}
+
+.c-chartjs-tooltip .c-tooltip-header-item {
+  font-size: 0.765625rem;
+  font-weight: 700;
+}
+
+.c-chartjs-tooltip .c-tooltip-body-item {
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-align: center;
+  align-items: center;
+  font-size: 0.765625rem;
+  white-space: nowrap;
+}
+
+.c-chartjs-tooltip .c-tooltip-body-item-color {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-right: 0.875rem;
+}
+
+.c-chartjs-tooltip .c-tooltip-body-item-value {
+  padding-left: 1rem;
+  margin-left: auto;
+  font-weight: 700;
+}
+/*# sourceMappingURL=coreui-chartjs.css.map */
