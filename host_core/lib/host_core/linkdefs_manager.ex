@@ -10,7 +10,7 @@ defmodule HostCore.LinkdefsManager do
 
   @impl true
   def init(opts) do
-    # subscribe to all link def add / remove operations 
+    # subscribe to all link def add / remove operations
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.*.*.linkdefs.*"
     {:ok, _sub} = Gnat.sub(:lattice_nats, self(), topic)
@@ -65,7 +65,6 @@ defmodule HostCore.LinkdefsManager do
   defp publish_link_definition(ld) do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
-    IO.puts(topic)
 
     Gnat.pub(:lattice_nats, topic, Msgpax.pack!(ld))
   end

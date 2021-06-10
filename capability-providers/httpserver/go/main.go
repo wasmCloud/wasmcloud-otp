@@ -14,25 +14,23 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	nats "github.com/nats-io/nats.go"
 	msgpack "github.com/vmihailenco/msgpack/v5"
 )
 
-//TODO: Change to msgpack
 type LinkDefinition struct {
-	ActorID    string            `json:"actor_id"`
-	ProviderID string            `json:"provider_id"`
-	LinkName   string            `json:"link_name"`
-	ContractID string            `json:"contract_id"`
-	Values     map[string]string `json:"values"`
+	ActorID    string            `msgpack:"actor_id"`
+	ProviderID string            `msgpack:"provider_id"`
+	LinkName   string            `msgpack:"link_name"`
+	ContractID string            `msgpack:"contract_id"`
+	Values     map[string]string `msgpack:"values"`
 }
 
 type WasmCloudEntity struct {
@@ -49,6 +47,11 @@ type Invocation struct {
 	ID            string          `msgpack:"id"`
 	EncodedClaims string          `msgpack:"encoded_claims"`
 	HostID        string          `msgpack:"host_id"`
+}
+
+type InvocationResponse struct {
+	InvocationID string `msgpack:"invocation_id"`
+	Msg          []byte `msgpack:"msg"`
 }
 
 // HTTP Request object
@@ -74,9 +77,13 @@ var (
 )
 
 func main() {
-	lattice_prefix := os.Getenv("LATTICE_RPC_PREFIX")
-	provider_key := os.Getenv("PROVIDER_KEY")
-	link_name := os.Getenv("PROVIDER_LINK_NAME")
+	//TODO: source these values from host configuration of provider
+	// lattice_prefix := os.Getenv("LATTICE_RPC_PREFIX")
+	// provider_key := os.Getenv("PROVIDER_KEY")
+	// link_name := os.Getenv("PROVIDER_LINK_NAME")
+	lattice_prefix := "default"
+	provider_key := "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
+	link_name := "default"
 
 	serverCancels := make(map[string]context.CancelFunc)
 	linkDefs := make(map[string]LinkDefinition)
@@ -89,18 +96,18 @@ func main() {
 	shutdown_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.shutdown", lattice_prefix, provider_key, link_name)
 
 	nc.QueueSubscribe(ldget_topic, ldget_topic, func(m *nats.Msg) {
-		msg, err := json.Marshal(linkDefs)
+		msg, err := msgpack.Marshal(linkDefs)
 		if err != nil {
-			fmt.Printf("Failed to pack json: %s\n", err)
+			fmt.Printf("Failed to pack msgpack: %s\n", err)
 		}
 		nc.Publish(m.Reply, msg)
 	})
 
 	nc.Subscribe(lddel_topic, func(m *nats.Msg) {
 		var linkdef LinkDefinition
-		err := json.Unmarshal(m.Data, &linkdef)
+		err := msgpack.Unmarshal(m.Data, &linkdef)
 		if err != nil {
-			fmt.Printf("Failed to unpack json: %s\n", err)
+			fmt.Printf("Failed to unpack msgpack: %s\n", err)
 			return
 		}
 
@@ -116,9 +123,9 @@ func main() {
 
 	nc.Subscribe(ldput_topic, func(m *nats.Msg) {
 		var linkdef LinkDefinition
-		err := json.Unmarshal(m.Data, &linkdef)
+		err := msgpack.Unmarshal(m.Data, &linkdef)
 		if err != nil {
-			fmt.Printf("Failed to unpack json: %s\n", err)
+			fmt.Printf("Failed to unpack msgpack: %s\n", err)
 			return
 		}
 
@@ -137,7 +144,7 @@ func main() {
 		serverCancels[linkdef.ActorID] = closeServer
 		linkDefs[linkdef.ActorID] = linkdef
 
-		srv := createHttpServer(linkdef.ActorID, port)
+		srv := createHttpServer(linkdef.ActorID, nc, port)
 		go func() {
 			<-ctx.Done()
 			fmt.Printf("Shutting down HTTP server for: %s\n", linkdef.ActorID)
@@ -160,41 +167,77 @@ func main() {
 	wg.Wait()
 }
 
-func createHttpServer(actorID string, port int) *http.Server {
+func createHttpServer(actorID string, nc *nats.Conn, port int) *http.Server {
 	fmt.Printf("Creating HTTP server on port %d\n", port)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handleActorRequest(actorID, w, r)
+		handleActorRequest(actorID, nc, w, r)
 	})
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: handler}
 
 	return srv
 }
 
-func handleActorRequest(actorID string, w http.ResponseWriter, r *http.Request) {
+func handleActorRequest(actorID string, nc *nats.Conn, w http.ResponseWriter, r *http.Request) {
 	origin := WasmCloudEntity{ //TODO: get these values from provider info
-		PublicKey:  "VASD",
+		PublicKey:  "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M",
 		LinkName:   "default",
 		ContractID: "wasmcloud:httpserver",
 	}
 	target := WasmCloudEntity{
 		PublicKey: actorID,
 	}
-	msg, err := ioutil.ReadAll(r.Body)
+
+	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		fmt.Println("Failed to read HTTP request body")
 	}
+	httpReq := Request{
+		Method:      r.Method,
+		Path:        r.URL.Path,
+		QueryString: r.URL.RawQuery,
+		Body:        reqBody,
+		Header:      make(map[string]string),
+	}
+	msg, err := msgpack.Marshal(httpReq)
+	if err != nil {
+		fmt.Printf("Failed to marshal msgpack: %s\n", err)
+		return
+	}
+	//TODO: generate guid, source values from provider info
 	invocation := Invocation{
 		Origin:        origin,
 		Target:        target,
 		Operation:     "HandleRequest",
 		Msg:           msg,
-		ID:            "",
-		EncodedClaims: "",
-		HostID:        "",
+		ID:            "todo:guid",
+		EncodedClaims: "todo:jwt",
+		HostID:        "Nidkman",
 	}
-	// 2. send to core via NATS request
-	// 3. convert InvocationResponse to http response
-	fmt.Printf("HANDLER INVOKED: %s\n", invocation)
+
+	subj := fmt.Sprintf("wasmbus.rpc.default.%s", actorID)
+	natsBody, err := msgpack.Marshal(invocation)
+	if err != nil {
+		fmt.Printf("Failed to marshal msgpack: %s\n", err)
+		return
+	}
+	resp, err := nc.Request(subj, natsBody, 2*time.Second)
+	if err != nil {
+		fmt.Printf("RPC Failure: %s\n", err)
+		return
+	}
+	var invResp InvocationResponse
+	err = msgpack.Unmarshal(resp.Data, &invResp)
+	if err != nil {
+		fmt.Printf("Failed to unpack invocation msgpack: %s\n", err)
+		return
+	}
+	var httpResponse Response
+	err = msgpack.Unmarshal(invResp.Msg, &httpResponse)
+	if err != nil {
+		fmt.Printf("Failed to unpack response msgpack: %s\n", err)
+		return
+	}
+	w.Write(httpResponse.Body)
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {

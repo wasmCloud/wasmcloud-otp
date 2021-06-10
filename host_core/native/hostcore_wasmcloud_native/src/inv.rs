@@ -24,6 +24,7 @@ pub struct Invocation {
     pub origin: WasmCloudEntity,
     pub target: WasmCloudEntity,
     pub operation: String,
+    #[serde(with = "serde_bytes")]
     pub msg: Vec<u8>,
     pub id: String,
     pub encoded_claims: String,
