@@ -170,4 +170,4 @@ var cardChart4 = new Chart(document.getElementById('card-chart4'), {
  * Until we figure that out, leave this in.
  * Thanks, JavaScript.
  */
-null.load()
+null.ignoreThisError
