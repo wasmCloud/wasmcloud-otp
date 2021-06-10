@@ -1,0 +1,54 @@
+<div class="modal fade" id="define_link" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Define link</h4>
+        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+      <div class="modal-body">
+        <form class="form-horizontal" onSubmit="(evt) => console.log(evt)" action="/define_link" method="post" enctype="multipart/form-data">
+          <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
+          <div class="form-group row">
+            <label class="col-md-3 col-form-label" for="text-input">Actor Public Key</label>
+            <div class="col-md-9">
+              <input class="form-control" id="text-input" type="text" name="actor_id" placeholder="MABCD...">
+              <span class="help-block">56 character actor public key (starts with "M")</span>
+            </div>
+          </div>
+          <div class="form-group row">
+            <label class="col-md-3 col-form-label" for="text-input">Provider Public Key</label>
+            <div class="col-md-9">
+              <input class="form-control" id="text-input" type="text" name="provider_id" placeholder="VABCD...">
+              <span class="help-block">56 character provider public key (starts with "V")</span>
+            </div>
+          </div>
+          <div class="form-group row">
+            <label class="col-md-3 col-form-label" for="text-input">Link Name</label>
+            <div class="col-md-9">
+              <input class="form-control" id="text-input" type="text" name="link_name" placeholder="default" value="default">
+            </div>
+          </div>
+          <div class="form-group row">
+            <label class="col-md-3 col-form-label" for="text-input">Contract ID</label>
+            <div class="col-md-9">
+              <input class="form-control" id="text-input" type="text" name="contract_id" placeholder="wasmcloud:contract">
+            </div>
+          </div>
+          <div class="form-group row">
+            <label class="col-md-3 col-form-label" for="text-input">Values</label>
+            <div class="col-md-9">
+              <input class="form-control" id="text-input" type="text" name="values" placeholder="KEY1=VAL1,KEY2=VAL2">
+              <span class="help-block">Comma separated list of configuration values</span>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
+            <button class="btn btn-primary" type="submit" value="Submit"> Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- /.modal-content-->
+  </div>
+  <!-- /.modal-dialog-->
+</div>

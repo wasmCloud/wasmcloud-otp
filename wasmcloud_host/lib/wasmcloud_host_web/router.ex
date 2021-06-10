@@ -19,6 +19,8 @@ defmodule WasmcloudHostWeb.Router do
 
     live "/", PageLive, :index
     post "/start_actor", ActorController, :start_actor
+    post "/start_provider", ProviderController, :start_provider
+    post "/define_link", LinkdefsController, :define_link
   end
 
   # Other scopes may use custom stacks.
