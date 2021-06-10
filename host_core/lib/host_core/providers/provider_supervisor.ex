@@ -34,6 +34,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
     [{pid, _val}] = Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
     Logger.info("About to terminate child process")
     # TODO: send NATS shutdown message
+    prefix = Host.lattice_prefix()
+    :ok = Gnat.pub(:lattice_nats, "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}", "")
     ProviderModule.halt(pid)
   end
 
