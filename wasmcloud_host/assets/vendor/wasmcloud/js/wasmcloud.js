@@ -1,3 +1,4 @@
+// Custom JS for wasmCloud logic goes here
 var cardChart1 = new Chart(document.getElementById('card-chart1'), {
     type: 'line',
     data: {
@@ -99,7 +100,7 @@ var cardChart2 = new Chart(document.getElementById('card-chart2'), {
     }
 }); // eslint-disable-next-line no-unused-vars
 
-var cardChart3 = new Chart(document.getElementById('card-chart3', document.getElementsByClassName('c-app')[0]), {
+var cardChart3 = new Chart(document.getElementById('card-chart3'), {
     type: 'line',
     data: {
         labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
@@ -162,4 +163,11 @@ var cardChart4 = new Chart(document.getElementById('card-chart4'), {
             }]
         }
     }
-}); // eslint-disable-next-line no-unused-vars
+}); // Random Numbers
+
+/**
+ * For some reason, stopping the execution of this file here makes the charts load correctly.
+ * Until we figure that out, leave this in.
+ * Thanks, JavaScript.
+ */
+null.load()

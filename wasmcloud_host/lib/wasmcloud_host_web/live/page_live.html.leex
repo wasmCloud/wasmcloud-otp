@@ -3,8 +3,8 @@
     <div class="card text-white bg-gradient-primary">
       <div class="card-body card-body pb-0 d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-value-lg">9.823</div>
-          <div>Members online</div>
+          <div class="text-value-lg">12.4</div>
+          <div>I/O</div>
         </div>
         <div class="btn-group">
           <button class="btn btn-transparent dropdown-toggle p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -25,8 +25,8 @@
     <div class="card text-white bg-gradient-info">
       <div class="card-body card-body pb-0 d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-value-lg">9.823</div>
-          <div>Members online</div>
+          <div class="text-value-lg">57:04:03</div>
+          <div>Uptime</div>
         </div>
         <div class="btn-group">
           <button class="btn btn-transparent dropdown-toggle p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -47,8 +47,8 @@
     <div class="card text-white bg-gradient-warning">
       <div class="card-body card-body pb-0 d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-value-lg">9.823</div>
-          <div>Members online</div>
+          <div class="text-value-lg">10%</div>
+          <div>CPU Usage</div>
         </div>
         <div class="btn-group">
           <button class="btn btn-transparent dropdown-toggle p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -69,8 +69,8 @@
     <div class="card text-white bg-gradient-danger">
       <div class="card-body card-body pb-0 d-flex justify-content-between align-items-start">
         <div>
-          <div class="text-value-lg">9.823</div>
-          <div>Members online</div>
+          <div class="text-value-lg">18MB</div>
+          <div>Memory Usage</div>
         </div>
         <div class="btn-group">
           <button class="btn btn-transparent dropdown-toggle p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -121,28 +121,29 @@
             <%= for {actor, instance_count} <- @actors do %>
               <tr>
                 <td>
-                  <button class="btn btn-primary btn-sm" id="showtoast" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')">
-                    <%= String.slice(actor, 0..4) %>...
-                    <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-clipboard"></use>
-                    </svg>&nbsp;
-                  </button>
-                </td>
-                <%= for {k, v} <- @claims do %>
-                  <%= if k == actor do %>
-                    <td><%= v.name %> </td>
-                  <% end %>
+                </div>
+                <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                  <%= String.slice(actor, 0..4) %>...
+                  <svg class="c-icon">
+                    <use xlink:href="/coreui/free.svg#cil-clipboard"></use>
+                  </svg>&nbsp;
+                </button>
+              </td>
+              <%= for {k, v} <- @claims do %>
+                <%= if k == actor do %>
+                  <td><%= v.name %> </td>
                 <% end %>
-                <td><%= instance_count %></td>
-                <td><span class="badge badge-secondary">Running</span></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
+              <% end %>
+              <td><%= instance_count %></td>
+              <td><span class="badge badge-secondary">Running</span></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
-  <!-- /.col-->
+</div>
+<!-- /.col-->
 </div>
 <%# Providers Row %>
 <div class="row">
@@ -156,12 +157,26 @@
           <thead>
             <tr>
               <th>Provider ID</th>
+              <th>Link Name</th>
+              <th>Contract ID</th>
+              <th>Host IDs</th>
             </tr>
           </thead>
           <tbody>
             <%= for provider <- @providers do %>
               <tr>
-                <td><%= provider %></td>
+                <%= if {id, map} = provider do %>
+                  <%= for {ld, hids} <- map do %>
+                    <td><%= id %></td>
+                    <td><%= ld %></td>
+                    <td>wasmcloud:idk</td>
+                    <td>
+                      <%= for hid <- hids do %>
+                        <%= hid %>
+                      <% end %>
+                    </td>
+                  <% end %>
+                <% end %>
               </tr>
             <% end %>
           </tbody>

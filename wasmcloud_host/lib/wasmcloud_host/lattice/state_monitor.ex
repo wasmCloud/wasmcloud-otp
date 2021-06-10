@@ -157,7 +157,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
             data: %{
                 "public_key"  => pk,
                 "link_name"   => link_name,
-                "contract_id" => _contract_id
+                "contract_id" => contract_id
             },
             source: source_host,
             datacontenttype: "application/json",
@@ -165,7 +165,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         }
       ) do
 
-        providers = add_provider(pk, link_name, source_host, state.providers)
+        providers = add_provider(pk, link_name, contract_id, source_host, state.providers)
         PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:providers, providers})
         %State{state | providers: providers}
     end
@@ -194,7 +194,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     #       "special" => ["Nxxxx"]
     #    }
     # }
-    def add_provider(pk, link_name, host, previous_map) do
+    def add_provider(pk, link_name, contract_id, host, previous_map) do
         provider_map = Map.get(previous_map, pk, %{})
         link_map = Map.get(provider_map, link_name, %{})
         hosts_list = Map.get(link_map, link_name, [])
