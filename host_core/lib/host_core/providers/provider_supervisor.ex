@@ -33,6 +33,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   def terminate_provider(public_key, link_name) do
     [{pid, _val}] = Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
     Logger.info("About to terminate child process")
+    # TODO: send NATS shutdown message
     ProviderModule.halt(pid)
   end
 

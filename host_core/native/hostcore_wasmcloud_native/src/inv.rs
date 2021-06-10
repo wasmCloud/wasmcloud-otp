@@ -24,10 +24,39 @@ pub struct Invocation {
     pub origin: WasmCloudEntity,
     pub target: WasmCloudEntity,
     pub operation: String,
+    #[serde(with = "serde_bytes")]
     pub msg: Vec<u8>,
     pub id: String,
     pub encoded_claims: String,
     pub host_id: String,
+}
+
+/// Represents an entity within the host runtime that can be the source
+/// or target of an invocation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[doc(hidden)]
+pub struct WasmCloudEntity {
+    pub public_key: String,
+    pub contract_id: String,
+    pub link_name: String,
+}
+
+impl WasmCloudEntity {
+    pub fn actor(id: &str) -> WasmCloudEntity {
+        WasmCloudEntity {
+            public_key: id.to_string(),
+            contract_id: "".into(),
+            link_name: "".into(),
+        }
+    }
+
+    pub fn capability(id: &str, contract_id: &str, link_name: &str) -> WasmCloudEntity {
+        WasmCloudEntity {
+            public_key: id.into(),
+            contract_id: contract_id.into(),
+            link_name: link_name.into(),
+        }
+    }
 }
 
 impl Invocation {
@@ -70,7 +99,8 @@ impl Invocation {
         let subject = format!("{}", Uuid::new_v4());
         let issuer = hostkey.public_key();
         let op = OP_HALT.to_string();
-        let target = WasmCloudEntity::Actor(SYSTEM_ACTOR.to_string());
+        let target = WasmCloudEntity::actor(SYSTEM_ACTOR);
+
         let target_url = format!("{}/{}", target.url(), &op);
         let claims = Claims::<wascap::prelude::Invocation>::new(
             issuer.to_string(),
@@ -142,19 +172,6 @@ impl Invocation {
     }
 }
 
-/// Represents an entity within the host runtime that can be the source
-/// or target of an invocation
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
-#[doc(hidden)]
-pub enum WasmCloudEntity {
-    Actor(String),
-    Capability {
-        id: String,
-        contract_id: String,
-        link_name: String,
-    },
-}
-
 impl Display for WasmCloudEntity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.url())
@@ -164,31 +181,25 @@ impl Display for WasmCloudEntity {
 impl WasmCloudEntity {
     /// The URL of the entity
     pub fn url(&self) -> String {
-        match self {
-            WasmCloudEntity::Actor(pk) => format!("{}://{}", URL_SCHEME, pk),
-            WasmCloudEntity::Capability {
-                id,
-                contract_id,
-                link_name,
-            } => format!(
+        if self.public_key.to_uppercase().starts_with("M") {
+            format!("{}://{}", URL_SCHEME, self.public_key)
+        } else {
+            format!(
                 "{}://{}/{}/{}",
                 URL_SCHEME,
-                contract_id
+                self.contract_id
                     .replace(":", "/")
                     .replace(" ", "_")
                     .to_lowercase(),
-                link_name.replace(" ", "_").to_lowercase(),
-                id
-            ),
+                self.link_name.replace(" ", "_").to_lowercase(),
+                self.public_key
+            )
         }
     }
 
     /// The unique (public) key of the entity
     pub fn key(&self) -> String {
-        match self {
-            WasmCloudEntity::Actor(pk) => pk.to_string(),
-            WasmCloudEntity::Capability { id, .. } => id.to_string(),
-        }
+        self.public_key.to_string()
     }
 }
 
@@ -295,7 +306,6 @@ pub fn deserialize<'de, T: Deserialize<'de>>(
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::{Invocation, WasmCloudEntity};
@@ -307,12 +317,8 @@ mod test {
         // As soon as we create the invocation, the claims are baked and signed with the hash embedded.
         let inv = Invocation::new(
             &hostkey,
-            WasmCloudEntity::Actor("testing".into()),
-            WasmCloudEntity::Capability {
-                id: "Vxxx".to_string(),
-                contract_id: "wasmcloud:messaging".into(),
-                link_name: "default".into(),
-            },
+            WasmCloudEntity::actor("testing"),
+            WasmCloudEntity::capability("Vxxx", "wasmcloud:messaging", "default"),
             "OP_TESTING",
             vec![1, 2, 3, 4],
         );
@@ -322,7 +328,7 @@ mod test {
 
         // Let's tamper with the invocation and we should hit the hash check first
         let mut bad_inv = inv.clone();
-        bad_inv.target = WasmCloudEntity::Actor("BADACTOR-EXFILTRATOR".into());
+        bad_inv.target = WasmCloudEntity::actor("BADACTOR-EXFILTRATOR");
         assert!(bad_inv.validate_antiforgery().is_err());
 
         // Alter the payload and we should also hit the hash check

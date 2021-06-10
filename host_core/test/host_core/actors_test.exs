@@ -71,7 +71,7 @@ defmodule HostCore.ActorsTest do
 
     ir = res |> Msgpax.unpack!()
 
-    payload = ir["msg"] |> :binary.list_to_bin() |> Msgpax.unpack!()
+    payload = ir["msg"] |> Msgpax.unpack!()
 
     assert payload["header"] == %{}
     assert payload["status"] == "OK"

@@ -123,24 +123,20 @@ fn generate_invocation_bytes<'a>(
 ) -> Result<Vec<u8>, Error> {
     let inv = inv::Invocation::new(
         &KeyPair::from_seed(&host_seed).unwrap(),
-        inv::WasmCloudEntity::Actor(origin.into()),
+        inv::WasmCloudEntity::actor(&origin),
         if let TargetType::Actor = target_type {
-            inv::WasmCloudEntity::Actor(target_key.to_string())
+            inv::WasmCloudEntity::actor(&target_key)
         } else {
-            inv::WasmCloudEntity::Capability {
-                link_name: target_link_name.into(),
-                contract_id: target_contract_id.into(),
-                id: target_key.into(),
-            }
+            inv::WasmCloudEntity::capability(&target_key, &target_contract_id, &target_link_name)
         },
         &operation,
         msg.as_slice().to_vec(),
-    );    
+    );
     Ok(inv::serialize(&inv).unwrap())
 }
 
 #[rustler::nif]
-fn validate_antiforgery<'a>(inv: Binary) -> Result<(), Error> {    
+fn validate_antiforgery<'a>(inv: Binary) -> Result<(), Error> {
     inv::deserialize::<inv::Invocation>(inv.as_slice())
         .map_err(|_e| rustler::Error::Atom("Failed to deserialize invocation"))
         .and_then(|i| {

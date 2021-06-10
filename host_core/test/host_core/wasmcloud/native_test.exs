@@ -3,7 +3,7 @@ defmodule HostCore.WasmCloud.NativeTest do
   @httpserver_link "default"
   @httpserver_contract "wasmcloud:httpserver"
 
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   test "generates seed keys" do
     {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
@@ -39,9 +39,9 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     decinv = inv |> Msgpax.unpack!()
 
+    # Rust struct is converted to map of strings
     assert decinv["host_id"] == pub
-    # the 0/1 here are for how Rust enums get serialized.
-    assert decinv["origin"][0] == "system"
-    assert decinv["target"][1]["id"] == @httpserver_key
+    assert decinv["origin"]["public_key"] == "system"
+    assert decinv["target"]["public_key"] == @httpserver_key
   end
 end
