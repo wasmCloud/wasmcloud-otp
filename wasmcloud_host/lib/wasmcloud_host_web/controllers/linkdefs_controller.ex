@@ -7,10 +7,15 @@ defmodule WasmcloudHostWeb.LinkdefsController do
     contract_id = params["contract_id"]
     link_name = params["link_name"]
     provider_key = params["provider_id"]
-    # will likely have to reformat this
-    # values = params["values"]
-    # provider_key = "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-    values = %{PORT: "8080"}
+    values =
+      params["values"]
+      |> String.split(",")
+      |> Enum.flat_map(fn s -> String.split(s, "=") end)
+      |> Enum.chunk_every(2)
+      |> Enum.map(fn [a, b] -> {a, b} end)
+      |> Map.new()
+
+    IO.inspect(values)
 
     HostCore.LinkdefsManager.put_link_definition(
       actor,
