@@ -42,7 +42,7 @@ defmodule WasmcloudHost.MixProject do
       {:telemetry_poller, "~> 0.4"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
-      {:host_core, path: "../host_core"},      
+      {:host_core, path: "../host_core"}
     ]
   end
 

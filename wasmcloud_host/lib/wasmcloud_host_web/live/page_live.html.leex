@@ -101,7 +101,7 @@
               <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
                 <button class="dropdown-item" data-toggle="modal" data-target="#start_actor">From File</button>
-                <a class="dropdown-item" href="#">From OCI</a>
+                <a class="dropdown-item disabled" href="#">From OCI</a>
               </div>
             </div>
           </div>
@@ -124,7 +124,7 @@
                   <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                     <%= String.slice(actor, 0..4) %>...
                     <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-clipboard"></use>
+                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
                     </svg>&nbsp;
                   </button>
                 </td>
@@ -149,7 +149,20 @@
   <div class="col-lg-12">
     <div class="card">
       <div class="card-header">
-        <h3>Providers</h3>
+        <div class="row justify-content-between">
+          <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:150px">
+            <h3>Providers</h3>
+          </div>
+          <div class="mfe-2">
+            <div class="dropdown d-inline-block">
+              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
+              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                <button class="dropdown-item" data-toggle="modal" data-target="#start_provider">From File</button>
+                <a class="dropdown-item disabled" href="#">From OCI</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="card-body">
         <table class="table table-responsive-sm table-bordered table-striped table-sm">
@@ -169,7 +182,7 @@
                     <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                         <%= String.slice(id, 0..4) %>...
                         <svg class="c-icon">
-                          <use xlink:href="/coreui/free.svg#cil-clipboard"></use>
+                          <use xlink:href="/coreui/free.svg#cil-copy"></use>
                         </svg>&nbsp;
                       </button></td>
                     <td><%= ld %></td>
@@ -179,7 +192,7 @@
                         <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                           <%= String.slice(hid, 0..4) %>...
                           <svg class="c-icon">
-                            <use xlink:href="/coreui/free.svg#cil-clipboard"></use>
+                            <use xlink:href="/coreui/free.svg#cil-copy"></use>
                           </svg>&nbsp;
                         </button>
                       <% end %>
@@ -199,26 +212,50 @@
   <div class="col-lg-12">
     <div class="card">
       <div class="card-header">
-        <h3>Link Definitions</h3>
+        <div class="row justify-content-between">
+          <div class="col-lg-3 col-md-3 col-sm-3" style="max-width:200px">
+            <h3>Link Definitions</h3>
+          </div>
+          <div class="mfe-2">
+            <div class="dropdown d-inline-block">
+              <button class="btn btn-secondary" type="button" data-toggle="modal" data-target="#define_link" aria-haspopup="true" aria-expanded="false">
+                Define Link
+                <svg class="c-icon c-icon-sm">
+                  <use xlink:href="/coreui/free.svg#cil-link"></use>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="card-body">
         <table class="table table-responsive-sm table-bordered table-striped table-sm">
           <thead>
             <tr>
               <th>Actor ID</th>
-              <th>Contract ID</th>
-              <th>Link Name</th>
               <th>Provider ID</th>
+              <th>Link Name</th>
+              <th>Contract ID</th>
             </tr>
           </thead>
           <tbody>
             <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
-              <td>
-                <tr><%= actor_id %></tr>
-                <tr><%= contract_id %></tr>
-                <tr><%= link_name %></tr>
-                <tr><%= v.provider_key %></tr>
-              </td>
+              <tr>
+                <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                    <%= String.slice(actor_id, 0..4) %>...
+                    <svg class="c-icon">
+                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                    </svg>&nbsp;
+                  </button></td>
+                <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= v.provider_key %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                    <%= String.slice(v.provider_key, 0..4) %>...
+                    <svg class="c-icon">
+                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                    </svg>&nbsp;
+                  </button></td>
+                <td><%= contract_id %></td>
+                <td><%= link_name %></td>
+              </tr>
             <% end %>
           </tbody>
         </table>
