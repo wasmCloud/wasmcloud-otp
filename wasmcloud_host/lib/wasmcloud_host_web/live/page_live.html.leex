@@ -175,31 +175,30 @@
             </tr>
           </thead>
           <tbody>
-            <%= for provider <- @providers do %>
-              <tr>
-                <%= if {id, map} = provider do %>
-                  <%= for {ld, hids} <- map do %>
-                    <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                        <%= String.slice(id, 0..4) %>...
+            <%# One row per-provider instance, which is a public key, contract id and link name combination %>
+            <%= for {provider, instances} <- @providers do %>
+              <%= for instance <- instances do  %>
+                <tr>
+                  <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= provider%>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                      <%= String.slice(provider, 0..4) %>...
+                      <svg class="c-icon">
+                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                      </svg>&nbsp;
+                    </button></td>
+                  <td><%= Map.get(instance, :link_name) %></td>
+                  <td><%= Map.get(instance, :contract_id) %></td>
+                  <td>
+                    <%= for hid <- Map.get(instance, :host_ids) do %>
+                      <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                        <%= String.slice(hid, 0..4) %>...
                         <svg class="c-icon">
                           <use xlink:href="/coreui/free.svg#cil-copy"></use>
                         </svg>&nbsp;
-                      </button></td>
-                    <td><%= ld %></td>
-                    <td>wasmcloud:idk</td>
-                    <td>
-                      <%= for hid <- hids do %>
-                        <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                          <%= String.slice(hid, 0..4) %>...
-                          <svg class="c-icon">
-                            <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                          </svg>&nbsp;
-                        </button>
-                      <% end %>
-                    </td>
-                  <% end %>
-                <% end %>
-              </tr>
+                      </button>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
             <% end %>
           </tbody>
         </table>
