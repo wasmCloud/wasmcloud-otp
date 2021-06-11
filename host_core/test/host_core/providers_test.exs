@@ -57,6 +57,9 @@ defmodule HostCore.ProvidersTest do
            ]
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+
+    # give provider a moment to stop
+    Process.sleep(1000)
     assert HostCore.Providers.ProviderSupervisor.all_providers() == []
   end
 end
