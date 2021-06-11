@@ -67,6 +67,11 @@
             <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-menu") %>"></use>
           </svg>
         </button>
+        <div id="kowasmi-container" style="display: flex; align-items: center; flex-wrap: wrap; max-width: 528px">
+          <svg id="kowasmi" class="c-icon" style="display: none">
+            <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-heart") %>"></use>
+          </svg>
+        </div>
         <ul class="c-header-nav mfs-auto">
           <li class="c-header-nav-item px-3 c-d-legacy-none">
             <button class="c-class-toggler c-header-nav-btn" type="button" id="header-tooltip" data-target="body" data-class="c-dark-theme" data-toggle="c-tooltip" data-placement="bottom" title="Toggle Light/Dark Mode">
