@@ -17,13 +17,16 @@ defmodule WasmcloudHostWeb.ProviderController do
     File.write!(tmp_file, bytes)
     File.chmod(tmp_file, 0o755)
 
-    {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_executable_provider(
-        tmp_file,
-        key,
-        link_name,
-        contract_id
-      )
+    # TODO: Define error controller
+    case HostCore.Providers.ProviderSupervisor.start_executable_provider(
+           tmp_file,
+           key,
+           link_name,
+           contract_id
+         ) do
+      {:ok, _pid} -> :ok
+      {:error, _reason} -> :error
+    end
 
     conn |> redirect(to: "/")
   end

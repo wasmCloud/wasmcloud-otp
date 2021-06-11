@@ -195,22 +195,60 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     %State{state | providers: providers}
   end
 
-  # This map is keyed by provider public key, which then contains a sub-map
-  # keyed by link name. The value corresponding to the link name key is a list
-  # of hosts on which that provider-link combo is running.
+  # This map is keyed by provider public key, which contains a list of
+  # maps with the keys "link_name", "contract_id", and "host_ids", as
+  # shown below.
   #
   # %{
-  #    "Vxxxxxx": %{
-  #       "default" => ["Nxxxx"],
-  #       "special" => ["Nxxxx"]
-  #    }
+  #     "Vxxxx":  [
+  #        %{
+  #            "link_name": "default",
+  #            "contract_id": "wasmcloud:keyvalue",
+  #            "host_ids": ["Nxxxx"]
+  #         },
+  #        %{
+  #            "link_name": "special",
+  #            "contract_id": "wasmcloud:keyvalue",
+  #            "host_ids": ["Nxxxx"]
+  #         },
+  #    ]
   # }
   def add_provider(pk, link_name, contract_id, host, previous_map) do
-    provider_map = Map.get(previous_map, pk, %{})
-    link_map = Map.get(provider_map, link_name, %{})
-    hosts_list = Map.get(link_map, link_name, [])
-    link_map = Map.put(link_map, link_name, [host | hosts_list])
-    Map.put(provider_map, pk, link_map)
+    # This logic will add in a new entry for every call
+    # It shouldn't add information if it's a duplicate, and it should only
+    # append a host_id to the list if the link_name + contract_id already exists
+    previous_instances = Map.get(previous_map, pk, [])
+
+    # Check for existence of link_name and contract_id pair
+    existing_instance =
+      previous_instances
+      |> Enum.filter(fn info ->
+        Map.get(info, :link_name) == link_name && Map.get(info, :contract_id) == contract_id
+      end)
+      |> List.first()
+
+    cond do
+      # new instance of provider, add to provider list
+      existing_instance == nil ->
+        provider_list = [
+          %{link_name: link_name, contract_id: contract_id, host_ids: [host]}
+          | previous_instances
+        ]
+
+        Map.put(previous_map, pk, provider_list)
+
+      # provider is already running with the same link and contract id on this host
+      # This condition shouldn't be reached, as this attempt should be stopped at the host level
+      existing_instance != nil &&
+          existing_instance
+          |> Map.get(:host_ids)
+          |> Enum.any?(fn id -> id == host end) ->
+        {:error, "Provider instance already exists"}
+
+      # provider with this contract_id and link_name is not running on this host, append new host
+      true ->
+        Map.put(existing_instance, :host_ids, [host | Map.get(existing_instance, :host_ids)])
+    end
   end
 
   #
