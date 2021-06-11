@@ -43,7 +43,7 @@ jobs:
             host_core/_build
           key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('host_core/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-mix-
+            ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-
 
       - name: Install Mix Dependencies
         working-directory: ${{env.working-directory}}
@@ -72,6 +72,8 @@ jobs:
         with:
           path: host_core/priv/plts
           key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('host_core/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-
 
       - name: Create PLTs
         working-directory: ${{env.working-directory}}
@@ -84,3 +86,4 @@ jobs:
         working-directory: ${{env.working-directory}}
         run: mix dialyzer --no-check
 # Thank you https://hashrocket.com/blog/posts/build-the-ultimate-elixir-ci-with-github-actions for this action setup
+# comment
