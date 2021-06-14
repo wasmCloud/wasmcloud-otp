@@ -176,6 +176,6 @@ fn actor_con(actor: &str) -> Result<Connection, Box<dyn Error + Send + Sync>> {
     if let Some(client) = lock.get(actor) {
         client.get_connection().map_err(|e| format!("{}", e).into())
     } else {
-        Err("No client for this actor. Did the host configure it?".into())
+        Err(format!("No client for actor {}. Did the host configure it?", actor).into())
     }
 }

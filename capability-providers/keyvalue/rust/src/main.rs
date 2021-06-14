@@ -155,7 +155,14 @@ fn main() -> Result<(), String> {
             LINKDEFS
                 .write()
                 .unwrap()
-                .insert(ld.actor_id.to_string(), ld);
+                .insert(ld.actor_id.to_string(), ld.clone());
+
+            let conn = kvredis::initialize_client(ld.values.clone())
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            CLIENTS
+                .write()
+                .unwrap()
+                .insert(ld.actor_id.to_string(), conn);
 
             Ok(())
         });
