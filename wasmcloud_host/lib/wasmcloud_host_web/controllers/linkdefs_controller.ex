@@ -7,6 +7,7 @@ defmodule WasmcloudHostWeb.LinkdefsController do
     contract_id = params["contract_id"]
     link_name = params["link_name"]
     provider_key = params["provider_id"]
+
     values =
       params["values"]
       |> String.split(",")
