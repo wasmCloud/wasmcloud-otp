@@ -18,13 +18,14 @@ mod generated;
 mod kvredis;
 mod rpc;
 
+const YEET: &str = "YEET";
+
 lazy_static! {
     static ref LINKDEFS: RwLock<HashMap<String, LinkDefinition>> = RwLock::new(HashMap::new());
     static ref CLIENTS: RwLock<HashMap<String, redis::Client>> = RwLock::new(HashMap::new());
 }
 
 use crossbeam::sync::Parker;
-use nats::Message;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -86,7 +87,7 @@ impl InvocationResponse {
     /// invocation ID to which they correlate
     pub fn success(msg: impl Serialize) -> InvocationResponse {
         InvocationResponse {
-            invocation_id: "".to_string(), // to be filled in later,
+            invocation_id: YEET.into(), // to be filled in later,
             msg: serialize(&msg).unwrap(),
             error: None,
         }
