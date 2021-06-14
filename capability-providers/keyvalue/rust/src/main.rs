@@ -14,8 +14,15 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 
+mod generated;
+mod kvredis;
+mod rpc;
+
+const YEET: &str = "YEET";
+
 lazy_static! {
     static ref LINKDEFS: RwLock<HashMap<String, LinkDefinition>> = RwLock::new(HashMap::new());
+    static ref CLIENTS: RwLock<HashMap<String, redis::Client>> = RwLock::new(HashMap::new());
 }
 
 use crossbeam::sync::Parker;
@@ -25,8 +32,6 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::result::Result;
 use std::sync::RwLock;
-
-mod kvredis;
 
 #[derive(Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LinkDefinition {
@@ -49,12 +54,44 @@ pub struct Invocation {
     pub origin: WasmCloudEntity,
     pub target: WasmCloudEntity,
     pub operation: String,
-    // may not need this since the host doesn't use it in the Rust invocation
-    //#[serde(with = "serde_bytes")]
+    // I believe we determined this is necessary to properly round trip the "bytes"
+    // type with Elixir so it doesn't treat it as a "list of u8s"
+    #[serde(with = "serde_bytes")]
     pub msg: Vec<u8>,
     pub id: String,
     pub encoded_claims: String,
     pub host_id: String,
+}
+
+/// The response to an invocation
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct InvocationResponse {
+    // I believe we determined this is necessary to properly round trip the "bytes"
+    // type with Elixir so it doesn't treat it as a "list of u8s"
+    #[serde(with = "serde_bytes")]
+    pub msg: Vec<u8>,
+    pub error: Option<String>,
+    pub invocation_id: String,
+}
+
+impl InvocationResponse {
+    pub fn failure(inv: &Invocation, e: &str) -> InvocationResponse {
+        InvocationResponse {
+            error: Some(e.to_string()),
+            invocation_id: inv.id.to_string(),
+            ..Default::default()
+        }
+    }
+
+    /// Creates a successful invocation response. All invocation responses contain the
+    /// invocation ID to which they correlate
+    pub fn success(msg: impl Serialize) -> InvocationResponse {
+        InvocationResponse {
+            invocation_id: YEET.into(), // to be filled in later,
+            msg: serialize(&msg).unwrap(),
+            error: None,
+        }
+    }
 }
 
 fn main() -> Result<(), String> {
@@ -88,7 +125,7 @@ fn main() -> Result<(), String> {
         .queue_subscribe(&ldget_topic, &ldget_topic)
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
-            println!("Received {}", &msg);
+            info!("Received request for linkdefs.");
             msg.respond(serialize(&*LINKDEFS.read().unwrap()).unwrap())
                 .unwrap();
             Ok(())
@@ -100,7 +137,12 @@ fn main() -> Result<(), String> {
         .with_handler(move |msg| {
             let ld: LinkDefinition = deserialize(&msg.data).unwrap();
             LINKDEFS.write().unwrap().remove(&ld.actor_id);
-            println!("Received {}", &msg);
+            CLIENTS.write().unwrap().remove(&ld.actor_id);
+            info!(
+                "Deleted link definition from {} to {}",
+                ld.actor_id, ld.provider_id
+            );
+
             Ok(())
         });
 
@@ -109,11 +151,29 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
             let ld: LinkDefinition = deserialize(&msg.data).unwrap();
+            if LINKDEFS.read().unwrap().contains_key(&ld.actor_id) {
+                warn!(
+                    "Received LD put for existing link definition from {} to {}",
+                    ld.actor_id, ld.provider_id
+                );
+                return Ok(());
+            }
             LINKDEFS
                 .write()
                 .unwrap()
-                .insert(ld.actor_id.to_string(), ld);
-            println!("Received {}", &msg);
+                .insert(ld.actor_id.to_string(), ld.clone());
+
+            let conn = kvredis::initialize_client(ld.values.clone())
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            CLIENTS
+                .write()
+                .unwrap()
+                .insert(ld.actor_id.to_string(), conn);
+            info!(
+                "Added link definition from {} to {}",
+                ld.actor_id, ld.provider_id
+            );
+
             Ok(())
         });
 
@@ -134,7 +194,12 @@ fn main() -> Result<(), String> {
         .subscribe(&rpc_topic)
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
-            println!("Received {}", &msg);
+            let inv: Invocation = deserialize(&msg.data).unwrap();
+            info!("Received RPC invocation");
+            let ir = rpc::handle_rpc(inv);
+            let _ = msg.respond(
+                serialize(&ir).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+            );
             Ok(())
         });
 
