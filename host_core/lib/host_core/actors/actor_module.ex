@@ -109,14 +109,21 @@ defmodule HostCore.Actors.ActorModule do
 
     {:ok, agent} = Agent.start_link(fn -> %State{claims: claims} end)
 
-    if claims.call_alias != nil do
-      # TODO put call alias into a ref map
-    end
-
     prefix = HostCore.Host.lattice_prefix()
 
     {:ok, _subscription} =
       Gnat.sub(:lattice_nats, self(), "wasmbus.rpc.#{prefix}.#{claims.public_key}")
+
+    if claims.call_alias != nil do
+      # TODO: handle scaling of actors. multiple instances of a single actor can claim same call alias
+      # Inserts call alias if it hasn't been claimed, and subscribes to call alias topic
+      if :ets.insert_new(:call_aliases, {claims.call_alias, claims.public_key}) do
+        {:ok, _subscription} =
+          Gnat.sub(:lattice_nats, self(), "wasmbus.rpc.#{prefix}.#{claims.call_alias}")
+      else
+        Logger.warn("Call alias #{claims.call_alias} has already been claimed")
+      end
+    end
 
     imports = %{
       wapc: Imports.wapc_imports(agent),

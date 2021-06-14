@@ -10,6 +10,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   @impl true
   def init(_init_arg) do
     Process.flag(:trap_exit, true)
+    :ets.new(:call_aliases, [:named_table])
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 

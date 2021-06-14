@@ -80,4 +80,57 @@ defmodule HostCore.ActorsTest do
     assert payload["body"] ==
              "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"HEYOOO\",\"headers\":{},\"body\":[104,101,108,108,111]}"
   end
+
+  test "can invoke with call alias" do
+    {:ok, bytes} = File.read("priv/actors/echo_call_alias.wasm")
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+
+    req =
+      %{
+        body: "hello",
+        header: %{},
+        path: "/",
+        queryString: "",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HandleRequest",
+        req
+      )
+
+    call_alias = "wasmcloud/examples/echo"
+    topic = "wasmbus.rpc.default.#{call_alias}"
+
+    res =
+      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+        {:ok, %{body: body}} -> body
+        {:error, :timeout} -> :fail
+      end
+
+    assert res != :fail
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
+
+    ir = res |> Msgpax.unpack!()
+
+    payload = ir["msg"] |> Msgpax.unpack!()
+
+    assert payload["header"] == %{}
+    assert payload["status"] == "OK"
+    assert payload["statusCode"] == 200
+
+    assert payload["body"] ==
+             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+  end
 end
