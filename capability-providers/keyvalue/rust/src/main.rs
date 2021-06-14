@@ -136,10 +136,12 @@ fn main() -> Result<(), String> {
         .with_handler(move |msg| {
             let ld: LinkDefinition = deserialize(&msg.data).unwrap();
             LINKDEFS.write().unwrap().remove(&ld.actor_id);
+            CLIENTS.write().unwrap().remove(&ld.actor_id);
             info!(
                 "Deleted link definition from {} to {}",
                 ld.actor_id, ld.provider_id
             );
+
             Ok(())
         });
 
@@ -148,10 +150,13 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
             let ld: LinkDefinition = deserialize(&msg.data).unwrap();
-            info!(
-                "Added link definition from {} to {}",
-                ld.actor_id, ld.provider_id
-            );
+            if LINKDEFS.read().unwrap().contains_key(&ld.actor_id) {
+                warn!(
+                    "Received LD put for existing link definition from {} to {}",
+                    ld.actor_id, ld.provider_id
+                );
+                return Ok(());
+            }
             LINKDEFS
                 .write()
                 .unwrap()
@@ -163,6 +168,10 @@ fn main() -> Result<(), String> {
                 .write()
                 .unwrap()
                 .insert(ld.actor_id.to_string(), conn);
+            info!(
+                "Added link definition from {} to {}",
+                ld.actor_id, ld.provider_id
+            );
 
             Ok(())
         });
@@ -187,6 +196,9 @@ fn main() -> Result<(), String> {
             let inv: Invocation = deserialize(&msg.data).unwrap();
             info!("Received RPC invocation");
             let ir = rpc::handle_rpc(inv);
+            let _ = msg.respond(
+                serialize(&ir).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+            );
             Ok(())
         });
 
