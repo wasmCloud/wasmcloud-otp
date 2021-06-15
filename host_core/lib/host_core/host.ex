@@ -70,6 +70,7 @@ defmodule HostCore.Host do
     :ets.new(:linkdef_registry, [:named_table, :set, :public])
     :ets.new(:claims_registry, [:named_table, :set, :public])
     :ets.new(:refmap_registry, [:named_table, :set, :public])
+    :ets.new(:callalias_registry, [:named_table, :set, :public])
   end
 
   def lattice_prefix() do

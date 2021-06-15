@@ -187,10 +187,15 @@ defmodule HostCore.WebAssembly.Imports do
     # If success, if InvocationResponse.error then that goes in `host_error`
     # else InvocationResponse.msg goes in `host_response`
     {target_type, target_key, target_subject} =
-      if String.starts_with?(namespace, "M") do
-        {:actor, namespace, "wasmbus.rpc.#{prefix}.#{namespace}"}
-      else
-        {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
+      cond do
+        String.starts_with?(namespace, "M") ->
+          {:actor, namespace, "wasmbus.rpc.#{prefix}.#{namespace}"}
+
+        [{_call_alias, pkey}] = :ets.lookup(:callalias_registry, {namespace}) ->
+          {:actor, namespace, "wasmbus.rpc.#{prefix}.#{pkey}"}
+
+        true ->
+          {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
       end
 
     inv_bytes =

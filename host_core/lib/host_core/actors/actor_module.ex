@@ -115,13 +115,18 @@ defmodule HostCore.Actors.ActorModule do
       Gnat.sub(:lattice_nats, self(), "wasmbus.rpc.#{prefix}.#{claims.public_key}")
 
     if claims.call_alias != nil do
-      # TODO: handle scaling of actors. multiple instances of a single actor can claim same call alias
-      # Inserts call alias if it hasn't been claimed, and subscribes to call alias topic
-      if :ets.insert_new(:call_aliases, {claims.call_alias, claims.public_key}) do
-        {:ok, _subscription} =
+      # Inserts call alias if it hasn't been claimed, warning if it already exists
+      case :ets.lookup(:callalias_registry, claims.call_alias) do
+        # Ignore actors in pools claiming the same public key
+        [{_call_alias, pkey}] when pkey == claims.public_key ->
           Gnat.sub(:lattice_nats, self(), "wasmbus.rpc.#{prefix}.#{claims.call_alias}")
-      else
-        Logger.warn("Call alias #{claims.call_alias} has already been claimed")
+
+        [{call_alias, _pkey}] ->
+          Logger.warn("Call alias #{call_alias} has already been claimed")
+
+        [] ->
+          :ets.insert(:callalias_registry, {claims.call_alias, claims.public_key})
+          Gnat.sub(:lattice_nats, self(), "wasmbus.rpc.#{prefix}.#{claims.call_alias}")
       end
     end
 
