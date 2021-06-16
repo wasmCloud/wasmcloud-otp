@@ -89,7 +89,7 @@
 </div>
 <%# Actors Row %>
 <div class="row">
-  <div class="col-lg-12">
+  <div class="col-xl-6 col-lg-12 col-md-12">
     <div class="card">
       <div class="card-header justify-content-between">
         <div class="row justify-content-between">
@@ -111,15 +111,22 @@
         <table class="table table-responsive-sm table-bordered table-striped table-sm">
           <thead>
             <tr>
-              <th>Actor ID</th>
               <th>Name</th>
               <th>Instance Count</th>
               <th>Status</th>
+              <th>Actor ID</th>
             </tr>
           </thead>
           <tbody>
             <%= for {actor, instance_count} <- @actors do %>
               <tr>
+                <%= for {k, v} <- @claims do %>
+                  <%= if k == actor do %>
+                    <td><%= v.name %> </td>
+                  <% end %>
+                <% end %>
+                <td><%= instance_count %></td>
+                <td><span class="badge badge-secondary">Running</span></td>
                 <td>
                   <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                     <%= String.slice(actor, 0..4) %>...
@@ -128,13 +135,6 @@
                     </svg>&nbsp;
                   </button>
                 </td>
-                <%= for {k, v} <- @claims do %>
-                  <%= if k == actor do %>
-                    <td><%= v.name %> </td>
-                  <% end %>
-                <% end %>
-                <td><%= instance_count %></td>
-                <td><span class="badge badge-secondary">Running</span></td>
               </tr>
             <% end %>
           </tbody>
@@ -143,10 +143,10 @@
     </div>
   </div>
   <!-- /.col-->
-</div>
-<%# Providers Row %>
-<div class="row">
-  <div class="col-lg-12">
+  <%# </div> %>
+  <%# Providers Row %>
+  <%# <div class="row"> %>
+  <div class="col-xl-6 col-lg-12 col-md-12">
     <div class="card">
       <div class="card-header">
         <div class="row justify-content-between">
@@ -168,9 +168,9 @@
         <table class="table table-responsive-sm table-bordered table-striped table-sm">
           <thead>
             <tr>
-              <th>Provider ID</th>
               <th>Link Name</th>
               <th>Contract ID</th>
+              <th>Provider ID</th>
               <th>Host IDs</th>
             </tr>
           </thead>
@@ -179,14 +179,14 @@
             <%= for {provider, instances} <- @providers do %>
               <%= for instance <- instances do  %>
                 <tr>
+                  <td><%= Map.get(instance, :link_name) %></td>
+                  <td><%= Map.get(instance, :contract_id) %></td>
                   <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= provider%>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                       <%= String.slice(provider, 0..4) %>...
                       <svg class="c-icon">
                         <use xlink:href="/coreui/free.svg#cil-copy"></use>
                       </svg>&nbsp;
                     </button></td>
-                  <td><%= Map.get(instance, :link_name) %></td>
-                  <td><%= Map.get(instance, :contract_id) %></td>
                   <td>
                     <%= for hid <- Map.get(instance, :host_ids) do %>
                       <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
@@ -208,11 +208,11 @@
 </div>
 <%# Link Definitions row %>
 <div class="row">
-  <div class="col-lg-12">
+  <div class="col-xl-6 col-lg-12 col-md-12">
     <div class="card">
       <div class="card-header">
         <div class="row justify-content-between">
-          <div class="col-lg-3 col-md-3 col-sm-3" style="max-width:200px">
+          <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:200px">
             <h3>Link Definitions</h3>
           </div>
           <div class="mfe-2">
@@ -231,15 +231,17 @@
         <table class="table table-responsive-sm table-bordered table-striped table-sm">
           <thead>
             <tr>
-              <th>Actor ID</th>
-              <th>Provider ID</th>
               <th>Link Name</th>
               <th>Contract ID</th>
+              <th>Actor ID</th>
+              <th>Provider ID</th>
             </tr>
           </thead>
           <tbody>
             <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
               <tr>
+                <td><%= link_name %></td>
+                <td><%= contract_id %></td>
                 <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                     <%= String.slice(actor_id, 0..4) %>...
                     <svg class="c-icon">
@@ -252,8 +254,6 @@
                       <use xlink:href="/coreui/free.svg#cil-copy"></use>
                     </svg>&nbsp;
                   </button></td>
-                <td><%= contract_id %></td>
-                <td><%= link_name %></td>
               </tr>
             <% end %>
           </tbody>
