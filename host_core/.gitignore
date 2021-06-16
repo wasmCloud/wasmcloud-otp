@@ -26,3 +26,6 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 host_core-*.tar
 
+# Ignore redis artifacts
+*.rdb
+

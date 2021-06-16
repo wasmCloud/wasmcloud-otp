@@ -96,9 +96,10 @@ impl InvocationResponse {
 
 fn main() -> Result<(), String> {
     let _ = env_logger::try_init();
-    info!("Starting Redis Capability Provider");
+    //TODO: pass RUST_LOG=info, change printlns to info logs
+    println!("Starting Redis Capability Provider");
 
-    let provider_key = "Vxxxx"; // TODO: get from env/wasmcloud host
+    let provider_key = "VAZVC4RX54J2NVCMCW7BPCAHGGG5XZXDBXFUMDUXGESTMQEJLC3YVZWB"; // TODO: get from env/wasmcloud host
     let link_name = "default"; // TODO: get from env/wasmcloud host
 
     let ldget_topic = format!(
@@ -125,7 +126,7 @@ fn main() -> Result<(), String> {
         .queue_subscribe(&ldget_topic, &ldget_topic)
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
-            info!("Received request for linkdefs.");
+            println!("Received request for linkdefs.");
             msg.respond(serialize(&*LINKDEFS.read().unwrap()).unwrap())
                 .unwrap();
             Ok(())
@@ -138,7 +139,7 @@ fn main() -> Result<(), String> {
             let ld: LinkDefinition = deserialize(&msg.data).unwrap();
             LINKDEFS.write().unwrap().remove(&ld.actor_id);
             CLIENTS.write().unwrap().remove(&ld.actor_id);
-            info!(
+            println!(
                 "Deleted link definition from {} to {}",
                 ld.actor_id, ld.provider_id
             );
@@ -146,10 +147,12 @@ fn main() -> Result<(), String> {
             Ok(())
         });
 
+    println!("LDPUT: {}", ldput_topic);
     let _sub = nc
         .subscribe(&ldput_topic)
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
+            println!("REDIS: Received LD put");
             let ld: LinkDefinition = deserialize(&msg.data).unwrap();
             if LINKDEFS.read().unwrap().contains_key(&ld.actor_id) {
                 warn!(
@@ -158,18 +161,21 @@ fn main() -> Result<(), String> {
                 );
                 return Ok(());
             }
+            println!("Configuring linkdefs");
             LINKDEFS
                 .write()
                 .unwrap()
                 .insert(ld.actor_id.to_string(), ld.clone());
 
+            println!("Configuring conn");
             let conn = kvredis::initialize_client(ld.values.clone())
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            println!("Conn result: {:?}", conn);
             CLIENTS
                 .write()
                 .unwrap()
                 .insert(ld.actor_id.to_string(), conn);
-            info!(
+            println!(
                 "Added link definition from {} to {}",
                 ld.actor_id, ld.provider_id
             );
@@ -184,7 +190,7 @@ fn main() -> Result<(), String> {
         .subscribe(&shutdown_topic)
         .map_err(|e| format!("{}", e))?
         .with_handler(move |_msg| {
-            info!("Received termination signal. Shutting down capability provider.");
+            println!("Received termination signal. Shutting down capability provider.");
             u.unpark();
             Ok(())
         });
@@ -195,7 +201,7 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
             let inv: Invocation = deserialize(&msg.data).unwrap();
-            info!("Received RPC invocation");
+            println!("Received RPC invocation");
             let ir = rpc::handle_rpc(inv);
             let _ = msg.respond(
                 serialize(&ir).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
@@ -203,7 +209,7 @@ fn main() -> Result<(), String> {
             Ok(())
         });
 
-    info!("Ready");
+    println!("Ready");
     p.park();
 
     Ok(())

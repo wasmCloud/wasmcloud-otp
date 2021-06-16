@@ -66,7 +66,7 @@ defmodule HostCore.Host do
   end
 
   defp configure_ets() do
-    :ets.new(:provider_registry, [:named_table, :set, :public])
+    :ets.new(:provider_table, [:named_table, :set, :public])
     :ets.new(:linkdef_registry, [:named_table, :set, :public])
     :ets.new(:claims_registry, [:named_table, :set, :public])
     :ets.new(:refmap_registry, [:named_table, :set, :public])

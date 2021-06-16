@@ -28,6 +28,7 @@ defmodule HostCore.Providers.ProviderModule do
     # In case we want to know the contract ID of this provider, we can look it up as the
     # bound value in the registry.
     Registry.register(Registry.ProviderRegistry, {public_key, link_name}, contract_id)
+    HostCore.Providers.register_provider(public_key, link_name, contract_id)
 
     port = Port.open({:spawn, "#{path}"}, [:binary])
     {:os_pid, pid} = Port.info(port, :os_pid)
