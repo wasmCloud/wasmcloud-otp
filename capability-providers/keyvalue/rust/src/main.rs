@@ -147,12 +147,10 @@ fn main() -> Result<(), String> {
             Ok(())
         });
 
-    println!("LDPUT: {}", ldput_topic);
     let _sub = nc
         .subscribe(&ldput_topic)
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
-            println!("REDIS: Received LD put");
             let ld: LinkDefinition = deserialize(&msg.data).unwrap();
             if LINKDEFS.read().unwrap().contains_key(&ld.actor_id) {
                 warn!(
@@ -161,16 +159,13 @@ fn main() -> Result<(), String> {
                 );
                 return Ok(());
             }
-            println!("Configuring linkdefs");
             LINKDEFS
                 .write()
                 .unwrap()
                 .insert(ld.actor_id.to_string(), ld.clone());
 
-            println!("Configuring conn");
             let conn = kvredis::initialize_client(ld.values.clone())
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-            println!("Conn result: {:?}", conn);
             CLIENTS
                 .write()
                 .unwrap()
@@ -209,7 +204,7 @@ fn main() -> Result<(), String> {
             Ok(())
         });
 
-    println!("Ready");
+    println!("Redis provider is ready for requests");
     p.park();
 
     Ok(())

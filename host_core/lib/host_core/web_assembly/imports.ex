@@ -129,24 +129,20 @@ defmodule HostCore.WebAssembly.Imports do
     Logger.info("host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
 
     # Start auth chain by looking up the link definition for this call
-    res =
-      HostCore.LinkdefsManager.lookup_link_definition(actor, namespace, binding)
-      |> authorize(
-        actor,
-        binding,
-        namespace,
-        operation,
-        payload,
-        claims,
-        seed,
-        prefix,
-        provider_key,
-        state
-      )
-      |> finish(agent)
-
-    IO.puts("Resulting thingy: #{res}")
-    res
+    HostCore.LinkdefsManager.lookup_link_definition(actor, namespace, binding)
+    |> authorize(
+      actor,
+      binding,
+      namespace,
+      operation,
+      payload,
+      claims,
+      seed,
+      prefix,
+      provider_key,
+      state
+    )
+    |> finish(agent)
   end
 
   defp authorize(
@@ -214,21 +210,15 @@ defmodule HostCore.WebAssembly.Imports do
       )
 
     # make the RPC call
-
-    IO.puts("RPC call to #{target_subject}")
-
     res =
       case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
         {:ok, %{body: body}} -> body
         {:error, :timeout} -> :fail
       end
 
-    IO.inspect(res)
-    IO.puts("We did the RPC call")
-
     # Refactor to Tuple {wapc_res, state}
     if res != :fail do
-      ir = res |> Msgpax.unpack!() |> IO.inspect()
+      ir = res |> Msgpax.unpack!()
 
       if ir["error"] == nil do
         new_state = %State{

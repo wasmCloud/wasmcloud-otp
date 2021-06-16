@@ -67,7 +67,6 @@ defmodule HostCore.E2E.KVCounterTest do
 
     HTTPoison.start()
     {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
-    IO.inspect(resp)
 
     # Retrieve current count, assert next request increments by 1
     {:ok, body} = resp.body |> JSON.decode()
