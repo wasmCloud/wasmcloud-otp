@@ -43,7 +43,7 @@ defmodule HostCore.E2E.KVCounterTest do
              {@redis_key, @redis_link, @redis_contract}
            ]
 
-    Process.sleep(1000)
+    Process.sleep(5000)
 
     :ok =
       HostCore.LinkdefsManager.put_link_definition(
@@ -69,13 +69,13 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
     IO.inspect(resp)
 
+    # Retrieve current count, assert next request increments by 1
     {:ok, body} = resp.body |> JSON.decode()
     incr_count = Map.get(body, "counter") + 1
     {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
     assert resp.body == "{\"counter\":#{incr_count}}"
 
-    Process.sleep(1000)
-
+    HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1)
     HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
     HostCore.Providers.ProviderSupervisor.terminate_provider(@redis_key, @redis_link)
   end
