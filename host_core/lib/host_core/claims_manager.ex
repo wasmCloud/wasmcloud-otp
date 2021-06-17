@@ -28,6 +28,7 @@ defmodule HostCore.ClaimsManager do
 
     key = claims.public_key
     :ets.insert(:claims_table, {key, claims})
+    :ets.insert(:callalias_table, {claims.call_alias, claims.public_key})
 
     {:noreply, state}
   end

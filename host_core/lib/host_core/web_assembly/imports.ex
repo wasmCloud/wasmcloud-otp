@@ -190,30 +190,40 @@ defmodule HostCore.WebAssembly.Imports do
     # else InvocationResponse.msg goes in `host_response`
     {target_type, target_key, target_subject} =
       cond do
-        String.starts_with?(provider_key, "V") ->
+        String.starts_with?(provider_key, "V") && String.length(provider_key) == 56 ->
           {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
 
-        String.starts_with?(actor, "M") ->
+        String.starts_with?(actor, "M") && String.length(actor) == 56 ->
           {:actor, actor, "wasmbus.rpc.#{prefix}.#{actor}"}
+
+        [{_call_alias, pkey}] = :ets.lookup(:callalias_table, actor) ->
+          {:actor, pkey, "wasmbus.rpc.#{prefix}.#{pkey}"}
+
+        true ->
+          {:unknown, "", ""}
       end
 
-    inv_bytes =
-      HostCore.WasmCloud.Native.generate_invocation_bytes(
-        seed,
-        actor,
-        target_type,
-        target_key,
-        namespace,
-        binding,
-        operation,
-        payload
-      )
-
-    # make the RPC call
     res =
-      case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
-        {:ok, %{body: body}} -> body
-        {:error, :timeout} -> :fail
+      if target_type == :unknown do
+        :fail
+      else
+        inv_bytes =
+          HostCore.WasmCloud.Native.generate_invocation_bytes(
+            seed,
+            actor,
+            target_type,
+            target_key,
+            namespace,
+            binding,
+            operation,
+            payload
+          )
+
+        # make the RPC call
+        case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
+          {:ok, %{body: body}} -> body
+          {:error, :timeout} -> :fail
+        end
       end
 
     # Refactor to Tuple {wapc_res, state}
