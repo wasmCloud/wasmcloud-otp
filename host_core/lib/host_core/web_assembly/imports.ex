@@ -163,24 +163,34 @@ defmodule HostCore.WebAssembly.Imports do
      state}
   end
 
+  # Link definition not found for actor
   defp authorize(
          :error,
          _actor,
-         _binding,
-         _namespace,
-         _operation,
-         _payload,
-         _claims,
-         _seed,
-         _prefix,
-         _provider_key,
-         _state
+         binding,
+         namespace,
+         operation,
+         payload,
+         claims,
+         seed,
+         prefix,
+         provider_key,
+         state
        ) do
-    :error
+    # If the namespace (contract id) is a valid call alias, then the source actor
+    # is automatically allowed to invoke the target actor
+    case :ets.lookup(:callalias_table, namespace) do
+      [{_call_alias, pkey}] ->
+        {:ok, pkey, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
+         state}
+
+      [] ->
+        :error
+    end
   end
 
   defp finish(
-         {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
+         {:ok, actor, binding, namespace, operation, payload, _claims, seed, prefix, provider_key,
           state},
          agent
        ) do
@@ -195,9 +205,6 @@ defmodule HostCore.WebAssembly.Imports do
 
         String.starts_with?(actor, "M") && String.length(actor) == 56 ->
           {:actor, actor, "wasmbus.rpc.#{prefix}.#{actor}"}
-
-        [{_call_alias, pkey}] = :ets.lookup(:callalias_table, actor) ->
-          {:actor, pkey, "wasmbus.rpc.#{prefix}.#{pkey}"}
 
         true ->
           {:unknown, "", ""}
