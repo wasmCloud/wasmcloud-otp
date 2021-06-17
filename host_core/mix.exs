@@ -35,6 +35,7 @@ defmodule HostCore.MixProject do
       {:gnat, "~> 1.2"},
       {:cloudevents, "~> 0.4.0"},
       {:uuid, "~> 1.1"},
+      {:jason, "~> 1.2.2"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:httpoison, "~> 1.8", only: [:test]},
