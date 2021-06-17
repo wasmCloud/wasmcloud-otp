@@ -60,7 +60,6 @@ defmodule HostCore.Host do
     {:reply, state.host_key, state}
   end
 
-
   defp start_gnat() do
     {:ok, _gnat} = Gnat.start_link(%{host: '127.0.0.1', port: 4222}, name: :lattice_nats)
     {:ok, _gnaT} = Gnat.start_link(%{host: '127.0.0.1', port: 4222}, name: :control_nats)
@@ -90,11 +89,16 @@ defmodule HostCore.Host do
       host_id: host_key(),
       lattice_rpc_prefix: lattice_prefix(),
       link_name: link_name,
-      lattice_rpc_user_jwt: "", # TODO
-      lattice_rpc_user_seed: "", # TODO
-      lattice_rpc_url: "", # TODO
+      # TODO
+      lattice_rpc_user_jwt: "",
+      # TODO
+      lattice_rpc_user_seed: "",
+      # TODO
+      lattice_rpc_url: "",
       provider_key: provider_key,
-      env_values: %{} # TODO
-    } |> Jason.encode!()
+      # TODO
+      env_values: %{}
+    }
+    |> Jason.encode!()
   end
 end
