@@ -50,7 +50,7 @@ defmodule HostCore.Host do
     {:ok,
      %State{
        host_key: host_key,
-       host_seed: host_seed,
+       host_seed: host_seed
      }}
   end
 
