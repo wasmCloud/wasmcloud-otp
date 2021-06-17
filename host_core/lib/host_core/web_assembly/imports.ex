@@ -111,7 +111,7 @@ defmodule HostCore.WebAssembly.Imports do
     # the given namespace and binding, e.g. "wasmcloud:httpserver"/"default"
     state = Agent.get(agent, fn content -> content end)
     claims = state.claims
-    actor = claims.subject
+    actor = claims.public_key
     payload = Wasmex.Memory.read_binary(context.memory, ptr, len)
     binding = Wasmex.Memory.read_string(context.memory, bd_ptr, bd_len)
     namespace = Wasmex.Memory.read_string(context.memory, ns_ptr, ns_len)
@@ -120,7 +120,7 @@ defmodule HostCore.WebAssembly.Imports do
     provider_key =
       case HostCore.Providers.lookup_provider(namespace, binding) do
         {:ok, pk} -> pk
-        {:error} -> ""
+        :error -> ""
       end
 
     seed = HostCore.Host.seed()
@@ -142,7 +142,7 @@ defmodule HostCore.WebAssembly.Imports do
       provider_key,
       state
     )
-    |> finish()
+    |> finish(agent)
   end
 
   defp authorize(
@@ -159,7 +159,8 @@ defmodule HostCore.WebAssembly.Imports do
          state
        ) do
     # TODO - check claims to make sure actor is authorized
-    {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key}
+    {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
+     state}
   end
 
   defp authorize(
@@ -180,17 +181,20 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp finish(
          {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
-          state}
+          state},
+         agent
        ) do
     # Perform RPC invocation over lattice
     # If fails, error goes in `host_error`
     # If success, if InvocationResponse.error then that goes in `host_error`
     # else InvocationResponse.msg goes in `host_response`
     {target_type, target_key, target_subject} =
-      if String.starts_with?(namespace, "M") do
-        {:actor, namespace, "wasmbus.rpc.#{prefix}.#{namespace}"}
-      else
-        {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
+      cond do
+        String.starts_with?(provider_key, "V") ->
+          {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
+
+        String.starts_with?(actor, "M") ->
+          {:actor, actor, "wasmbus.rpc.#{prefix}.#{actor}"}
       end
 
     inv_bytes =
@@ -206,30 +210,34 @@ defmodule HostCore.WebAssembly.Imports do
       )
 
     # make the RPC call
-
     res =
       case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
         {:ok, %{body: body}} -> body
         {:error, :timeout} -> :fail
       end
 
+    # Refactor to Tuple {wapc_res, state}
     if res != :fail do
       ir = res |> Msgpax.unpack!()
 
       if ir["error"] == nil do
-        state = %State{
+        new_state = %State{
           state
-          | host_response: ir["msg"] |> :binary.list_to_bin() |> Msgpax.unpack!()
+          | host_response: ir["msg"]
         }
+
+        Agent.update(agent, fn _ -> new_state end)
 
         1
       else
         # error field on invocation result is an optional string
-        state = %State{state | host_error: ir["error"]}
+        new_state = %State{state | host_error: ir["error"]}
+        Agent.update(agent, fn _ -> new_state end)
         0
       end
     else
-      state = %State{state | host_error: "Failed to perform RPC call"}
+      new_state = %State{state | host_error: "Failed to perform RPC call"}
+      Agent.update(agent, fn _ -> new_state end)
       0
     end
   end
@@ -239,13 +247,14 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp host_response(_api_type, context, agent, ptr) do
-    if hr = Agent.get(agent, fn content -> content.host_response end) != nil do
-      Wasmex.Memory.write_binary(context.memory, ptr, byte_size(hr))
+    if (hr = Agent.get(agent, fn content -> content.host_response end)) != nil do
+      Wasmex.Memory.write_binary(context.memory, ptr, hr)
+      nil
     end
   end
 
   defp host_response_len(_api_type, _context, agent) do
-    if hr = Agent.get(agent, fn content -> content.host_response end) != nil do
+    if (hr = Agent.get(agent, fn content -> content.host_response end)) != nil do
       byte_size(hr)
     else
       0
@@ -253,13 +262,14 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp host_error(_api_type, context, agent, ptr) do
-    if he = Agent.get(agent, fn content -> content.host_error end) != nil do
-      Wasmex.Memory.write_binary(context.memory, ptr, byte_size(he))
+    if (he = Agent.get(agent, fn content -> content.host_error end)) != nil do
+      Wasmex.Memory.write_binary(context.memory, ptr, he)
+      nil
     end
   end
 
   defp host_error_len(_api_type, _context, agent) do
-    if he = Agent.get(agent, fn content -> content.host_error end) != nil do
+    if (he = Agent.get(agent, fn content -> content.host_error end)) != nil do
       byte_size(he)
     else
       0

@@ -37,7 +37,8 @@ defmodule HostCore.MixProject do
       {:uuid, "~> 1.1"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:httpoison, "~> 1.8", only: [:test]}
+      {:httpoison, "~> 1.8", only: [:test]},
+      {:json, "~> 1.4", only: [:test]}
       # {:grpc, "~> 0.5.0-beta.1"}
       # { :benchwarmer, "~> 0.0.2" }
       # {:dep_from_hexpm, "~> 0.3.0"},
