@@ -15,7 +15,8 @@ defmodule HostCore.Actors.ActorModule do
       :instance,
       :api_version,
       :invocation,
-      :claims
+      :claims,
+      :subscription
     ]
   end
 
@@ -69,6 +70,9 @@ defmodule HostCore.Actors.ActorModule do
   def handle_call(:halt_and_cleanup, _from, agent) do
     # Add cleanup if necessary here...
     Logger.info("Actor instance termination requested")
+    subscription = Agent.get(agent, fn content -> content.subscription end)
+
+    Gnat.unsub(:lattice_nats, subscription)
 
     {:stop, :normal, :ok, agent}
   end
@@ -113,7 +117,8 @@ defmodule HostCore.Actors.ActorModule do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
 
-    {:ok, _subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
+    {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
+    Agent.update(agent, fn state -> %State{ state | subscription: subscription } end)
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
