@@ -113,8 +113,7 @@ defmodule HostCore.Actors.ActorModule do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
 
-    {:ok, _subscription} =
-      Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
+    {:ok, _subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
