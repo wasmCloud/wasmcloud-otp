@@ -182,6 +182,7 @@ func main() {
 	nc.Subscribe(shutdown_topic, func(m *nats.Msg) {
 		fmt.Println("Received shutdown signal, shutting down")
 		wg.Done()
+		m.Respond([]byte("HTTPServer provider shutdown successfully"))
 	})
 	fmt.Println("HTTP Server ready for link definitions")
 	wg.Wait()
