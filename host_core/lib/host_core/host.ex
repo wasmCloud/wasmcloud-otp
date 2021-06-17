@@ -2,6 +2,9 @@ defmodule HostCore.Host do
   use GenServer, restart: :transient
   require Logger
 
+  @prefix_var "WASMCLOUD_LATTICE_PREFIX"
+  @default_prefix "default"
+
   defmodule State do
     defstruct [:host_key, :host_seed, :labels, :lattice_prefix]
   end
@@ -42,7 +45,12 @@ defmodule HostCore.Host do
     # TODO - get namespace prefix from env/config
     # TODO - query intrinsic labels for OS/CPU family
     # TODO - append labels from env/config
-    {:ok, %State{host_key: host_key, host_seed: host_seed, lattice_prefix: "default"}}
+    {:ok,
+     %State{
+       host_key: host_key,
+       host_seed: host_seed,
+       lattice_prefix: System.get_env(@prefix_var, @default_prefix)
+     }}
   end
 
   @impl true
