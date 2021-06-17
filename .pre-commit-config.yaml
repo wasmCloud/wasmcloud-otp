@@ -1,0 +1,41 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: local
+    hooks:
+      - id: mix-test
+        name: "elixir: mix test"
+        entry: mix test
+        language: system
+        pass_filenames: false
+        files: host_core/*/.exs*$
+
+      - id: mix-format
+        name: "elixir: mix format"
+        entry: mix format --check-formatted
+        language: system
+        files: \.exs*$
+
+      - id: mix-compile
+        name: "elixir: mix compile"
+        entry: mix compile --force --warnings-as-errors
+        language: system
+        pass_filenames: false
+        files: \.ex$
+
+      - id: mix-credo
+        name: "elixir: mix credo"
+        entry: mix credo
+        language: system
+        pass_filenames: false
+        files: \.exs*$
+
+  - repo: git://github.com/pre-commit/pre-commit-hooks
+    rev: v1.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: no-commit-to-branch
+        args: [-b, master, -b, production, -b, staging]
