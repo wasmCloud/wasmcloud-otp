@@ -31,16 +31,16 @@ defmodule HostCore.LinkdefsManager do
     Logger.info("Received link definition command (#{cmd})")
 
     if cmd == "put" do
-      :ets.insert(:linkdef_registry, {key, map})
+      :ets.insert(:linkdef_table, {key, map})
     else
-      :ets.delete(:linkdef_registry, key)
+      :ets.delete(:linkdef_table, key)
     end
 
     {:noreply, state}
   end
 
   def lookup_link_definition(actor, contract_id, link_name) do
-    case :ets.lookup(:linkdef_registry, {actor, contract_id, link_name}) do
+    case :ets.lookup(:linkdef_table, {actor, contract_id, link_name}) do
       [ld] -> {:ok, ld}
       [] -> :error
     end
@@ -58,7 +58,7 @@ defmodule HostCore.LinkdefsManager do
       values: values
     }
 
-    :ets.insert(:linkdef_registry, {key, map})
+    :ets.insert(:linkdef_table, {key, map})
     publish_link_definition(ld)
   end
 

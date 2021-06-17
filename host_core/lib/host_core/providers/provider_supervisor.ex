@@ -34,7 +34,17 @@ defmodule HostCore.Providers.ProviderSupervisor do
     [{pid, _val}] = Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
     Logger.info("About to terminate child process")
     prefix = HostCore.Host.lattice_prefix()
-    :ok = Gnat.pub(:lattice_nats, "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown", "")
+    # Allow provider 2 seconds to clean up resources
+    case Gnat.request(
+           :lattice_nats,
+           "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
+           "",
+           receive_timeout: 2000
+         ) do
+      {:ok, _msg} -> :ok
+      {:error, :timeout} -> :error
+    end
+
     ProviderModule.halt(pid)
   end
 

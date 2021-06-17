@@ -82,4 +82,69 @@ defmodule HostCore.ActorsTest do
     assert payload["body"] ==
              "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"HEYOOO\",\"headers\":{},\"body\":[104,101,108,108,111]}"
   end
+
+  test "can invoke via call alias" do
+    {:ok, bytes} = File.read("priv/actors/pinger_s.wasm")
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, bytes} = File.read("priv/actors/ponger_s.wasm")
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+
+    req =
+      %{
+        body: "",
+        header: %{},
+        path: "/",
+        queryString: "",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HandleRequest",
+        req
+      )
+
+    pinger_key = "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN"
+    topic = "wasmbus.rpc.default.#{pinger_key}"
+
+    res =
+      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+        {:ok, %{body: body}} -> body
+        {:error, :timeout} -> :fail
+      end
+
+    assert res != :fail
+    # Pinger
+    HostCore.Actors.ActorSupervisor.terminate_actor(
+      "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN",
+      1
+    )
+
+    # Ponger
+    HostCore.Actors.ActorSupervisor.terminate_actor(
+      "MBMOM2EZZICFYM4KATRMH2JUO5QWE3YWCHGFZVRQQ2SQI4I5BKWIGMBS",
+      1
+    )
+
+    ir = res |> Msgpax.unpack!()
+
+    payload = ir["msg"] |> Msgpax.unpack!()
+
+    assert payload["header"] == %{}
+    assert payload["status"] == "OK"
+    assert payload["statusCode"] == 200
+
+    assert payload["body"] ==
+             "{\"value\":53}"
+  end
 end

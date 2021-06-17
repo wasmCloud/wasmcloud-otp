@@ -27,7 +27,8 @@ defmodule HostCore.ClaimsManager do
     claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
 
     key = claims.public_key
-    :ets.insert(:claims_registry, {key, claims})
+    :ets.insert(:claims_table, {key, claims})
+    :ets.insert(:callalias_table, {claims.call_alias, claims.public_key})
 
     {:noreply, state}
   end
@@ -45,12 +46,12 @@ defmodule HostCore.ClaimsManager do
       public_key: claims.public_key
     }
 
-    :ets.insert(:claims_registry, {key, claims})
+    :ets.insert(:claims_table, {key, claims})
     publish_claims(claims)
   end
 
   def lookup_claims(public_key) do
-    case :ets.lookup(:claims_registry, public_key) do
+    case :ets.lookup(:claims_table, public_key) do
       [ld] -> {:ok, ld}
       [] -> :error
     end
