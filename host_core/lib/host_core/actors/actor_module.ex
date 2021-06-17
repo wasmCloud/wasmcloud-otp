@@ -118,7 +118,7 @@ defmodule HostCore.Actors.ActorModule do
     topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
 
     {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
-    Agent.update(agent, fn state -> %State{ state | subscription: subscription } end)
+    Agent.update(agent, fn state -> %State{state | subscription: subscription} end)
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
