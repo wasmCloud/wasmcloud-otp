@@ -8,7 +8,7 @@ defmodule HostCore.Host do
   @default_prefix "default"
 
   defmodule State do
-    defstruct [:host_key, :host_seed, :labels, :lattice_prefix]
+    defstruct [:host_key, :host_seed, :labels]
   end
 
   @doc """
@@ -51,13 +51,12 @@ defmodule HostCore.Host do
      %State{
        host_key: host_key,
        host_seed: host_seed,
-       lattice_prefix: System.get_env(@prefix_var, @default_prefix)
      }}
   end
 
   @impl true
   def handle_call(:get_prefix, _from, state) do
-    {:reply, state.lattice_prefix, state}
+    {:reply, System.get_env(@prefix_var, @default_prefix), state}
   end
 
   @impl true

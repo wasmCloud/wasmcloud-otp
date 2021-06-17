@@ -8,25 +8,27 @@ defmodule HostCore.ActorsTest do
 
   @echo_key "MADQAFWOOOCZFDKYEYHC7AUQKDJTP32XUC5TDSMN4JLTDTU2WXBVPG4G"
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
+  @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
   @httpserver_link "default"
   @httpserver_contract "wasmcloud:httpserver"
 
   test "can load actors" do
-    {:ok, bytes} = File.read("priv/actors/echo_s.wasm")
+    {:ok, bytes} = File.read("priv/actors/kvcounter_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    Process.sleep(1_000)
 
     actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @echo_key)
+      Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key)
       |> length
 
     assert actor_count == 5
-    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 5)
-
-    assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @echo_key) == nil
+    HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 5)
+    Process.sleep(500)
+    assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key) == nil
   end
 
   test "can invoke the echo actor" do
