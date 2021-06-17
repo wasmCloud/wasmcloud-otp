@@ -41,9 +41,7 @@ jobs:
           path: |
             wasmcloud_host/deps
             wasmcloud_host/_build
-          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('wasmcloud_host/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-
+          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
 
       - name: Install Mix Dependencies
         working-directory: ${{env.working-directory}}
@@ -71,9 +69,7 @@ jobs:
         id: plt-cache
         with:
           path: wasmcloud_host/priv/plts
-          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('wasmcloud_host/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-
+          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
 
       - name: Create PLTs
         working-directory: ${{env.working-directory}}
