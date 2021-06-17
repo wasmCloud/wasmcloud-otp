@@ -143,7 +143,7 @@ fn main() -> Result<(), String> {
         .queue_subscribe(&ldget_topic, &ldget_topic)
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
-            info!("Received request for linkdefs.");
+            println!("Received request for linkdefs.");
             msg.respond(serialize(&*LINKDEFS.read().unwrap()).unwrap())
                 .unwrap();
             Ok(())
@@ -156,7 +156,7 @@ fn main() -> Result<(), String> {
             let ld: LinkDefinition = deserialize(&msg.data).unwrap();
             LINKDEFS.write().unwrap().remove(&ld.actor_id);
             CLIENTS.write().unwrap().remove(&ld.actor_id);
-            info!(
+            println!(
                 "Deleted link definition from {} to {}",
                 ld.actor_id, ld.provider_id
             );
@@ -187,7 +187,7 @@ fn main() -> Result<(), String> {
                 .write()
                 .unwrap()
                 .insert(ld.actor_id.to_string(), conn);
-            info!(
+            println!(
                 "Added link definition from {} to {}",
                 ld.actor_id, ld.provider_id
             );
@@ -202,7 +202,7 @@ fn main() -> Result<(), String> {
         .subscribe(&shutdown_topic)
         .map_err(|e| format!("{}", e))?
         .with_handler(move |_msg| {
-            info!("Received termination signal. Shutting down capability provider.");
+            println!("Received termination signal. Shutting down capability provider.");
             u.unpark();
             Ok(())
         });
@@ -213,7 +213,7 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("{}", e))?
         .with_handler(move |msg| {
             let inv: Invocation = deserialize(&msg.data).unwrap();
-            info!("Received RPC invocation");
+            println!("Received RPC invocation");
             let ir = rpc::handle_rpc(inv);
             let _ = msg.respond(
                 serialize(&ir).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
@@ -221,7 +221,7 @@ fn main() -> Result<(), String> {
             Ok(())
         });
 
-    info!("Ready");
+    println!("Redis provider is ready for requests");
     p.park();
 
     Ok(())

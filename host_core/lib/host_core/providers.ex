@@ -10,9 +10,13 @@ defmodule HostCore.Providers do
   and "default"
   """
   def lookup_provider(namespace, link_name) do
-    case :ets.lookup(:provider_registry, {namespace, link_name}) do
-      [pk] -> {:ok, pk}
+    case :ets.lookup(:provider_table, {namespace, link_name}) do
+      [{{_ns, _ln}, pk}] -> {:ok, pk}
       [] -> :error
     end
+  end
+
+  def register_provider(public_key, link_name, namespace) do
+    :ets.insert(:provider_table, {{namespace, link_name}, public_key})
   end
 end
