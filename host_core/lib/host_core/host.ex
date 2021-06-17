@@ -13,6 +13,23 @@ defmodule HostCore.Host do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc """
+  NATS is used for all lattice communications, which includes communication between actors and capability providers,
+  whether those capability providers are local or remote.
+
+  The following is an outline of the important subject spaces required for providers, the host, and RPC listeners. All
+  subscriptions are not in a queue group unless otherwise specified.
+
+  * `wasmbus.rpc.{prefix}.{public_key}` - Send invocations to an actor Invocation->InvocationResponse
+  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}` - Send invocations (from actors only) to Providers  Invocation->InvocationResponse
+  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.put` - Publish link definition (e.g. bind to an actor)
+  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.get` - Query all link defss for this provider. (queue subscribed)
+  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.del` - Remove a link def.
+  * `wasmbus.rpc.{prefix}.claims.put` - Publish discovered claims
+  * `wasmbus.rpc.{prefix}.claims.get` - Query all claims (queue subscribed by hosts)
+  * `wasmbus.rpc.{prefix}.ref_maps.put` - Publish a reference map, e.g. OCI ref -> PK, call alias -> PK
+  * `wasmbus.rpc.{prefix}.ref_maps.get` - Query all reference maps (queue subscribed by hosts)
+  """
   @impl true
   def init(_opts) do
     {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
@@ -43,23 +60,7 @@ defmodule HostCore.Host do
     {:reply, state.host_key, state}
   end
 
-  @doc """
-  NATS is used for all lattice communications, which includes communication between actors and capability providers,
-  whether those capability providers are local or remote.
 
-  The following is an outline of the important subject spaces required for providers, the host, and RPC listeners. All
-  subscriptions are not in a queue group unless otherwise specified.
-
-  * `wasmbus.rpc.{prefix}.{public_key}` - Send invocations to an actor Invocation->InvocationResponse
-  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}` - Send invocations (from actors only) to Providers  Invocation->InvocationResponse
-  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.put` - Publish link definition (e.g. bind to an actor)
-  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.get` - Query all link defss for this provider. (queue subscribed)
-  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.del` - Remove a link def.
-  * `wasmbus.rpc.{prefix}.claims.put` - Publish discovered claims
-  * `wasmbus.rpc.{prefix}.claims.get` - Query all claims (queue subscribed by hosts)
-  * `wasmbus.rpc.{prefix}.ref_maps.put` - Publish a reference map, e.g. OCI ref -> PK, call alias -> PK
-  * `wasmbus.rpc.{prefix}.ref_maps.get` - Query all reference maps (queue subscribed by hosts)
-  """
   defp start_gnat() do
     {:ok, _gnat} = Gnat.start_link(%{host: '127.0.0.1', port: 4222}, name: :lattice_nats)
     {:ok, _gnaT} = Gnat.start_link(%{host: '127.0.0.1', port: 4222}, name: :control_nats)
@@ -82,5 +83,18 @@ defmodule HostCore.Host do
 
   def host_key() do
     GenServer.call(__MODULE__, :get_pk)
+  end
+
+  def generate_hostinfo_for(provider_key, link_name) do
+    %{
+      host_id: host_key(),
+      lattice_rpc_prefix: lattice_prefix(),
+      link_name: link_name,
+      lattice_rpc_user_jwt: "", # TODO
+      lattice_rpc_user_seed: "", # TODO
+      lattice_rpc_url: "", # TODO
+      provider_key: provider_key,
+      env_values: %{} # TODO
+    } |> Jason.encode!()
   end
 end

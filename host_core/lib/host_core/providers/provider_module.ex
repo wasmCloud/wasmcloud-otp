@@ -29,7 +29,10 @@ defmodule HostCore.Providers.ProviderModule do
     # bound value in the registry.
     Registry.register(Registry.ProviderRegistry, {public_key, link_name}, contract_id)
 
-    port = Port.open({:spawn, "#{path}"}, [:binary])
+    host_info = HostCore.Host.generate_hostinfo_for(public_key, link_name) |> to_charlist()
+
+    port = Port.open({:spawn, "#{path}"}, [:binary, {:env, [{'WASMCLOUD_HOST_DATA', host_info}]}] )
+
     {:os_pid, pid} = Port.info(port, :os_pid)
 
     # Worth pointing out here that this process doesn't need to subscribe to
@@ -66,7 +69,7 @@ defmodule HostCore.Providers.ProviderModule do
 
   @impl true
   def handle_info({_ref, {:data, logline}}, state) do
-    Logger.info("Provider: #{logline}")
+    Logger.info("[#{state.public_key}]: #{logline}")
 
     {:noreply, state}
   end
