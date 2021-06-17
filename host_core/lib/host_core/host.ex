@@ -2,6 +2,8 @@ defmodule HostCore.Host do
   use GenServer, restart: :transient
   require Logger
 
+  # To set this value in a release, edit the `env.sh` file that is generated
+  # by a mix release.
   @prefix_var "WASMCLOUD_LATTICE_PREFIX"
   @default_prefix "default"
 
