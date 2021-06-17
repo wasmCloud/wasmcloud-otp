@@ -94,12 +94,30 @@ impl InvocationResponse {
     }
 }
 
+/// The response to an invocation
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct HostData {
+    pub host_id: String,
+    pub lattice_rpc_prefix: String,
+    pub link_name: String,
+    pub lattice_rpc_user_jwt: String,
+    pub lattice_rpc_user_seed: String,
+    pub lattice_rpc_url: String,
+    pub provider_key: String,
+    #[serde(default)]
+    pub env_values: HashMap<String, String>,
+}
+
 fn main() -> Result<(), String> {
     let _ = env_logger::try_init();
-    info!("Starting Redis Capability Provider");
 
-    let provider_key = "Vxxxx"; // TODO: get from env/wasmcloud host
-    let link_name = "default"; // TODO: get from env/wasmcloud host
+    let hd = std::env::var("WASMCLOUD_HOST_DATA").map_err(|e| format!("{}", e))?;
+    let host_data: HostData = serde_json::from_str(&hd).map_err(|e| format!("{}", e))?;
+
+    let provider_key = host_data.provider_key;
+    let link_name = host_data.link_name;
+
+    info!("Starting Redis Capability Provider {}", provider_key);
 
     let ldget_topic = format!(
         "wasmbus.rpc.default.{}.{}.linkdefs.get",

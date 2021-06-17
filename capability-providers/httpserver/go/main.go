@@ -14,9 +14,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -71,19 +73,37 @@ type Response struct {
 	Body       []byte            `msgpack:"body"`
 }
 
+type HostData struct {
+	HostID             string            `json:"host_id"`
+	LatticeRPCPrefix   string            `json:"lattice_rpc_prefix"`
+	LinkName           string            `json:"link_name"`
+	LatticeRPCUserJWT  string            `json:"lattice_rpc_user_jwt"`
+	LatticeRPCUserSeed string            `json:"lattice_rpc_user_seed"`
+	LatticeRPCURL      string            `json:"lattice_rpc_url"`
+	ProviderKey        string            `json:"provider_key"`
+	EnvValues          map[string]string `json:"env_values"`
+}
+
 var (
 	serverCancels map[string]context.CancelFunc
 	linkDefs      map[string]LinkDefinition
 )
 
 func main() {
-	//TODO: source these values from host configuration of provider
-	// lattice_prefix := os.Getenv("LATTICE_RPC_PREFIX")
-	// provider_key := os.Getenv("PROVIDER_KEY")
-	// link_name := os.Getenv("PROVIDER_LINK_NAME")
-	lattice_prefix := "default"
-	provider_key := "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-	link_name := "default"
+
+	hostDataRaw := os.Getenv("WASMCLOUD_HOST_DATA")
+	var hostData HostData
+	err := json.Unmarshal([]byte(hostDataRaw), &hostData)
+	if err != nil {
+		fmt.Printf("Bad environment variables, %s", err)
+		return
+	}
+
+	lattice_prefix := hostData.LatticeRPCPrefix
+	provider_key := hostData.ProviderKey
+	link_name := hostData.LinkName
+
+	fmt.Printf("Received host data (%s)\n", provider_key)
 
 	serverCancels := make(map[string]context.CancelFunc)
 	linkDefs := make(map[string]LinkDefinition)
@@ -152,7 +172,7 @@ func main() {
 		}()
 
 		go func() {
-			fmt.Printf("Listening for requests...\n")
+			fmt.Println("Listening for requests...")
 			srv.ListenAndServe()
 		}()
 	})
