@@ -226,30 +226,27 @@ defmodule HostCore.WebAssembly.Imports do
         end
       end
 
-    # Refactor to Tuple {wapc_res, state}
-    if res != :fail do
-      ir = res |> Msgpax.unpack!()
+    {wapc_result, new_state} =
+      if res != :fail do
+        ir = res |> Msgpax.unpack!()
 
-      if ir["error"] == nil do
-        new_state = %State{
-          state
-          | host_response: ir["msg"]
-        }
-
-        Agent.update(agent, fn _ -> new_state end)
-
-        1
+        if ir["error"] == nil do
+          {1,
+           %State{
+             state
+             | host_response: ir["msg"]
+           }}
+        else
+          # error field on invocation result is an optional string
+          {0, %State{state | host_error: ir["error"]}}
+        end
       else
-        # error field on invocation result is an optional string
-        new_state = %State{state | host_error: ir["error"]}
-        Agent.update(agent, fn _ -> new_state end)
-        0
+        {0, %State{state | host_error: "Failed to perform RPC call"}}
       end
-    else
-      new_state = %State{state | host_error: "Failed to perform RPC call"}
-      Agent.update(agent, fn _ -> new_state end)
-      0
-    end
+
+    # Update state
+    Agent.update(agent, fn _ -> new_state end)
+    wapc_result
   end
 
   defp finish(:error) do
