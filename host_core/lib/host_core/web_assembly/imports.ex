@@ -163,24 +163,34 @@ defmodule HostCore.WebAssembly.Imports do
      state}
   end
 
+  # Link definition not found for actor
   defp authorize(
          :error,
          _actor,
-         _binding,
-         _namespace,
-         _operation,
-         _payload,
-         _claims,
-         _seed,
-         _prefix,
-         _provider_key,
-         _state
+         binding,
+         namespace,
+         operation,
+         payload,
+         claims,
+         seed,
+         prefix,
+         provider_key,
+         state
        ) do
-    :error
+    # If the namespace (contract id) is a valid call alias, then the source actor
+    # is automatically allowed to invoke the target actor
+    case :ets.lookup(:callalias_table, namespace) do
+      [{_call_alias, pkey}] ->
+        {:ok, pkey, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
+         state}
+
+      [] ->
+        :error
+    end
   end
 
   defp finish(
-         {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
+         {:ok, actor, binding, namespace, operation, payload, _claims, seed, prefix, provider_key,
           state},
          agent
        ) do
@@ -190,56 +200,60 @@ defmodule HostCore.WebAssembly.Imports do
     # else InvocationResponse.msg goes in `host_response`
     {target_type, target_key, target_subject} =
       cond do
-        String.starts_with?(provider_key, "V") ->
+        String.starts_with?(provider_key, "V") && String.length(provider_key) == 56 ->
           {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
 
-        String.starts_with?(actor, "M") ->
+        String.starts_with?(actor, "M") && String.length(actor) == 56 ->
           {:actor, actor, "wasmbus.rpc.#{prefix}.#{actor}"}
+
+        true ->
+          {:unknown, "", ""}
       end
 
-    inv_bytes =
-      HostCore.WasmCloud.Native.generate_invocation_bytes(
-        seed,
-        actor,
-        target_type,
-        target_key,
-        namespace,
-        binding,
-        operation,
-        payload
-      )
-
-    # make the RPC call
     res =
-      case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
-        {:ok, %{body: body}} -> body
-        {:error, :timeout} -> :fail
-      end
-
-    # Refactor to Tuple {wapc_res, state}
-    if res != :fail do
-      ir = res |> Msgpax.unpack!()
-
-      if ir["error"] == nil do
-        new_state = %State{
-          state
-          | host_response: ir["msg"]
-        }
-
-        Agent.update(agent, fn _ -> new_state end)
-
-        1
+      if target_type == :unknown do
+        :fail
       else
-        # error field on invocation result is an optional string
-        new_state = %State{state | host_error: ir["error"]}
-        Agent.update(agent, fn _ -> new_state end)
-        0
+        inv_bytes =
+          HostCore.WasmCloud.Native.generate_invocation_bytes(
+            seed,
+            actor,
+            target_type,
+            target_key,
+            namespace,
+            binding,
+            operation,
+            payload
+          )
+
+        # make the RPC call
+        case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
+          {:ok, %{body: body}} -> body
+          {:error, :timeout} -> :fail
+        end
       end
-    else
-      new_state = %State{state | host_error: "Failed to perform RPC call"}
-      Agent.update(agent, fn _ -> new_state end)
-      0
-    end
+
+    {wapc_result, new_state} =
+      if res != :fail do
+        ir = res |> Msgpax.unpack!()
+
+        if ir["error"] == nil do
+          {1,
+           %State{
+             state
+             | host_response: ir["msg"]
+           }}
+        else
+          # error field on invocation result is an optional string
+          {0, %State{state | host_error: ir["error"]}}
+        end
+      else
+        {0, %State{state | host_error: "Failed to perform RPC call"}}
+      end
+
+    # Update state
+    Agent.update(agent, fn _ -> new_state end)
+    wapc_result
   end
 
   defp finish(:error) do

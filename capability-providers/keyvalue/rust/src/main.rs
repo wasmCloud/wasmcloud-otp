@@ -201,9 +201,10 @@ fn main() -> Result<(), String> {
     let _sub = nc
         .subscribe(&shutdown_topic)
         .map_err(|e| format!("{}", e))?
-        .with_handler(move |_msg| {
+        .with_handler(move |msg| {
             println!("Received termination signal. Shutting down capability provider.");
             u.unpark();
+            let _ = msg.respond("Redis provider shutdown successfully");
             Ok(())
         });
 
