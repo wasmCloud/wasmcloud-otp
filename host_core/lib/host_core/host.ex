@@ -39,7 +39,6 @@ defmodule HostCore.Host do
   def init(_opts) do
     {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
-    start_gnat()
     configure_ets()
 
     Logger.info("Host #{host_key} started.")
@@ -67,11 +66,6 @@ defmodule HostCore.Host do
   @impl true
   def handle_call(:get_pk, _from, state) do
     {:reply, state.host_key, state}
-  end
-
-  defp start_gnat() do
-    {:ok, _gnat} = Gnat.start_link(%{host: '127.0.0.1', port: 4222}, name: :lattice_nats)
-    {:ok, _gnaT} = Gnat.start_link(%{host: '127.0.0.1', port: 4222}, name: :control_nats)
   end
 
   defp configure_ets() do
