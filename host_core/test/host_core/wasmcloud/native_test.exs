@@ -2,8 +2,14 @@ defmodule HostCore.WasmCloud.NativeTest do
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
   @httpserver_link "default"
   @httpserver_contract "wasmcloud:httpserver"
+  @httpserver_oci "wasmcloud.azurecr.io/httpserver:0.12.2"
 
   use ExUnit.Case, async: false
+
+  test "retrieves provider archive from OCI image" do
+    bytes = HostCore.WasmCloud.Native.get_oci_bytes(@httpserver_oci, false, []) |> IO.iodata_to_binary()
+    {:ok, par } = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
+  end
 
   test "generates seed keys" do
     {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)

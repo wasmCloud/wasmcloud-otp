@@ -1,9 +1,6 @@
 #[macro_use]
 extern crate rustler;
 
-use std::sync::RwLock;
-
-use futures::executor::block_on;
 use nkeys::KeyPair;
 use provider_archive::ProviderArchive;
 use rustler::{Atom, Binary, Error, ResourceArc};
@@ -13,14 +10,15 @@ mod atoms;
 mod inv;
 mod oci;
 mod par;
+mod task;
 
 #[derive(NifStruct)]
 #[module = "HostCore.WasmCloud.Native.ProviderArchive"]
 pub struct ProviderArchiveResource {
-    inner: ResourceArc<RwLock<ProviderArchive>>,
+    claims: Claims,
 }
 
-#[derive(NifStruct)]
+#[derive(NifStruct, Default)]
 #[module = "HostCore.WasmCloud.Native.Claims"]
 pub struct Claims {
     public_key: String,
@@ -55,7 +53,9 @@ rustler::init!(
         extract_claims,
         generate_key,
         generate_invocation_bytes,
-        validate_antiforgery
+        validate_antiforgery,
+        get_oci_bytes,
+        par_from_bytes,
     ],
     load = load
 );
@@ -66,19 +66,27 @@ fn get_oci_bytes(
     allow_latest: bool,
     allowed_insecure: Vec<String>,
 ) -> Result<Vec<u8>, Error> {
-    block_on(async { oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await })
-        .map_err(|e| rustler::Error::Atom("Failed to fetch OCI bytes"))
+    task::TOKIO
+        .block_on(async { oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await })
+        .map_err(|_e| rustler::Error::Atom("Failed to fetch OCI bytes"))
 }
 
-/*#[rustler::nif(schedule = "DirtyCpu")]
-fn par_from_bytes(binary: Binary) -> Result<(Atom, ProviderArchiveResource), Error> {
+#[rustler::nif(schedule = "DirtyCpu")]
+fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {
+    println!("CALLED THIS ({} bytes)", binary.as_slice().len());
     match ProviderArchive::try_load(binary.as_slice()) {
         Ok(par) => {
-                return Ok((ok(), ProviderArchiveResource{ inner: RwLock::new(par)}));
+            println!("YAY!");
+            return Ok(ProviderArchiveResource {
+                claims: par::extract_claims(&par)?,
+            })
         }
-        Err(_) => Err(Error::BadArg),
+        Err(_) => {
+            println!("BOO");
+            Err(Error::BadArg)
+        },
     }
-} */
+}
 
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
 /// in the form of a simple struct that will bubble its way up to Elixir as a native struct

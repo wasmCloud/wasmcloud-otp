@@ -92,13 +92,3 @@ async fn pull(
         .await
         .map_err(|e| format!("{}", e).into())
 }
-
-pub(crate) async fn fetch_provider_archive(
-    img: &str,
-    allow_latest: bool,
-    allowed_insecure: Vec<String>,
-) -> Result<ProviderArchive, Box<dyn std::error::Error + Sync + Send>> {
-    let bytes = fetch_oci_bytes(img, allow_latest, allowed_insecure).await?;
-    ProviderArchive::try_load(&bytes)
-        .map_err(|e| format!("Failed to load provider archive: {}", e).into())
-}
