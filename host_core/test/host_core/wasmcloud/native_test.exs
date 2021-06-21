@@ -4,6 +4,7 @@ defmodule HostCore.WasmCloud.NativeTest do
   @httpserver_contract "wasmcloud:httpserver"
   @httpserver_oci "wasmcloud.azurecr.io/httpserver:0.12.2"
   @official_issuer "ACOJJN6WUP4ODD75XEBKKTCCUJJCY5ZKQ56XVKYK4BEJWGVAOOQHZMCW"
+  @httpserver_vendor "wasmCloud"
 
   use ExUnit.Case, async: false
 
@@ -18,6 +19,10 @@ defmodule HostCore.WasmCloud.NativeTest do
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
     assert par.claims.version == "0.12.2"
+
+    assert byte_size(par.target_bytes |> IO.iodata_to_binary()) == 9_734_792
+    assert par.contract_id == @httpserver_contract
+    assert par.vendor == @httpserver_vendor
   end
 
   test "generates seed keys" do

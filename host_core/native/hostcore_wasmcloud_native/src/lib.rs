@@ -16,6 +16,9 @@ mod task;
 #[module = "HostCore.WasmCloud.Native.ProviderArchive"]
 pub struct ProviderArchiveResource {
     claims: Claims,
+    target_bytes: Vec<u8>,
+    contract_id: String,
+    vendor: String,
 }
 
 #[derive(NifStruct, Default)]
@@ -77,6 +80,9 @@ fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {
         Ok(par) => {            
             return Ok(ProviderArchiveResource {
                 claims: par::extract_claims(&par)?,
+                target_bytes: par::extract_target_bytes(&par)?,
+                contract_id: par::get_capid(&par)?,
+                vendor: par::get_vendor(&par)?,
             })
         }
         Err(_) => {            

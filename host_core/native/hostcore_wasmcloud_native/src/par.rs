@@ -9,8 +9,25 @@ pub fn on_load(env: Env) -> bool {
     true
 }
 
-pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {
-    println!("EXTRACTING CLAIMS");
+pub(crate) fn get_capid(par: &ProviderArchive) -> Result<String, Error> {
+    match par.claims() {
+        Some(c) => {
+            Ok(c.metadata.unwrap_or_default().capid)
+        },
+        None => Err(Error::Atom("No claims found in provider archive"))
+    }
+}
+
+pub(crate) fn get_vendor(par: &ProviderArchive) -> Result<String, Error> {
+    match par.claims() {
+        Some(c) => {
+            Ok(c.metadata.unwrap_or_default().vendor)
+        },
+        None => Err(Error::Atom("No claims found in provider archive"))
+    }
+}
+
+pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {    
     match par.claims() {
         Some(c) => Ok(crate::Claims {
             issuer: c.issuer,
@@ -26,4 +43,16 @@ pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {
         }),
         None => Err(Error::Atom("No claims found in provider archive")),
     }
+}
+
+pub(crate) fn extract_target_bytes(par: &ProviderArchive) -> Result<Vec<u8>, Error> {
+    let target = native_target();
+    match par.target_bytes(&target) {
+        Some(b) => Ok(b),
+        None => Err(Error::Atom("No suitable target found in provider archive"))
+    }
+}
+
+fn native_target() -> String {
+    format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS)
 }
