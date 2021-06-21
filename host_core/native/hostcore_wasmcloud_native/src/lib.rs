@@ -71,18 +71,15 @@ fn get_oci_bytes(
         .map_err(|_e| rustler::Error::Atom("Failed to fetch OCI bytes"))
 }
 
-#[rustler::nif(schedule = "DirtyCpu")]
-fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {
-    println!("CALLED THIS ({} bytes)", binary.as_slice().len());
+#[rustler::nif]
+fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {    
     match ProviderArchive::try_load(binary.as_slice()) {
-        Ok(par) => {
-            println!("YAY!");
+        Ok(par) => {            
             return Ok(ProviderArchiveResource {
                 claims: par::extract_claims(&par)?,
             })
         }
-        Err(_) => {
-            println!("BOO");
+        Err(_) => {            
             Err(Error::BadArg)
         },
     }
