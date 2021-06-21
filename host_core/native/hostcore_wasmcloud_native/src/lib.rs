@@ -1,10 +1,24 @@
 #[macro_use]
 extern crate rustler;
 
+use std::sync::RwLock;
+
+use futures::executor::block_on;
 use nkeys::KeyPair;
-use rustler::Binary;
-use rustler::Error;
+use provider_archive::ProviderArchive;
+use rustler::{Atom, Binary, Error, ResourceArc};
 use wascap::prelude::*;
+
+mod atoms;
+mod inv;
+mod oci;
+mod par;
+
+#[derive(NifStruct)]
+#[module = "HostCore.WasmCloud.Native.ProviderArchive"]
+pub struct ProviderArchiveResource {
+    inner: ResourceArc<RwLock<ProviderArchive>>,
+}
 
 #[derive(NifStruct)]
 #[module = "HostCore.WasmCloud.Native.Claims"]
@@ -35,9 +49,6 @@ pub enum KeyType {
     Provider,
 }
 
-mod atoms;
-mod inv;
-
 rustler::init!(
     "Elixir.HostCore.WasmCloud.Native",
     [
@@ -45,8 +56,29 @@ rustler::init!(
         generate_key,
         generate_invocation_bytes,
         validate_antiforgery
-    ]
+    ],
+    load = load
 );
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn get_oci_bytes(
+    oci_ref: String,
+    allow_latest: bool,
+    allowed_insecure: Vec<String>,
+) -> Result<Vec<u8>, Error> {
+    block_on(async { oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await })
+        .map_err(|e| rustler::Error::Atom("Failed to fetch OCI bytes"))
+}
+
+/*#[rustler::nif(schedule = "DirtyCpu")]
+fn par_from_bytes(binary: Binary) -> Result<(Atom, ProviderArchiveResource), Error> {
+    match ProviderArchive::try_load(binary.as_slice()) {
+        Ok(par) => {
+                return Ok((ok(), ProviderArchiveResource{ inner: RwLock::new(par)}));
+        }
+        Err(_) => Err(Error::BadArg),
+    }
+} */
 
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
 /// in the form of a simple struct that will bubble its way up to Elixir as a native struct
@@ -143,4 +175,9 @@ fn validate_antiforgery<'a>(inv: Binary) -> Result<(), Error> {
             i.validate_antiforgery()
                 .map_err(|_e| rustler::Error::Atom("Validation of invocation/AF token failed"))
         })
+}
+
+fn load(env: rustler::Env, _: rustler::Term) -> bool {
+    par::on_load(env);
+    true
 }

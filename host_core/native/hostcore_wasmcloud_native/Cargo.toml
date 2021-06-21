@@ -21,3 +21,6 @@ uuid = {version = "0.8.2", features = ["v4"]}
 data-encoding = "2.3.2"
 rmp = "0.8.10"
 rmp-serde = "0.15.4"
+oci-distribution = "0.6.0"
+provider-archive = "0.4.0"
+futures = { version = "0.3.15", features = ["executor"] }
