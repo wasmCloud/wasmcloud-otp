@@ -15,6 +15,7 @@ defmodule HostCore.E2E.KVCounterTest do
   test "kvcounter roundtrip" do
     {:ok, bytes} = File.read(@kvcounter_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_executable_provider(
@@ -24,6 +25,10 @@ defmodule HostCore.E2E.KVCounterTest do
         @httpserver_contract
       )
 
+    on_exit(fn ->
+      HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+    end)
+
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_executable_provider(
         @redis_path,
@@ -31,6 +36,10 @@ defmodule HostCore.E2E.KVCounterTest do
         @redis_link,
         @redis_contract
       )
+
+    on_exit(fn ->
+      HostCore.Providers.ProviderSupervisor.terminate_provider(@redis_key, @redis_link)
+    end)
 
     actor_count =
       Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key)
@@ -73,9 +82,5 @@ defmodule HostCore.E2E.KVCounterTest do
     incr_count = Map.get(body, "counter") + 1
     {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
     assert resp.body == "{\"counter\":#{incr_count}}"
-
-    HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1)
-    HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
-    HostCore.Providers.ProviderSupervisor.terminate_provider(@redis_key, @redis_link)
   end
 end

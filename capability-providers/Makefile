@@ -1,6 +1,6 @@
 .PHONY: httpserver keyvalue build help
 .DEFAULT_GOAL := build
-CARGO ?= cargo --color $(COLOR)
+CARGO ?= cargo --color always
 
 httpserver:
 	cd httpserver/go && \
