@@ -13,7 +13,21 @@ defmodule HostCore.Application do
     providers = [
       %Vapor.Provider.Env{
         bindings: [
-          {:lattice_prefix, @prefix_var, default: @default_prefix}
+          {:lattice_prefix, @prefix_var, default: @default_prefix},
+          {:rpc_host, "WASMCLOUD_RPC_HOST", default: "0.0.0.0"},
+          {:rpc_port, "WASMCLOUD_RPC_PORT", default: 4222, map: &String.to_integer/1},
+          {:rpc_user, "WASMCLOUD_RPC_USER", default: ""},
+          {:rpc_pass, "WASMCLOUD_RPC_PASS", default: ""},
+          {:rpc_token, "WASMCLOUD_RPC_TOKEN", default: ""},
+          {:rpc_seed, "WASMCLOUD_RPC_SEED", default: ""},
+          {:rpc_jwt, "WASMCLOUD_RPC_JWT", default: ""},
+          {:ctl_host, "WASMCLOUD_CTL_HOST", default: "0.0.0.0"},
+          {:ctl_port, "WASMCLOUD_CTL_PORT", default: 4222, map: &String.to_integer/1},
+          {:ctl_user, "WASMCLOUD_CTL_USER", default: ""},
+          {:ctl_pass, "WASMCLOUD_CTL_PASS", default: ""},
+          {:ctl_token, "WASMCLOUD_CTL_TOKEN", default: ""},
+          {:ctl_seed, "WASMCLOUD_CTL_SEED", default: ""},
+          {:ctl_jwt, "WASMCLOUD_CTL_JWT", default: ""}
         ]
       }
     ]
@@ -29,7 +43,7 @@ defmodule HostCore.Application do
       # {HostCore.Worker, arg}
       {Registry, keys: :unique, name: Registry.ProviderRegistry},
       {Registry, keys: :duplicate, name: Registry.ActorRegistry},
-      {HostCore.Host, lattice_prefix: config.lattice_prefix},
+      {HostCore.Host, config},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot},
       {HostCore.Linkdefs.Manager, strategy: :one_for_one, name: LinkdefsManager},

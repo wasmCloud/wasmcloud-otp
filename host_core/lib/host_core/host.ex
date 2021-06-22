@@ -37,7 +37,7 @@ defmodule HostCore.Host do
   def init(opts) do
     {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
-    start_gnat()
+    start_gnat(opts)
     configure_ets()
 
     Logger.info("Host #{host_key} started.")
@@ -68,9 +68,95 @@ defmodule HostCore.Host do
     {:reply, state.host_key, state}
   end
 
-  defp start_gnat() do
-    {:ok, _gnat} = Gnat.start_link(%{host: '127.0.0.1', port: 4222}, name: :lattice_nats)
-    {:ok, _gnaT} = Gnat.start_link(%{host: '127.0.0.1', port: 4222}, name: :control_nats)
+  defp start_gnat(opts) do
+    configure_lattice_gnat(%{
+      host: opts.rpc_host,
+      port: opts.rpc_port,
+      username: opts.rpc_user,
+      password: opts.rpc_pass,
+      token: opts.rpc_token,
+      nkey_seed: opts.rpc_seed,
+      jwt: opts.rpc_jwt
+    })
+
+    configure_control_gnat(%{
+      host: opts.ctl_host,
+      port: opts.ctl_port,
+      username: opts.ctl_user,
+      password: opts.ctl_pass,
+      token: opts.ctl_token,
+      nkey_seed: opts.ctl_seed,
+      jwt: opts.ctl_jwt
+    })
+  end
+
+  defp configure_lattice_gnat(opts) do
+    conn_settings =
+      Map.merge(%{host: opts.host, port: opts.port}, determine_auth_method(opts, "lattice"))
+
+    case Gnat.start_link(conn_settings, name: :lattice_nats) do
+      {:ok, _gnat} ->
+        :ok
+
+      {:error, :econnrefused} ->
+        Logger.error("Unable to establish lattice NATS connection, connection refused")
+
+      {:error, _} ->
+        Logger.error("Authentication to lattice NATS connection failed")
+    end
+  end
+
+  defp configure_control_gnat(opts) do
+    conn_settings =
+      Map.merge(
+        %{host: opts.host, port: opts.port},
+        determine_auth_method(opts, "control interface")
+      )
+
+    case Gnat.start_link(conn_settings, name: :control_nats) do
+      {:ok, _gnat} ->
+        :ok
+
+      {:error, :econnrefused} ->
+        Logger.error("Unable to establish control interface NATS connection, connection refused")
+
+      {:error, _} ->
+        Logger.error("Authentication to control interface NATS connection failed")
+    end
+  end
+
+  defp determine_auth_method(
+         %{
+           username: username,
+           password: password,
+           token: token,
+           nkey_seed: nkey_seed,
+           jwt: jwt
+         },
+         conn_name
+       ) do
+    cond do
+      jwt != "" && nkey_seed != "" ->
+        Logger.info("Authenticating to #{conn_name} NATS with JWT and seed")
+        %{jwt: jwt, nkey_seed: nkey_seed, auth_required: true}
+
+      nkey_seed != "" ->
+        Logger.info("Authenticating to #{conn_name} NATS with seed")
+        %{nkey_seed: nkey_seed, auth_required: true}
+
+      token != "" ->
+        Logger.info("Authenticating to #{conn_name} NATS with token")
+        %{token: token, auth_required: true}
+
+      username != "" && password != "" ->
+        Logger.info("Authenticating to #{conn_name} NATS with username and password")
+        %{username: username, password: password, auth_required: true}
+
+      # No arguments specified that create a valid authentication method
+      true ->
+        Logger.info("Connecting to #{conn_name} NATS without authentication")
+        %{}
+    end
   end
 
   defp configure_ets() do
