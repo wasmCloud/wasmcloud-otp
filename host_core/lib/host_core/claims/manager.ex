@@ -14,6 +14,16 @@ defmodule HostCore.Claims.Manager do
 
   def put_claims(claims) do
     key = claims.public_key
+    claims = %{
+      call_alias: claims.call_alias,
+      issuer: claims.issuer,
+      name: claims.name,
+      revision: claims.revision,
+      tags: claims.tags,
+      version: claims.version,
+      public_key: claims.public_key
+    }
+
     :ets.insert(:claims_table, {key, claims})
     publish_claims(claims)
   end
