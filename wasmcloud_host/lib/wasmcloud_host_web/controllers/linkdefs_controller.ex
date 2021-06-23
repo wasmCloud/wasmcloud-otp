@@ -9,14 +9,18 @@ defmodule WasmcloudHostWeb.LinkdefsController do
     provider_key = params["provider_id"]
 
     values =
-      params["values"]
-      |> String.split(",")
-      |> Enum.flat_map(fn s -> String.split(s, "=") end)
-      |> Enum.chunk_every(2)
-      |> Enum.map(fn [a, b] -> {a, b} end)
-      |> Map.new()
+      case params["values"] do
+        "" ->
+          %{}
 
-    IO.inspect(values)
+        _ ->
+          params["values"]
+          |> String.split(",")
+          |> Enum.flat_map(fn s -> String.split(s, "=") end)
+          |> Enum.chunk_every(2)
+          |> Enum.map(fn [a, b] -> {a, b} end)
+          |> Map.new()
+      end
 
     HostCore.Linkdefs.Manager.put_link_definition(
       actor,
