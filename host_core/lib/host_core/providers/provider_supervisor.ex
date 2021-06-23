@@ -41,7 +41,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
         path = Path.join(dir, "wasmcloud_ocicache")
         tmp_file = Path.join(path, filename)
         start_executable_provider(tmp_file, public_key, link_name, contract_id)
-      end
+    end
   end
 
   def handle_info(msg, state) do
