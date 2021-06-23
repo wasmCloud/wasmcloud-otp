@@ -11,6 +11,8 @@ defmodule HostCore.E2E.EchoTest do
     {:ok, bytes} = File.read("priv/actors/echo_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
+    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1) end)
+
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_executable_provider(
         @httpserver_path,
@@ -18,6 +20,10 @@ defmodule HostCore.E2E.EchoTest do
         @httpserver_link,
         @httpserver_contract
       )
+
+    on_exit(fn ->
+      HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+    end)
 
     actor_count =
       Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @echo_key)
@@ -46,8 +52,5 @@ defmodule HostCore.E2E.EchoTest do
     {:ok, resp} = HTTPoison.get("http://localhost:8080/foo/bar")
 
     Process.sleep(1000)
-
-    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
-    HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
   end
 end

@@ -31,21 +31,26 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def terminate_provider(public_key, link_name) do
-    [{pid, _val}] = Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
-    Logger.info("About to terminate child process")
-    prefix = HostCore.Host.lattice_prefix()
-    # Allow provider 2 seconds to clean up resources
-    case Gnat.request(
-           :lattice_nats,
-           "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
-           "",
-           receive_timeout: 2000
-         ) do
-      {:ok, _msg} -> :ok
-      {:error, :timeout} -> :error
-    end
+    case Registry.lookup(Registry.ProviderRegistry, {public_key, link_name}) do
+      [{pid, _val}] ->
+        Logger.info("About to terminate child process")
+        prefix = HostCore.Host.lattice_prefix()
+        # Allow provider 2 seconds to clean up resources
+        case Gnat.request(
+               :lattice_nats,
+               "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
+               "",
+               receive_timeout: 2000
+             ) do
+          {:ok, _msg} -> :ok
+          {:error, :timeout} -> :error
+        end
 
-    ProviderModule.halt(pid)
+        ProviderModule.halt(pid)
+
+      [] ->
+        Logger.warn("No provider is running with that public key and link name")
+    end
   end
 
   @doc """

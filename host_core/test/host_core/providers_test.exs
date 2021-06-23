@@ -15,6 +15,11 @@ defmodule HostCore.ProvidersTest do
         @httpserver_contract
       )
 
+    # Ensure provider is cleaned up regardless of test errors
+    on_exit(fn ->
+      HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+    end)
+
     Process.sleep(1000)
 
     assert HostCore.Providers.ProviderSupervisor.all_providers() == [
@@ -22,7 +27,9 @@ defmodule HostCore.ProvidersTest do
            ]
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
-    Process.sleep(500)
+
+    # give provider a moment to stop
+    Process.sleep(1000)
     assert HostCore.Providers.ProviderSupervisor.all_providers() == []
   end
 
@@ -34,6 +41,11 @@ defmodule HostCore.ProvidersTest do
         @httpserver_link,
         @httpserver_contract
       )
+
+    # Ensure provider is cleaned up regardless of test errors
+    on_exit(fn ->
+      HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+    end)
 
     # give provider a moment to load
     Process.sleep(1000)

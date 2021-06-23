@@ -89,6 +89,20 @@ defmodule HostCore.ActorsTest do
     {:ok, bytes} = File.read("priv/actors/ponger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
+    on_exit(fn ->
+      # Pinger
+      HostCore.Actors.ActorSupervisor.terminate_actor(
+        "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN",
+        1
+      )
+
+      # Ponger
+      HostCore.Actors.ActorSupervisor.terminate_actor(
+        "MBMOM2EZZICFYM4KATRMH2JUO5QWE3YWCHGFZVRQQ2SQI4I5BKWIGMBS",
+        1
+      )
+    end)
+
     {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
     req =
@@ -124,17 +138,6 @@ defmodule HostCore.ActorsTest do
       end
 
     assert res != :fail
-    # Pinger
-    HostCore.Actors.ActorSupervisor.terminate_actor(
-      "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN",
-      1
-    )
-
-    # Ponger
-    HostCore.Actors.ActorSupervisor.terminate_actor(
-      "MBMOM2EZZICFYM4KATRMH2JUO5QWE3YWCHGFZVRQQ2SQI4I5BKWIGMBS",
-      1
-    )
 
     ir = res |> Msgpax.unpack!()
 
