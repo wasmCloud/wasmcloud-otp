@@ -14,6 +14,7 @@ defmodule HostCore.Claims.Manager do
 
   def put_claims(claims) do
     key = claims.public_key
+
     claims = %{
       call_alias: claims.call_alias,
       issuer: claims.issuer,
