@@ -146,7 +146,7 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp authorize(
-         {:ok, ld},
+         {:ok, _ld},
          actor,
          binding,
          namespace,
@@ -323,10 +323,4 @@ defmodule HostCore.WebAssembly.Imports do
 
     nil
   end
-
-  defp bsize(a) when is_binary(a) do
-    byte_size(a)
-  end
-
-  defp bsize(nil), do: 0
 end

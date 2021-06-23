@@ -4,11 +4,9 @@ defmodule HostCore.Host do
 
   # To set this value in a release, edit the `env.sh` file that is generated
   # by a mix release.
-  @prefix_var "WASMCLOUD_LATTICE_PREFIX"
-  @default_prefix "default"
 
   defmodule State do
-    defstruct [:host_key, :host_seed, :labels]
+    defstruct [:host_key, :host_seed, :labels, :lattice_prefix]
   end
 
   @doc """
@@ -32,11 +30,11 @@ defmodule HostCore.Host do
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.del` - Remove a link def.
   * `wasmbus.rpc.{prefix}.claims.put` - Publish discovered claims
   * `wasmbus.rpc.{prefix}.claims.get` - Query all claims (queue subscribed by hosts)
-  * `wasmbus.rpc.{prefix}.ref_maps.put` - Publish a reference map, e.g. OCI ref -> PK, call alias -> PK
-  * `wasmbus.rpc.{prefix}.ref_maps.get` - Query all reference maps (queue subscribed by hosts)
+  * `wasmbus.rpc.{prefix}.refmaps.put` - Publish a reference map, e.g. OCI ref -> PK, call alias -> PK
+  * `wasmbus.rpc.{prefix}.refmaps.get` - Query all reference maps (queue subscribed by hosts)
   """
   @impl true
-  def init(_opts) do
+  def init(opts) do
     {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
     start_gnat()
@@ -50,13 +48,14 @@ defmodule HostCore.Host do
     {:ok,
      %State{
        host_key: host_key,
-       host_seed: host_seed
+       host_seed: host_seed,
+       lattice_prefix: opts[:lattice_prefix]
      }}
   end
 
   @impl true
   def handle_call(:get_prefix, _from, state) do
-    {:reply, System.get_env(@prefix_var, @default_prefix), state}
+    {:reply, state.lattice_prefix, state}
   end
 
   @impl true

@@ -36,14 +36,11 @@ defmodule HostCore.MixProject do
       {:cloudevents, "~> 0.4.0"},
       {:uuid, "~> 1.1"},
       {:jason, "~> 1.2.2"},
+      {:vapor, "~> 0.10.0"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:httpoison, "~> 1.8", only: [:test]},
       {:json, "~> 1.4", only: [:test]}
-      # {:grpc, "~> 0.5.0-beta.1"}
-      # { :benchwarmer, "~> 0.0.2" }
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]
   end
 end
