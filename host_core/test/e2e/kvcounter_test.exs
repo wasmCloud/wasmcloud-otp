@@ -55,7 +55,7 @@ defmodule HostCore.E2E.KVCounterTest do
     Process.sleep(5000)
 
     :ok =
-      HostCore.LinkdefsManager.put_link_definition(
+      HostCore.Linkdefs.Manager.put_link_definition(
         @kvcounter_key,
         @httpserver_contract,
         @httpserver_link,
@@ -64,7 +64,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     :ok =
-      HostCore.LinkdefsManager.put_link_definition(
+      HostCore.Linkdefs.Manager.put_link_definition(
         @kvcounter_key,
         @redis_contract,
         @redis_link,

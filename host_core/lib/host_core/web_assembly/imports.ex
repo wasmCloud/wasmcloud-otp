@@ -129,7 +129,7 @@ defmodule HostCore.WebAssembly.Imports do
     Logger.info("host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
 
     # Start auth chain by looking up the link definition for this call
-    HostCore.LinkdefsManager.lookup_link_definition(actor, namespace, binding)
+    HostCore.Linkdefs.Manager.lookup_link_definition(actor, namespace, binding)
     |> authorize(
       actor,
       binding,
