@@ -29,6 +29,6 @@ defmodule HostCore.Claims.Manager do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.claims.put"
 
-    Gnat.pub(:lattice_nats, topic, Msgpax.pack!(claims))
+    Gnat.pub(:lattice_nats, topic, Msgpax.pack!(claims) |> IO.iodata_to_binary())
   end
 end
