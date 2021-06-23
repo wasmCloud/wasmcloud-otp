@@ -121,7 +121,7 @@
               <!-- Start provider modal-->
               <%= render("startprovidermodal.html") %>
               <!-- Define Link modal-->
-              <%= render("definelinkmodal.html") %>
+              <%= render("definelinkmodal.html", actors: @actors, providers: @providers, claims: @claims) %>
               <!-- /.row-->
             </div>
           </div>
