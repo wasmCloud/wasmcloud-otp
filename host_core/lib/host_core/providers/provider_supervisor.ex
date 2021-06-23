@@ -25,6 +25,25 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
+  def start_executable_provider_from_oci(oci, public_key, link_name, contract_id) do
+    case HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []) do
+      {:error, err} ->
+        Logger.error("Failed to download OCI bytes for #{oci}")
+        {:stop, err}
+
+      _bytes ->
+        dir = System.tmp_dir!()
+        filename = String.replace(oci, ":", "_")
+        filename = String.replace(filename, "/", "_")
+        filename = String.replace(filename, " ", "_")
+        filename = String.replace(filename, ".", "_")
+        filename = "#{filename}.bin"
+        path = Path.join(dir, "wasmcloud_ocicache")
+        tmp_file = Path.join(path, filename)
+        start_executable_provider(tmp_file, public_key, link_name, contract_id)
+      end
+  end
+
   def handle_info(msg, state) do
     Logger.error("Supervisor received unexpected message: #{inspect(msg)}")
     {:noreply, state}

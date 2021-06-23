@@ -26,6 +26,18 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
+  def start_actor_from_oci(oci) do
+    # TODO use configuration for enabling insecure OCI and 'latest'
+    case HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []) do
+      {:error, err} ->
+        Logger.error("Failed to download OCI bytes for #{oci}")
+        {:stop, err}
+
+      bytes ->
+        start_actor(bytes)
+    end
+  end
+
   @doc """
   Produces a map with the key being the public key of the actor and the value being a _list_
   of all of the pids (running instances) of that actor.
