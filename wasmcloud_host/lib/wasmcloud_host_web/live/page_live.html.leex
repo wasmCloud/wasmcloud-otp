@@ -115,6 +115,7 @@
               <th>Instance Count</th>
               <th>Status</th>
               <th>Actor ID</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -135,6 +136,20 @@
                     </svg>&nbsp;
                   </button>
                 </td>
+                <td style="text-align: center">
+                  <button class="btn btn-danger btn-sm" type="button" onClick="
+                    fetch('/terminate_actor?' + new URLSearchParams({public_key: '<%= actor %>',count: 1}), {
+                      method: 'POST',
+                      headers: {
+                        'x-csrf-token': '<%= Phoenix.Controller.get_csrf_token() %>'
+                      },
+                    })
+                    ">
+                    <svg class="c-icon">
+                      <use xlink:href="/coreui/free.svg#cil-trash"></use>
+                    </svg>
+                  </button>
+                </td>
               </tr>
             <% end %>
           </tbody>
@@ -143,9 +158,6 @@
     </div>
   </div>
   <!-- /.col-->
-  <%# </div> %>
-  <%# Providers Row %>
-  <%# <div class="row"> %>
   <div class="col-xl-6 col-lg-12 col-md-12">
     <div class="card">
       <div class="card-header">
@@ -172,6 +184,7 @@
               <th>Contract ID</th>
               <th>Provider ID</th>
               <th>Host IDs</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -196,6 +209,8 @@
                         </svg>&nbsp;
                       </button>
                     <% end %>
+                  </td>
+                  <td>
                   </td>
                 </tr>
               <% end %>

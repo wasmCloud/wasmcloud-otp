@@ -29,4 +29,16 @@ defmodule WasmcloudHostWeb.ActorController do
 
     conn |> redirect(to: "/")
   end
+
+  def terminate_actor(conn, params) do
+    public_key = params["public_key"]
+    count = String.to_integer(params["count"])
+
+    HostCore.Actors.ActorSupervisor.terminate_actor(public_key, count)
+    # TODO: handle err
+    conn
+    |> Plug.Conn.send_resp(200, [])
+    |> Plug.Conn.halt()
+
+  end
 end
