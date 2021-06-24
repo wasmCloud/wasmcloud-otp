@@ -39,6 +39,5 @@ defmodule WasmcloudHostWeb.ActorController do
     conn
     |> Plug.Conn.send_resp(200, [])
     |> Plug.Conn.halt()
-
   end
 end
