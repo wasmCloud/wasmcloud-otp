@@ -18,7 +18,7 @@ defmodule WasmcloudHostWeb.LinkdefsController do
 
     IO.inspect(values)
 
-    HostCore.LinkdefsManager.put_link_definition(
+    HostCore.Linkdefs.Manager.put_link_definition(
       actor,
       contract_id,
       link_name,
