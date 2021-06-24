@@ -20,7 +20,19 @@ defmodule HostCore.WasmCloud.NativeTest do
     assert par.claims.issuer == @official_issuer
     assert par.claims.version == "0.12.2"
 
-    assert byte_size(par.target_bytes |> IO.iodata_to_binary()) == 9_734_792
+    target_bytes =
+      case :os.type() do
+        {:unix, :darwin} ->
+          5_954_112
+
+        {:unix, _linux} ->
+          9_734_792
+
+        {:win32, :nt} ->
+          21_329_277
+      end
+
+    assert byte_size(par.target_bytes |> IO.iodata_to_binary()) == target_bytes
     assert par.contract_id == @httpserver_contract
     assert par.vendor == @httpserver_vendor
   end
