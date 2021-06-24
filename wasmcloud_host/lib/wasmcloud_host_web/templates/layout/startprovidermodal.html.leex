@@ -1,4 +1,5 @@
-<div class="modal fade" id="start_provider" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<%# From File Modal %>
+<div class="modal fade" id="start_provider_file" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -31,6 +32,41 @@
             <label class="col-md-3 col-form-label" for="text-input">Contract ID</label>
             <div class="col-md-9">
               <input class="form-control" id="text-input" type="text" name="provider_contract_id" placeholder="wasmcloud:contract">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
+            <button class="btn btn-primary" type="submit" value="Submit"> Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- /.modal-content-->
+  </div>
+  <!-- /.modal-dialog-->
+</div>
+<%# From Registry Modal %>
+<div class="modal fade" id="start_provider_oci" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Start provider from registry</h4>
+        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+      <div class="modal-body">
+        <form class="form-horizontal" onSubmit="(evt) => console.log(evt)" action="/start_provider" method="post" enctype="multipart/form-data">
+          <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
+          <div class="form-group row">
+            <label class="col-md-3 col-form-label" for="file-input">OCI Reference</label>
+            <div class="col-md-9">
+              <input class="form-control" id="text-input" type="text" name="provider_ociref" placeholder="wasmcloud.azurecr.io/httpserver:0.12.1" value="">
+              <span class="help-block">Enter an OCI reference</span>
+            </div>
+          </div>
+          <div class="form-group row">
+            <label class="col-md-3 col-form-label" for="text-input">Link Name</label>
+            <div class="col-md-9">
+              <input class="form-control" id="text-input" type="text" name="provider_link_name" placeholder="default" value="default">
             </div>
           </div>
           <div class="modal-footer">

@@ -72,7 +72,7 @@ fn get_oci_bytes(
 ) -> Result<Vec<u8>, Error> {
     task::TOKIO
         .block_on(async { oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await })
-        .map_err(|_e| rustler::Error::Atom("Failed to fetch OCI bytes"))
+        .map_err(|_e| rustler::Error::Term(Box::new("Failed to fetch OCI bytes")))
 }
 
 #[rustler::nif]
