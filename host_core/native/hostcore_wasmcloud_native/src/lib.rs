@@ -59,6 +59,7 @@ rustler::init!(
         validate_antiforgery,
         get_oci_bytes,
         par_from_bytes,
+        par_cache_path,
     ],
     load = load
 );
@@ -75,9 +76,9 @@ fn get_oci_bytes(
 }
 
 #[rustler::nif]
-fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {    
+fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {
     match ProviderArchive::try_load(binary.as_slice()) {
-        Ok(par) => {            
+        Ok(par) => {
             return Ok(ProviderArchiveResource {
                 claims: par::extract_claims(&par)?,
                 target_bytes: par::extract_target_bytes(&par)?,
@@ -85,12 +86,14 @@ fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {
                 vendor: par::get_vendor(&par)?,
             })
         }
-        Err(_) => {            
-            Err(Error::BadArg)
-        },
+        Err(_) => Err(Error::BadArg),
     }
 }
 
+#[rustler::nif]
+fn par_cache_path(subject: String, rev: u32) -> Result<String, Error> {
+    par::cache_path(subject, rev)
+}
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
 /// in the form of a simple struct that will bubble its way up to Elixir as a native struct
 #[rustler::nif]
