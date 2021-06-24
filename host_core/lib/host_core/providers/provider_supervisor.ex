@@ -31,7 +31,9 @@ defmodule HostCore.Providers.ProviderSupervisor do
         Logger.error("Failed to download OCI bytes for #{oci}")
         {:stop, err}
 
-      _bytes ->
+      bytes ->
+        par = HostCore.WasmCloud.Native.par_from_bytes(bytes)
+
         dir = System.tmp_dir!()
         filename = String.replace(oci, ":", "_")
         filename = String.replace(filename, "/", "_")

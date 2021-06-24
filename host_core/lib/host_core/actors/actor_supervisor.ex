@@ -16,6 +16,8 @@ defmodule HostCore.Actors.ActorSupervisor do
   @spec start_actor(binary) ::
           :ignore | {:error, any} | {:ok, pid} | {:stop, any} | {:ok, pid, any}
   def start_actor(bytes) when is_binary(bytes) do
+    Logger.info("Starting actor")
+
     case HostCore.WasmCloud.Native.extract_claims(bytes) do
       {:error, err} ->
         Logger.error("Failed to extract claims from WebAssembly module")
@@ -34,7 +36,7 @@ defmodule HostCore.Actors.ActorSupervisor do
         {:stop, err}
 
       bytes ->
-        start_actor(bytes)
+        start_actor(bytes |> IO.iodata_to_binary())
     end
   end
 
