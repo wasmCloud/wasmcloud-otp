@@ -10,6 +10,7 @@ defmodule HostCore.Claims.Server do
     Logger.info("Received claims command (#{cmd})")
     # PUT
     if cmd == "get" do
+      # TODO - implement claims query
       # {:reply, claims}
     else
       claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)

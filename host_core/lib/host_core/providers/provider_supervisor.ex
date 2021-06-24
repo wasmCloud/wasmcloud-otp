@@ -39,7 +39,6 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
         p = Path.split(cache_path)
         tmpdir = p |> Enum.slice(0, length(p) - 1) |> Path.join()
-        IO.puts("TMPDIR #{tmpdir}")
         File.mkdir_p!(tmpdir)
         File.write!(cache_path, par.target_bytes |> IO.iodata_to_binary())
         File.chmod(cache_path, 0o755)

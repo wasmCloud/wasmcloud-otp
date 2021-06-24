@@ -13,6 +13,7 @@ defmodule HostCore.Linkdefs.Server do
     if cmd == "put" do
       :ets.insert(:linkdef_table, {key, map})
       :ok
+      # TODO - implement query and delete for link definitions
       # else if cmd == "get" do
       # {:reply, linkdefs}
     else
