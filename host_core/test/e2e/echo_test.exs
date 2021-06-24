@@ -38,7 +38,7 @@ defmodule HostCore.E2E.EchoTest do
     Process.sleep(1000)
 
     :ok =
-      HostCore.LinkdefsManager.put_link_definition(
+      HostCore.Linkdefs.Manager.put_link_definition(
         @echo_key,
         @httpserver_contract,
         @httpserver_link,

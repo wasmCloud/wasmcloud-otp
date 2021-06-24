@@ -16,6 +16,8 @@ defmodule HostCore.Actors.ActorSupervisor do
   @spec start_actor(binary) ::
           :ignore | {:error, any} | {:ok, pid} | {:stop, any} | {:ok, pid, any}
   def start_actor(bytes) when is_binary(bytes) do
+    Logger.info("Starting actor")
+
     case HostCore.WasmCloud.Native.extract_claims(bytes) do
       {:error, err} ->
         Logger.error("Failed to extract claims from WebAssembly module")
@@ -23,6 +25,18 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       claims ->
         DynamicSupervisor.start_child(__MODULE__, {HostCore.Actors.ActorModule, {claims, bytes}})
+    end
+  end
+
+  def start_actor_from_oci(oci) do
+    # TODO use configuration for enabling insecure OCI and 'latest'
+    case HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []) do
+      {:error, err} ->
+        Logger.error("Failed to download OCI bytes for #{oci}")
+        {:stop, err}
+
+      bytes ->
+        start_actor(bytes |> IO.iodata_to_binary())
     end
   end
 

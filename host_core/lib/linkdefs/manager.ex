@@ -1,7 +1,5 @@
-defmodule HostCore.LinkdefsManager do
+defmodule HostCore.Linkdefs.Manager do
   use GenServer, restart: :transient
-  alias Phoenix.PubSub
-
   require Logger
 
   def start_link(opts) do
@@ -9,34 +7,8 @@ defmodule HostCore.LinkdefsManager do
   end
 
   @impl true
-  def init(opts) do
-    # subscribe to all link def add / remove operations
-    prefix = HostCore.Host.lattice_prefix()
-    topic = "wasmbus.rpc.#{prefix}.*.*.linkdefs.*"
-    {:ok, _sub} = Gnat.sub(:lattice_nats, self(), topic)
-
+  def init(_opts) do
     {:ok, :ok}
-  end
-
-  @impl true
-  def handle_info(
-        {:msg, %{body: body, topic: topic}},
-        state
-      ) do
-    ld = Msgpax.unpack!(body)
-    cmd = topic |> String.split(".") |> Enum.at(6)
-    key = {ld["actor_id"], ld["contract_id"], ld["link_name"]}
-    map = %{values: ld["values"], provider_key: ld["provider_id"]}
-
-    Logger.info("Received link definition command (#{cmd})")
-
-    if cmd == "put" do
-      :ets.insert(:linkdef_table, {key, map})
-    else
-      :ets.delete(:linkdef_table, key)
-    end
-
-    {:noreply, state}
   end
 
   def lookup_link_definition(actor, contract_id, link_name) do

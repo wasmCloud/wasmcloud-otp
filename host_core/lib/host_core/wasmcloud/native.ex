@@ -17,7 +17,15 @@ defmodule HostCore.WasmCloud.Native do
       ),
       do: error()
 
+  def get_oci_bytes(_oci_ref, _allow_latest, _allowed_insecure), do: error()
+  def par_from_bytes(_bytes), do: error()
+  def par_cache_path(_subject, _rev), do: error()
+
   # When the NIF is loaded, it will override functions in this module.
   # Calling error is handles the case when the nif could not be loaded.
   defp error, do: :erlang.nif_error(:nif_not_loaded)
+
+  defmodule ProviderArchive do
+    def from_bytes(bytes), do: HostCore.WasmCloud.Native.par_from_bytes(bytes)
+  end
 end

@@ -2,11 +2,26 @@
 extern crate rustler;
 
 use nkeys::KeyPair;
-use rustler::Binary;
-use rustler::Error;
+use provider_archive::ProviderArchive;
+use rustler::{Atom, Binary, Error, ResourceArc};
 use wascap::prelude::*;
 
+mod atoms;
+mod inv;
+mod oci;
+mod par;
+mod task;
+
 #[derive(NifStruct)]
+#[module = "HostCore.WasmCloud.Native.ProviderArchive"]
+pub struct ProviderArchiveResource {
+    claims: Claims,
+    target_bytes: Vec<u8>,
+    contract_id: String,
+    vendor: String,
+}
+
+#[derive(NifStruct, Default)]
 #[module = "HostCore.WasmCloud.Native.Claims"]
 pub struct Claims {
     public_key: String,
@@ -35,19 +50,50 @@ pub enum KeyType {
     Provider,
 }
 
-mod atoms;
-mod inv;
-
 rustler::init!(
     "Elixir.HostCore.WasmCloud.Native",
     [
         extract_claims,
         generate_key,
         generate_invocation_bytes,
-        validate_antiforgery
-    ]
+        validate_antiforgery,
+        get_oci_bytes,
+        par_from_bytes,
+        par_cache_path,
+    ],
+    load = load
 );
 
+#[rustler::nif(schedule = "DirtyIo")]
+fn get_oci_bytes(
+    oci_ref: String,
+    allow_latest: bool,
+    allowed_insecure: Vec<String>,
+) -> Result<Vec<u8>, Error> {
+    task::TOKIO
+        .block_on(async { oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await })
+        .map_err(|_e| rustler::Error::Term(Box::new("Failed to fetch OCI bytes")))
+}
+
+#[rustler::nif]
+fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {
+    match ProviderArchive::try_load(binary.as_slice()) {
+        Ok(par) => {
+            return Ok(ProviderArchiveResource {
+                claims: par::extract_claims(&par)?,
+                target_bytes: par::extract_target_bytes(&par)?,
+                contract_id: par::get_capid(&par)?,
+                vendor: par::get_vendor(&par)?,
+            })
+        }
+        Err(_) => Err(Error::BadArg),
+    }
+}
+
+#[rustler::nif]
+fn par_cache_path(subject: String, rev: u32) -> Result<String, Error> {
+    par::cache_path(subject, rev)
+}
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
 /// in the form of a simple struct that will bubble its way up to Elixir as a native struct
 #[rustler::nif]
@@ -143,4 +189,9 @@ fn validate_antiforgery<'a>(inv: Binary) -> Result<(), Error> {
             i.validate_antiforgery()
                 .map_err(|_e| rustler::Error::Atom("Validation of invocation/AF token failed"))
         })
+}
+
+fn load(env: rustler::Env, _: rustler::Term) -> bool {
+    par::on_load(env);
+    true
 }

@@ -1,4 +1,4 @@
-defmodule HostCore.ClaimsManager do
+defmodule HostCore.Claims.Manager do
   use GenServer, restart: :transient
 
   require Logger
@@ -8,29 +8,8 @@ defmodule HostCore.ClaimsManager do
   end
 
   @impl true
-  def init(opts) do
-    # subscribe to all claims put / get ops
-    prefix = HostCore.Host.lattice_prefix()
-    topic = "wasmbus.rpc.#{prefix}.claims.*"
-    {:ok, _sub} = Gnat.sub(:lattice_nats, self(), topic)
-
+  def init(_opts) do
     {:ok, :ok}
-  end
-
-  @impl true
-  def handle_info(
-        {:msg, %{body: body, topic: topic}},
-        state
-      ) do
-    cmd = topic |> String.split(".") |> Enum.at(4)
-    Logger.info("Received claims command (#{cmd})")
-    claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
-
-    key = claims.public_key
-    :ets.insert(:claims_table, {key, claims})
-    :ets.insert(:callalias_table, {claims.call_alias, claims.public_key})
-
-    {:noreply, state}
   end
 
   def put_claims(claims) do

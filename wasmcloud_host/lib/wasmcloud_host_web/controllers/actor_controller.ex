@@ -3,15 +3,28 @@ defmodule WasmcloudHostWeb.ActorController do
   require HostCore
 
   def start_actor(conn, params) do
-    IO.inspect(0..String.to_integer(params["replicas"]))
-
-    if upload = params["actor_file"] do
-      {:ok, bytes} = File.read(upload.path)
-
-      if replicas = params["replicas"] do
-        1..String.to_integer(replicas)
-        |> Enum.each(fn _ -> HostCore.Actors.ActorSupervisor.start_actor(bytes) end)
+    replicas =
+      if params["replicas"] do
+        1..String.to_integer(params["replicas"])
+      else
+        1..1
       end
+
+    cond do
+      params["actor_file"] != nil ->
+        {:ok, bytes} = File.read(params["actor_file"].path)
+
+        replicas
+        |> Enum.each(fn _ -> HostCore.Actors.ActorSupervisor.start_actor(bytes) end)
+
+      params["actor_ociref"] != "" ->
+        replicas
+        |> Enum.each(fn _ ->
+          HostCore.Actors.ActorSupervisor.start_actor_from_oci(params["actor_ociref"])
+        end)
+
+      true ->
+        :error
     end
 
     conn |> redirect(to: "/")

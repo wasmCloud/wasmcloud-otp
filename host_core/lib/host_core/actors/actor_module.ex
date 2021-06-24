@@ -105,18 +105,16 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp start_actor(claims, bytes) do
+    Logger.info("Actor module starting")
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
-    HostCore.ClaimsManager.put_claims(claims)
+    HostCore.Claims.Manager.put_claims(claims)
 
     {:ok, agent} = Agent.start_link(fn -> %State{claims: claims} end)
-
-    if claims.call_alias != nil do
-      # TODO put call alias into a ref map
-    end
 
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
 
+    Logger.info("Subscribing to #{topic}")
     {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
     Agent.update(agent, fn state -> %State{state | subscription: subscription} end)
 

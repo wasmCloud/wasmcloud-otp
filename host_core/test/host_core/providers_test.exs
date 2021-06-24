@@ -5,6 +5,7 @@ defmodule HostCore.ProvidersTest do
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
   @httpserver_link "default"
   @httpserver_contract "wasmcloud:httpserver"
+  @httpserver_oci "wasmcloud.azurecr.io/httpserver-test:0.13.0"
 
   test "can load provider" do
     {:ok, _pid} =
@@ -13,6 +14,31 @@ defmodule HostCore.ProvidersTest do
         @httpserver_key,
         @httpserver_link,
         @httpserver_contract
+      )
+
+    # Ensure provider is cleaned up regardless of test errors
+    on_exit(fn ->
+      HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+    end)
+
+    Process.sleep(1000)
+
+    assert HostCore.Providers.ProviderSupervisor.all_providers() == [
+             {@httpserver_key, @httpserver_link, @httpserver_contract}
+           ]
+
+    HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+
+    # give provider a moment to stop
+    Process.sleep(1000)
+    assert HostCore.Providers.ProviderSupervisor.all_providers() == []
+  end
+
+  test "can load provider from OCI" do
+    {:ok, _pid} =
+      HostCore.Providers.ProviderSupervisor.start_executable_provider_from_oci(
+        @httpserver_oci,
+        "default"
       )
 
     # Ensure provider is cleaned up regardless of test errors
