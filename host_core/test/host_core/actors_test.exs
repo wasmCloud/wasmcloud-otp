@@ -145,7 +145,7 @@ defmodule HostCore.ActorsTest do
     assert payload["statusCode"] == 200
 
     assert payload["body"] ==
-             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"HEYOOO\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
   end
 
   test "can invoke via call alias" do
