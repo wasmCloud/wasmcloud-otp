@@ -115,7 +115,7 @@
               <th>Instance Count</th>
               <th>Status</th>
               <th>Actor ID</th>
-              <th>Action</th>
+              <%# <th>Action</th> %>
             </tr>
           </thead>
           <tbody>
@@ -136,25 +136,24 @@
                     </svg>&nbsp;
                   </button>
                 </td>
-                <td style="text-align: center">
+                <!-- <td style="text-align: center">
                   <button class="btn btn-danger btn-sm" type="button" onClick="
                     fetch('/terminate_actor?' + new URLSearchParams({public_key: '<%= actor %>',count: 1}), {
-                      method: 'POST',
-                      headers: {
-                        'x-csrf-token': '<%= Phoenix.Controller.get_csrf_token() %>'
-                      },
-                    })
-                    ">
-                    <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-trash"></use>
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
+                method: 'POST',
+                headers: {
+                'x-csrf-token': '<%= Phoenix.Controller.get_csrf_token() %>'
+                },
+                })
+                ">
+                <svg class="c-icon">
+                  <use xlink:href="/coreui/free.svg#cil-trash"></use>
+                </svg>
+              </button> -->
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
   <!-- /.col-->
@@ -176,50 +175,51 @@
           </div>
         </div>
       </div>
-      <div class="card-body">
-        <table class="table table-responsive-sm table-bordered table-striped table-sm">
-          <thead>
-            <tr>
-              <th>Link Name</th>
-              <th>Contract ID</th>
-              <th>Provider ID</th>
-              <th>Host IDs</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <%# One row per-provider instance, which is a public key, contract id and link name combination %>
-            <%= for {provider, instances} <- @providers do %>
-              <%= for instance <- instances do  %>
-                <tr>
-                  <td><%= Map.get(instance, :link_name) %></td>
-                  <td><%= Map.get(instance, :contract_id) %></td>
-                  <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= provider%>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                      <%= String.slice(provider, 0..4) %>...
+    </div>
+    <div class="card-body">
+      <table class="table table-responsive-sm table-bordered table-striped table-sm">
+        <thead>
+          <tr>
+            <th>Link Name</th>
+            <th>Contract ID</th>
+            <th>Provider ID</th>
+            <th>Host IDs</th>
+            <%# <th>Actions</th> %>
+          </tr>
+        </thead>
+        <tbody>
+          <%# One row per-provider instance, which is a public key, contract id and link name combination %>
+          <%= for {provider, instances} <- @providers do %>
+            <%= for instance <- instances do  %>
+              <tr>
+                <td><%= Map.get(instance, :link_name) %></td>
+                <td><%= Map.get(instance, :contract_id) %></td>
+                <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= provider%>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                    <%= String.slice(provider, 0..4) %>...
+                    <svg class="c-icon">
+                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                    </svg>&nbsp;
+                  </button></td>
+                <td>
+                  <%= for hid <- Map.get(instance, :host_ids) do %>
+                    <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                      <%= String.slice(hid, 0..4) %>...
                       <svg class="c-icon">
                         <use xlink:href="/coreui/free.svg#cil-copy"></use>
                       </svg>&nbsp;
-                    </button></td>
-                  <td>
-                    <%= for hid <- Map.get(instance, :host_ids) do %>
-                      <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                        <%= String.slice(hid, 0..4) %>...
-                        <svg class="c-icon">
-                          <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                        </svg>&nbsp;
-                      </button>
-                    <% end %>
-                  </td>
-                  <td>
-                  </td>
-                </tr>
-              <% end %>
+                    </button>
+                  <% end %>
+                </td>
+                <%# <td>
+                </td> %>
+              </tr>
             <% end %>
-          </tbody>
-        </table>
-      </div>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
+</div>
 </div>
 <%# Link Definitions row %>
 <div class="row">
