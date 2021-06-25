@@ -15,7 +15,7 @@ defmodule HostCoreTest do
     family_target =
       case :os.type() do
         {:unix, _linux} -> "unix"
-        {:unix, :darwin} -> "mac"
+        {:unix, :darwin} -> "unix"
         {:win32, :nt} -> "windows"
       end
 
