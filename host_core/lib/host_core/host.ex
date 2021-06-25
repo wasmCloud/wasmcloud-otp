@@ -6,7 +6,7 @@ defmodule HostCore.Host do
   # by a mix release.
 
   defmodule State do
-    defstruct [:host_key, :host_seed, :labels, :lattice_prefix]
+    defstruct [:host_key, :host_seed, :lattice_prefix]
   end
 
   @doc """
@@ -42,14 +42,10 @@ defmodule HostCore.Host do
 
     Logger.info("Host #{host_key} started.")
 
-    labels = HostCore.WasmCloud.Native.detect_core_host_labels()
-    labels = Map.merge(labels, get_env_host_labels())
-
     {:ok,
      %State{
        host_key: host_key,
        host_seed: host_seed,
-       labels: labels,
        lattice_prefix: opts[:lattice_prefix]
      }}
   end
@@ -80,7 +76,10 @@ defmodule HostCore.Host do
 
   @impl true
   def handle_call(:get_labels, _from, state) do
-    {:reply, state.labels, state}
+    labels = get_env_host_labels()
+    labels = Map.merge(labels, HostCore.WasmCloud.Native.detect_core_host_labels())
+
+    {:reply, labels, state}
   end
 
   defp start_gnat(opts) do
