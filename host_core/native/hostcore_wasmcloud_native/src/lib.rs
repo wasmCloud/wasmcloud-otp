@@ -4,6 +4,7 @@ extern crate rustler;
 use nkeys::KeyPair;
 use provider_archive::ProviderArchive;
 use rustler::{Atom, Binary, Error, ResourceArc};
+use std::collections::HashMap;
 use wascap::prelude::*;
 
 mod atoms;
@@ -11,6 +12,10 @@ mod inv;
 mod oci;
 mod par;
 mod task;
+
+pub(crate) const CORELABEL_ARCH: &str = "hostcore.arch";
+pub(crate) const CORELABEL_OS: &str = "hostcore.os";
+pub(crate) const CORELABEL_OSFAMILY: &str = "hostcore.osfamily";
 
 #[derive(NifStruct)]
 #[module = "HostCore.WasmCloud.Native.ProviderArchive"]
@@ -60,6 +65,7 @@ rustler::init!(
         get_oci_bytes,
         par_from_bytes,
         par_cache_path,
+        detect_core_host_labels,
     ],
     load = load
 );
@@ -189,6 +195,21 @@ fn validate_antiforgery<'a>(inv: Binary) -> Result<(), Error> {
             i.validate_antiforgery()
                 .map_err(|_e| rustler::Error::Atom("Validation of invocation/AF token failed"))
         })
+}
+
+#[rustler::nif]
+fn detect_core_host_labels() -> HashMap<String, String> {
+    let mut hm = HashMap::new();
+    hm.insert(
+        CORELABEL_ARCH.to_string(),
+        std::env::consts::ARCH.to_string(),
+    );
+    hm.insert(CORELABEL_OS.to_string(), std::env::consts::OS.to_string());
+    hm.insert(
+        CORELABEL_OSFAMILY.to_string(),
+        std::env::consts::FAMILY.to_string(),
+    );
+    hm
 }
 
 fn load(env: rustler::Env, _: rustler::Term) -> bool {
