@@ -149,21 +149,21 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke via call alias" do
-    {:ok, bytes} = File.read("priv/actors/pinger_s.wasm")
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, bytes} = File.read("priv/actors/ponger_s.wasm")
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, bytes} = File.read("priv/actors/pinger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     on_exit(fn ->
-      # Pinger
-      HostCore.Actors.ActorSupervisor.terminate_actor(
-        "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN",
-        1
-      )
-
       # Ponger
       HostCore.Actors.ActorSupervisor.terminate_actor(
         "MBMOM2EZZICFYM4KATRMH2JUO5QWE3YWCHGFZVRQQ2SQI4I5BKWIGMBS",
+        1
+      )
+
+      # Pinger
+      HostCore.Actors.ActorSupervisor.terminate_actor(
+        "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN",
         1
       )
     end)
