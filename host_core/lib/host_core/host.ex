@@ -42,15 +42,25 @@ defmodule HostCore.Host do
 
     Logger.info("Host #{host_key} started.")
 
-    # TODO - get namespace prefix from env/config
-    # TODO - query intrinsic labels for OS/CPU family
-    # TODO - append labels from env/config
+    labels = HostCore.WasmCloud.Native.detect_core_host_labels()
+    labels = Map.merge(labels, get_env_host_labels())
+
     {:ok,
      %State{
        host_key: host_key,
        host_seed: host_seed,
+       labels: labels,
        lattice_prefix: opts[:lattice_prefix]
      }}
+  end
+
+  defp get_env_host_labels() do
+    keys =
+      System.get_env() |> Map.keys() |> Enum.filter(fn k -> String.starts_with?(k, "HOST_") end)
+
+    Map.new(keys, fn k ->
+      {String.slice(k, 5..999) |> String.downcase(), System.get_env(k, "")}
+    end)
   end
 
   @impl true
@@ -66,6 +76,11 @@ defmodule HostCore.Host do
   @impl true
   def handle_call(:get_pk, _from, state) do
     {:reply, state.host_key, state}
+  end
+
+  @impl true
+  def handle_call(:get_labels, _from, state) do
+    {:reply, state.labels, state}
   end
 
   defp start_gnat(opts) do
@@ -177,6 +192,10 @@ defmodule HostCore.Host do
 
   def host_key() do
     GenServer.call(__MODULE__, :get_pk)
+  end
+
+  def host_labels() do
+    GenServer.call(__MODULE__, :get_labels)
   end
 
   def generate_hostinfo_for(provider_key, link_name) do
