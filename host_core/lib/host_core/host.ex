@@ -239,7 +239,11 @@ defmodule HostCore.Host do
       HostCore.Actors.ActorSupervisor.all_actors()
       |> Enum.map(fn {k, v} -> %{actor: k, instances: length(v)} end)
 
-    providers = HostCore.Providers.ProviderSupervisor.all_providers()
+    providers =
+      HostCore.Providers.ProviderSupervisor.all_providers()
+      |> Enum.map(fn {pk, link, contract} ->
+        %{public_key: pk, link_name: link, contract_id: contract}
+      end)
 
     %{
       actors: actors,
