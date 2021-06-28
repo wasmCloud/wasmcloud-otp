@@ -1,6 +1,7 @@
 defmodule HostCore.Actors.ActorModule do
   # Do not automatically restart this process
   use GenServer, restart: :transient
+  alias HostCore.CloudEvent
 
   @op_health_check "HealthRequest"
   @thirty_seconds 30_000
@@ -228,23 +229,12 @@ defmodule HostCore.Actors.ActorModule do
 
   def publish_actor_started(actor_pk) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-    host = HostCore.Host.host_key()
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.actor_started",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: actor_pk
-        }
+        public_key: actor_pk
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("actor_started")
 
     topic = "wasmbus.ctl.#{prefix}.events"
 
@@ -253,24 +243,13 @@ defmodule HostCore.Actors.ActorModule do
 
   def publish_actor_stopped(actor_pk, remaining_count) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-    host = HostCore.Host.host_key()
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.actor_stopped",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: actor_pk,
-          running_instances: remaining_count
-        }
+        public_key: actor_pk,
+        running_instances: remaining_count
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("actor_stopped")
 
     topic = "wasmbus.ctl.#{prefix}.events"
 
@@ -279,24 +258,13 @@ defmodule HostCore.Actors.ActorModule do
 
   defp publish_check_passed(agent) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-    host = HostCore.Host.host_key()
     claims = Agent.get(agent, fn content -> content.claims end)
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.health_check_passed",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: claims.public_key
-        }
+        public_key: claims.public_key
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("health_check_passed")
 
     topic = "wasmbus.ctl.#{prefix}.events"
     Gnat.pub(:control_nats, topic, msg)
@@ -306,25 +274,15 @@ defmodule HostCore.Actors.ActorModule do
 
   defp publish_check_failed(agent, reason) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-    host = HostCore.Host.host_key()
+
     claims = Agent.get(agent, fn content -> content.claims end)
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.health_check_failed",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: claims.public_key,
-          reason: reason
-        }
+        public_key: claims.public_key,
+        reason: reason
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("health_check_failed")
 
     topic = "wasmbus.ctl.#{prefix}.events"
     Gnat.pub(:control_nats, topic, msg)

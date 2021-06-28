@@ -1,6 +1,7 @@
 defmodule HostCore.Providers.ProviderModule do
   use GenServer, restart: :transient
   require Logger
+  alias HostCore.CloudEvent
 
   @thirty_seconds 30_000
 
@@ -108,25 +109,13 @@ defmodule HostCore.Providers.ProviderModule do
 
   defp publish_health_passed(state) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    host = HostCore.Host.host_key()
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.health_check_passed",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: state.public_key,
-          link_name: state.link_name
-        }
+        public_key: state.public_key,
+        link_name: state.link_name
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("health_check_passed")
 
     topic = "wasmbus.ctl.#{prefix}.events"
 
@@ -135,25 +124,13 @@ defmodule HostCore.Providers.ProviderModule do
 
   defp publish_health_failed(state) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    host = HostCore.Host.host_key()
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.health_check_failed",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: state.public_key,
-          link_name: state.link_name
-        }
+        public_key: state.public_key,
+        link_name: state.link_name
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("health_check_failed")
 
     topic = "wasmbus.ctl.#{prefix}.events"
 
@@ -162,25 +139,13 @@ defmodule HostCore.Providers.ProviderModule do
 
   def publish_provider_stopped(public_key, link_name) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    host = HostCore.Host.host_key()
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.provider_stopped",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: public_key,
-          link_name: link_name
-        }
+        public_key: public_key,
+        link_name: link_name
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("provider_stopped")
 
     topic = "wasmbus.ctl.#{prefix}.events"
 
@@ -189,26 +154,14 @@ defmodule HostCore.Providers.ProviderModule do
 
   defp publish_provider_started(pk, link_name, contract_id) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    host = HostCore.Host.host_key()
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.provider_started",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: pk,
-          link_name: link_name,
-          contract_id: contract_id
-        }
+        public_key: pk,
+        link_name: link_name,
+        contract_id: contract_id
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("provider_started")
 
     topic = "wasmbus.ctl.#{prefix}.events"
 
