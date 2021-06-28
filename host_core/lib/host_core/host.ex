@@ -2,6 +2,10 @@ defmodule HostCore.Host do
   use GenServer, restart: :transient
   require Logger
 
+  @thirty_seconds 30_000
+
+  alias HostCore.CloudEvent
+
   # To set this value in a release, edit the `env.sh` file that is generated
   # by a mix release.
 
@@ -42,6 +46,8 @@ defmodule HostCore.Host do
 
     Logger.info("Host #{host_key} started.")
 
+    Process.send_after(self(), :publish_heartbeat, @thirty_seconds)
+
     {:ok,
      %State{
        host_key: host_key,
@@ -80,6 +86,13 @@ defmodule HostCore.Host do
     labels = Map.merge(labels, HostCore.WasmCloud.Native.detect_core_host_labels())
 
     {:reply, labels, state}
+  end
+
+  @impl true
+  def handle_info(:publish_heartbeat, state) do
+    publish_heartbeat(state)
+    Process.send_after(self(), :publish_heartbeat, @thirty_seconds)
+    {:noreply, state}
   end
 
   defp start_gnat(opts) do
@@ -213,5 +226,29 @@ defmodule HostCore.Host do
       env_values: %{}
     }
     |> Jason.encode!()
+  end
+
+  def publish_heartbeat(state) do
+    topic = "wasmbus.ctl.#{state.lattice_prefix}.events"
+    msg = generate_heartbeat(state)
+    Gnat.pub(:control_nats, topic, msg)
+  end
+
+  defp generate_heartbeat(state) do
+    actors =
+      HostCore.Actors.ActorSupervisor.all_actors()
+      |> Enum.map(fn {k, v} -> %{actor: k, instances: length(v)} end)
+
+    providers =
+      HostCore.Providers.ProviderSupervisor.all_providers()
+      |> Enum.map(fn {pk, link, contract} ->
+        %{public_key: pk, link_name: link, contract_id: contract}
+      end)
+
+    %{
+      actors: actors,
+      providers: providers
+    }
+    |> CloudEvent.new("host_heartbeat", state.host_key)
   end
 end
