@@ -24,7 +24,7 @@
   </head>
   <!-- Main body -->
   <body class="c-app c-no-layout-transition">
-    <div class="c-sidebar c-sidebar-dark c-sidebar-fixed c-sidebar-lg-show" id="sidebar">
+    <div class="c-sidebar c-sidebar-dark c-sidebar-fixed c-sidebar-lg-show c-sidebar-unfoldable" id="sidebar">
       <div class="c-sidebar-brand d-md-down-none">
         <!-- Expanded logo -->
         <div class="c-sidebar-brand-full" alt="wasmCloud Horizontal">
@@ -121,7 +121,7 @@
               <!-- Start provider modal-->
               <%= render("startprovidermodal.html") %>
               <!-- Define Link modal-->
-              <%= render("definelinkmodal.html") %>
+              <%= render("definelinkmodal.html", actors: @actors, providers: @providers, claims: @claims) %>
               <!-- /.row-->
             </div>
           </div>
