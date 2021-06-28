@@ -223,16 +223,17 @@ defmodule HostCore.Actors.ActorModule do
       %State{content | api_version: api_version, instance: instance}
     end)
 
-    publish_actor_started(claims.public_key)
+    publish_actor_started(claims.public_key, api_version)
     {:ok, agent}
   end
 
-  def publish_actor_started(actor_pk) do
+  def publish_actor_started(actor_pk, api_version) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
-        public_key: actor_pk
+        public_key: actor_pk,
+        api_version: api_version
       }
       |> CloudEvent.new("actor_started")
 

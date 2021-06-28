@@ -1,7 +1,6 @@
 defmodule HostCore.CloudEvent do
-  def new(data, event_type) do
+  def new(data, event_type, host \\ HostCore.Host.host_key()) do
     stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-    host = HostCore.Host.host_key()
 
     %{
       specversion: "1.0",
