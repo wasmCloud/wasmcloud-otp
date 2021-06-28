@@ -112,97 +112,107 @@
           <thead>
             <tr>
               <th>Name</th>
-              <th>Instance Count</th>
+              <th>Count</th>
               <th>Status</th>
               <th>Actor ID</th>
+              <th>Host ID</th>
             </tr>
           </thead>
           <tbody>
-            <%= for {actor, instance_count} <- @actors do %>
-              <tr>
-                <%= for {k, v} <- @claims do %>
-                  <%= if k == actor do %>
-                    <td><%= v.name %> </td>
+            <%= for {actor, host_info} <- @actors do %>
+              <%= for {host_id, count} <- host_info do %>
+                <tr>
+                  <%= for {k, v} <- @claims do %>
+                    <%= if k == actor do %>
+                      <td><%= v.name %> </td>
+                    <% end %>
                   <% end %>
-                <% end %>
-                <td><%= instance_count %></td>
-                <td><span class="badge badge-secondary">Running</span></td>
-                <td>
-                  <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                    <%= String.slice(actor, 0..4) %>...
-                    <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                    </svg>&nbsp;
-                  </button>
-                </td>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-<!-- /.col-->
-<div class="col-xl-6 col-lg-12 col-md-12">
-  <div class="card">
-    <div class="card-header">
-      <div class="row justify-content-between">
-        <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:150px">
-          <h3>Providers</h3>
-        </div>
-        <div class="mfe-2">
-          <div class="dropdown d-inline-block">
-            <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
-            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-              <button class="dropdown-item" data-toggle="modal" data-target="#start_provider_file">From File</button>
-              <button class="dropdown-item" data-toggle="modal" data-target="#start_provider_oci">From Registry</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="card-body">
-      <table class="table table-responsive-sm table-bordered table-striped table-sm">
-        <thead>
-          <tr>
-            <th>Link Name</th>
-            <th>Contract ID</th>
-            <th>Provider ID</th>
-            <th>Host IDs</th>
-          </tr>
-        </thead>
-        <tbody>
-          <%# One row per-provider instance, which is a public key, contract id and link name combination %>
-          <%= for {provider, instances} <- @providers do %>
-            <%= for instance <- instances do  %>
-              <tr>
-                <td><%= Map.get(instance, :link_name) %></td>
-                <td><%= Map.get(instance, :contract_id) %></td>
-                <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= provider%>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                    <%= String.slice(provider, 0..4) %>...
-                    <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                    </svg>&nbsp;
-                  </button></td>
-                <td>
-                  <%= for hid <- Map.get(instance, :host_ids) do %>
-                    <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                      <%= String.slice(hid, 0..4) %>...
+                  <td><%= count %></td>
+                  <td><span class="badge badge-secondary">Running</span></td>
+                  <td>
+                    <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                      <%= String.slice(actor, 0..4) %>...
                       <svg class="c-icon">
                         <use xlink:href="/coreui/free.svg#cil-copy"></use>
                       </svg>&nbsp;
                     </button>
-                  <% end %>
-                </td>
-              </tr>
+                  </td>
+                  <td>
+                    <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                      <%= String.slice(host_id, 0..4) %>...
+                      <svg class="c-icon">
+                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                      </svg>&nbsp;
+                    </button>
+                  </td>
+                </tr>
+              <% end %>
             <% end %>
-          <% end %>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
-</div>
+  <!-- /.col-->
+  <div class="col-xl-6 col-lg-12 col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <div class="row justify-content-between">
+          <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:150px">
+            <h3>Providers</h3>
+          </div>
+          <div class="mfe-2">
+            <div class="dropdown d-inline-block">
+              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
+              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                <button class="dropdown-item" data-toggle="modal" data-target="#start_provider_file">From File</button>
+                <button class="dropdown-item" data-toggle="modal" data-target="#start_provider_oci">From Registry</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <table class="table table-responsive-sm table-bordered table-striped table-sm">
+          <thead>
+            <tr>
+              <th>Link Name</th>
+              <th>Contract ID</th>
+              <th>Provider ID</th>
+              <th>Host IDs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%# One row per-provider instance, which is a public key, contract id and link name combination %>
+            <%= for {provider, instances} <- @providers do %>
+              <%= for instance <- instances do  %>
+                <tr>
+                  <td><%= Map.get(instance, :link_name) %></td>
+                  <td><%= Map.get(instance, :contract_id) %></td>
+                  <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= provider%>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                      <%= String.slice(provider, 0..4) %>...
+                      <svg class="c-icon">
+                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                      </svg>&nbsp;
+                    </button></td>
+                  <td>
+                    <%= for hid <- Map.get(instance, :host_ids) do %>
+                      <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                        <%= String.slice(hid, 0..4) %>...
+                        <svg class="c-icon">
+                          <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                        </svg>&nbsp;
+                      </button>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 <%# Link Definitions row %>
 <div class="row">
@@ -260,4 +270,31 @@
     </div>
   </div>
   <!-- /.col-->
+</div>
+<%# Start actor modal (One for file, one for OCI) %>
+<div class="modal fade" id="start_actor_file" tabindex="-1" role="dialog" aria-labelledby="start_actor_file" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Start actor from file</h4>
+        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+      <div class="modal-body">
+        <%= live_component StartActorComponent, id: :start_actor_file_modal %>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="start_actor_oci" tabindex="-1" role="dialog" aria-labelledby="start_actor_oci" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Start actor from OCI registry</h4>
+        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+      <div class="modal-body">
+        <%= live_component StartActorComponent, id: :start_actor_oci_modal %>
+      </div>
+    </div>
+  </div>
 </div>
