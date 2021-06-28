@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         elixir: [1.12.1]
-        otp: [22.0, 23.0, 23.3.4.1, 24]
+        otp: [22.0, 23.0, 23.3.4.1, 24.0]
     services:
       nats:
         image: nats
