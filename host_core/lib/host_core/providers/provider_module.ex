@@ -2,6 +2,8 @@ defmodule HostCore.Providers.ProviderModule do
   use GenServer, restart: :transient
   require Logger
 
+  @thirty_seconds 30_000
+
   defmodule State do
     defstruct [:os_port, :os_pid, :link_name, :contract_id, :public_key]
   end
@@ -41,6 +43,8 @@ defmodule HostCore.Providers.ProviderModule do
     # when it starts.
     publish_provider_started(public_key, link_name, contract_id)
 
+    Process.send_after(self(), :do_health, @thirty_seconds)
+
     {:ok,
      %State{
        os_port: port,
@@ -75,10 +79,85 @@ defmodule HostCore.Providers.ProviderModule do
     {:noreply, state}
   end
 
+  @impl true
+  def handle_info(:do_health, state) do
+    topic = "wasmbus.rpc.#{state.public_key}.#{state.link_name}.health"
+    payload = %{placeholder: true} |> Msgpax.pack!() |> IO.iodata_to_binary()
+
+    res =
+      try do
+        Gnat.request(:lattice_nats, topic, payload, receive_timeout: 2_000)
+      rescue
+        _e -> {:error, "Received no response on health check topic from provider"}
+      end
+
+    case res do
+      {:ok, _body} -> publish_health_passed(state)
+      {:error, _} -> publish_health_failed(state)
+    end
+
+    Process.send_after(self(), :do_health, @thirty_seconds)
+    {:noreply, state}
+  end
+
   def handle_info({_ref, msg}, state) do
     Logger.info(msg)
 
     {:noreply, state}
+  end
+
+  defp publish_health_passed(state) do
+    prefix = HostCore.Host.lattice_prefix()
+    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
+
+    host = HostCore.Host.host_key()
+
+    msg =
+      %{
+        specversion: "1.0",
+        time: stamp,
+        type: "com.wasmcloud.lattice.health_check_passed",
+        source: "#{host}",
+        datacontenttype: "application/json",
+        id: UUID.uuid4(),
+        data: %{
+          public_key: state.public_key,
+          link_name: state.link_name
+        }
+      }
+      |> Cloudevents.from_map!()
+      |> Cloudevents.to_json()
+
+    topic = "wasmbus.ctl.#{prefix}.events"
+
+    Gnat.pub(:control_nats, topic, msg)
+  end
+
+  defp publish_health_failed(state) do
+    prefix = HostCore.Host.lattice_prefix()
+    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
+
+    host = HostCore.Host.host_key()
+
+    msg =
+      %{
+        specversion: "1.0",
+        time: stamp,
+        type: "com.wasmcloud.lattice.health_check_failed",
+        source: "#{host}",
+        datacontenttype: "application/json",
+        id: UUID.uuid4(),
+        data: %{
+          public_key: state.public_key,
+          link_name: state.link_name
+        }
+      }
+      |> Cloudevents.from_map!()
+      |> Cloudevents.to_json()
+
+    topic = "wasmbus.ctl.#{prefix}.events"
+
+    Gnat.pub(:control_nats, topic, msg)
   end
 
   def publish_provider_stopped(public_key, link_name) do
