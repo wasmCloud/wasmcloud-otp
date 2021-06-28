@@ -1,6 +1,10 @@
 defmodule HostCore.Actors.ActorModule do
   # Do not automatically restart this process
   use GenServer, restart: :transient
+  alias HostCore.CloudEvent
+
+  @op_health_check "HealthRequest"
+  @thirty_seconds 30_000
 
   require Logger
   alias HostCore.WebAssembly.Imports
@@ -47,6 +51,10 @@ defmodule HostCore.Actors.ActorModule do
     GenServer.call(pid, :halt_and_cleanup)
   end
 
+  def health_check(pid) do
+    GenServer.call(pid, :health_check)
+  end
+
   @impl true
   def init({claims, bytes}) do
     start_actor(claims, bytes)
@@ -67,6 +75,11 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   @impl true
+  def handle_call(:health_check, _from, agent) do
+    {:reply, perform_health_check(agent), agent}
+  end
+
+  @impl true
   def handle_call(:halt_and_cleanup, _from, agent) do
     # Add cleanup if necessary here...
     Logger.info("Actor instance termination requested")
@@ -75,6 +88,13 @@ defmodule HostCore.Actors.ActorModule do
     Gnat.unsub(:lattice_nats, subscription)
 
     {:stop, :normal, :ok, agent}
+  end
+
+  @impl true
+  def handle_info(:do_health, agent) do
+    perform_health_check(agent)
+    Process.send_after(self(), :do_health, @thirty_seconds)
+    {:noreply, agent}
   end
 
   @impl true
@@ -117,6 +137,8 @@ defmodule HostCore.Actors.ActorModule do
     Logger.info("Subscribing to #{topic}")
     {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
     Agent.update(agent, fn state -> %State{state | subscription: subscription} end)
+
+    Process.send_after(self(), :do_health, @thirty_seconds)
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
@@ -168,6 +190,24 @@ defmodule HostCore.Actors.ActorModule do
     {:error, err}
   end
 
+  defp perform_health_check(agent) do
+    payload = %{placeholder: true} |> Msgpax.pack!() |> IO.iodata_to_binary()
+
+    res =
+      try do
+        perform_invocation(agent, @op_health_check, payload)
+      rescue
+        _e -> {:error, "Failed to invoke actor module"}
+      end
+
+    case res do
+      {:ok, _payload} -> publish_check_passed(agent)
+      {:error, reason} -> publish_check_failed(agent, reason)
+    end
+
+    res
+  end
+
   defp prepare_module({:ok, instance}, agent) do
     api_version =
       case Wasmex.call_function(instance, :__frodobuf_api_version, []) do
@@ -189,23 +229,12 @@ defmodule HostCore.Actors.ActorModule do
 
   def publish_actor_started(actor_pk) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-    host = HostCore.Host.host_key()
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.actor_started",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: actor_pk
-        }
+        public_key: actor_pk
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("actor_started")
 
     topic = "wasmbus.ctl.#{prefix}.events"
 
@@ -214,27 +243,50 @@ defmodule HostCore.Actors.ActorModule do
 
   def publish_actor_stopped(actor_pk, remaining_count) do
     prefix = HostCore.Host.lattice_prefix()
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
-    host = HostCore.Host.host_key()
 
     msg =
       %{
-        specversion: "1.0",
-        time: stamp,
-        type: "com.wasmcloud.lattice.actor_stopped",
-        source: "#{host}",
-        datacontenttype: "application/json",
-        id: UUID.uuid4(),
-        data: %{
-          public_key: actor_pk,
-          running_instances: remaining_count
-        }
+        public_key: actor_pk,
+        running_instances: remaining_count
       }
-      |> Cloudevents.from_map!()
-      |> Cloudevents.to_json()
+      |> CloudEvent.new("actor_stopped")
 
     topic = "wasmbus.ctl.#{prefix}.events"
 
     Gnat.pub(:control_nats, topic, msg)
+  end
+
+  defp publish_check_passed(agent) do
+    prefix = HostCore.Host.lattice_prefix()
+    claims = Agent.get(agent, fn content -> content.claims end)
+
+    msg =
+      %{
+        public_key: claims.public_key
+      }
+      |> CloudEvent.new("health_check_passed")
+
+    topic = "wasmbus.ctl.#{prefix}.events"
+    Gnat.pub(:control_nats, topic, msg)
+
+    nil
+  end
+
+  defp publish_check_failed(agent, reason) do
+    prefix = HostCore.Host.lattice_prefix()
+
+    claims = Agent.get(agent, fn content -> content.claims end)
+
+    msg =
+      %{
+        public_key: claims.public_key,
+        reason: reason
+      }
+      |> CloudEvent.new("health_check_failed")
+
+    topic = "wasmbus.ctl.#{prefix}.events"
+    Gnat.pub(:control_nats, topic, msg)
+
+    nil
   end
 end
