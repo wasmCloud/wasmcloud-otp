@@ -195,6 +195,48 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     %State{state | providers: providers}
   end
 
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           data: %{"actors" => _actors, "providers" => _providers},
+           datacontenttype: "application/json",
+           source: _source_host,
+           type: "com.wasmcloud.lattice.host_heartbeat"
+         }
+       ) do
+    Logger.info("Handling host heartbeat")
+    # TODO: handle heartbeats
+    state
+  end
+
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           data: %{"public_key" => _pkey},
+           datacontenttype: "application/json",
+           source: _source_host,
+           type: "com.wasmcloud.lattice.health_check_passed"
+         }
+       ) do
+    Logger.info("Handling heartbeat success")
+    # TODO: handle heartbeats
+    state
+  end
+
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           data: %{"public_key" => _pkey},
+           datacontenttype: "application/json",
+           source: _source_host,
+           type: "com.wasmcloud.lattice.health_check_failed"
+         }
+       ) do
+    Logger.info("Handling heartbeat failure")
+    # TODO: handle heartbeats
+    state
+  end
+
   # This map is keyed by provider public key, which contains a list of
   # maps with the keys "link_name", "contract_id", and "host_ids", as
   # shown below.
