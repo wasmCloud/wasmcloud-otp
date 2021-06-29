@@ -42,13 +42,13 @@ defmodule HostCore.WebAssembly.Imports do
     }
   end
 
-  def frodobuf_imports(agent) do
+  def wasmbus_imports(agent) do
     %{
       __host_call:
         {:fn, [:i32, :i32, :i32, :i32, :i32, :i32, :i32, :i32], [:i32],
          fn context, bd_ptr, bd_len, ns_ptr, ns_len, op_ptr, op_len, ptr, len ->
            host_call(
-             :frodo,
+             :wasmbus,
              context,
              bd_ptr,
              bd_len,
@@ -63,24 +63,24 @@ defmodule HostCore.WebAssembly.Imports do
          end},
       __console_log:
         {:fn, [:i32, :i32], [],
-         fn context, ptr, len -> console_log(:frodo, context, ptr, len) end},
+         fn context, ptr, len -> console_log(:wasmbus, context, ptr, len) end},
       __guest_request:
         {:fn, [:i32, :i32], [],
-         fn context, op_ptr, ptr -> guest_request(:frodo, context, agent, op_ptr, ptr) end},
+         fn context, op_ptr, ptr -> guest_request(:wasmbus, context, agent, op_ptr, ptr) end},
       __host_response:
-        {:fn, [:i32], [], fn context, ptr -> host_response(:frodo, context, agent, ptr) end},
+        {:fn, [:i32], [], fn context, ptr -> host_response(:wasmbus, context, agent, ptr) end},
       __host_response_len:
-        {:fn, [], [:i32], fn context -> host_response_len(:frodo, context, agent) end},
+        {:fn, [], [:i32], fn context -> host_response_len(:wasmbus, context, agent) end},
       __guest_response:
         {:fn, [:i32, :i32], [],
-         fn context, ptr, len -> guest_response(:frodo, context, agent, ptr, len) end},
+         fn context, ptr, len -> guest_response(:wasmbus, context, agent, ptr, len) end},
       __guest_error:
         {:fn, [:i32, :i32], [],
-         fn context, ptr, len -> guest_error(:frodo, context, agent, ptr, len) end},
+         fn context, ptr, len -> guest_error(:wasmbus, context, agent, ptr, len) end},
       __host_error:
-        {:fn, [:i32], [], fn context, ptr -> host_error(:frodo, context, agent, ptr) end},
+        {:fn, [:i32], [], fn context, ptr -> host_error(:wasmbus, context, agent, ptr) end},
       __host_error_len:
-        {:fn, [], [:i32], fn context -> host_error_len(:frodo, context, agent) end}
+        {:fn, [], [:i32], fn context -> host_error_len(:wasmbus, context, agent) end}
     }
   end
 
