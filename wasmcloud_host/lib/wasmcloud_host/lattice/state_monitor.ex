@@ -218,8 +218,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: "com.wasmcloud.lattice.health_check_passed"
          }
        ) do
-    Logger.info("Handling heartbeat success")
-    # TODO: handle heartbeats
+    Logger.info("Handling successful health check")
+    # TODO: handle health check
     state
   end
 
@@ -232,8 +232,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: "com.wasmcloud.lattice.health_check_failed"
          }
        ) do
-    Logger.info("Handling heartbeat failure")
-    # TODO: handle heartbeats
+    Logger.info("Handling failed health check")
+    # TODO: handle health check
     state
   end
 
