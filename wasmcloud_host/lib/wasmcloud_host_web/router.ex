@@ -18,7 +18,6 @@ defmodule WasmcloudHostWeb.Router do
     pipe_through :browser
 
     live "/", PageLive, :index
-    post "/define_link", LinkdefsController, :define_link
   end
 
   # Other scopes may use custom stacks.

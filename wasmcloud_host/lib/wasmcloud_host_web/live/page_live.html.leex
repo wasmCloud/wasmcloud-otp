@@ -272,7 +272,7 @@
   <!-- /.col-->
 </div>
 <%# Start actor modal (One for file, one for OCI) %>
-<div class="modal fade" id="start_actor_file" tabindex="-1" role="dialog" aria-labelledby="start_actor_file" aria-hidden="true">
+<div class="modal fade" id="start_actor_file" tabindex="-1" role="dialog" aria-labelledby="start_actor_file_modal" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -285,7 +285,7 @@
     </div>
   </div>
 </div>
-<div class="modal fade" id="start_actor_oci" tabindex="-1" role="dialog" aria-labelledby="start_actor_oci" aria-hidden="true">
+<div class="modal fade" id="start_actor_oci" tabindex="-1" role="dialog" aria-labelledby="start_actor_oci_modal" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -299,7 +299,7 @@
   </div>
 </div>
 <%# Start provider modal (One for file, one for OCI) %>
-<div class="modal fade" id="start_provider_file" tabindex="-1" role="dialog" aria-labelledby="start_provider_file" aria-hidden="true">
+<div class="modal fade" id="start_provider_file" tabindex="-1" role="dialog" aria-labelledby="start_provider_file_modal" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -312,7 +312,7 @@
     </div>
   </div>
 </div>
-<div class="modal fade" id="start_provider_oci" tabindex="-1" role="dialog" aria-labelledby="start_provider_oci" aria-hidden="true">
+<div class="modal fade" id="start_provider_oci" tabindex="-1" role="dialog" aria-labelledby="start_provider_oci_modal" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -321,6 +321,20 @@
       </div>
       <div class="modal-body">
         <%= live_component StartProviderComponent, id: :start_provider_oci_modal %>
+      </div>
+    </div>
+  </div>
+</div>
+<%# Define link modal %>
+<div class="modal fade" id="define_link" tabindex="-1" role="dialog" aria-labelledby="define_link_modal" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Define link</h4>
+        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+      <div class="modal-body">
+          <%= live_component DefineLinkComponent, id: :define_link_modal, actors: @actors, providers: @providers, claims: @claims %>
       </div>
     </div>
   </div>
