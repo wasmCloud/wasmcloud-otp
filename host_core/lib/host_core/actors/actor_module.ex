@@ -142,7 +142,7 @@ defmodule HostCore.Actors.ActorModule do
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
-      wasmbus: Imports.wasmbuf_imports(agent)
+      wasmbus: Imports.wasmbus_imports(agent)
     }
 
     Wasmex.start_link(%{bytes: bytes, imports: imports})
