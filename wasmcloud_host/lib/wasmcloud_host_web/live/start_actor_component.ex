@@ -14,7 +14,7 @@ defmodule StartActorComponent do
 
   def handle_event(
         "start_actor_file",
-        %{"_csrf_token" => _csrf_token, "replicas" => replicas},
+        %{"replicas" => replicas},
         socket
       ) do
     Phoenix.LiveView.consume_uploaded_entries(socket, :actor, fn %{path: path}, _entry ->
@@ -28,7 +28,7 @@ defmodule StartActorComponent do
 
   def handle_event(
         "start_actor_ociref",
-        %{"_csrf_token" => _csrf_token, "replicas" => replicas, "actor_ociref" => actor_ociref},
+        %{"replicas" => replicas, "actor_ociref" => actor_ociref},
         socket
       ) do
     replicas = 1..String.to_integer(replicas)
