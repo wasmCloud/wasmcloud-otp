@@ -219,40 +219,66 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
          }
        ) do
     Logger.info("Handling successful health check")
-    actors = state.actors
-    providers = state.providers
-    actor = Map.get(actors, public_key, nil)
-    provider = Map.get(providers, public_key, nil)
-
-    cond do
-      actor != nil ->
-        host_map = Map.get(actor, source_host, %{})
-        host_map = Map.put(host_map, :status, "Healthy")
-        actor = Map.put(actor, source_host, host_map)
-        actors = Map.put(actors, public_key, actor)
-        %State{state | actors: actors}
-
-      provider != nil ->
-        state
-
-      # Did not match currently running provider or actor
-      true ->
-        state
-    end
+    update_status(state, public_key, source_host, "Healthy")
   end
 
   defp process_event(
          state,
          %Cloudevents.Format.V_1_0.Event{
-           data: %{"public_key" => _pkey},
+           data: %{"public_key" => public_key},
            datacontenttype: "application/json",
-           source: _source_host,
+           source: source_host,
            type: "com.wasmcloud.lattice.health_check_failed"
          }
        ) do
     Logger.info("Handling failed health check")
-    # TODO: handle health check
-    state
+    update_status(state, public_key, source_host, "Unhealthy")
+  end
+
+  defp update_status(state, public_key, source_host, new_status) do
+    actors = state.actors
+    providers = state.providers
+    actor = Map.get(actors, public_key, nil)
+    provider_list = Map.get(providers, public_key, nil)
+
+    cond do
+      actor != nil ->
+        host_map = Map.get(actor, source_host, %{})
+        host_map = Map.put(host_map, :status, new_status)
+        actor = Map.put(actor, source_host, host_map)
+        actors = Map.put(actors, public_key, actor)
+        %State{state | actors: actors}
+
+      provider_list != nil ->
+        provider_list =
+          provider_list
+          |> Enum.map(
+            fn instance = %{
+                 link_name: link_name,
+                 contract_id: contract_id,
+                 host_ids: host_ids,
+                 status: _status
+               } ->
+              if Enum.member?(host_ids, source_host) do
+                %{
+                  link_name: link_name,
+                  contract_id: contract_id,
+                  host_ids: host_ids,
+                  status: new_status
+                }
+              else
+                instance
+              end
+            end
+          )
+
+        providers = Map.put(providers, public_key, provider_list)
+        %State{state | providers: providers}
+
+      # Did not match currently running provider or actor
+      true ->
+        state
+    end
   end
 
   # This map is keyed by provider public key, which contains a list of
@@ -264,12 +290,14 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   #        %{
   #            "link_name": "default",
   #            "contract_id": "wasmcloud:keyvalue",
-  #            "host_ids": ["Nxxxx"]
+  #            "host_ids": ["Nxxxx"],
+  #            "status": "Starting"
   #         },
   #        %{
   #            "link_name": "special",
   #            "contract_id": "wasmcloud:keyvalue",
-  #            "host_ids": ["Nxxxx"]
+  #            "host_ids": ["Nxxxx"],
+  #            "status": "Healthy"
   #         },
   #    ]
   # }
@@ -291,7 +319,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
       # new instance of provider, add to provider list
       existing_instance == nil ->
         provider_list = [
-          %{link_name: link_name, contract_id: contract_id, host_ids: [host]}
+          %{link_name: link_name, contract_id: contract_id, host_ids: [host], status: "Starting"}
           | previous_instances
         ]
 
