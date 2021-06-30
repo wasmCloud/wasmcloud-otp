@@ -42,3 +42,6 @@ npm-debug.log
 *.so
 
 .elixir_ls/
+
+# Stop committing temporary files
+*.tmp

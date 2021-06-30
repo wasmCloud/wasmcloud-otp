@@ -92,7 +92,7 @@
                 Version<span class="badge badge-success mfs-auto">0.19.0</span></a><a class="dropdown-item" href="#">
                 <svg class="c-icon mfe-2">
                   <use xlink:href="<%= Routes.static_path(@conn, "/coreui/free.svg#cil-account-logout") %>"></use>
-                </svg> Logout</a></div>
+                </svg> Eject</a></div>
           </li>
           <button class="c-header-toggler c-class-toggler mfe-md-3" type="button" data-target="#aside" data-class="c-sidebar-show">
             <svg class="c-icon c-icon-lg">
@@ -103,8 +103,8 @@
         <div class="c-subheader justify-content-between px-3">
           <!-- Breadcrumb-->
           <ol class="breadcrumb border-0 m-0 px-0 px-md-3">
-            <li class="breadcrumb-item"><a href="#">Your Lattice</a></li>
-            <li class="breadcrumb-item active">Host #0</li>
+            <li class="breadcrumb-item"><a href="#">Lattice (<%= HostCore.Host.lattice_prefix() %>)</a></li>
+            <li class="breadcrumb-item"><strong><%= HostCore.Host.host_key() %></strong></li>
             <!-- Breadcrumb Menu-->
           </ol>
         </div>
@@ -116,12 +116,6 @@
               <div class="row"></div>
               <!-- Displays view -->
               <%= @inner_content %>
-              <!-- Start actor modal-->
-              <%= render("startactormodal.html") %>
-              <!-- Start provider modal-->
-              <%= render("startprovidermodal.html") %>
-              <!-- Define Link modal-->
-              <%= render("definelinkmodal.html", actors: @actors, providers: @providers, claims: @claims) %>
               <!-- /.row-->
             </div>
           </div>
