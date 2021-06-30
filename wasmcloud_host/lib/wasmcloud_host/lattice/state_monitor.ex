@@ -227,7 +227,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     cond do
       actor != nil ->
         host_map = Map.get(actor, source_host, %{})
-        host_map = Map.put(host_map, :status, :Healthy)
+        host_map = Map.put(host_map, :status, "Healthy")
         actor = Map.put(actor, source_host, host_map)
         actors = Map.put(actors, public_key, actor)
         %State{state | actors: actors}
@@ -316,11 +316,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   # %{
   #   "Mxxxx" : %{
   #     "Nxxxxx": %{
-  #       "status": :Healthy/:Unhealthy/:Starting,
+  #       "status": "Healthy"/"Unhealthy"/"Starting",
   #       "count": 3
   #     },
   #     "Nxxxxy": %{
-  #       "status": :Healthy/:Unhealthy/:Starting,
+  #       "status": "Healthy"/"Unhealthy"/"Starting",
   #       "count": 3
   #     },
   #   }
@@ -330,7 +330,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     host_map = Map.get(actor_map, host, %{})
     new_count = Map.get(host_map, :count, 0) + 1
     host_map = Map.put(host_map, :count, new_count)
-    host_map = Map.put(host_map, :status, :Starting)
+    host_map = Map.put(host_map, :status, "Starting")
 
     actor_map = Map.put(actor_map, host, host_map)
     Map.put(previous_map, pk, actor_map)
