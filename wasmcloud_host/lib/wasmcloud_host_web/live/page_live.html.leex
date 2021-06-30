@@ -1,91 +1,101 @@
+<%# Widgets Row %>
 <div class="row">
-  <div class="col-sm-6 col-lg-3">
-    <div class="card text-white bg-gradient-primary">
-      <div class="card-body card-body pb-0 d-flex justify-content-between align-items-start">
-        <div>
-          <div class="text-value-lg">12.4</div>
-          <div>I/O</div>
-        </div>
-        <div class="btn-group">
-          <button class="btn btn-transparent dropdown-toggle p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <svg class="c-icon">
-              <use xlink:href="/coreui/free.svg#cil-settings"></use>
-            </svg>
-          </button>
-          <div class="dropdown-menu dropdown-menu-right"><a class="dropdown-item" href="#">Action</a><a class="dropdown-item" href="#">Another action</a><a class="dropdown-item" href="#">Something else here</a></div>
-        </div>
-      </div>
-      <div class="c-chart-wrapper mt-3 mx-3" style="height:70px;">
-        <canvas class="chart" id="card-chart1" height="70"></canvas>
-      </div>
-    </div>
-  </div>
-  <!-- /.col-->
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-sm-6 col-md-2">
     <div class="card text-white bg-gradient-info">
-      <div class="card-body card-body pb-0 d-flex justify-content-between align-items-start">
-        <div>
-          <div class="text-value-lg">57:04:03</div>
-          <div>Uptime</div>
+      <div class="card-body">
+        <div class="text-muted text-right mb-4">
+          <svg class="c-icon c-icon-2xl">
+            <use xlink:href="/coreui/free.svg#cil-user-follow"></use>
+          </svg>
         </div>
-        <div class="btn-group">
-          <button class="btn btn-transparent dropdown-toggle p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <svg class="c-icon">
-              <use xlink:href="/coreui/free.svg#cil-settings"></use>
-            </svg>
-          </button>
-          <div class="dropdown-menu dropdown-menu-right"><a class="dropdown-item" href="#">Action</a><a class="dropdown-item" href="#">Another action</a><a class="dropdown-item" href="#">Something else here</a></div>
+        <div class="text-value-lg">1</div><small class="text-muted text-uppercase font-weight-bold">st widget</small>
+        <div class="progress progress-white progress-xs mt-3">
+          <div class="progress-bar" role="progressbar" style="width: 25%" aria-valuenow="1" aria-valuemin="0" aria-valuemax="3"></div>
         </div>
-      </div>
-      <div class="c-chart-wrapper mt-3 mx-3" style="height:70px;">
-        <canvas class="chart" id="card-chart2" height="70"></canvas>
       </div>
     </div>
   </div>
   <!-- /.col-->
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-sm-6 col-md-2">
+    <div class="card text-white bg-gradient-success">
+      <div class="card-body">
+        <div class="text-muted text-right mb-4">
+          <svg class="c-icon c-icon-2xl">
+            <use xlink:href="/coreui/free.svg#cil-people"></use>
+          </svg>
+        </div>
+        <div class="text-value-lg">2</div><small class="text-muted text-uppercase font-weight-bold">People icons</small>
+        <div class="progress progress-white progress-xs mt-3">
+          <div class="progress-bar" role="progressbar" style="width: 50%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /.col-->
+  <div class="col-sm-6 col-md-2">
     <div class="card text-white bg-gradient-warning">
-      <div class="card-body card-body pb-0 d-flex justify-content-between align-items-start">
-        <div>
-          <div class="text-value-lg">10%</div>
-          <div>CPU Usage</div>
+      <div class="card-body">
+        <div class="text-muted text-right mb-4">
+          <svg class="c-icon c-icon-2xl">
+            <use xlink:href="/coreui/free.svg#cil-basket"></use>
+          </svg>
         </div>
-        <div class="btn-group">
-          <button class="btn btn-transparent dropdown-toggle p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <svg class="c-icon">
-              <use xlink:href="/coreui/free.svg#cil-settings"></use>
-            </svg>
-          </button>
-          <div class="dropdown-menu dropdown-menu-right"><a class="dropdown-item" href="#">Action</a><a class="dropdown-item" href="#">Another action</a><a class="dropdown-item" href="#">Something else here</a></div>
+        <div class="text-value-lg">3</div><small class="text-muted text-uppercase font-weight-bold">Horizontal lines</small>
+        <div class="progress progress-white progress-xs mt-3">
+          <div class="progress-bar" role="progressbar" style="width: 75%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
         </div>
-      </div>
-      <div class="c-chart-wrapper mt-3" style="height:70px;">
-        <canvas class="chart" id="card-chart3" height="70"></canvas>
       </div>
     </div>
   </div>
   <!-- /.col-->
-  <div class="col-sm-6 col-lg-3">
-    <div class="card text-white bg-gradient-danger">
-      <div class="card-body card-body pb-0 d-flex justify-content-between align-items-start">
-        <div>
-          <div class="text-value-lg">18MB</div>
-          <div>Memory Usage</div>
+  <div class="col-sm-6 col-md-2">
+    <div class="card text-white bg-gradient-primary">
+      <div class="card-body">
+        <div class="text-muted text-right mb-4">
+          <svg class="c-icon c-icon-2xl">
+            <use xlink:href="/coreui/free.svg#cil-chart-pie"></use>
+          </svg>
         </div>
-        <div class="btn-group">
-          <button class="btn btn-transparent dropdown-toggle p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <svg class="c-icon">
-              <use xlink:href="/coreui/free.svg#cil-settings"></use>
-            </svg>
-          </button>
-          <div class="dropdown-menu dropdown-menu-right"><a class="dropdown-item" href="#">Action</a><a class="dropdown-item" href="#">Another action</a><a class="dropdown-item" href="#">Something else here</a></div>
+        <div class="text-value-lg"><%= :erlang.system_info(:process_count) %></div><small class="text-muted text-uppercase font-weight-bold">Running Processes</small>
+        <div class="progress progress-white progress-xs mt-3">
+          <div class="progress-bar" role="progressbar" style="width: <%= :erlang.system_info(:process_count) / :erlang.system_info(:process_limit)%>%" aria-valuenow="<%= :erlang.system_info(:process_count) %>" aria-valuemin="0" aria-valuemax="<%= :erlang.system_info(:process_limit)%>"></div>
         </div>
-      </div>
-      <div class="c-chart-wrapper mt-3 mx-3" style="height:70px;">
-        <canvas class="chart" id="card-chart4" height="70"></canvas>
       </div>
     </div>
   </div>
+  <!-- /.col-->
+  <div class="col-sm-6 col-md-2">
+    <div class="card text-white bg-gradient-danger">
+      <div class="card-body">
+        <div class="text-muted text-right mb-4">
+          <svg class="c-icon c-icon-2xl">
+            <use xlink:href="/coreui/free.svg#cil-speedometer"></use>
+          </svg>
+        </div>
+        <div class="text-value-lg"><%= {time, _since_last} = :erlang.statistics(:wall_clock); time %></div><small class="text-muted text-uppercase font-weight-bold">Uptime (ms)</small>
+        <div class="progress progress-white progress-xs mt-3">
+          <div class="progress-bar" role="progressbar" style="width: 100%" aria-valuenow="1" aria-valuemin="0" aria-valuemax="1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /.col-->
+  <div class="col-sm-6 col-md-2">
+    <div class="card text-white bg-gradient-info">
+      <div class="card-body">
+        <div class="text-muted text-right mb-4">
+          <svg class="c-icon c-icon-2xl">
+            <use xlink:href="/coreui/free.svg#cil-speech"></use>
+          </svg>
+        </div>
+        <div class="text-value-lg">30 Jun 2021</div><small class="text-muted text-uppercase font-weight-bold">Community Meeting</small>
+        <div class="progress progress-white progress-xs mt-3">
+          <div class="progress-bar" role="progressbar" style="width: 14%" aria-valuenow="14" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /.col-->
 </div>
 <%# Actors Row %>
 <div class="row">
@@ -119,33 +129,14 @@
             </tr>
           </thead>
           <tbody>
-            <%= for {actor, host_info} <- @actors do %>
-              <%= for {host_id, count} <- host_info do %>
-                <tr>
-                  <%= for {k, v} <- @claims do %>
-                    <%= if k == actor do %>
-                      <td><%= v.name %> </td>
-                    <% end %>
-                  <% end %>
-                  <td><%= count %></td>
-                  <td><span class="badge badge-secondary">Running</span></td>
-                  <td>
-                    <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                      <%= String.slice(actor, 0..4) %>...
-                      <svg class="c-icon">
-                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                      </svg>&nbsp;
-                    </button>
-                  </td>
-                  <td>
-                    <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                      <%= String.slice(host_id, 0..4) %>...
-                      <svg class="c-icon">
-                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                      </svg>&nbsp;
-                    </button>
-                  </td>
-                </tr>
+            <%= for {actor, hosts_map} <- @actors do %>
+              <%= for {host_id, host_info} <- hosts_map do %>
+                <%= live_component ActorRowComponent,
+                  actor: actor,
+                  host_id: host_id,
+                  status: Map.get(host_info, :status),
+                  count: Map.get(host_info, :count),
+                  claims: @claims %>
               <% end %>
             <% end %>
           </tbody>
@@ -178,6 +169,7 @@
             <tr>
               <th>Link Name</th>
               <th>Contract ID</th>
+              <th>Status</th>
               <th>Provider ID</th>
               <th>Host IDs</th>
             </tr>
@@ -186,26 +178,12 @@
             <%# One row per-provider instance, which is a public key, contract id and link name combination %>
             <%= for {provider, instances} <- @providers do %>
               <%= for instance <- instances do  %>
-                <tr>
-                  <td><%= Map.get(instance, :link_name) %></td>
-                  <td><%= Map.get(instance, :contract_id) %></td>
-                  <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= provider%>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                      <%= String.slice(provider, 0..4) %>...
-                      <svg class="c-icon">
-                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                      </svg>&nbsp;
-                    </button></td>
-                  <td>
-                    <%= for hid <- Map.get(instance, :host_ids) do %>
-                      <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                        <%= String.slice(hid, 0..4) %>...
-                        <svg class="c-icon">
-                          <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                        </svg>&nbsp;
-                      </button>
-                    <% end %>
-                  </td>
-                </tr>
+                <%= live_component ProviderRowComponent,
+                  provider: provider,
+                  link_name: Map.get(instance, :link_name),
+                  contract_id: Map.get(instance, :contract_id),
+                  status: Map.get(instance, :status),
+                  host_ids: Map.get(instance, :host_ids)%>
               <% end %>
             <% end %>
           </tbody>
@@ -247,22 +225,7 @@
           </thead>
           <tbody>
             <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
-              <tr>
-                <td><%= link_name %></td>
-                <td><%= contract_id %></td>
-                <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                    <%= String.slice(actor_id, 0..4) %>...
-                    <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                    </svg>&nbsp;
-                  </button></td>
-                <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= v.provider_key %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                    <%= String.slice(v.provider_key, 0..4) %>...
-                    <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                    </svg>&nbsp;
-                  </button></td>
-              </tr>
+              <%= live_component LinkRowComponent, link_name: link_name, contract_id: contract_id, actor_id: actor_id, provider_key: v.provider_key %>
             <% end %>
           </tbody>
         </table>

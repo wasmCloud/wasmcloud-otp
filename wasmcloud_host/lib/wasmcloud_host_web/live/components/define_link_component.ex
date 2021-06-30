@@ -49,7 +49,7 @@ defmodule DefineLinkComponent do
         <div class="col-md-9">
           <select class="form-control select2-single" id="select2-1" name="actor_id">
             <option hidden disabled selected value> -- select an actor -- </option>
-            <%= for {actor, _host_info} <- @actors do %>
+            <%= for {actor, _host_map} <- @actors do %>
               <%= for {k, v} <- @claims do %>
                 <%= if k == actor do %>
                   <option value="<%= actor %>"><%= v.name %> (<%= String.slice(actor, 0..4) %>...) </option>
