@@ -72,11 +72,11 @@ defmodule HostCore.Application do
            connection_name: :lattice_nats,
            module: HostCore.Claims.Server,
            subscription_topics: [
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.put"},
-             %{
-               topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.get",
-               queue_group: "wasmbus.rpc.#{config.lattice_prefix}.claims.get"
-             }
+             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.put"}
+             # %{
+             #  topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.get",
+             #  queue_group: "wasmbus.rpc.#{config.lattice_prefix}.claims.get"
+             # }
            ]
          }},
         id: :claims_consumer_supervisor

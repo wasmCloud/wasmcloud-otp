@@ -31,6 +31,21 @@ defmodule HostCore.ControlInterface.Server do
     Gnat.pub(:control_nats, reply_to, Jason.encode!(res))
   end
 
+  defp handle_request({"get", "claims"}, _body, reply_to) do
+    raw_claims = :ets.tab2list(:claims_table)
+    claims = raw_claims |> Enum.map(fn {_pk, %{} = claims} -> %{values: claims} end)
+    # claims = for elem <- claims do
+    # for {key, val} <- elem.values, into: %{} do
+    #    {to_string(key), to_string(val)}
+    #  end
+    # end
+    res = %{
+      claims: claims
+    }
+
+    Gnat.pub(:lattice_nats, reply_to, Jason.encode!(res))
+  end
+
   defp handle_request({"get", host_id, "inv"}, _body, reply_to) do
     if host_id == HostCore.Host.host_key() do
       res = %{

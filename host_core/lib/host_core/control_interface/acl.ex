@@ -16,17 +16,20 @@ defmodule HostCore.ControlInterface.ACL do
   end
 
   def find_claims_for_pk(pk) do
-    :ets.match(:claims_table, {pk, "$2"})
+    case :ets.lookup(:claims_table, pk) do
+      [{_pk, claims}] -> [claims]
+      _ -> nil
+    end
   end
 
-  defp get_revision(pk) do
+  def get_revision(pk) do
     case find_claims_for_pk(pk) do
-      [[claims]] -> claims.revision
+      [claims] -> claims.rev
       _ -> 0
     end
   end
 
-  defp get_image_ref(pk) do
+  def get_image_ref(pk) do
     case find_oci_for_pk(pk) do
       [[oci]] -> oci
       _ -> nil
