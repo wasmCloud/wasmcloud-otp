@@ -116,26 +116,30 @@ fn main() -> Result<(), String> {
 
     let provider_key = host_data.provider_key;
     let link_name = host_data.link_name;
+    let lattice_rpc_prefix = host_data.lattice_rpc_prefix;
 
     info!("Starting Redis Capability Provider {}", provider_key);
 
     let ldget_topic = format!(
-        "wasmbus.rpc.default.{}.{}.linkdefs.get",
-        provider_key, link_name
+        "wasmbus.rpc.{}.{}.{}.linkdefs.get",
+        lattice_rpc_prefix, provider_key, link_name
     );
     let lddel_topic = format!(
-        "wasmbus.rpc.default.{}.{}.linkdefs.del",
-        provider_key, link_name
+        "wasmbus.rpc.{}.{}.{}.linkdefs.del",
+        lattice_rpc_prefix, provider_key, link_name
     );
     let ldput_topic = format!(
-        "wasmbus.rpc.default.{}.{}.linkdefs.put",
-        provider_key, link_name
+        "wasmbus.rpc.{}.{}.{}.linkdefs.put",
+        lattice_rpc_prefix, provider_key, link_name
     );
     let shutdown_topic = format!(
-        "wasmbus.rpc.default.{}.{}.shutdown",
-        provider_key, link_name
+        "wasmbus.rpc.{}.{}.{}.shutdown",
+        lattice_rpc_prefix, provider_key, link_name
     );
-    let rpc_topic = format!("wasmbus.rpc.default.{}.{}", provider_key, link_name);
+    let rpc_topic = format!(
+        "wasmbus.rpc.{}.{}.{}",
+        lattice_rpc_prefix, provider_key, link_name
+    );
 
     let nc = nats::connect("0.0.0.0:4222").map_err(|e| format!("{}", e))?; // TODO: get real nats address and credentials from the host/env
 
