@@ -131,38 +131,12 @@
           <tbody>
             <%= for {actor, hosts_map} <- @actors do %>
               <%= for {host_id, host_info} <- hosts_map do %>
-                <tr>
-                  <%= for {k, v} <- @claims do %>
-                    <%= if k == actor do %>
-                      <td><%= v.name %> </td>
-                    <% end %>
-                  <% end %>
-                  <td><%= Map.get(host_info, :count) %></td>
-                  <td>
-                    <span class="badge <%= case Map.get(host_info, :status) do
-                                             "Starting" -> "badge-secondary"
-                                             "Healthy" -> "badge-success"
-                                             "Unhealthy"-> "badge-danger"
-                                            end%>">
-                                            <%= Map.get(host_info, :status) %></span>
-                  </td>
-                  <td>
-                    <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                      <%= String.slice(actor, 0..4) %>...
-                      <svg class="c-icon">
-                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                      </svg>&nbsp;
-                    </button>
-                  </td>
-                  <td>
-                    <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                      <%= String.slice(host_id, 0..4) %>...
-                      <svg class="c-icon">
-                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                      </svg>&nbsp;
-                    </button>
-                  </td>
-                </tr>
+                <%= live_component ActorRowComponent,
+                  actor: actor,
+                  host_id: host_id,
+                  status: Map.get(host_info, :status),
+                  count: Map.get(host_info, :count),
+                  claims: @claims %>
               <% end %>
             <% end %>
           </tbody>
@@ -204,34 +178,12 @@
             <%# One row per-provider instance, which is a public key, contract id and link name combination %>
             <%= for {provider, instances} <- @providers do %>
               <%= for instance <- instances do  %>
-                <tr>
-                  <td><%= Map.get(instance, :link_name) %></td>
-                  <td><%= Map.get(instance, :contract_id) %></td>
-                  <td>
-                    <span class="badge <%= case Map.get(instance, :status) do
-                                             "Starting" -> "badge-secondary"
-                                             "Healthy" -> "badge-success"
-                                             "Unhealthy" -> "badge-danger"
-                                            end%>">
-                                            <%= Map.get(instance, :status)%></span>
-                  </td>
-                  <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= provider%>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                      <%= String.slice(provider, 0..4) %>...
-                      <svg class="c-icon">
-                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                      </svg>&nbsp;
-                    </button></td>
-                  <td>
-                    <%= for hid <- Map.get(instance, :host_ids) do %>
-                      <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                        <%= String.slice(hid, 0..4) %>...
-                        <svg class="c-icon">
-                          <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                        </svg>&nbsp;
-                      </button>
-                    <% end %>
-                  </td>
-                </tr>
+                <%= live_component ProviderRowComponent,
+                  provider: provider,
+                  link_name: Map.get(instance, :link_name),
+                  contract_id: Map.get(instance, :contract_id),
+                  status: Map.get(instance, :status),
+                  host_ids: Map.get(instance, :host_ids)%>
               <% end %>
             <% end %>
           </tbody>
@@ -273,22 +225,7 @@
           </thead>
           <tbody>
             <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
-              <tr>
-                <td><%= link_name %></td>
-                <td><%= contract_id %></td>
-                <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                    <%= String.slice(actor_id, 0..4) %>...
-                    <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                    </svg>&nbsp;
-                  </button></td>
-                <td><button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= v.provider_key %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                    <%= String.slice(v.provider_key, 0..4) %>...
-                    <svg class="c-icon">
-                      <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                    </svg>&nbsp;
-                  </button></td>
-              </tr>
+              <%= live_component LinkRowComponent, link_name: link_name, contract_id: contract_id, actor_id: actor_id, provider_key: v.provider_key %>
             <% end %>
           </tbody>
         </table>
