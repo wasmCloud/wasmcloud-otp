@@ -33,7 +33,7 @@ defmodule HostCore.Providers.ProviderModule do
     Registry.register(Registry.ProviderRegistry, {public_key, link_name}, contract_id)
     HostCore.Providers.register_provider(public_key, link_name, contract_id)
 
-    host_info = HostCore.Host.generate_hostinfo_for(public_key, link_name) |> to_charlist()
+    host_info = HostCore.Host.generate_hostinfo_for(public_key, link_name) |> Base.encode64() |> to_charlist()
 
     port = Port.open({:spawn, "#{path}"}, [:binary, {:env, [{'WASMCLOUD_HOST_DATA', host_info}]}])
 
