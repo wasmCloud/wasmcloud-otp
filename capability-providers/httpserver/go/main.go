@@ -4,7 +4,7 @@ package main
   Topics relevant to a capability provider:
 
  RPC:
-    * wasmbus.rpc.default.{provider_key}.{link_name} - Get Invocation, answer InvocationResponse
+    * wasmbus.rpc.{prefix}.{provider_key}.{link_name} - Get Invocation, answer InvocationResponse
     * wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.get - Query all link defs for this provider. (queue subscribed)
     * wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.del - Remove a link def. Provider de-provisions resources for the given actor.
     * wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.put - Puts a link def. Provider provisions resources for the given actor.
@@ -99,21 +99,21 @@ func main() {
 		return
 	}
 
-	lattice_prefix := hostData.LatticeRPCPrefix
-	provider_key := hostData.ProviderKey
-	link_name := hostData.LinkName
+	latticePrefix := hostData.LatticeRPCPrefix
+	providerKey := hostData.ProviderKey
+	linkName := hostData.LinkName
 
-	fmt.Printf("Received host data (%s)\n", provider_key)
+	fmt.Printf("Received host data (%s)\n", providerKey)
 
 	serverCancels := make(map[string]context.CancelFunc)
 	linkDefs := make(map[string]LinkDefinition)
 	nc, _ := nats.Connect(nats.DefaultURL)
 	http.HandleFunc("/", handleRequest)
 
-	ldget_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.get", lattice_prefix, provider_key, link_name)
-	lddel_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.del", lattice_prefix, provider_key, link_name)
-	ldput_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.put", lattice_prefix, provider_key, link_name)
-	shutdown_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.shutdown", lattice_prefix, provider_key, link_name)
+	ldget_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.get", latticePrefix, providerKey, linkName)
+	lddel_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.del", latticePrefix, providerKey, linkName)
+	ldput_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.put", latticePrefix, providerKey, linkName)
+	shutdown_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.shutdown", latticePrefix, providerKey, linkName)
 
 	nc.QueueSubscribe(ldget_topic, ldget_topic, func(m *nats.Msg) {
 		msg, err := msgpack.Marshal(linkDefs)
@@ -164,7 +164,7 @@ func main() {
 		serverCancels[linkdef.ActorID] = closeServer
 		linkDefs[linkdef.ActorID] = linkdef
 
-		srv := createHttpServer(linkdef.ActorID, nc, port)
+		srv := createHttpServer(providerKey, linkName, latticePrefix, linkdef.ActorID, nc, port)
 		go func() {
 			<-ctx.Done()
 			fmt.Printf("Shutting down HTTP server for: %s\n", linkdef.ActorID)
@@ -188,20 +188,20 @@ func main() {
 	wg.Wait()
 }
 
-func createHttpServer(actorID string, nc *nats.Conn, port int) *http.Server {
+func createHttpServer(providerKey, linkName, latticePrefix, actorID string, nc *nats.Conn, port int) *http.Server {
 	fmt.Printf("Creating HTTP server on port %d\n", port)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handleActorRequest(actorID, nc, w, r)
+		handleActorRequest(providerKey, linkName, latticePrefix, actorID, nc, w, r)
 	})
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: handler}
 
 	return srv
 }
 
-func handleActorRequest(actorID string, nc *nats.Conn, w http.ResponseWriter, r *http.Request) {
-	origin := WasmCloudEntity{ //TODO: get these values from provider info
-		PublicKey:  "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M",
-		LinkName:   "default",
+func handleActorRequest(providerKey, linkName, latticePrefix, actorID string, nc *nats.Conn, w http.ResponseWriter, r *http.Request) {
+	origin := WasmCloudEntity{
+		PublicKey:  providerKey,
+		LinkName:   linkName,
 		ContractID: "wasmcloud:httpserver",
 	}
 	target := WasmCloudEntity{
@@ -232,10 +232,10 @@ func handleActorRequest(actorID string, nc *nats.Conn, w http.ResponseWriter, r 
 		Msg:           msg,
 		ID:            "todo:guid",
 		EncodedClaims: "todo:jwt",
-		HostID:        "Nidkman",
+		HostID:        "Notimplementedgohttpserver",
 	}
 
-	subj := fmt.Sprintf("wasmbus.rpc.default.%s", actorID)
+	subj := fmt.Sprintf("wasmbus.rpc.%s.%s", latticePrefix, actorID)
 	natsBody, err := msgpack.Marshal(invocation)
 	if err != nil {
 		fmt.Printf("Failed to marshal msgpack: %s\n", err)
