@@ -218,7 +218,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: "com.wasmcloud.lattice.health_check_passed"
          }
        ) do
-    Logger.info("Handling successful health check")
+    Logger.info("Handling successful health check for #{public_key}")
     update_status(state, public_key, source_host, "Healthy")
   end
 
@@ -231,7 +231,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: "com.wasmcloud.lattice.health_check_failed"
          }
        ) do
-    Logger.info("Handling failed health check")
+    Logger.info("Handling failed health check for #{public_key}")
     update_status(state, public_key, source_host, "Unhealthy")
   end
 
@@ -247,6 +247,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         host_map = Map.put(host_map, :status, new_status)
         actor = Map.put(actor, source_host, host_map)
         actors = Map.put(actors, public_key, actor)
+        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
         %State{state | actors: actors}
 
       provider_list != nil ->
@@ -273,6 +274,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
           )
 
         providers = Map.put(providers, public_key, provider_list)
+        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:providers, providers})
         %State{state | providers: providers}
 
       # Did not match currently running provider or actor
@@ -339,7 +341,9 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
   end
 
-  # This map is keyed with the actor public key, and
+  # This map is keyed with the actor public key and holds a map
+  # containing a host ID mapping to the status of the actor on that
+  # host and a total count on that host
   #
   # %{
   #   "Mxxxx" : %{
