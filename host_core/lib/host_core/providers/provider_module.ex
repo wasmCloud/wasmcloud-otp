@@ -25,7 +25,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   @impl true
-  def init({:executable, path, public_key, link_name, contract_id}) do
+  def init({:executable, path, public_key, link_name, contract_id, oci}) do
     Logger.info("Starting executable capability provider at  '#{path}'")
 
     # In case we want to know the contract ID of this provider, we can look it up as the
@@ -43,6 +43,10 @@ defmodule HostCore.Providers.ProviderModule do
     # the provider's NATS topic. The provider now subscribes to that directly
     # when it starts.
     publish_provider_started(public_key, link_name, contract_id)
+
+    if oci != nil && oci != "" do
+      publish_provider_oci_map(public_key, link_name, oci)
+    end
 
     Process.send_after(self(), :do_health, @thirty_seconds)
 
@@ -105,6 +109,21 @@ defmodule HostCore.Providers.ProviderModule do
     Logger.info(msg)
 
     {:noreply, state}
+  end
+
+  defp publish_provider_oci_map(public_key, _link_name, oci) do
+    prefix = HostCore.Host.lattice_prefix()
+
+    msg =
+      %{
+        oci_url: oci,
+        public_key: public_key
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    topic = "wasmbus.rpc.#{prefix}.refmaps.put"
+    Gnat.pub(:lattice_nats, topic, msg)
   end
 
   defp publish_health_passed(state) do

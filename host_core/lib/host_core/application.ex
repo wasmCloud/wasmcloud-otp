@@ -96,6 +96,20 @@ defmodule HostCore.Application do
            ]
          }},
         id: :refmaps_consumer_supervisor
+      ),
+      # Handle lattice control interface requests
+      Supervisor.child_spec(
+        {Gnat.ConsumerSupervisor,
+         %{
+           connection_name: :control_nats,
+           module: HostCore.ControlInterface.Server,
+           subscription_topics: [
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.cmd.>"},
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.get.>"},
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.auction.>"}
+           ]
+         }},
+        id: :latticectl_consumer_supervisor
       )
     ]
 
