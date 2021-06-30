@@ -8,7 +8,7 @@ on:
 
 env:
   MIX_ENV: test
-  working-directory: ./host_core
+  working-directory: host_core
 
 jobs:
   build:
