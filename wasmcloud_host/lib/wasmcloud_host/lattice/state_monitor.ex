@@ -212,15 +212,33 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   defp process_event(
          state,
          %Cloudevents.Format.V_1_0.Event{
-           data: %{"public_key" => _pkey},
+           data: %{"public_key" => public_key},
            datacontenttype: "application/json",
-           source: _source_host,
+           source: source_host,
            type: "com.wasmcloud.lattice.health_check_passed"
          }
        ) do
     Logger.info("Handling successful health check")
-    # TODO: handle health check
-    state
+    actors = state.actors
+    providers = state.providers
+    actor = Map.get(actors, public_key, nil)
+    provider = Map.get(providers, public_key, nil)
+
+    cond do
+      actor != nil ->
+        host_map = Map.get(actor, source_host, %{})
+        host_map = Map.put(host_map, :status, :Healthy)
+        actor = Map.put(actor, source_host, host_map)
+        actors = Map.put(actors, public_key, actor)
+        %State{state | actors: actors}
+
+      provider != nil ->
+        state
+
+      # Did not match currently running provider or actor
+      true ->
+        state
+    end
   end
 
   defp process_event(
@@ -293,18 +311,28 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
   end
 
+  # This map is keyed with the actor public key, and
   #
   # %{
-  #    "Mxxxxx"  : %{
-  #       "Nxxxxx": 3,
-  #       "Nxxxxy": 2,
-  #    }
-  #  }
+  #   "Mxxxx" : %{
+  #     "Nxxxxx": %{
+  #       "status": :Healthy/:Unhealthy/:Starting,
+  #       "count": 3
+  #     },
+  #     "Nxxxxy": %{
+  #       "status": :Healthy/:Unhealthy/:Starting,
+  #       "count": 3
+  #     },
+  #   }
+  # }
   def add_actor(pk, host, previous_map) do
     actor_map = Map.get(previous_map, pk, %{})
-    count = Map.get(actor_map, host, 0)
-    count = count + 1
-    actor_map = Map.put(actor_map, host, count)
+    host_map = Map.get(actor_map, host, %{})
+    new_count = Map.get(host_map, :count, 0) + 1
+    host_map = Map.put(host_map, :count, new_count)
+    host_map = Map.put(host_map, :status, :Starting)
+
+    actor_map = Map.put(actor_map, host, host_map)
     Map.put(previous_map, pk, actor_map)
   end
 

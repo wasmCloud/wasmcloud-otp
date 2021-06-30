@@ -119,16 +119,23 @@
             </tr>
           </thead>
           <tbody>
-            <%= for {actor, host_info} <- @actors do %>
-              <%= for {host_id, count} <- host_info do %>
+            <%= for {actor, hosts_map} <- @actors do %>
+              <%= for {host_id, host_info} <- hosts_map do %>
                 <tr>
                   <%= for {k, v} <- @claims do %>
                     <%= if k == actor do %>
                       <td><%= v.name %> </td>
                     <% end %>
                   <% end %>
-                  <td><%= count %></td>
-                  <td><span class="badge badge-secondary">Running</span></td>
+                  <td><%= Map.get(host_info, :count) %></td>
+                  <td>
+                    <span class="badge <%= case Map.get(host_info, :status) do
+                                             :Starting -> "badge-secondary"
+                                             :Healthy -> "badge-success"
+                                             :Unhealthy-> "badge-danger"
+                                            end%>">
+                                            <%= Map.get(host_info, :status) %></span>
+                    </td>
                   <td>
                     <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                       <%= String.slice(actor, 0..4) %>...
