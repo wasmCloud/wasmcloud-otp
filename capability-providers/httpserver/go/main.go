@@ -14,6 +14,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -93,7 +94,12 @@ func main() {
 
 	hostDataRaw := os.Getenv("WASMCLOUD_HOST_DATA")
 	var hostData HostData
-	err := json.Unmarshal([]byte(hostDataRaw), &hostData)
+	hostDataDecoded, err := base64.StdEncoding.DecodeString(hostDataRaw)
+	if err != nil {
+		fmt.Printf("Unable to decode base64, %s", err)
+		return
+	}
+	err = json.Unmarshal([]byte(hostDataDecoded), &hostData)
 	if err != nil {
 		fmt.Printf("Bad environment variables, %s", err)
 		return

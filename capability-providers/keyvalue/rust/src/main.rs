@@ -25,12 +25,12 @@ lazy_static! {
     static ref CLIENTS: RwLock<HashMap<String, redis::Client>> = RwLock::new(HashMap::new());
 }
 
+use anyhow::Result;
 use crossbeam::sync::Parker;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::result::Result;
 use std::sync::RwLock;
 
 #[derive(Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -108,11 +108,13 @@ pub struct HostData {
     pub env_values: HashMap<String, String>,
 }
 
-fn main() -> Result<(), String> {
+fn main() -> Result<()> {
     let _ = env_logger::try_init();
 
-    let hd = std::env::var("WASMCLOUD_HOST_DATA").map_err(|e| format!("{}", e))?;
-    let host_data: HostData = serde_json::from_str(&hd).map_err(|e| format!("{}", e))?;
+    // Host data is a JSON object that is base64 encoded
+    let host_data_enc = std::env::var("WASMCLOUD_HOST_DATA")?;
+    let host_data_dec = base64::decode(host_data_enc)?;
+    let host_data: HostData = serde_json::from_slice(&host_data_dec)?;
 
     let provider_key = host_data.provider_key;
     let link_name = host_data.link_name;
@@ -141,11 +143,10 @@ fn main() -> Result<(), String> {
         lattice_rpc_prefix, provider_key, link_name
     );
 
-    let nc = nats::connect("0.0.0.0:4222").map_err(|e| format!("{}", e))?; // TODO: get real nats address and credentials from the host/env
+    let nc = nats::connect("0.0.0.0:4222")?; // TODO: get real nats address and credentials from the host/env
 
     let _sub = nc
-        .queue_subscribe(&ldget_topic, &ldget_topic)
-        .map_err(|e| format!("{}", e))?
+        .queue_subscribe(&ldget_topic, &ldget_topic)?
         .with_handler(move |msg| {
             println!("Received request for linkdefs.");
             msg.respond(serialize(&*LINKDEFS.read().unwrap()).unwrap())
@@ -153,78 +154,66 @@ fn main() -> Result<(), String> {
             Ok(())
         });
 
-    let _sub = nc
-        .subscribe(&lddel_topic)
-        .map_err(|e| format!("{}", e))?
-        .with_handler(move |msg| {
-            let ld: LinkDefinition = deserialize(&msg.data).unwrap();
-            LINKDEFS.write().unwrap().remove(&ld.actor_id);
-            CLIENTS.write().unwrap().remove(&ld.actor_id);
-            println!(
-                "Deleted link definition from {} to {}",
+    let _sub = nc.subscribe(&lddel_topic)?.with_handler(move |msg| {
+        let ld: LinkDefinition = deserialize(&msg.data).unwrap();
+        LINKDEFS.write().unwrap().remove(&ld.actor_id);
+        CLIENTS.write().unwrap().remove(&ld.actor_id);
+        println!(
+            "Deleted link definition from {} to {}",
+            ld.actor_id, ld.provider_id
+        );
+
+        Ok(())
+    });
+
+    let _sub = nc.subscribe(&ldput_topic)?.with_handler(move |msg| {
+        let ld: LinkDefinition = deserialize(&msg.data).unwrap();
+        if LINKDEFS.read().unwrap().contains_key(&ld.actor_id) {
+            warn!(
+                "Received LD put for existing link definition from {} to {}",
                 ld.actor_id, ld.provider_id
             );
+            return Ok(());
+        }
+        LINKDEFS
+            .write()
+            .unwrap()
+            .insert(ld.actor_id.to_string(), ld.clone());
 
-            Ok(())
-        });
+        let conn = kvredis::initialize_client(ld.values.clone())
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        CLIENTS
+            .write()
+            .unwrap()
+            .insert(ld.actor_id.to_string(), conn);
+        println!(
+            "Added link definition from {} to {}",
+            ld.actor_id, ld.provider_id
+        );
 
-    let _sub = nc
-        .subscribe(&ldput_topic)
-        .map_err(|e| format!("{}", e))?
-        .with_handler(move |msg| {
-            let ld: LinkDefinition = deserialize(&msg.data).unwrap();
-            if LINKDEFS.read().unwrap().contains_key(&ld.actor_id) {
-                warn!(
-                    "Received LD put for existing link definition from {} to {}",
-                    ld.actor_id, ld.provider_id
-                );
-                return Ok(());
-            }
-            LINKDEFS
-                .write()
-                .unwrap()
-                .insert(ld.actor_id.to_string(), ld.clone());
-
-            let conn = kvredis::initialize_client(ld.values.clone())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-            CLIENTS
-                .write()
-                .unwrap()
-                .insert(ld.actor_id.to_string(), conn);
-            println!(
-                "Added link definition from {} to {}",
-                ld.actor_id, ld.provider_id
-            );
-
-            Ok(())
-        });
+        Ok(())
+    });
 
     let p = Parker::new();
     let u = p.unparker().clone();
 
-    let _sub = nc
-        .subscribe(&shutdown_topic)
-        .map_err(|e| format!("{}", e))?
-        .with_handler(move |msg| {
-            println!("Received termination signal. Shutting down capability provider.");
-            u.unpark();
-            let _ = msg.respond("Redis provider shutdown successfully");
-            Ok(())
-        });
+    let _sub = nc.subscribe(&shutdown_topic)?.with_handler(move |msg| {
+        println!("Received termination signal. Shutting down capability provider.");
+        u.unpark();
+        let _ = msg.respond("Redis provider shutdown successfully");
+        Ok(())
+    });
 
     // TODO: Add RPC handling for all the k/v ops (e.g. add, sadd, del, get, etc)
-    let _sub = nc
-        .subscribe(&rpc_topic)
-        .map_err(|e| format!("{}", e))?
-        .with_handler(move |msg| {
-            let inv: Invocation = deserialize(&msg.data).unwrap();
-            println!("Received RPC invocation");
-            let ir = rpc::handle_rpc(inv);
-            let _ = msg.respond(
-                serialize(&ir).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
-            );
-            Ok(())
-        });
+    let _sub = nc.subscribe(&rpc_topic)?.with_handler(move |msg| {
+        let inv: Invocation = deserialize(&msg.data).unwrap();
+        println!("Received RPC invocation");
+        let ir = rpc::handle_rpc(inv);
+        let _ = msg.respond(
+            serialize(&ir).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+        );
+        Ok(())
+    });
 
     println!("Redis provider is ready for requests");
     p.park();
