@@ -14,6 +14,7 @@ defmodule HostCore.ControlInterface.Server do
     # prefix
     |> List.delete_at(0)
     |> List.to_tuple()
+    |> IO.inspect()
     |> handle_request(body, reply_to)
 
     :ok
@@ -77,6 +78,39 @@ defmodule HostCore.ControlInterface.Server do
     end
   end
 
+  ### COMMANDS
+
+  # Launch Actor
+  # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx"}
+
+  defp handle_request({"cmd", host_id, "la"}, body, reply_to) do
+    if host_id == HostCore.Host.host_key() do
+      start_actor_command = Jason.decode!(body)
+
+      case HostCore.Actors.ActorSupervisor.start_actor_from_oci(start_actor_command["actor_ref"]) do
+        {:ok, _pid} ->
+          ack = %{
+            host_id: host_id,
+            actor_ref: start_actor_command["actor_ref"]
+          }
+
+          Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+
+        {:error, e} ->
+          Logger.error("Failed to start actor per remote call")
+
+          ack = %{
+            host_id: host_id,
+            actor_ref: start_actor_command["actor_ref"],
+            failure: "Failed to start actor: #{e}"
+          }
+
+          Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+      end
+    end
+  end
+
+  # FALL THROUGH
   defp handle_request(tuple, _body, _reply_to) do
     IO.puts("Got here #{tuple}")
   end
