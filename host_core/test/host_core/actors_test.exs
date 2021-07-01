@@ -132,7 +132,6 @@ defmodule HostCore.ActorsTest do
         {:error, :timeout} -> :fail
       end
 
-    IO.inspect(res)
     assert res != :fail
     HostCore.Actors.ActorSupervisor.terminate_actor(@echo_oci_key, 1)
 

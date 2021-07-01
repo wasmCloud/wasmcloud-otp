@@ -14,14 +14,12 @@ defmodule HostCore.ControlInterface.Server do
     # prefix
     |> List.delete_at(0)
     |> List.to_tuple()
-    |> IO.inspect()
     |> handle_request(body, reply_to)
 
     :ok
   end
 
   defp handle_request({"get", "hosts"}, _body, reply_to) do
-    IO.puts("HERE")
     {total, _} = :erlang.statistics(:wall_clock)
 
     res = %{
@@ -144,7 +142,6 @@ defmodule HostCore.ControlInterface.Server do
             }
         end
 
-      IO.inspect(ack)
       Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
     end
   end
@@ -213,6 +210,6 @@ defmodule HostCore.ControlInterface.Server do
 
   # FALL THROUGH
   defp handle_request(tuple, _body, _reply_to) do
-    IO.puts("Got here #{tuple}")
+    Logger.warn("Unexpected/unhandled lattice control command: #{tuple}")
   end
 end
