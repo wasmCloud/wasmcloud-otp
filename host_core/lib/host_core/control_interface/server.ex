@@ -34,13 +34,31 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"get", "claims"}, _body, reply_to) do
     raw_claims = :ets.tab2list(:claims_table)
     claims = raw_claims |> Enum.map(fn {_pk, %{} = claims} -> %{values: claims} end)
-    # claims = for elem <- claims do
-    # for {key, val} <- elem.values, into: %{} do
-    #    {to_string(key), to_string(val)}
-    #  end
-    # end
+
     res = %{
       claims: claims
+    }
+
+    Gnat.pub(:lattice_nats, reply_to, Jason.encode!(res))
+  end
+
+  defp handle_request({"get", "links"}, _body, reply_to) do
+    raw_links = :ets.tab2list(:linkdef_table)
+
+    links =
+      raw_links
+      |> Enum.map(fn {{pk, contract, link}, %{provider_key: provider_key, values: values}} ->
+        %{
+          actor_id: pk,
+          provider_id: provider_key,
+          link_name: link,
+          contract_id: contract,
+          values: values
+        }
+      end)
+
+    res = %{
+      links: links
     }
 
     Gnat.pub(:lattice_nats, reply_to, Jason.encode!(res))
