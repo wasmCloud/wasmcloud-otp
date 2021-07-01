@@ -7,12 +7,18 @@ defmodule HostCore.Application do
   use Application
 
   @prefix_var "WASMCLOUD_LATTICE_PREFIX"
+  @hostkey_var "WASMCLOUD_HOST_KEY"
+  @hostseed_var "WASMCLOUD_HOST_SEED"
   @default_prefix "default"
 
   def config!() do
+    {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
+
     providers = [
       %Vapor.Provider.Env{
         bindings: [
+          {:host_key, @hostkey_var, default: host_key},
+          {:host_seed, @hostseed_var, default: host_seed},
           {:lattice_prefix, @prefix_var, default: @default_prefix},
           {:rpc_host, "WASMCLOUD_RPC_HOST", default: "0.0.0.0"},
           {:rpc_port, "WASMCLOUD_RPC_PORT", default: 4222, map: &String.to_integer/1},
@@ -39,11 +45,11 @@ defmodule HostCore.Application do
     config = config!()
 
     children = [
-      # Starts a worker by calling: HostCore.Worker.start_link(arg)
       # {HostCore.Worker, arg}
       {Registry, keys: :unique, name: Registry.ProviderRegistry},
       {Registry, keys: :duplicate, name: Registry.ActorRegistry},
       {HostCore.Host, config},
+      {HostCore.HeartbeatEmitter, config},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot},
       {HostCore.Linkdefs.Manager, strategy: :one_for_one, name: LinkdefsManager},
