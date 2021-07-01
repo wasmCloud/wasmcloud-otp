@@ -84,4 +84,41 @@ jobs:
         working-directory: ${{env.working-directory}}
         continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
         run: mix dialyzer --no-check
+
+# When event type is release published, also run release workflow
+  release:
+    needs: [build]
+    if: github.event.action == 'published'
+    name: Release WasmcloudHost
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup elixir
+        uses: actions/setup-elixir@v1
+        with:
+          elixir-version: ${{ matrix.elixir }} # Define the elixir version [required]
+          otp-version: ${{ matrix.otp }} # Define the OTP version [required]
+
+      - name: Retrieve Mix Dependencies Cache
+        uses: actions/cache@v2
+        id: mix-cache #id to use in retrieve action
+        with:
+          path: |
+            wasmcloud_host/deps
+            wasmcloud_host/_build
+          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        if: steps.mix-cache.outputs.cache-hit != 'true'
+        run: |
+          mix local.rebar --force
+          mix local.hex --force
+          mix do deps.get, deps.compile
+
+      - name: Build Release
+        working-directory: ${{env.working-directory}}
+        run: |
+          echo "hey, this shouldn't happen yet"
 # Thank you https://hashrocket.com/blog/posts/build-the-ultimate-elixir-ci-with-github-actions for this action setup
