@@ -36,6 +36,7 @@ pub struct Claims {
     version: Option<String>,
     revision: Option<i32>,
     tags: Option<Vec<String>>,
+    caps: Option<Vec<String>>,
 }
 
 #[derive(NifUnitEnum)]
@@ -133,6 +134,7 @@ fn extract_claims(binary: Binary) -> Result<Claims, Error> {
     }
 
     let out = Claims {
+        caps: m.caps,
         public_key: c.subject,
         issuer: c.issuer,
         name: m.name,

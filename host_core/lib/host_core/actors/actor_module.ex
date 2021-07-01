@@ -56,8 +56,8 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   @impl true
-  def init({claims, bytes}) do
-    start_actor(claims, bytes)
+  def init({claims, bytes, oci}) do
+    start_actor(claims, bytes, oci)
   end
 
   def handle_call(:get_api_ver, _from, agent) do
@@ -124,7 +124,7 @@ defmodule HostCore.Actors.ActorModule do
     {:noreply, agent}
   end
 
-  defp start_actor(claims, bytes) do
+  defp start_actor(claims, bytes, oci) do
     Logger.info("Actor module starting")
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.Claims.Manager.put_claims(claims)
@@ -144,6 +144,8 @@ defmodule HostCore.Actors.ActorModule do
       wapc: Imports.wapc_imports(agent),
       frodobuf: Imports.frodobuf_imports(agent)
     }
+
+    publish_oci_map(oci, claims.public_key)
 
     Wasmex.start_link(%{bytes: bytes, imports: imports})
     |> prepare_module(agent)
@@ -225,6 +227,29 @@ defmodule HostCore.Actors.ActorModule do
 
     publish_actor_started(claims.public_key, api_version)
     {:ok, agent}
+  end
+
+  defp publish_oci_map("", _pk) do
+    # No Op
+  end
+
+  defp publish_oci_map(nil, _pk) do
+    # No Op
+  end
+
+  defp publish_oci_map(oci, pk) do
+    prefix = HostCore.Host.lattice_prefix()
+
+    msg =
+      %{
+        oci_url: oci,
+        public_key: pk
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    topic = "wasmbus.rpc.#{prefix}.refmaps.put"
+    Gnat.pub(:lattice_nats, topic, msg)
   end
 
   def publish_actor_started(actor_pk, api_version) do

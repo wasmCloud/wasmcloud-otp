@@ -12,9 +12,7 @@ defmodule HostCore.WasmCloud.NativeTest do
     bytes =
       HostCore.WasmCloud.Native.get_oci_bytes(@httpserver_oci, false, []) |> IO.iodata_to_binary()
 
-    IO.puts(byte_size(bytes))
     par = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
-    IO.inspect(par)
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
@@ -23,10 +21,10 @@ defmodule HostCore.WasmCloud.NativeTest do
     target_bytes =
       case :os.type() do
         {:unix, :darwin} ->
-          7_814_928
+          7_823_168
 
         {:unix, _linux} ->
-          7_911_908
+          7_912_797
 
         {:win32, :nt} ->
           7_865_344

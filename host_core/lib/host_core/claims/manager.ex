@@ -16,13 +16,34 @@ defmodule HostCore.Claims.Manager do
     key = claims.public_key
 
     claims = %{
-      call_alias: claims.call_alias,
-      issuer: claims.issuer,
+      call_alias:
+        if claims.call_alias == nil do
+          ""
+        else
+          claims.call_alias
+        end,
+      iss: claims.issuer,
       name: claims.name,
-      revision: claims.revision,
-      tags: claims.tags,
+      caps:
+        if claims.caps == nil do
+          ""
+        else
+          Enum.join(claims.caps, ",")
+        end,
+      rev:
+        if claims.revision == nil do
+          "0"
+        else
+          Integer.to_string(claims.revision)
+        end,
+      tags:
+        if claims.tags == nil do
+          ""
+        else
+          Enum.join(claims.tags, ",")
+        end,
       version: claims.version,
-      public_key: claims.public_key
+      sub: claims.public_key
     }
 
     :ets.insert(:claims_table, {key, claims})

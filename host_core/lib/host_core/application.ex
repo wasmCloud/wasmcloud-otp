@@ -7,12 +7,18 @@ defmodule HostCore.Application do
   use Application
 
   @prefix_var "WASMCLOUD_LATTICE_PREFIX"
+  @hostkey_var "WASMCLOUD_HOST_KEY"
+  @hostseed_var "WASMCLOUD_HOST_SEED"
   @default_prefix "default"
 
   def config!() do
+    {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
+
     providers = [
       %Vapor.Provider.Env{
         bindings: [
+          {:host_key, @hostkey_var, default: host_key},
+          {:host_seed, @hostseed_var, default: host_seed},
           {:lattice_prefix, @prefix_var, default: @default_prefix},
           {:rpc_host, "WASMCLOUD_RPC_HOST", default: "0.0.0.0"},
           {:rpc_port, "WASMCLOUD_RPC_PORT", default: 4222, map: &String.to_integer/1},
@@ -39,11 +45,11 @@ defmodule HostCore.Application do
     config = config!()
 
     children = [
-      # Starts a worker by calling: HostCore.Worker.start_link(arg)
       # {HostCore.Worker, arg}
       {Registry, keys: :unique, name: Registry.ProviderRegistry},
       {Registry, keys: :duplicate, name: Registry.ActorRegistry},
       {HostCore.Host, config},
+      {HostCore.HeartbeatEmitter, config},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot},
       {HostCore.Linkdefs.Manager, strategy: :one_for_one, name: LinkdefsManager},
@@ -56,11 +62,7 @@ defmodule HostCore.Application do
            module: HostCore.Linkdefs.Server,
            subscription_topics: [
              %{topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.put"},
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.del"},
-             %{
-               topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.get",
-               queue_group: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.get"
-             }
+             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.del"}
            ]
          }},
         id: :linkdefs_consumer_supervisor
@@ -72,11 +74,7 @@ defmodule HostCore.Application do
            connection_name: :lattice_nats,
            module: HostCore.Claims.Server,
            subscription_topics: [
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.put"},
-             %{
-               topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.get",
-               queue_group: "wasmbus.rpc.#{config.lattice_prefix}.claims.get"
-             }
+             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.put"}
            ]
          }},
         id: :claims_consumer_supervisor
@@ -96,6 +94,20 @@ defmodule HostCore.Application do
            ]
          }},
         id: :refmaps_consumer_supervisor
+      ),
+      # Handle lattice control interface requests
+      Supervisor.child_spec(
+        {Gnat.ConsumerSupervisor,
+         %{
+           connection_name: :control_nats,
+           module: HostCore.ControlInterface.Server,
+           subscription_topics: [
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.cmd.>"},
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.get.>"},
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.auction.>"}
+           ]
+         }},
+        id: :latticectl_consumer_supervisor
       )
     ]
 

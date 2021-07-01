@@ -2,15 +2,11 @@ defmodule HostCore.Host do
   use GenServer, restart: :transient
   require Logger
 
-  @thirty_seconds 30_000
-
-  alias HostCore.CloudEvent
-
   # To set this value in a release, edit the `env.sh` file that is generated
   # by a mix release.
 
   defmodule State do
-    defstruct [:host_key, :host_seed, :lattice_prefix]
+    defstruct [:host_key, :lattice_prefix]
   end
 
   @doc """
@@ -39,19 +35,16 @@ defmodule HostCore.Host do
   """
   @impl true
   def init(opts) do
-    {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
-
     start_gnat(opts)
     configure_ets()
 
-    Logger.info("Host #{host_key} started.")
+    :ets.insert(:config_table, {:config, opts})
 
-    Process.send_after(self(), :publish_heartbeat, @thirty_seconds)
+    Logger.info("Host #{opts[:host_key]} started.")
 
     {:ok,
      %State{
-       host_key: host_key,
-       host_seed: host_seed,
+       host_key: opts[:host_key],
        lattice_prefix: opts[:lattice_prefix]
      }}
   end
@@ -66,33 +59,11 @@ defmodule HostCore.Host do
   end
 
   @impl true
-  def handle_call(:get_prefix, _from, state) do
-    {:reply, state.lattice_prefix, state}
-  end
-
-  @impl true
-  def handle_call(:get_seed, _from, state) do
-    {:reply, state.host_seed, state}
-  end
-
-  @impl true
-  def handle_call(:get_pk, _from, state) do
-    {:reply, state.host_key, state}
-  end
-
-  @impl true
   def handle_call(:get_labels, _from, state) do
     labels = get_env_host_labels()
     labels = Map.merge(labels, HostCore.WasmCloud.Native.detect_core_host_labels())
 
     {:reply, labels, state}
-  end
-
-  @impl true
-  def handle_info(:publish_heartbeat, state) do
-    publish_heartbeat(state)
-    Process.send_after(self(), :publish_heartbeat, @thirty_seconds)
-    {:noreply, state}
   end
 
   defp start_gnat(opts) do
@@ -192,18 +163,28 @@ defmodule HostCore.Host do
     :ets.new(:claims_table, [:named_table, :set, :public])
     :ets.new(:refmap_table, [:named_table, :set, :public])
     :ets.new(:callalias_table, [:named_table, :set, :public])
+    :ets.new(:config_table, [:named_table, :set, :public])
   end
 
   def lattice_prefix() do
-    GenServer.call(__MODULE__, :get_prefix)
-  end
-
-  def seed() do
-    GenServer.call(__MODULE__, :get_seed)
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:lattice_prefix]
+      _ -> "default"
+    end
   end
 
   def host_key() do
-    GenServer.call(__MODULE__, :get_pk)
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:host_key]
+      _ -> ""
+    end
+  end
+
+  def seed() do
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:host_seed]
+      _ -> ""
+    end
   end
 
   def host_labels() do
@@ -226,29 +207,5 @@ defmodule HostCore.Host do
       env_values: %{}
     }
     |> Jason.encode!()
-  end
-
-  def publish_heartbeat(state) do
-    topic = "wasmbus.ctl.#{state.lattice_prefix}.events"
-    msg = generate_heartbeat(state)
-    Gnat.pub(:control_nats, topic, msg)
-  end
-
-  defp generate_heartbeat(state) do
-    actors =
-      HostCore.Actors.ActorSupervisor.all_actors()
-      |> Enum.map(fn {k, v} -> %{actor: k, instances: length(v)} end)
-
-    providers =
-      HostCore.Providers.ProviderSupervisor.all_providers()
-      |> Enum.map(fn {pk, link, contract} ->
-        %{public_key: pk, link_name: link, contract_id: contract}
-      end)
-
-    %{
-      actors: actors,
-      providers: providers
-    }
-    |> CloudEvent.new("host_heartbeat", state.host_key)
   end
 end
