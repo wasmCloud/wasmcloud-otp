@@ -120,6 +120,34 @@ defmodule HostCore.ControlInterface.Server do
     end
   end
 
+  defp handle_request({"cmd", host_id, "lp"}, body, reply_to) do
+    if host_id == HostCore.Host.host_key() do
+      start_provider_command = Jason.decode!(body)
+
+      ack =
+        case HostCore.Providers.ProviderSupervisor.start_executable_provider_from_oci(
+               start_provider_command["provider_ref"],
+               start_provider_command["link_name"]
+             ) do
+          {:ok, _pid} ->
+            %{
+              host_id: host_id,
+              provider_ref: start_provider_command["provider_ref"]
+            }
+
+          {:error, e} ->
+            %{
+              host_id: host_id,
+              provider_ref: start_provider_command["provider_ref"],
+              error: "Failed to start provider: #{e}"
+            }
+        end
+
+      IO.inspect(ack)
+      Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+    end
+  end
+
   # FALL THROUGH
   defp handle_request(tuple, _body, _reply_to) do
     IO.puts("Got here #{tuple}")
