@@ -190,6 +190,27 @@ defmodule HostCore.ControlInterface.Server do
     end
   end
 
+  # Auction Provider
+  # input: #{"actor_ref" => "...", "constraints" => %{}}
+  defp handle_request({"auction", "provider"}, body, reply_to) do
+    auction_request = Jason.decode!(body)
+    host_labels = HostCore.Host.host_labels()
+    required_labels = auction_request["constraints"]
+
+    # TODO - don't answer this request if we're already running a provider
+    # that matches this link_name and ref.
+    if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) do
+      ack = %{
+        provider_ref: auction_request["provider_ref"],
+        link_name: auction_request["link_name"],
+        constraints: auction_request["constraints"],
+        host_id: HostCore.Host.host_key()
+      }
+
+      Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+    end
+  end
+
   # FALL THROUGH
   defp handle_request(tuple, _body, _reply_to) do
     IO.puts("Got here #{tuple}")
