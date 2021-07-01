@@ -1,6 +1,8 @@
 defmodule HostCore.E2E.KVCounterTest do
   use ExUnit.Case, async: false
 
+  require Logger
+
   @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
   @kvcounter_path "priv/actors/kvcounter_s.wasm"
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
@@ -14,7 +16,10 @@ defmodule HostCore.E2E.KVCounterTest do
 
   test "kvcounter roundtrip" do
     {:ok, bytes} = File.read(@kvcounter_path)
+    Logger.info("attempting to load kvcounter actor")
+    Logger.info("Here's the lattice prefix btw: #{HostCore.Host.lattice_prefix()}")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    Logger.info("successfully started kvcounter actor")
     on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
 
     {:ok, _pid} =

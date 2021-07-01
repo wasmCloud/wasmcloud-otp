@@ -66,7 +66,7 @@ defmodule HostCore.ActorsTest do
         req
       )
 
-    topic = "wasmbus.rpc.default.#{@echo_key}"
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
 
     res =
       case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
@@ -124,7 +124,7 @@ defmodule HostCore.ActorsTest do
         req
       )
 
-    topic = "wasmbus.rpc.default.#{@echo_oci_key}"
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_oci_key}"
 
     res =
       case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
@@ -194,7 +194,7 @@ defmodule HostCore.ActorsTest do
       )
 
     pinger_key = "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN"
-    topic = "wasmbus.rpc.default.#{pinger_key}"
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{pinger_key}"
 
     res =
       case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
