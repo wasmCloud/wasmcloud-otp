@@ -110,6 +110,16 @@ defmodule HostCore.ControlInterface.Server do
     end
   end
 
+  # Stop Actor
+  defp handle_request({"cmd", host_id, "sa"}, body, reply_to) do
+    if host_id == HostCore.Host.host_key() do
+      stop_actor_command = Jason.decode!(body)
+      HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
+      ack = %{}
+      Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+    end
+  end
+
   # FALL THROUGH
   defp handle_request(tuple, _body, _reply_to) do
     IO.puts("Got here #{tuple}")
