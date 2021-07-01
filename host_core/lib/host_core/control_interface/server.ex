@@ -120,6 +120,7 @@ defmodule HostCore.ControlInterface.Server do
     end
   end
 
+  # Launch Provider
   defp handle_request({"cmd", host_id, "lp"}, body, reply_to) do
     if host_id == HostCore.Host.host_key() do
       start_provider_command = Jason.decode!(body)
@@ -144,6 +145,47 @@ defmodule HostCore.ControlInterface.Server do
         end
 
       IO.inspect(ack)
+      Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+    end
+  end
+
+  # Stop Provider
+  defp handle_request({"cmd", host_id, "sp"}, body, reply_to) do
+    if host_id == HostCore.Host.host_key() do
+      stop_provider_command = Jason.decode!(body)
+
+      HostCore.Providers.ProviderSupervisor.terminate_provider(
+        stop_provider_command["provider_ref"],
+        stop_provider_command["link_name"]
+      )
+
+      Gnat.pub(:control_nats, reply_to, Jason.encode!(%{}))
+    end
+  end
+
+  # Update Actor
+  defp handle_request({"cmd", host_id, "upd"}, body, reply_to) do
+    if host_id == HostCore.Host.host_key() do
+      update_actor_command = Jason.decode!(body)
+
+      # TODO - live updates for actors is not implemented yet
+    end
+  end
+
+  # Auction Actor
+  # input: #{"actor_ref" => "...", "constraints" => %{}}
+  defp handle_request({"auction", "actor"}, body, reply_to) do
+    auction_request = Jason.decode!(body)
+    host_labels = HostCore.Host.host_labels()
+    required_labels = auction_request["constraints"]
+
+    if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) do
+      ack = %{
+        actor_ref: auction_request["actor_ref"],
+        constraints: auction_request["constraints"],
+        host_id: HostCore.Host.host_key()
+      }
+
       Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
     end
   end
