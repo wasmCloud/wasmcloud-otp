@@ -142,7 +142,7 @@ defmodule HostCore.Actors.ActorModule do
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
-      frodobuf: Imports.frodobuf_imports(agent)
+      wasmbus: Imports.wasmbus_imports(agent)
     }
 
     publish_oci_map(oci, claims.public_key)
@@ -212,7 +212,7 @@ defmodule HostCore.Actors.ActorModule do
 
   defp prepare_module({:ok, instance}, agent) do
     api_version =
-      case Wasmex.call_function(instance, :__frodobuf_api_version, []) do
+      case Wasmex.call_function(instance, :__wasmbus_rpc_version, []) do
         {:ok, [v]} -> v
         _ -> 0
       end
