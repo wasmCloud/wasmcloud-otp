@@ -23,10 +23,10 @@ defmodule HostCore.WasmCloud.NativeTest do
     target_bytes =
       case :os.type() do
         {:unix, :darwin} ->
-          7_814_928
+					7_823_168
 
         {:unix, _linux} ->
-          7_911_908
+					7_912_797
 
         {:win32, :nt} ->
           7_865_344
