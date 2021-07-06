@@ -115,9 +115,9 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     cmap =
       if cmd == "put" do
-        Map.put(state.claims, claims.public_key, claims)
+        Map.put(state.claims, claims.sub, claims)
       else
-        Map.delete(state.claims, claims.public_key)
+        Map.delete(state.claims, claims.sub)
       end
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:claims, cmap})
