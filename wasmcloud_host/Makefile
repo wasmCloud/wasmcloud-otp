@@ -42,6 +42,20 @@ build-x86_64-linux-gnu: ## Build package for ARCH x86_64, OS linux with dynamica
 		-f $(DOCKERFILE) \
 		.
 
+# build-x86_64-apple-darwin:
+# 	cd ../ && \
+# 	docker build $(BASE_ARGS) \
+# 		--build-arg BUILDER_IMAGE=wasmcloud/cross:x86_64-apple-darwin \
+# 		--build-arg RELEASE_IMAGE=wasmcloud/cross:x86_64-apple-darwin \
+# 		--build-arg BUILD_INSTALL=mac-build-install.sh \
+# 		--build-arg RELEASE_INSTALL=mac-release-install.sh \
+# 		--build-arg RUST_VERSION=1.53.0 \
+# 		--build-arg RUST_ARCH=x86_64-apple-darwin \
+# 		$(BASE_TAGS) \
+# 		-t $(NAME):$(VERSION)-x86_64-apple-darwin \
+# 		-f $(DOCKERFILE) \
+# 		.
+
 build-all: build-x86_64-linux-musl build-x86_64-linux-gnu
 
 run: ## Run the docker compose with specified image tag

@@ -3,6 +3,7 @@
 apt update && \
   DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
   build-essential \
+  ca-certificates \
   curl \
   locales && \
   export LANG=en_US.UTF-8 && \

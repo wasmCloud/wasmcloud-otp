@@ -41,20 +41,14 @@ RUN ./wasmcloud_host/rel/scripts/${BUILD_INSTALL}
 RUN mix local.rebar --force && \
   mix local.hex --force
 
-# This step installs the Rust toolchain, needed for NIF compilation
-ARG RUST_VERSION=1.53.0
+# This step installs the Rust toolchain (if not present), needed for NIF compilation
+ARG RUST_VERSION
 ARG RUST_ARCH
 ENV RUST_VERSION=${RUST_VERSION} \
   RUST_ARCH=${RUST_ARCH}
-RUN RUST_ARCHIVE="rust-$RUST_VERSION-$RUST_ARCH.tar.gz" && \
-  RUST_DOWNLOAD_URL="https://static.rust-lang.org/dist/$RUST_ARCHIVE" && \
-  mkdir -p /rust \
-  && cd /rust \
-  && curl -fsOSL $RUST_DOWNLOAD_URL \
-  && curl -s $RUST_DOWNLOAD_URL.sha256 | sha256sum -c - \
-  && tar -C /rust -xzf $RUST_ARCHIVE --strip-components=1 \
-  && rm $RUST_ARCHIVE \
-  && ./install.sh
+RUN if ! command -v COMMAND &> /dev/null; then \
+    ./wasmcloud_host/rel/scripts/rust-install.sh ; \
+  fi
 
 WORKDIR ./wasmcloud_host
 ARG RUSTFLAGS
@@ -89,6 +83,7 @@ ARG APP_NAME
 # Run release image dependencies (e.g. `bash` is required to run the script and a `libc` installation is required for the NIFs)
 ARG RELEASE_INSTALL
 COPY ./wasmcloud_host/rel/scripts/${RELEASE_INSTALL} /tmp/install-deps.sh
+ENV LANG=en_US.UTF-8
 RUN /tmp/install-deps.sh && rm /tmp/install-deps.sh
 
 ENV REPLACE_OS_VARS=true \
@@ -98,7 +93,7 @@ WORKDIR /opt/app
 
 COPY --from=builder /opt/built .
 
-# NATS connection is required
+# NATS connection is required and can be overridden
 ARG WASMCLOUD_RPC_HOST=nats
 ARG WASMCLOUD_CTL_HOST=nats
 ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
