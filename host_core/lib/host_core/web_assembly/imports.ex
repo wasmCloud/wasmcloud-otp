@@ -85,7 +85,8 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp console_log(_api_type, context, ptr, len) do
-    if txt = Wasmex.Memory.read_binary(context.memory, ptr, len) != nil do
+    txt = Wasmex.Memory.read_string(context.memory, ptr, len)
+    if txt != nil do
       Logger.info("Log from guest: #{txt}")
     end
 
