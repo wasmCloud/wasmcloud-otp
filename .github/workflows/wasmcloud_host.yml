@@ -99,6 +99,12 @@ jobs:
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
+      - name: Login to AzureCR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.AZURECR_PUSH_URL }}
+          username: ${{ secrets.AZURECR_PUSH_USER }}
+          password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
       # - name: Login to DockerHub
       #   uses: docker/login-action@v1
       #   with:
@@ -112,8 +118,21 @@ jobs:
           context: .
           push: false
           file: ${{env.working-directory}}/Dockerfile
+          build-args: |
+            BUILDER_IMAGE=elixir:1.12.2-slim
+            RELEASE_IMAGE=debian:buster-slim
+            BUILD_INSTALL=apt-build-install.sh
+            RELEASE_INSTALL=apt-release-install.sh
+            RUST_VERSION=1.53.0
+            RUST_ARCH=x86_64-unknown-linux-gnu
+            APP_NAME=wasmcloud_host
+            APP_VSN=${{ env.wasmcloud_host_version }}
+            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+            SKIP_PHOENIX=false
           tags: |
-            wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}
-            wasmcloud.azurecr.io/wasmcloud_host:latest
-            wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
-            wasmcloud/wasmcloud_host:latest
+            wasmcloud.azurecr.io/wasmcloud_host_otp:${{ env.wasmcloud_host_version }}
+
+# wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}
+# wasmcloud.azurecr.io/wasmcloud_host:latest
+# wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
+# wasmcloud/wasmcloud_host:latest
