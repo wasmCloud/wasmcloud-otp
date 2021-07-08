@@ -7,8 +7,7 @@ services:
       - "6222:6222"
       - "8222:8222"
   wasmcloud_host:
-    image: wasmcloud-host:apktest2
-    # image: wasmcloud-host:0.20.0
+    image: "${WASMCLOUD_HOST_IMAGE}"
     depends_on:
       - nats
     ports:
