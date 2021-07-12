@@ -54,7 +54,8 @@ type Invocation struct {
 
 type InvocationResponse struct {
 	InvocationID string `msgpack:"invocation_id"`
-	Msg          []byte `msgpack:"msg"`
+	Msg          []byte `msgpack:"msg,omitempty"`
+	Error        string `msgpack:"error,omitempty"`
 }
 
 // HTTP Request object
@@ -259,12 +260,18 @@ func handleActorRequest(providerKey, linkName, latticePrefix, actorID string, nc
 		return
 	}
 	var httpResponse Response
-	err = msgpack.Unmarshal(invResp.Msg, &httpResponse)
-	if err != nil {
-		fmt.Printf("Failed to unpack response msgpack: %s\n", err)
-		return
+	if len(invResp.Error) > 0 {
+		http.Error(w, invResp.Error, 500)
+	} else {
+		err = msgpack.Unmarshal(invResp.Msg, &httpResponse)
+		if err != nil {
+			fmt.Printf("Failed to unpack response msgpack: %s\n", err)
+			return
+		}
+		w.WriteHeader(int(httpResponse.StatusCode))
+		w.Write(httpResponse.Body)
 	}
-	w.Write(httpResponse.Body)
+
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {

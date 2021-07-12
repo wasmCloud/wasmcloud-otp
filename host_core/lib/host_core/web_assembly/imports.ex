@@ -173,9 +173,12 @@ defmodule HostCore.WebAssembly.Imports do
          provider_key,
          state
        ) do
-    # TODO - check claims to make sure actor is authorized
-    {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
-     state}
+    if Enum.member?(claims.caps, namespace) do
+      {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
+       state}
+    else
+      {:error, "Actor unauthorized"}
+    end
   end
 
   defp lookup_call_alias(call_alias) do
@@ -186,6 +189,11 @@ defmodule HostCore.WebAssembly.Imports do
       [] ->
         :error
     end
+  end
+
+  defp finish_host_call({:error, reason}, agent) do
+    Agent.update(agent, fn state -> %State{state | host_error: reason} end)
+    0
   end
 
   defp finish_host_call(
