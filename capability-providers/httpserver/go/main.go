@@ -261,7 +261,6 @@ func handleActorRequest(providerKey, linkName, latticePrefix, actorID string, nc
 	}
 	var httpResponse Response
 	if len(invResp.Error) > 0 {
-		httpResponse.StatusCode = 500
 		http.Error(w, invResp.Error, 500)
 	} else {
 		err = msgpack.Unmarshal(invResp.Msg, &httpResponse)
@@ -270,8 +269,9 @@ func handleActorRequest(providerKey, linkName, latticePrefix, actorID string, nc
 			return
 		}
 		w.WriteHeader(int(httpResponse.StatusCode))
+		w.Write(httpResponse.Body)
 	}
-	w.Write(httpResponse.Body)
+
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
