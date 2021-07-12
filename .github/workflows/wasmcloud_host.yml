@@ -112,26 +112,41 @@ jobs:
       #     password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Determine version
         run: echo "wasmcloud_host_version=$(grep 'version:' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
-      - name: Build and push
+      - name: Build tarball image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          load: true
+          file: ${{env.working-directory}}/Dockerfile
+          build-args: |
+            NIF_IMAGE=rust:1.53-slim-buster 
+            NIF_INSTALL=apt-nif-install.sh 
+            BUILDER_IMAGE=elixir:1.12.2-slim 
+            BUILD_INSTALL=apt-build-install.sh 
+            RUSTARCH=x86_64 
+            RUSTTARGET=unknown-linux-gnu 
+            APP_NAME=wasmcloud_host
+            APP_VSN=${{ env.wasmcloud_host_version }}
+            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+          tags: |
+            wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+      - name: Package tarball and release image
         uses: docker/build-push-action@v2
         with:
           context: .
           push: true
-          file: ${{env.working-directory}}/Dockerfile
+          file: ${{env.working-directory}}/Dockerfile.release
           build-args: |
-            BUILDER_IMAGE=elixir:1.12.2-slim
-            RELEASE_IMAGE=debian:buster-slim
-            BUILD_INSTALL=apt-build-install.sh
-            RELEASE_INSTALL=apt-release-install.sh
-            RUST_VERSION=1.53.0
-            RUST_ARCH=x86_64-unknown-linux-gnu
+            BUILD_IMAGE=wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+            RELEASE_IMAGE=debian:buster-slim  
+            RELEASE_INSTALL=apt-release-install.sh 
             APP_NAME=wasmcloud_host
             APP_VSN=${{ env.wasmcloud_host_version }}
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-            SKIP_PHOENIX=false
           tags: |
-            wasmcloud.azurecr.io/wasmcloud_host_otp:${{ env.wasmcloud_host_version }}
+            wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
 
+#TODO: remove rc0 when ready to publish actual image
 # wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}
 # wasmcloud.azurecr.io/wasmcloud_host:latest
 # wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}

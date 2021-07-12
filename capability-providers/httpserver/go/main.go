@@ -121,7 +121,9 @@ func main() {
 
 	serverCancels := make(map[string]context.CancelFunc)
 	linkDefs := make(map[string]LinkDefinition)
-	nc, _ := nats.Connect(nats.DefaultURL)
+	//TODO: Support NATS authentication
+	fmt.Printf("Received URL: %s", hostData.LatticeRPCURL)
+	nc, _ := nats.Connect(hostData.LatticeRPCURL)
 	http.HandleFunc("/", handleRequest)
 
 	ldget_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.get", latticePrefix, providerKey, linkName)

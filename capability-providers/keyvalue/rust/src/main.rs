@@ -148,7 +148,7 @@ fn main() -> Result<()> {
         lattice_rpc_prefix, provider_key, link_name
     );
 
-    let nc = nats::connect("0.0.0.0:4222")?; // TODO: get real nats address and credentials from the host/env
+    let nc = nats::connect(&host_data.lattice_rpc_url)?; // TODO: use credentials from the host_data struct
 
     let _sub = nc
         .queue_subscribe(&ldget_topic, &ldget_topic)?

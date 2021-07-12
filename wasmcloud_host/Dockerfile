@@ -1,11 +1,69 @@
-# NOTE: This docker image must be build from the root of this repository in order to copy `host_core`.
+# NOTE: This docker image must be built from the root of this repository in order to copy `host_core`.
+# Use the Makefile for best results.
 
-# Release image should be the same as the _base container_ used for the builder.
+ARG NIF_IMAGE
 ARG BUILDER_IMAGE
 ARG RELEASE_IMAGE
-FROM ${BUILDER_IMAGE} AS builder
 
-# The following are build arguments used to change variable parts of the image.
+##
+# STEP 1: Retrieve dependencies (must happen before NIF compilation)
+##
+FROM ${BUILDER_IMAGE} AS deps-builder
+
+ARG MIX_ENV=prod
+ARG SECRET_KEY_BASE
+
+ENV MIX_ENV=${MIX_ENV} \
+  SECRET_KEY_BASE=${SECRET_KEY_BASE}
+
+WORKDIR /opt/app
+# This copies our app source code into the build container
+COPY ./host_core ./host_core
+COPY ./wasmcloud_host ./wasmcloud_host
+# This step installs all the build tools we'll need
+RUN mix local.rebar --force && \
+  mix local.hex --force
+
+WORKDIR /opt/app/host_core
+RUN mix deps.get
+WORKDIR /opt/app/wasmcloud_host
+RUN mix deps.get
+
+##
+# STEP 2: Build NIFs for target architecture
+##
+
+# NIFs are built using an image with a proper Rust installation
+FROM ${NIF_IMAGE} AS nif-builder
+# Install dependencies needed for NIF install
+ARG NIF_INSTALL
+COPY ./wasmcloud_host/rel/scripts/${NIF_INSTALL} ./${NIF_INSTALL}
+RUN chmod +x ${NIF_INSTALL} && \
+  ./${NIF_INSTALL} && \
+  rm ${NIF_INSTALL}
+
+# Copy resources from deps-builder image
+COPY --from=deps-builder /opt/app /opt/app
+
+# Build wasmcloud native NIF and wasmex native NIF
+WORKDIR /opt/app/wasmcloud_host
+ARG RUSTFLAGS
+ARG RUSTARCH
+ARG RUSTTARGET
+ENV RUSTFLAGS="${RUSTFLAGS}" \
+  ARCH="${RUSTARCH}" \
+  TARGET="${RUSTTARGET}"
+# If RUSTFLAGS are not provided, don't leave as blank environment variable. This can break cross-compilation
+RUN if [ -z "$RUSTFLAGS" ]; then unset RUSTFLAGS; fi && \
+  make wasmcloud-nif && \
+  make wasmex-nif && \
+  rm -rf ../host_core/native/hostcore_wasmcloud_native/target \
+  ./deps/wasmex/native/wasmex/target
+
+##
+# STEP 3: Build distillery release
+##
+FROM ${BUILDER_IMAGE} AS builder
 # The name of your application/release (required)
 ARG APP_NAME
 # The version of the application we are building (required)
@@ -14,25 +72,24 @@ ARG APP_VSN
 ARG MIX_ENV=prod
 # Set this to true if this release is not a Phoenix app
 ARG SKIP_PHOENIX=false
-# If you are using an umbrella project, you can change this
-# argument to the directory the Phoenix app is in so that the assets
-# can be built
-ARG PHOENIX_SUBDIR=.
 # Secret key is required
 ARG SECRET_KEY_BASE
+# Flag to include elixir runtime assets
+ARG INCLUDE_ERTS=true
 
 ENV SKIP_PHOENIX=${SKIP_PHOENIX} \
     APP_NAME=${APP_NAME} \
     APP_VSN=${APP_VSN} \
     MIX_ENV=${MIX_ENV} \
-    SECRET_KEY_BASE=${SECRET_KEY_BASE}
+    SECRET_KEY_BASE=${SECRET_KEY_BASE} \
+    INCLUDE_ERTS=${INCLUDE_ERTS}
 
 # By convention, /opt is typically used for applications
 WORKDIR /opt/app
 
-# This copies our app source code into the build container
-COPY ./host_core ./host_core
-COPY ./wasmcloud_host ./wasmcloud_host
+# This copies our app source code into the build container (including compiled NIFs)
+COPY --from=nif-builder /opt/app /opt/app
+
 # Install dependencies for build container. This may be packages like `curl`, `bash`, 
 # or even elixir and erlang depending on the base container 
 ARG BUILD_INSTALL
@@ -41,25 +98,12 @@ RUN ./wasmcloud_host/rel/scripts/${BUILD_INSTALL}
 RUN mix local.rebar --force && \
   mix local.hex --force
 
-# This step installs the Rust toolchain (if not present), needed for NIF compilation
-ARG RUST_VERSION
-ARG RUST_ARCH
-ENV RUST_VERSION=${RUST_VERSION} \
-  RUST_ARCH=${RUST_ARCH}
-RUN if ! command -v COMMAND &> /dev/null; then \
-    ./wasmcloud_host/rel/scripts/rust-install.sh ; \
-  fi
-
 WORKDIR ./wasmcloud_host
-ARG RUSTFLAGS
-ENV RUSTFLAGS="${RUSTFLAGS}"
-RUN mix do deps.get, deps.compile, compile
+RUN mix do deps.compile, compile
 
-# This step builds assets for the Phoenix app (if there is one)
-# If you aren't building a Phoenix app, pass `--build-arg SKIP_PHOENIX=true`
-# This is mostly here for demonstration purposes
+# This step builds assets for the Phoenix app
 RUN if [ ! "$SKIP_PHOENIX" = "true" ]; then \
-  cd ${PHOENIX_SUBDIR}/assets && \
+  cd ./assets && \
   yarn install && \
   yarn deploy && \
   cd - && \
@@ -70,33 +114,10 @@ RUN mkdir -p /opt/built && \
   mix distillery.release --verbose && \
   cp _build/${MIX_ENV}/rel/${APP_NAME}/releases/${APP_VSN}/${APP_NAME}.tar.gz /opt/built && \
   cd /opt/built && \
-  tar -xzf ${APP_NAME}.tar.gz
-  # TODO: uncomment this, just persisting the app tarGEEzy for now to take a look at file sizes
-  # && \
-  # rm ${APP_NAME}.tar.gz
+  tar -xzf ${APP_NAME}.tar.gz && \
+  mkdir -p /opt/rel && \
+  mv ${APP_NAME}.tar.gz /opt/rel
 
-# From this line onwards, we're in a new image, which will be the image used in production
-FROM ${RELEASE_IMAGE}
-# The name of your application/release (required)
-ARG APP_NAME
-
-# Run release image dependencies (e.g. `bash` is required to run the script and a `libc` installation is required for the NIFs)
-ARG RELEASE_INSTALL
-COPY ./wasmcloud_host/rel/scripts/${RELEASE_INSTALL} /tmp/install-deps.sh
-ENV LANG=en_US.UTF-8
-RUN /tmp/install-deps.sh && rm /tmp/install-deps.sh
-
-ENV REPLACE_OS_VARS=true \
-  APP_NAME=${APP_NAME}
-
-WORKDIR /opt/app
-
-COPY --from=builder /opt/built .
-
-# NATS connection is required and can be overridden
-ARG WASMCLOUD_RPC_HOST=nats
-ARG WASMCLOUD_CTL_HOST=nats
-ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
-    WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST}
-
-CMD trap 'exit' INT; /opt/app/bin/${APP_NAME} foreground
+# This Docker image is primarily concerned with building the release tarball and is not designed for running the app
+# While this will run the application, the container size is not optimized and the `Dockerfile.release` should be used instead
+CMD trap 'exit' INT; /opt/built/bin/wasmcloud_host foreground

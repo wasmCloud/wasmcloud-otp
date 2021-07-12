@@ -33,8 +33,9 @@ environment :dev do
   set(cookie: :"n4LfA8^YJb7}3H22ww}cFSSorOheasB|Fz/88$x}BfZ;CC>X9Z}j_6WgKxiW]CY>")
 end
 
+# TODO: Make erts configurable
 environment :prod do
-  set(include_erts: false)
+  set(include_erts: true)
   set(include_src: false)
   set(cookie: :"@{c_aB(}`DdY[Jio}f9yF~!j_b$~>`Iy;=oY&TV{P{d2i|Zz~7DIB5Hj%yq[C]E^")
   set(vm_args: "rel/vm.args")
