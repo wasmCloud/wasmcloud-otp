@@ -20,10 +20,7 @@ defmodule HostCore.E2E.KVCounterTest do
 
   test "kvcounter roundtrip" do
     {:ok, bytes} = File.read(@kvcounter_path)
-    Logger.info("attempting to load kvcounter actor")
-    Logger.info("Here's the lattice prefix btw: #{HostCore.Host.lattice_prefix()}")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    Logger.info("successfully started kvcounter actor")
     on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
 
     {:ok, _pid} =
@@ -61,7 +58,7 @@ defmodule HostCore.E2E.KVCounterTest do
              {@redis_key, @redis_link, @redis_contract}
            ]
 
-    Process.sleep(5000)
+    Process.sleep(2000)
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
@@ -95,10 +92,7 @@ defmodule HostCore.E2E.KVCounterTest do
 
   test "kvcounter unprivileged access denied" do
     {:ok, bytes} = File.read(@kvcounter_unpriv_path)
-    Logger.info("attempting to load kvcounter actor")
-    Logger.info("Here's the lattice prefix btw: #{HostCore.Host.lattice_prefix()}")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    Logger.info("successfully started kvcounter actor")
     on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
 
     {:ok, _pid} =
@@ -136,7 +130,7 @@ defmodule HostCore.E2E.KVCounterTest do
              {@redis_key, @redis_link, @redis_contract}
            ]
 
-    Process.sleep(5000)
+    Process.sleep(2000)
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
