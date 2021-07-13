@@ -21,6 +21,8 @@ defmodule HostCore.E2E.EchoTest do
         @httpserver_contract
       )
 
+    Process.sleep(1000)
+
     on_exit(fn ->
       HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
     end)
