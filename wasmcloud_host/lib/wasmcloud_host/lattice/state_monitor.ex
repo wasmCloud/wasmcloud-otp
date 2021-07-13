@@ -61,7 +61,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     state =
       cond do
-        String.contains?(topic, ".evt") ->
+        String.starts_with?(topic, "wasmbus.evt.") ->
           handle_event(state, body)
 
         String.contains?(topic, ".linkdefs.") ->
