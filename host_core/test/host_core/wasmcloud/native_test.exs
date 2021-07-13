@@ -42,8 +42,8 @@ defmodule HostCore.WasmCloud.NativeTest do
     assert String.starts_with?(seed, "SN")
   end
 
-  test "produces invocation bytes" do
-    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+  test "produces and validates invocation bytes" do
+    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
 
     req =
       %{
@@ -67,11 +67,49 @@ defmodule HostCore.WasmCloud.NativeTest do
         req
       )
 
+    res = HostCore.WasmCloud.Native.validate_antiforgery(inv |> IO.iodata_to_binary(), [pub])
+    assert res == {}
+
     decinv = inv |> Msgpax.unpack!()
 
     # Rust struct is converted to map of strings
     assert decinv["host_id"] == pub
     assert decinv["origin"]["public_key"] == "system"
     assert decinv["target"]["public_key"] == @httpserver_key
+  end
+
+  test "validate antiforgery rejects bad issuer" do
+    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
+
+    req =
+      %{
+        body: "hello",
+        header: %{},
+        path: "/",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HandleRequest",
+        req
+      )
+
+    res =
+      HostCore.WasmCloud.Native.validate_antiforgery(inv |> IO.iodata_to_binary(), [
+        "CSUPERBADKEYIAMAMALICIOUSACTOR"
+      ])
+
+    assert res ==
+             {:error,
+              "Validation of invocation/AF token failed: Issuer of this invocation is not among the list of valid issuers"}
   end
 end

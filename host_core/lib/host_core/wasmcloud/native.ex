@@ -3,7 +3,7 @@ defmodule HostCore.WasmCloud.Native do
 
   def extract_claims(_bytes), do: error()
   def generate_key(_keytype), do: error()
-  def validate_antiforgery(_bytes), do: error()
+  def validate_antiforgery(_bytes, _valid_issuers), do: error()
 
   def generate_invocation_bytes(
         _host_seed,

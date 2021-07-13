@@ -13,6 +13,7 @@ defmodule HostCore.Application do
 
   def config!() do
     {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    {def_cluster_key, def_cluster_seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
 
     providers = [
       %Vapor.Provider.Env{
@@ -33,7 +34,9 @@ defmodule HostCore.Application do
           {:ctl_pass, "WASMCLOUD_CTL_PASS", default: ""},
           {:ctl_token, "WASMCLOUD_CTL_TOKEN", default: ""},
           {:ctl_seed, "WASMCLOUD_CTL_SEED", default: ""},
-          {:ctl_jwt, "WASMCLOUD_CTL_JWT", default: ""}
+          {:ctl_jwt, "WASMCLOUD_CTL_JWT", default: ""},
+          {:cluster_seed, "WASMCLOUD_CLUSTER_SEED", default: def_cluster_seed},
+          {:cluster_issuers, "WASMCLOUD_CLUSTER_ISSUERS", default: def_cluster_key}
         ]
       }
     ]

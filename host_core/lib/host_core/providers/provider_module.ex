@@ -30,7 +30,10 @@ defmodule HostCore.Providers.ProviderModule do
 
     # In case we want to know the contract ID of this provider, we can look it up as the
     # bound value in the registry.
+
+    # Store the provider pid
     Registry.register(Registry.ProviderRegistry, {public_key, link_name}, contract_id)
+    # Store the provider triple in an ETS table
     HostCore.Providers.register_provider(public_key, link_name, contract_id)
 
     host_info =

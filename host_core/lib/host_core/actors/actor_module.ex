@@ -111,8 +111,7 @@ defmodule HostCore.Actors.ActorModule do
     # TODO - handle failure
     {:ok, inv} = Msgpax.unpack(body)
     # TODO - perform antiforgery check
-    # TODO error handle
-    # TODO refactor perform invocation so it's not required to run from inside handle_call
+
     ir =
       case perform_invocation(agent, inv["operation"], inv["msg"]) do
         {:ok, response} ->

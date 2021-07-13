@@ -137,7 +137,7 @@ impl Invocation {
 
     /// Validates the current invocation to ensure that the invocation claims have
     /// not been forged, are not expired, etc
-    pub fn validate_antiforgery(&self) -> Result<()> {
+    pub fn validate_antiforgery(&self, valid_issuers: Vec<String>) -> Result<()> {
         let vr = wascap::jwt::validate_token::<wascap::prelude::Invocation>(&self.encoded_claims)
             .map_err(|e| format!("{}", e))?;
         let claims = Claims::<wascap::prelude::Invocation>::decode(&self.encoded_claims)
@@ -151,6 +151,10 @@ impl Invocation {
         if vr.cannot_use_yet {
             return Err("Attempt to use invocation before claims token allows".into());
         }
+        if claims.metadata.is_none() {
+            return Err("No wascap metadata found on claims".into());
+        }
+
         let inv_claims = claims.metadata.unwrap();
         if inv_claims.invocation_hash != self.hash() {
             return Err("Invocation hash does not match signed claims hash".into());
@@ -160,6 +164,9 @@ impl Invocation {
         }
         if claims.issuer != self.host_id {
             return Err("Invocation claims issuer does not match invocation host".into());
+        }
+        if !valid_issuers.contains(&claims.issuer) {
+            return Err("Issuer of this invocation is not among the list of valid issuers".into());
         }
         if inv_claims.target_url != self.target_url() {
             return Err("Invocation claims and invocation target URL do not match".into());

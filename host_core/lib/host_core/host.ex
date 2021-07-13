@@ -41,6 +41,7 @@ defmodule HostCore.Host do
     :ets.insert(:config_table, {:config, opts})
 
     Logger.info("Host #{opts[:host_key]} started.")
+    Logger.info("Valid cluster signers #{opts[:cluster_issuers]}")
 
     {:ok,
      %State{
@@ -187,6 +188,13 @@ defmodule HostCore.Host do
     end
   end
 
+  def cluster_seed() do
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:cluster_seed]
+      _ -> ""
+    end
+  end
+
   def host_labels() do
     GenServer.call(__MODULE__, :get_labels)
   end
@@ -204,7 +212,8 @@ defmodule HostCore.Host do
       lattice_rpc_url: "",
       provider_key: provider_key,
       # TODO
-      env_values: %{}
+      env_values: %{},
+      invocation_seed: cluster_seed()
     }
     |> Jason.encode!()
   end
