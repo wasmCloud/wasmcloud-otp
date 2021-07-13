@@ -6,7 +6,7 @@ defmodule HostCore.Providers.ProviderModule do
   @thirty_seconds 30_000
 
   defmodule State do
-    defstruct [:os_port, :os_pid, :link_name, :contract_id, :public_key]
+    defstruct [:os_port, :os_pid, :link_name, :contract_id, :public_key, :lattice_prefix]
   end
 
   @doc """
@@ -59,7 +59,8 @@ defmodule HostCore.Providers.ProviderModule do
        os_pid: pid,
        public_key: public_key,
        link_name: link_name,
-       contract_id: contract_id
+       contract_id: contract_id,
+       lattice_prefix: HostCore.Host.lattice_prefix()
      }}
   end
 
@@ -89,7 +90,7 @@ defmodule HostCore.Providers.ProviderModule do
 
   @impl true
   def handle_info(:do_health, state) do
-    topic = "wasmbus.rpc.#{state.public_key}.#{state.link_name}.health"
+    topic = "wasmbus.rpc.#{state.lattice_prefix}.#{state.public_key}.#{state.link_name}.health"
     payload = %{placeholder: true} |> Msgpax.pack!() |> IO.iodata_to_binary()
 
     res =
@@ -139,7 +140,7 @@ defmodule HostCore.Providers.ProviderModule do
       }
       |> CloudEvent.new("health_check_passed")
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
 
     Gnat.pub(:control_nats, topic, msg)
   end
@@ -154,7 +155,7 @@ defmodule HostCore.Providers.ProviderModule do
       }
       |> CloudEvent.new("health_check_failed")
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
 
     Gnat.pub(:control_nats, topic, msg)
   end
@@ -169,7 +170,7 @@ defmodule HostCore.Providers.ProviderModule do
       }
       |> CloudEvent.new("provider_stopped")
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
 
     Gnat.pub(:control_nats, topic, msg)
   end
@@ -185,7 +186,7 @@ defmodule HostCore.Providers.ProviderModule do
       }
       |> CloudEvent.new("provider_started")
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
 
     Gnat.pub(:control_nats, topic, msg)
   end

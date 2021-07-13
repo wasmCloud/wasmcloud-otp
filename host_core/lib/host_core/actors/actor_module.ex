@@ -271,7 +271,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new("actor_started")
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
 
     Gnat.pub(:control_nats, topic, msg)
   end
@@ -286,7 +286,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new("actor_stopped")
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
 
     Gnat.pub(:control_nats, topic, msg)
   end
@@ -301,7 +301,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new("health_check_passed")
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
     Gnat.pub(:control_nats, topic, msg)
 
     nil
@@ -319,7 +319,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new("health_check_failed")
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
     Gnat.pub(:control_nats, topic, msg)
 
     nil

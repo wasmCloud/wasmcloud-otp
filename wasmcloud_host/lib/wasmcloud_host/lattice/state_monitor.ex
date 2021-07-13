@@ -20,7 +20,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     state = %State{actors: %{}, providers: %{}, linkdefs: %{}, refmaps: %{}, claims: %{}}
     prefix = HostCore.Host.lattice_prefix()
 
-    topic = "wasmbus.ctl.#{prefix}.events"
+    topic = "wasmbus.evt.#{prefix}"
     {:ok, _sub} = Gnat.sub(:control_nats, self(), topic)
 
     ldtopic = "wasmbus.rpc.#{prefix}.*.*.linkdefs.*"
@@ -61,7 +61,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     state =
       cond do
-        String.ends_with?(topic, ".events") ->
+        String.contains?(topic, ".evt") ->
           handle_event(state, body)
 
         String.contains?(topic, ".linkdefs.") ->
