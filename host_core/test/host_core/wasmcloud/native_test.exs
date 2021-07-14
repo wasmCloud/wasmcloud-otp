@@ -24,10 +24,10 @@ defmodule HostCore.WasmCloud.NativeTest do
           7_823_168
 
         {:unix, _linux} ->
-          7_912_797
+          7_912_517
 
         {:win32, :nt} ->
-          7_865_344
+          7_867_904
       end
 
     assert byte_size(par.target_bytes |> IO.iodata_to_binary()) == target_bytes
