@@ -13,6 +13,7 @@ package main
 */
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -93,7 +94,13 @@ var (
 
 func main() {
 
-	hostDataRaw := os.Getenv("WASMCLOUD_HOST_DATA")
+	reader := bufio.NewReader(os.Stdin)
+	hostDataRaw, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Printf("Unable to read host data structure from stdin: %s\n", err)
+		return
+	}
+
 	var hostData HostData
 	hostDataDecoded, err := base64.StdEncoding.DecodeString(hostDataRaw)
 	if err != nil {

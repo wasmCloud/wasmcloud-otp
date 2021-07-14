@@ -18,6 +18,8 @@ mod generated;
 mod kvredis;
 mod rpc;
 
+use std::io::{self, BufRead, Read};
+
 const YEET: &str = "YEET";
 
 lazy_static! {
@@ -112,7 +114,10 @@ fn main() -> Result<()> {
     let _ = env_logger::try_init();
 
     // Host data is a JSON object that is base64 encoded
-    let host_data_enc = std::env::var("WASMCLOUD_HOST_DATA")?;
+    let stdin = io::stdin();
+    let mut handle = stdin.lock();
+    let mut host_data_enc = String::new();
+    handle.read_to_string(&mut host_data_enc)?;
     let host_data_dec = base64::decode(host_data_enc)?;
     let host_data: HostData = serde_json::from_slice(&host_data_dec)?;
 

@@ -115,7 +115,7 @@ defmodule HostCore.WebAssembly.Imports do
 
     Logger.info("host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
 
-    seed = HostCore.Host.seed()
+    seed = HostCore.Host.cluster_seed()
     prefix = HostCore.Host.lattice_prefix()
     state = Agent.get(agent, fn content -> content end)
     claims = state.claims
