@@ -41,7 +41,8 @@ defmodule HostCore.Providers.ProviderModule do
       |> Base.encode64()
       |> to_charlist()
 
-    port = Port.open({:spawn, "#{path}"}, [:binary, {:env, [{'WASMCLOUD_HOST_DATA', host_info}]}])
+    port = Port.open({:spawn, "#{path}"}, [:binary])
+    Port.command(port, "#{host_info}\n")
 
     {:os_pid, pid} = Port.info(port, :os_pid)
 
