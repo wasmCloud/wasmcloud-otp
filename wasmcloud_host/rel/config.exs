@@ -33,7 +33,6 @@ environment :dev do
   set(cookie: :"n4LfA8^YJb7}3H22ww}cFSSorOheasB|Fz/88$x}BfZ;CC>X9Z}j_6WgKxiW]CY>")
 end
 
-# TODO: Make erts configurable
 environment :prod do
   set(include_erts: true)
   set(include_src: false)

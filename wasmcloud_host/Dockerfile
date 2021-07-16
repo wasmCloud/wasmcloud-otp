@@ -37,6 +37,12 @@ RUN mix deps.get
 FROM ${NIF_IMAGE} AS nif-builder
 # Install dependencies needed for NIF install
 ARG NIF_INSTALL
+ARG RUSTFLAGS
+ARG RUST_ARCH
+ARG RUST_TARGET
+ENV RUSTFLAGS="${RUSTFLAGS}" \
+  RUST_ARCH="${RUST_ARCH}" \
+  RUST_TARGET="${RUST_TARGET}"
 COPY ./wasmcloud_host/rel/scripts/${NIF_INSTALL} ./${NIF_INSTALL}
 RUN chmod +x ${NIF_INSTALL} && \
   ./${NIF_INSTALL} && \
@@ -47,12 +53,9 @@ COPY --from=deps-builder /opt/app /opt/app
 
 # Build wasmcloud native NIF and wasmex native NIF
 WORKDIR /opt/app/wasmcloud_host
-ARG RUSTFLAGS
-ARG RUSTARCH
-ARG RUSTTARGET
-ENV RUSTFLAGS="${RUSTFLAGS}" \
-  ARCH="${RUSTARCH}" \
-  TARGET="${RUSTTARGET}"
+# Copy cargo config in case of cross-compilation
+COPY ./wasmcloud_host/rel/cargo-config.toml ../host_core/native/hostcore_wasmcloud_native/.cargo/config
+COPY ./wasmcloud_host/rel/cargo-config.toml deps/wasmex/native/wasmex/.cargo/config
 # If RUSTFLAGS are not provided, don't leave as blank environment variable. This can break cross-compilation
 RUN if [ -z "$RUSTFLAGS" ]; then unset RUSTFLAGS; fi && \
   make wasmcloud-nif && \

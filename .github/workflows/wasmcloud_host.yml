@@ -7,7 +7,6 @@ on:
     branches: [main]
 
 env:
-  MIX_ENV: test
   working-directory: wasmcloud_host
 
 jobs:
@@ -24,6 +23,8 @@ jobs:
 
     name: Build and test
     runs-on: ubuntu-18.04
+    env:
+      MIX_ENV: test
 
     steps:
       - uses: actions/checkout@v2
@@ -86,11 +87,13 @@ jobs:
         run: mix dialyzer --no-check
 
   # When event type is release published, also run release workflow
-  release:
+  release-linux:
     needs: [build]
-    if: github.event.action != 'published' #TODO: change to ==
-    name: Release WasmcloudHost
+    if: github.event.action == 'published' #TODO: this should trigger on tag push
+    name: Release Linux Tarball and Docker Image
     runs-on: ubuntu-18.04
+    env:
+      MIX_ENV: prod
 
     steps:
       - name: Checkout
@@ -105,11 +108,11 @@ jobs:
           login-server: ${{ secrets.AZURECR_PUSH_URL }}
           username: ${{ secrets.AZURECR_PUSH_USER }}
           password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
-      # - name: Login to DockerHub
-      #   uses: docker/login-action@v1
-      #   with:
-      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
-      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Determine version
         run: echo "wasmcloud_host_version=$(grep 'version:' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
       - name: Build tarball image
@@ -145,9 +148,114 @@ jobs:
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
           tags: |
             wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
+            wasmcloud.azurecr.io/wasmcloud_host:latest
+            wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
+            wasmcloud/wasmcloud_host:latest
 
-#TODO: remove rc0 when ready to publish actual image
-# wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}
-# wasmcloud.azurecr.io/wasmcloud_host:latest
-# wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
-# wasmcloud/wasmcloud_host:latest
+  release-macos:
+    name: Release MacOS Tarball
+    # needs: [build] TODO: put this back in
+    runs-on: macos-10.15
+    env:
+      MIX_ENV: prod
+      ERLANG_VERSION: 24.0.3
+      ELIXIR_VERSION: 1.12.2
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # Setup Rust for NIF dependencies
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-apple-darwin
+          override: true
+
+      # Setup node for phoenix deps
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Retrieve Erlang Cache
+        uses: actions/cache@v2
+        id: erlang-cache #id to use in retrieve action
+        with:
+          path: |
+            /opt/kerl
+          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-erlang-cache-rc0
+
+      - name: Install erlang
+        # if: steps.erlang-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -O https://raw.githubusercontent.com/kerl/kerl/master/kerl
+          chmod a+x kerl
+          ./kerl build ${{ env.ERLANG_VERSION }} ${{ env.ERLANG_VERSION }}
+          ./kerl list builds
+          ./kerl install ${{ env.ERLANG_VERSION }} /opt/kerl/${{ env.ERLANG_VERSION }}
+          ./kerl list installations
+          . /opt/kerl/${{ env.ERLANG_VERSION }}/activate
+          echo "export PATH=$PATH" >> $HOME/.bashrc
+
+      - name: Install elixir
+        run: |
+          curl -sSL https://raw.githubusercontent.com/taylor/kiex/master/install | bash -s
+          . /opt/kerl/${{ env.ERLANG_VERSION }}/activate
+          test -s "$HOME/.kiex/scripts/kiex" && source "$HOME/.kiex/scripts/kiex"
+          kiex list known
+          kiex install ${{ env.ELIXIR_VERSION }}
+          kiex use 1.12.2 --default
+          echo '[[ -s "$HOME/.kiex/scripts/kiex" ]] && source "$HOME/.kiex/scripts/kiex"' >> $HOME/.bashrc
+
+      - name: Retrieve Mix Dependencies Cache
+        uses: actions/cache@v2
+        id: mix-cache #id to use in retrieve action
+        with:
+          path: |
+            wasmcloud_host/deps
+            wasmcloud_host/_build
+          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        if: steps.mix-cache.outputs.cache-hit != 'true'
+        run: |
+          mix local.rebar --force || true
+          mix local.hex --force || true
+          mix deps.get || true
+
+      # - name: Build hostcore_wasmcloud_native NIF
+      #   working-directory: ${{env.working-directory}}
+      #   env:
+      #     RUST_ARCH: x86_64
+      #     RUST_TARGET: apple-darwin
+      #   run: |
+      #     make wasmcloud-nif
+
+      # - name: Build wasmex_native NIF
+      #   working-directory: ${{env.working-directory}}
+      #   env:
+      #     RUST_ARCH: x86_64
+      #     RUST_TARGET: apple-darwin
+      #   run: |
+      #     make wasmex-nif
+
+      # - name: Compile Elixir
+      #   working-directory: ${{env.working-directory}}
+      #   if: steps.mix-cache.outputs.cache-hit != 'true'
+      #   run: |
+      #     mix deps.compile
+
+      # - name: Compile Phoenix Assets
+      #   working-directory: ${{env.working-directory}}/assets
+      #   run: |
+      #     yarn install
+      #     yarn deploy
+
+      # - name: Create digest
+      #   working-directory: ${{env.working-directory}}
+      #   run: mix phx.digest
+
+      # - name: Create Distillery Release
+      #   working-directory: ${{env.working-directory}}
+      #   run: |
+      #     mix distillery.release --verbose
