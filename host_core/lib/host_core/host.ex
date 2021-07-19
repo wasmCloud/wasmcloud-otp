@@ -71,9 +71,6 @@ defmodule HostCore.Host do
     configure_lattice_gnat(%{
       host: opts.rpc_host,
       port: opts.rpc_port,
-      username: opts.rpc_user,
-      password: opts.rpc_pass,
-      token: opts.rpc_token,
       nkey_seed: opts.rpc_seed,
       jwt: opts.rpc_jwt
     })
@@ -81,9 +78,6 @@ defmodule HostCore.Host do
     configure_control_gnat(%{
       host: opts.ctl_host,
       port: opts.ctl_port,
-      username: opts.ctl_user,
-      password: opts.ctl_pass,
-      token: opts.ctl_token,
       nkey_seed: opts.ctl_seed,
       jwt: opts.ctl_jwt
     })
@@ -126,9 +120,6 @@ defmodule HostCore.Host do
 
   defp determine_auth_method(
          %{
-           username: username,
-           password: password,
-           token: token,
            nkey_seed: nkey_seed,
            jwt: jwt
          },
@@ -142,14 +133,6 @@ defmodule HostCore.Host do
       nkey_seed != "" ->
         Logger.info("Authenticating to #{conn_name} NATS with seed")
         %{nkey_seed: nkey_seed, auth_required: true}
-
-      token != "" ->
-        Logger.info("Authenticating to #{conn_name} NATS with token")
-        %{token: token, auth_required: true}
-
-      username != "" && password != "" ->
-        Logger.info("Authenticating to #{conn_name} NATS with username and password")
-        %{username: username, password: password, auth_required: true}
 
       # No arguments specified that create a valid authentication method
       true ->
@@ -200,16 +183,23 @@ defmodule HostCore.Host do
   end
 
   def generate_hostinfo_for(provider_key, link_name) do
+    {url, jwt, seed} =
+      case :ets.lookup(:config_table, :config) do
+        [config: config_map] ->
+          {"#{config_map[:prov_rpc_host]}:#{config_map[:prov_rpc_port]}",
+           config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed]}
+
+        _ ->
+          {"0.0.0.0:4222", "", ""}
+      end
+
     %{
       host_id: host_key(),
       lattice_rpc_prefix: lattice_prefix(),
       link_name: link_name,
-      # TODO
-      lattice_rpc_user_jwt: "",
-      # TODO
-      lattice_rpc_user_seed: "",
-      # TODO
-      lattice_rpc_url: "",
+      lattice_rpc_user_jwt: jwt,
+      lattice_rpc_user_seed: seed,
+      lattice_rpc_url: url,
       provider_key: provider_key,
       # TODO
       env_values: %{},
