@@ -3,6 +3,7 @@ name: WasmcloudHost Elixir CI
 on:
   push:
     branches: [main]
+    tags: "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
   pull_request:
     branches: [main]
 
@@ -89,7 +90,7 @@ jobs:
   # When event type is release published, also run release workflow
   release-linux:
     needs: [build]
-    if: github.event.action == 'published' #TODO: this should trigger on tag push
+    if: github.event.payload.ref_type == 'tag' # Triggers on tag push only
     name: Release Linux Tarball and Docker Image
     runs-on: ubuntu-18.04
     env:
@@ -138,6 +139,7 @@ jobs:
         with:
           context: .
           push: true
+          load: true
           file: ${{env.working-directory}}/Dockerfile.release
           build-args: |
             BUILD_IMAGE=wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
@@ -152,14 +154,26 @@ jobs:
             wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
             wasmcloud/wasmcloud_host:latest
 
+      - name: Retrieve Artifact
+        working-directory: ${{env.working-directory}}
+
+      # Currently just attached to the action output, should be in the Release assets
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasmcloud_host-v0.20.0-x86_64-macos
+          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/0.20.0/wasmcloud_host.tar.gz
+
   release-macos:
     name: Release MacOS Tarball
     # needs: [build] TODO: put this back in
+    # if: github.event.payload.ref_type == 'tag' # Triggers on tag push only
     runs-on: macos-10.15
     env:
       MIX_ENV: prod
       ERLANG_VERSION: 24.0.3
       ELIXIR_VERSION: 1.12.2
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
 
     steps:
       - uses: actions/checkout@v2
@@ -176,16 +190,7 @@ jobs:
         with:
           node-version: "14"
 
-      - name: Retrieve Erlang Cache
-        uses: actions/cache@v2
-        id: erlang-cache #id to use in retrieve action
-        with:
-          path: |
-            /opt/kerl
-          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-erlang-cache-rc0
-
       - name: Install erlang and elixir
-        # if: steps.erlang-cache.outputs.cache-hit != 'true'
         run: |
           brew install erlang
           brew install elixir
@@ -202,45 +207,51 @@ jobs:
 
       - name: Install Mix Dependencies
         working-directory: ${{env.working-directory}}
-        if: steps.mix-cache.outputs.cache-hit != 'true'
+        # if: steps.mix-cache.outputs.cache-hit != 'true'
         run: |
-          mix local.rebar --force || true
-          mix local.hex --force || true
-          mix deps.get || true
+          mix local.rebar --force 
+          mix local.hex --force
+          mix deps.get
 
-      # - name: Build hostcore_wasmcloud_native NIF
-      #   working-directory: ${{env.working-directory}}
-      #   env:
-      #     RUST_ARCH: x86_64
-      #     RUST_TARGET: apple-darwin
-      #   run: |
-      #     make wasmcloud-nif
+      - name: Build hostcore_wasmcloud_native NIF
+        working-directory: ${{env.working-directory}}
+        env:
+          RUST_ARCH: x86_64
+          RUST_TARGET: apple-darwin
+        run: |
+          make wasmcloud-nif
 
-      # - name: Build wasmex_native NIF
-      #   working-directory: ${{env.working-directory}}
-      #   env:
-      #     RUST_ARCH: x86_64
-      #     RUST_TARGET: apple-darwin
-      #   run: |
-      #     make wasmex-nif
+      - name: Build wasmex_native NIF
+        working-directory: ${{env.working-directory}}
+        env:
+          RUST_ARCH: x86_64
+          RUST_TARGET: apple-darwin
+        run: |
+          make wasmex-nif
 
-      # - name: Compile Elixir
-      #   working-directory: ${{env.working-directory}}
-      #   if: steps.mix-cache.outputs.cache-hit != 'true'
-      #   run: |
-      #     mix deps.compile
+      - name: Compile Elixir
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix deps.compile
 
-      # - name: Compile Phoenix Assets
-      #   working-directory: ${{env.working-directory}}/assets
-      #   run: |
-      #     yarn install
-      #     yarn deploy
+      - name: Compile Phoenix Assets
+        working-directory: ${{env.working-directory}}/assets
+        run: |
+          yarn install
+          yarn deploy
 
-      # - name: Create digest
-      #   working-directory: ${{env.working-directory}}
-      #   run: mix phx.digest
+      - name: Create digest
+        working-directory: ${{env.working-directory}}
+        run: mix phx.digest
 
-      # - name: Create Distillery Release
-      #   working-directory: ${{env.working-directory}}
-      #   run: |
-      #     mix distillery.release --verbose
+      - name: Create Distillery Release
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix distillery.release --verbose
+
+      # Currently just attached to the action output, should be in the Release assets
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasmcloud_host-v0.20.0-x86_64-macos
+          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/0.20.0/wasmcloud_host.tar.gz
