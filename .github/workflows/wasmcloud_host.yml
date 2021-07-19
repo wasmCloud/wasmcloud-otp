@@ -184,27 +184,12 @@ jobs:
             /opt/kerl
           key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-erlang-cache-rc0
 
-      - name: Install erlang
+      - name: Install erlang and elixir
         # if: steps.erlang-cache.outputs.cache-hit != 'true'
         run: |
-          curl -O https://raw.githubusercontent.com/kerl/kerl/master/kerl
-          chmod a+x kerl
-          ./kerl build ${{ env.ERLANG_VERSION }} ${{ env.ERLANG_VERSION }}
-          ./kerl list builds
-          ./kerl install ${{ env.ERLANG_VERSION }} /opt/kerl/${{ env.ERLANG_VERSION }}
-          ./kerl list installations
-          . /opt/kerl/${{ env.ERLANG_VERSION }}/activate
-          echo "export PATH=$PATH" >> $HOME/.bashrc
-
-      - name: Install elixir
-        run: |
-          curl -sSL https://raw.githubusercontent.com/taylor/kiex/master/install | bash -s
-          . /opt/kerl/${{ env.ERLANG_VERSION }}/activate
-          test -s "$HOME/.kiex/scripts/kiex" && source "$HOME/.kiex/scripts/kiex"
-          kiex list known
-          kiex install ${{ env.ELIXIR_VERSION }}
-          kiex use 1.12.2 --default
-          echo '[[ -s "$HOME/.kiex/scripts/kiex" ]] && source "$HOME/.kiex/scripts/kiex"' >> $HOME/.bashrc
+          brew install erlang
+          brew install elixir
+          elixir --version
 
       - name: Retrieve Mix Dependencies Cache
         uses: actions/cache@v2
