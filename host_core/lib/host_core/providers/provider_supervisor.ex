@@ -81,6 +81,10 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
+  def terminate_all() do
+    all_providers() |> Enum.each(fn {pk, link, _contract} -> terminate_provider(pk, link) end)
+  end
+
   @doc """
   Produces a list of tuples in the form of {public_key, link_name, contract_id}
   of all of the current providers running

@@ -74,4 +74,10 @@ defmodule HostCore.Actors.ActorSupervisor do
 
     {:ok}
   end
+
+  def terminate_all() do
+    all_actors()
+    |> Enum.map(fn {k, v} -> {k, Enum.count(v)} end)
+    |> Enum.each(fn {pk, count} -> terminate_actor(pk, count) end)
+  end
 end

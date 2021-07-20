@@ -182,6 +182,12 @@ defmodule HostCore.Host do
     GenServer.call(__MODULE__, :get_labels)
   end
 
+  def purge() do
+    Logger.info("Host purge requested")
+    HostCore.Actors.ActorSupervisor.terminate_all()
+    HostCore.Providers.ProviderSupervisor.terminate_all()
+  end
+
   def generate_hostinfo_for(provider_key, link_name) do
     {url, jwt, seed} =
       case :ets.lookup(:config_table, :config) do

@@ -113,7 +113,7 @@ defmodule HostCore.WebAssembly.Imports do
     namespace = Wasmex.Memory.read_string(context.memory, ns_ptr, ns_len)
     operation = Wasmex.Memory.read_string(context.memory, op_ptr, op_len)
 
-    Logger.info("host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
+    Logger.debug("host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
 
     seed = HostCore.Host.cluster_seed()
     prefix = HostCore.Host.lattice_prefix()
@@ -305,7 +305,7 @@ defmodule HostCore.WebAssembly.Imports do
 
   # Load the guest response indicated by the location and length into the :guest_response state field.
   defp guest_response(_api_type, context, agent, ptr, len) do
-    Logger.info("Guest response")
+    Logger.debug("Guest response")
     memory = context.memory
     gr = Wasmex.Memory.read_binary(memory, ptr, len)
     Agent.update(agent, fn content -> %State{content | guest_response: gr} end)
@@ -315,7 +315,7 @@ defmodule HostCore.WebAssembly.Imports do
 
   # Load the guest error indicated by the location and length into the :guest_error field
   defp guest_error(_api_type, context, agent, ptr, len) do
-    Logger.info("Guest error")
+    Logger.debug("Guest error")
     memory = context.memory
 
     ge = Wasmex.Memory.read_binary(memory, ptr, len)
@@ -325,12 +325,12 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp guest_request(_api_type, context, agent, op_ptr, ptr) do
-    Logger.info("Guest request")
+    Logger.debug("Guest request")
     memory = context.memory
     # inv = HostCore.WebAssembly.ActorModule.current_invocation(actor_pid)
     inv = Agent.get(agent, fn content -> content.invocation end)
 
-    Logger.info("Got current invocation")
+    Logger.debug("Got current invocation")
     Wasmex.Memory.write_binary(memory, ptr, inv.payload)
     Wasmex.Memory.write_binary(memory, op_ptr, inv.operation)
 
