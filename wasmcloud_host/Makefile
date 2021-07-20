@@ -40,7 +40,7 @@ build-x86_64-linux-gnu: ## Build package for ARCH x86_64, OS linux with dynamica
 		-f $(DOCKERFILE) \
 		.
 
-tarball-x86_64-linux-gnu: build-x86_64-linux-gnu
+tarball-x86_64-linux-gnu: ## Retrieve tarball artifact
 	cd ../ && \
 	docker run -v $(shell pwd)/rel:/host/rel \
 		--env TARGET=x86_64-linux-gnu \

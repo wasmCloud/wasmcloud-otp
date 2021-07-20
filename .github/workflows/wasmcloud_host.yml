@@ -99,23 +99,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
+
       - name: Login to AzureCR
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.AZURECR_PUSH_URL }}
           username: ${{ secrets.AZURECR_PUSH_USER }}
           password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
+
       - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Determine version
         run: echo "wasmcloud_host_version=$(grep 'version:' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+
       - name: Build tarball image
         uses: docker/build-push-action@v2
         with:
@@ -134,12 +140,12 @@ jobs:
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
           tags: |
             wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
-      - name: Package tarball and release image
+
+      - name: Build and release image
         uses: docker/build-push-action@v2
         with:
           context: .
           push: true
-          load: true
           file: ${{env.working-directory}}/Dockerfile.release
           build-args: |
             BUILD_IMAGE=wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
@@ -154,20 +160,23 @@ jobs:
             wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
             wasmcloud/wasmcloud_host:latest
 
+      # This make step retrieves the tarball from the build image
       - name: Retrieve Artifact
         working-directory: ${{env.working-directory}}
+        run: |
+          make tarball-x86_64-linux-gnu
 
       # Currently just attached to the action output, should be in the Release assets
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: wasmcloud_host-v0.20.0-x86_64-macos
-          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/0.20.0/wasmcloud_host.tar.gz
+          name: wasmcloud_host-v0.20.0-x86_64-linux-gnu
+          path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/0.20.0/x86_64-linux-gnu.tar.gz
 
   release-macos:
     name: Release MacOS Tarball
-    # needs: [build] TODO: put this back in
-    # if: github.event.payload.ref_type == 'tag' # Triggers on tag push only
+    needs: [build]
+    if: github.event.payload.ref_type == 'tag' # Triggers on tag push only
     runs-on: macos-10.15
     env:
       MIX_ENV: prod
@@ -207,7 +216,6 @@ jobs:
 
       - name: Install Mix Dependencies
         working-directory: ${{env.working-directory}}
-        # if: steps.mix-cache.outputs.cache-hit != 'true'
         run: |
           mix local.rebar --force 
           mix local.hex --force
