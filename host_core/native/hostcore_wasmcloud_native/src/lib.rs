@@ -194,8 +194,12 @@ fn validate_antiforgery<'a>(inv: Binary, valid_issuers: Vec<String>) -> Result<(
     inv::deserialize::<inv::Invocation>(inv.as_slice())
         .map_err(|_e| rustler::Error::Term(Box::new("Failed to deserialize invocation")))
         .and_then(|i| {
-            i.validate_antiforgery(valid_issuers)
-                .map_err(|e| rustler::Error::Term(Box::new(format!("Validation of invocation/AF token failed: {}", e))))
+            i.validate_antiforgery(valid_issuers).map_err(|e| {
+                rustler::Error::Term(Box::new(format!(
+                    "Validation of invocation/AF token failed: {}",
+                    e
+                )))
+            })
         })
 }
 

@@ -78,7 +78,7 @@ impl Invocation {
             subject.to_string(),
             &target_url,
             &origin.url(),
-            &invocation_hash(&target_url, &origin.url(), &msg),
+            &invocation_hash(&target_url, &origin.url(), &msg, op),
         );
         Invocation {
             origin,
@@ -107,7 +107,7 @@ impl Invocation {
             subject.to_string(),
             &target_url,
             &target.url(),
-            &invocation_hash(&target_url, &target.url(), &[]),
+            &invocation_hash(&target_url, &target.url(), &[], &op),
         );
         Invocation {
             origin: target.clone(),
@@ -132,7 +132,12 @@ impl Invocation {
 
     /// The hash of the invocation's target, origin, and raw bytes
     pub fn hash(&self) -> String {
-        invocation_hash(&self.target_url(), &self.origin_url(), &self.msg)
+        invocation_hash(
+            &self.target_url(),
+            &self.origin_url(),
+            &self.msg,
+            &self.operation,
+        )
     }
 
     /// Validates the current invocation to ensure that the invocation claims have
@@ -280,11 +285,12 @@ fn sha256_digest<R: Read>(mut reader: R) -> Result<Digest> {
     Ok(context.finish())
 }
 
-pub(crate) fn invocation_hash(target_url: &str, origin_url: &str, msg: &[u8]) -> String {
+pub(crate) fn invocation_hash(target_url: &str, origin_url: &str, msg: &[u8], op: &str) -> String {
     use std::io::Write;
     let mut cleanbytes: Vec<u8> = Vec::new();
     cleanbytes.write_all(origin_url.as_bytes()).unwrap();
     cleanbytes.write_all(target_url.as_bytes()).unwrap();
+    cleanbytes.write_all(op.as_bytes()).unwrap();
     cleanbytes.write_all(msg).unwrap();
     let digest = sha256_digest(cleanbytes.as_slice()).unwrap();
     HEXUPPER.encode(digest.as_ref())
@@ -331,17 +337,24 @@ mod test {
         );
 
         // Obviously an invocation we just created should pass anti-forgery check
-        assert!(inv.validate_antiforgery().is_ok());
+        assert!(inv.validate_antiforgery(vec![hostkey.public_key()]).is_ok());
 
         // Let's tamper with the invocation and we should hit the hash check first
         let mut bad_inv = inv.clone();
         bad_inv.target = WasmCloudEntity::actor("BADACTOR-EXFILTRATOR");
-        assert!(bad_inv.validate_antiforgery().is_err());
+        assert!(bad_inv
+            .validate_antiforgery(vec![hostkey.public_key()])
+            .is_err());
 
         // Alter the payload and we should also hit the hash check
         let mut really_bad_inv = inv.clone();
         really_bad_inv.msg = vec![5, 4, 3, 2];
-        assert!(really_bad_inv.validate_antiforgery().is_err());
+        assert!(really_bad_inv
+            .validate_antiforgery(vec![hostkey.public_key()])
+            .is_err());
+
+        // Assert that it fails if the invocation wasn't issued by a valid issuer
+        assert!(inv.validate_antiforgery(vec!["NOTGOINGTOWORK".to_string()]).is_err());
 
         // And just to double-check the routing address
         assert_eq!(
