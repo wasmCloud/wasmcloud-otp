@@ -48,28 +48,6 @@ tarball-x86_64-linux-gnu: ## Retrieve tarball artifact
 		--env VERSION=$(VERSION) \
 		--rm -it $(NAME):$(VERSION)-x86_64-linux-gnu /host/rel/scripts/copy-release.sh
 
-build-aarch64-linux-gnu: ## Build package for ARCH aarch64, OS linux with dynamically linked NIFs (gnu libc)
-	cd ../ && \
-	docker build $(BASE_ARGS) \
-		--build-arg NIF_IMAGE=ubuntu:18.04 \
-		--build-arg NIF_INSTALL=aarch64-nif-install.sh \
-		--build-arg BUILDER_IMAGE=elixir:1.12.2-slim \
-		--build-arg BUILD_INSTALL=apt-build-install.sh \
-		--build-arg RUST_ARCH=aarch64 \
-		--build-arg RUST_TARGET=unknown-linux-gnu \
-		$(BASE_TAGS) \
-		-t $(NAME):$(VERSION)-aarch64-linux-gnu \
-		-f $(DOCKERFILE) \
-		.
-
-tarball-aarch64-linux-gnu: build-aarch64-linux-gnu
-	cd ../ && \
-	docker run -v $(shell pwd)/rel:/host/rel \
-		--env TARGET=aarch64-linux-gnu \
-		--env NAME=$(NAME) \
-		--env VERSION=$(VERSION) \
-		--rm -it $(NAME):$(VERSION)-aarch64-linux-gnu /host/rel/scripts/copy-release.sh
-
 build-x86_64-apple-darwin: ## Build package for arch x86_64, os MacOS
 	cd ../ && \
 	docker build $(BASE_ARGS) \
