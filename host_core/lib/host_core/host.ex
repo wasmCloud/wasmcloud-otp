@@ -157,22 +157,6 @@ defmodule HostCore.Host do
     end
   end
 
-  def lattice_rpc_url() do
-    host =
-      case :ets.lookup(:config_table, :config) do
-        [config: config_map] -> config_map[:rpc_host]
-        _ -> "0.0.0.0"
-      end
-
-    port =
-      case :ets.lookup(:config_table, :config) do
-        [config: config_map] -> config_map[:rpc_port]
-        _ -> 4222
-      end
-
-    "#{host}:#{port}"
-  end
-
   def host_key() do
     case :ets.lookup(:config_table, :config) do
       [config: config_map] -> config_map[:host_key]

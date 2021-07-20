@@ -48,32 +48,6 @@ tarball-x86_64-linux-gnu: ## Retrieve tarball artifact
 		--env VERSION=$(VERSION) \
 		--rm -it $(NAME):$(VERSION)-x86_64-linux-gnu /host/rel/scripts/copy-release.sh
 
-build-x86_64-apple-darwin: ## Build package for arch x86_64, os MacOS
-	cd ../ && \
-	docker build $(BASE_ARGS) \
-		--build-arg NIF_IMAGE=wasmcloud/cross:x86_64-apple-darwin \
-		--build-arg NIF_INSTALL=apt-nif-install.sh \
-		--build-arg BUILDER_IMAGE=elixir:1.12.2 \
-		--build-arg BUILD_INSTALL=apt-build-install.sh \
-		--build-arg INCLUDE_ERTS=false \
-		--build-arg RUST_ARCH=x86_64 \
-		--build-arg RUST_TARGET=apple-darwin \
-		$(BASE_TAGS) \
-		-t $(NAME):$(VERSION)-x86_64-apple-darwin \
-		-f $(DOCKERFILE) \
-		.
-
-tarball-x86_64-apple-darwin: build-x86_64-apple-darwin
-	cd ../ && \
-	docker run -v $(shell pwd)/rel:/host/rel \
-		--env TARGET=x86_64-apple-darwin \
-		--env NAME=$(NAME) \
-		--env VERSION=$(VERSION) \
-		--rm -it $(NAME):$(VERSION)-x86_64-apple-darwin /host/rel/scripts/copy-release.sh
-
-build-all: build-x86_64-linux-gnu build-x86_64-apple-darwin build-image
-tarball-all: tarball-x86_64-linux-gnu tarball-x86_64-apple-darwin
-
 run: ## Run the docker compose with specified image tag
 	cd ../ && \
 	WASMCLOUD_HOST_IMAGE=wasmcloud.azurecr.io/wasmcloud_host:0.20.0-rc0 \

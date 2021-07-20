@@ -1,7 +1,5 @@
 defmodule HostCore.WasmCloud.Native do
-  use Rustler,
-    otp_app: :host_core,
-    crate: :hostcore_wasmcloud_native
+  use Rustler, otp_app: :host_core, crate: :hostcore_wasmcloud_native
 
   def extract_claims(_bytes), do: error()
   def generate_key(_keytype), do: error()
