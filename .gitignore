@@ -49,3 +49,6 @@ npm-debug.log
 # Don't commit provider archive artifacts
 *.par.gz
 *.par
+# Or release artifacts
+*.tar.gz
+*.tar
