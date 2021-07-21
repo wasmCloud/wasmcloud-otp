@@ -50,10 +50,9 @@ defmodule HostCore.Host do
      }, {:continue, :query_lattice_cache}}
   end
 
-  # TODO: Evaluate downsides of a potential race condition here. May be better to simply execute this as part of the init function
   @impl true
   def handle_continue(:query_lattice_cache, state) do
-    Logger.info("Querying lattice for cache...")
+    Logger.debug("Querying lattice for cache...")
 
     results =
       ParallelTask.new()
@@ -67,11 +66,19 @@ defmodule HostCore.Host do
           HostCore.Linkdefs.Manager.request_link_definitions()
         end
       )
+      |> ParallelTask.add(
+        refmaps: fn ->
+          HostCore.Refmaps.Manager.request_refmaps()
+        end
+      )
       |> ParallelTask.perform(3_000)
 
     results.claims
     |> Enum.map(fn claims ->
-      HostCore.Claims.Manager.cache_claims(Map.get(claims, :sub), claims)
+      public_key = Map.get(claims, :sub)
+      HostCore.Claims.Manager.cache_claims(public_key, claims)
+      call_alias = Map.get(claims, :call_alias)
+      HostCore.Claims.Manager.cache_call_alias(call_alias, public_key)
     end)
 
     results.linkdefs
@@ -85,8 +92,10 @@ defmodule HostCore.Host do
       )
     end)
 
-    # :ets.new(:refmap_table, [:named_table, :set, :public])
-    # :ets.new(:callalias_table, [:named_table, :set, :public])
+    results.refmaps
+    |> Enum.map(fn refmap ->
+      HostCore.Refmaps.Manager.cache_refmap(refmap.oci_url, refmap.public_key)
+    end)
 
     {:noreply, state}
   end

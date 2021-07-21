@@ -39,6 +39,16 @@ defmodule HostCore.Linkdefs.Manager do
     publish_link_definition(ld)
   end
 
+  # Publishes a link definition to the lattice and the applicable provider for configuration
+  defp publish_link_definition(ld) do
+    prefix = HostCore.Host.lattice_prefix()
+    rpc_topic = "wasmbus.rpc.#{prefix}.linkdefs.put"
+    provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
+
+    Gnat.pub(:lattice_nats, rpc_topic, Msgpax.pack!(ld))
+    Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
+  end
+
   def request_link_definitions() do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.linkdefs.get"
@@ -59,15 +69,5 @@ defmodule HostCore.Linkdefs.Manager do
       _ ->
         []
     end
-  end
-
-  # Publishes a link definition to the lattice and the applicable provider for configuration
-  defp publish_link_definition(ld) do
-    prefix = HostCore.Host.lattice_prefix()
-    rpc_topic = "wasmbus.rpc.#{prefix}.linkdefs.put"
-    provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
-
-    Gnat.pub(:lattice_nats, rpc_topic, Msgpax.pack!(ld))
-    Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
   end
 end

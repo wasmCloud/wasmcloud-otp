@@ -17,10 +17,8 @@ defmodule HostCore.Claims.Server do
       # Note the name difference here, outside of OTP the claims use JWT naming conventions
       key = claims.sub
       HostCore.Claims.Manager.cache_claims(key, claims)
-
-      if claims.call_alias != nil && String.length(claims.call_alias) > 1 do
-        :ets.insert(:callalias_table, {claims.call_alias, claims.sub})
-      end
+      # Only stores call alias if it hasn't previously been claimed
+      HostCore.Claims.Manager.cache_call_alias(claims.call_alias, claims.sub)
 
       :ok
     end

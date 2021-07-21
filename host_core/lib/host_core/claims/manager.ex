@@ -12,8 +12,21 @@ defmodule HostCore.Claims.Manager do
     {:ok, :ok}
   end
 
+  def lookup_claims(public_key) do
+    case :ets.lookup(:claims_table, public_key) do
+      [ld] -> {:ok, ld}
+      [] -> :error
+    end
+  end
+
   def cache_claims(key, claims) do
     :ets.insert(:claims_table, {key, claims})
+  end
+
+  def cache_call_alias(call_alias, public_key) do
+    if call_alias != nil && String.length(call_alias) > 1 do
+      :ets.insert_new(:callalias_table, {call_alias, public_key})
+    end
   end
 
   def put_claims(claims) do
@@ -54,6 +67,13 @@ defmodule HostCore.Claims.Manager do
     publish_claims(claims)
   end
 
+  defp publish_claims(claims) do
+    prefix = HostCore.Host.lattice_prefix()
+    topic = "wasmbus.rpc.#{prefix}.claims.put"
+
+    Gnat.pub(:lattice_nats, topic, Msgpax.pack!(claims))
+  end
+
   def request_claims() do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.claims.get"
@@ -74,19 +94,5 @@ defmodule HostCore.Claims.Manager do
       _ ->
         []
     end
-  end
-
-  def lookup_claims(public_key) do
-    case :ets.lookup(:claims_table, public_key) do
-      [ld] -> {:ok, ld}
-      [] -> :error
-    end
-  end
-
-  defp publish_claims(claims) do
-    prefix = HostCore.Host.lattice_prefix()
-    topic = "wasmbus.rpc.#{prefix}.claims.put"
-
-    Gnat.pub(:lattice_nats, topic, Msgpax.pack!(claims))
   end
 end

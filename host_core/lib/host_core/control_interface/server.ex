@@ -17,6 +17,7 @@ defmodule HostCore.ControlInterface.Server do
     |> handle_request(body, reply_to)
   end
 
+  # TODO: This should retrieve all hosts running in the lattice
   defp handle_request({"get", "hosts"}, _body, _reply_to) do
     {total, _} = :erlang.statistics(:wall_clock)
 
@@ -60,7 +61,7 @@ defmodule HostCore.ControlInterface.Server do
       {:reply, Jason.encode!(res)}
     end
 
-    # TODO: reply with error or something for wrong host id
+    :ok
   end
 
   ### COMMANDS
@@ -93,12 +94,12 @@ defmodule HostCore.ControlInterface.Server do
           {:reply, Jason.encode!(ack)}
       end
 
-      # TODO: reply with error or something for wrong host id
+      :ok
     end
   end
 
   # Stop Actor
-  defp handle_request({"cmd", host_id, "sa"}, body, reply_to) do
+  defp handle_request({"cmd", host_id, "sa"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
       stop_actor_command = Jason.decode!(body)
       HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
@@ -106,11 +107,11 @@ defmodule HostCore.ControlInterface.Server do
       {:reply, Jason.encode!(ack)}
     end
 
-    # TODO: reply with error or something for wrong host id
+    :ok
   end
 
   # Launch Provider
-  defp handle_request({"cmd", host_id, "lp"}, body, reply_to) do
+  defp handle_request({"cmd", host_id, "lp"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
       start_provider_command = Jason.decode!(body)
 
@@ -136,7 +137,7 @@ defmodule HostCore.ControlInterface.Server do
       {:reply, Jason.encode!(ack)}
     end
 
-    # TODO: handle wrong host ID
+    :ok
   end
 
   # Stop Provider
@@ -152,13 +153,13 @@ defmodule HostCore.ControlInterface.Server do
       {:reply, Jason.encode!(%{})}
     end
 
-    # TODO: handle wrong host ID
+    :ok
   end
 
   # Update Actor
   defp handle_request({"cmd", host_id, "upd"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
-      update_actor_command = Jason.decode!(body)
+      _update_actor_command = Jason.decode!(body)
 
       # TODO - live updates for actors is not implemented yet
     end
@@ -181,7 +182,7 @@ defmodule HostCore.ControlInterface.Server do
       {:reply, Jason.encode!(ack)}
     end
 
-    # TODO: handle no match host labels
+    :ok
   end
 
   # Auction Provider
@@ -204,7 +205,7 @@ defmodule HostCore.ControlInterface.Server do
       {:reply, Jason.encode!(ack)}
     end
 
-    # TODO: don't answer or return error or somethign
+    :ok
   end
 
   # FALL THROUGH
