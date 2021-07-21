@@ -4,7 +4,7 @@ defmodule HostCore.MixProject do
   def project do
     [
       app: :host_core,
-      version: "0.5.0",
+      version: "0.50.0",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -31,6 +31,7 @@ defmodule HostCore.MixProject do
       {:uuid, "~> 1.1"},
       {:jason, "~> 1.2.2"},
       {:vapor, "~> 0.10.0"},
+      {:parallel_task, "~> 0.1.1"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:httpoison, "~> 1.8", only: [:test]},

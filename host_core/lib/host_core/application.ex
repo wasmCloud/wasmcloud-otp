@@ -53,8 +53,8 @@ defmodule HostCore.Application do
       {HostCore.HeartbeatEmitter, config},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot},
-      {HostCore.Linkdefs.Manager, strategy: :one_for_one, name: LinkdefsManager},
       {HostCore.Claims.Manager, strategy: :one_for_one, name: ClaimsManager},
+      {HostCore.Linkdefs.Manager, strategy: :one_for_one, name: LinkdefsManager},
       # Handle advertised link definitions and corresponding queries
       Supervisor.child_spec(
         {Gnat.ConsumerSupervisor,

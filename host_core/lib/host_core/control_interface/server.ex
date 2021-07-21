@@ -15,11 +15,9 @@ defmodule HostCore.ControlInterface.Server do
     |> List.delete_at(0)
     |> List.to_tuple()
     |> handle_request(body, reply_to)
-
-    :ok
   end
 
-  defp handle_request({"get", "hosts"}, _body, reply_to) do
+  defp handle_request({"get", "hosts"}, _body, _reply_to) do
     {total, _} = :erlang.statistics(:wall_clock)
 
     res = %{
@@ -27,43 +25,30 @@ defmodule HostCore.ControlInterface.Server do
       uptime: div(total, 1000)
     }
 
-    Gnat.pub(:control_nats, reply_to, Jason.encode!(res))
+    {:reply, Jason.encode!(res)}
   end
 
-  defp handle_request({"get", "claims"}, _body, reply_to) do
-    raw_claims = :ets.tab2list(:claims_table)
-    claims = raw_claims |> Enum.map(fn {_pk, %{} = claims} -> %{values: claims} end)
+  defp handle_request({"get", "claims"}, _body, _reply_to) do
+    claims = HostCore.Claims.Server.get_claims()
 
     res = %{
       claims: claims
     }
 
-    Gnat.pub(:lattice_nats, reply_to, Jason.encode!(res))
+    {:reply, Jason.encode!(res)}
   end
 
-  defp handle_request({"get", "links"}, _body, reply_to) do
-    raw_links = :ets.tab2list(:linkdef_table)
-
-    links =
-      raw_links
-      |> Enum.map(fn {{pk, contract, link}, %{provider_key: provider_key, values: values}} ->
-        %{
-          actor_id: pk,
-          provider_id: provider_key,
-          link_name: link,
-          contract_id: contract,
-          values: values
-        }
-      end)
+  defp handle_request({"get", "links"}, _body, _reply_to) do
+    links = HostCore.Linkdefs.Server.get_link_definitions()
 
     res = %{
       links: links
     }
 
-    Gnat.pub(:lattice_nats, reply_to, Jason.encode!(res))
+    {:reply, Jason.encode!(res)}
   end
 
-  defp handle_request({"get", host_id, "inv"}, _body, reply_to) do
+  defp handle_request({"get", host_id, "inv"}, _body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
       res = %{
         host_id: HostCore.Host.host_key(),
@@ -72,8 +57,10 @@ defmodule HostCore.ControlInterface.Server do
         providers: ACL.all_providers()
       }
 
-      Gnat.pub(:control_nats, reply_to, Jason.encode!(res))
+      {:reply, Jason.encode!(res)}
     end
+
+    # TODO: reply with error or something for wrong host id
   end
 
   ### COMMANDS
@@ -81,7 +68,7 @@ defmodule HostCore.ControlInterface.Server do
   # Launch Actor
   # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx"}
 
-  defp handle_request({"cmd", host_id, "la"}, body, reply_to) do
+  defp handle_request({"cmd", host_id, "la"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
       start_actor_command = Jason.decode!(body)
 
@@ -92,7 +79,7 @@ defmodule HostCore.ControlInterface.Server do
             actor_ref: start_actor_command["actor_ref"]
           }
 
-          Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+          {:reply, Jason.encode!(ack)}
 
         {:error, e} ->
           Logger.error("Failed to start actor per remote call")
@@ -103,8 +90,10 @@ defmodule HostCore.ControlInterface.Server do
             failure: "Failed to start actor: #{e}"
           }
 
-          Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+          {:reply, Jason.encode!(ack)}
       end
+
+      # TODO: reply with error or something for wrong host id
     end
   end
 
@@ -114,8 +103,10 @@ defmodule HostCore.ControlInterface.Server do
       stop_actor_command = Jason.decode!(body)
       HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
       ack = %{}
-      Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+      {:reply, Jason.encode!(ack)}
     end
+
+    # TODO: reply with error or something for wrong host id
   end
 
   # Launch Provider
@@ -142,12 +133,14 @@ defmodule HostCore.ControlInterface.Server do
             }
         end
 
-      Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+      {:reply, Jason.encode!(ack)}
     end
+
+    # TODO: handle wrong host ID
   end
 
   # Stop Provider
-  defp handle_request({"cmd", host_id, "sp"}, body, reply_to) do
+  defp handle_request({"cmd", host_id, "sp"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
       stop_provider_command = Jason.decode!(body)
 
@@ -156,12 +149,14 @@ defmodule HostCore.ControlInterface.Server do
         stop_provider_command["link_name"]
       )
 
-      Gnat.pub(:control_nats, reply_to, Jason.encode!(%{}))
+      {:reply, Jason.encode!(%{})}
     end
+
+    # TODO: handle wrong host ID
   end
 
   # Update Actor
-  defp handle_request({"cmd", host_id, "upd"}, body, reply_to) do
+  defp handle_request({"cmd", host_id, "upd"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
       update_actor_command = Jason.decode!(body)
 
@@ -171,7 +166,7 @@ defmodule HostCore.ControlInterface.Server do
 
   # Auction Actor
   # input: #{"actor_ref" => "...", "constraints" => %{}}
-  defp handle_request({"auction", "actor"}, body, reply_to) do
+  defp handle_request({"auction", "actor"}, body, _reply_to) do
     auction_request = Jason.decode!(body)
     host_labels = HostCore.Host.host_labels()
     required_labels = auction_request["constraints"]
@@ -183,13 +178,15 @@ defmodule HostCore.ControlInterface.Server do
         host_id: HostCore.Host.host_key()
       }
 
-      Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+      {:reply, Jason.encode!(ack)}
     end
+
+    # TODO: handle no match host labels
   end
 
   # Auction Provider
   # input: #{"actor_ref" => "...", "constraints" => %{}}
-  defp handle_request({"auction", "provider"}, body, reply_to) do
+  defp handle_request({"auction", "provider"}, body, _reply_to) do
     auction_request = Jason.decode!(body)
     host_labels = HostCore.Host.host_labels()
     required_labels = auction_request["constraints"]
@@ -204,8 +201,10 @@ defmodule HostCore.ControlInterface.Server do
         host_id: HostCore.Host.host_key()
       }
 
-      Gnat.pub(:control_nats, reply_to, Jason.encode!(ack))
+      {:reply, Jason.encode!(ack)}
     end
+
+    # TODO: don't answer or return error or somethign
   end
 
   # FALL THROUGH

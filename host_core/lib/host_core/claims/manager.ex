@@ -12,6 +12,10 @@ defmodule HostCore.Claims.Manager do
     {:ok, :ok}
   end
 
+  def cache_claims(key, claims) do
+    :ets.insert(:claims_table, {key, claims})
+  end
+
   def put_claims(claims) do
     key = claims.public_key
 
@@ -46,7 +50,7 @@ defmodule HostCore.Claims.Manager do
       sub: claims.public_key
     }
 
-    :ets.insert(:claims_table, {key, claims})
+    cache_claims(key, claims)
     publish_claims(claims)
   end
 
@@ -58,7 +62,6 @@ defmodule HostCore.Claims.Manager do
       {:ok, %{body: body}} ->
         # Unpack claims, convert to map with atom keys
         Msgpax.unpack!(body)
-        |> Enum.map(fn claims -> Map.get(claims, "values") end)
         |> Enum.map(fn claims ->
           claims
           |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
