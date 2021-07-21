@@ -63,7 +63,11 @@ defmodule HostCore.Application do
            module: HostCore.Linkdefs.Server,
            subscription_topics: [
              %{topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.put"},
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.del"}
+             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.del"},
+             %{
+               topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.get",
+               queue_group: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.get"
+             }
            ]
          }},
         id: :linkdefs_consumer_supervisor
@@ -75,7 +79,11 @@ defmodule HostCore.Application do
            connection_name: :lattice_nats,
            module: HostCore.Claims.Server,
            subscription_topics: [
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.put"}
+             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.put"},
+             %{
+               topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.get",
+               queue_group: "wasmbus.rpc.#{config.lattice_prefix}.claims.get"
+             }
            ]
          }},
         id: :claims_consumer_supervisor

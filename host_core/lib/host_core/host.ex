@@ -26,7 +26,7 @@ defmodule HostCore.Host do
   * `wasmbus.rpc.{prefix}.{public_key}` - Send invocations to an actor Invocation->InvocationResponse
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}` - Send invocations (from actors only) to Providers  Invocation->InvocationResponse
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.put` - Publish link definition (e.g. bind to an actor)
-  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.get` - Query all link defss for this provider. (queue subscribed)
+  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.get` - Query all link defs for this provider. (queue subscribed)
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.del` - Remove a link def.
   * `wasmbus.rpc.{prefix}.claims.put` - Publish discovered claims
   * `wasmbus.rpc.{prefix}.claims.get` - Query all claims (queue subscribed by hosts)
@@ -47,7 +47,17 @@ defmodule HostCore.Host do
      %State{
        host_key: opts[:host_key],
        lattice_prefix: opts[:lattice_prefix]
-     }}
+     }, {:continue, :query_lattice_cache}}
+  end
+
+  @impl true
+  def handle_continue(:query_lattice_cache, state) do
+    HostCore.Claims.Manager.request_claims()
+    |> Enum.map(fn claims ->
+      :ets.insert(:claims_table, {Map.get(claims, :sub), claims})
+    end)
+
+    {:noreply, state}
   end
 
   defp get_env_host_labels() do

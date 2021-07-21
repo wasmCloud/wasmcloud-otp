@@ -5,12 +5,16 @@ defmodule HostCore.Claims.Server do
   # Topic wasmbus.rpc.{prefix}.claims.put, .get
   # claims fields: call_alias, issuer, name, revision, tags, version, public_key
 
-  def request(%{topic: topic, body: body}) do
+  def request(%{topic: topic, body: body, reply_to: reply_to}) do
     cmd = topic |> String.split(".") |> Enum.at(4)
     Logger.info("Received claims command (#{cmd})")
     # PUT
     if cmd == "get" do
-      # Subscription failure
+      claims =
+        :ets.tab2list(:claims_table)
+        |> Enum.map(fn {_pk, %{} = claims} -> %{values: claims} end)
+
+      Gnat.pub(:lattice_nats, reply_to, Msgpax.pack!(claims))
     else
       claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
       # Note the name difference here, outside of OTP the claims use JWT naming conventions
