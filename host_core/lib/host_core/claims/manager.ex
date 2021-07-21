@@ -56,10 +56,9 @@ defmodule HostCore.Claims.Manager do
 
     case Gnat.request(:lattice_nats, topic, [], receive_timeout: 2_000) do
       {:ok, %{body: body}} ->
-        # Insert values into claims table with key being the subject key
+        # Unpack claims, convert to map with atom keys
         Msgpax.unpack!(body)
         |> Enum.map(fn claims -> Map.get(claims, "values") end)
-        # Convert string keys to atoms
         |> Enum.map(fn claims ->
           claims
           |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
