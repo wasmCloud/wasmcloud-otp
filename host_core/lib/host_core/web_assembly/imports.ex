@@ -121,63 +121,134 @@ defmodule HostCore.WebAssembly.Imports do
     claims = state.claims
     actor = claims.public_key
 
-    provider_key =
-      case HostCore.Providers.lookup_provider(namespace, binding) do
-        {:ok, pk} -> pk
-        :error -> ""
-      end
-
-    case HostCore.Linkdefs.Manager.lookup_link_definition(actor, namespace, binding) do
-      # Authorize actor to invoke provider over link definition
-      {:ok, _ld} ->
-        authorize(
-          actor,
-          binding,
-          namespace,
-          operation,
-          payload,
-          claims,
-          seed,
-          prefix,
-          provider_key,
-          state
-        )
-        |> finish_host_call(agent)
-
-      # Link definition not found for actor, could be attempting to call a call alias
-      :error ->
-        case lookup_call_alias(namespace) do
-          {:ok, actor_key} ->
-            finish_host_call(
-              {:ok, actor_key, binding, namespace, operation, payload, claims, seed, prefix,
-               provider_key, state},
-              agent
-            )
-
-          :error ->
-            Logger.error("Failed to find link definition or call alias for invocation")
-            0
-        end
-    end
+    %{
+      payload: payload,
+      binding: binding,
+      namespace: namespace,
+      operation: operation,
+      seed: seed,
+      claims: claims,
+      prefix: prefix,
+      state: state,
+      agent: agent,
+      source_actor: actor,
+      target: nil,
+      authorized: false,
+      verified: false
+    }
+    |> identify_target()
+    |> verify_link()
+    |> authorize_call()
+    |> invoke()
   end
 
-  defp authorize(
-         actor,
-         binding,
-         namespace,
-         operation,
-         payload,
-         claims,
-         seed,
-         prefix,
-         provider_key,
-         state
+  defp identify_target(
+         token = %{
+           namespace: namespace,
+           binding: binding,
+           prefix: prefix
+         }
        ) do
-    if Enum.member?(claims.caps, namespace) do
-      {:ok, actor, binding, namespace, operation, payload, claims, seed, prefix, provider_key,
-       state}
-    else
-      {:error, "Actor unauthorized"}
+    target =
+      case HostCore.Providers.lookup_provider(namespace, binding) do
+        {:ok, provider_key} ->
+          {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
+
+        _ ->
+          if String.starts_with?(namespace, "M") && String.length(namespace) == 56 do
+            {:actor, namespace, "wasmbus.rpc.#{prefix}.#{namespace}"}
+          else
+            case lookup_call_alias(namespace) do
+              {:ok, actor_key} ->
+                {:actor, actor_key, "wasmbus.rpc.#{prefix}.#{actor_key}"}
+
+              :error ->
+                :unknown
+            end
+          end
+      end
+
+    %{token | target: target}
+  end
+
+  defp verify_link(token = %{target: :unknown}) do
+    %{token | verified: false}
+  end
+
+  defp verify_link(token = %{target: {:actor, _, _}}) do
+    %{token | verified: true}
+  end
+
+  defp verify_link(
+         token = %{
+           target: {:provider, _pk, _topic},
+           source_actor: actor,
+           namespace: namespace,
+           binding: binding
+         }
+       ) do
+    verified =
+      case HostCore.Linkdefs.Manager.lookup_link_definition(actor, namespace, binding) do
+        {:ok, _ld} -> true
+        _ -> false
+      end
+
+    %{token | verified: verified}
+  end
+
+  defp authorize_call(token = %{verified: false}) do
+    %{token | authorized: false}
+  end
+
+  defp authorize_call(token = %{target: {:actor, _pk, _topic}}) do
+    %{token | authorized: true}
+  end
+
+  defp authorize_call(
+         token = %{target: {:provider, _pk, _topic}, claims: claims, namespace: namespace}
+       ) do
+    %{token | authorized: Enum.member?(claims.caps, namespace)}
+  end
+
+  defp invoke(_token = %{authorized: false, agent: agent}) do
+    Agent.update(agent, fn state -> %State{state | host_error: "Invocation not authorized"} end)
+    0
+  end
+
+  defp invoke(
+         _token = %{
+           authorized: true,
+           agent: agent,
+           seed: seed,
+           source_actor: actor,
+           namespace: namespace,
+           binding: binding,
+           operation: operation,
+           payload: payload,
+           target: {target_type, target_key, target_subject}
+         }
+       ) do
+    invocation_res =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        actor,
+        target_type,
+        target_key,
+        namespace,
+        binding,
+        operation,
+        payload
+      )
+      |> do_invoke(target_subject)
+
+    case unpack_invocation_response(invocation_res) do
+      {1, :host_response, msg} ->
+        Agent.update(agent, fn state -> %State{state | host_response: msg} end)
+        1
+
+      {0, :host_error, error} ->
+        Agent.update(agent, fn state -> %State{state | host_error: error} end)
+        0
     end
   end
 
@@ -191,62 +262,7 @@ defmodule HostCore.WebAssembly.Imports do
     end
   end
 
-  defp finish_host_call({:error, reason}, agent) do
-    Agent.update(agent, fn state -> %State{state | host_error: reason} end)
-    0
-  end
-
-  defp finish_host_call(
-         {:ok, actor, binding, namespace, operation, payload, _claims, seed, prefix, provider_key,
-          state},
-         agent
-       ) do
-    invocation_res =
-      case determine_target(provider_key, actor, prefix, binding) do
-        # Unknown target automatically fails invocation
-        :unknown ->
-          :fail
-
-        {target_type, target_key, target_subject} ->
-          # Generate invocation and make RPC call
-          HostCore.WasmCloud.Native.generate_invocation_bytes(
-            seed,
-            actor,
-            target_type,
-            target_key,
-            namespace,
-            binding,
-            operation,
-            payload
-          )
-          |> invoke(target_subject)
-      end
-
-    case unpack_invocation_response(invocation_res) do
-      {1, :host_response, msg} ->
-        Agent.update(agent, fn _ -> %State{state | host_response: msg} end)
-        1
-
-      {0, :host_error, error} ->
-        Agent.update(agent, fn _ -> %State{state | host_error: error} end)
-        0
-    end
-  end
-
-  defp determine_target(provider_key, actor_key, prefix, binding) do
-    cond do
-      String.starts_with?(provider_key, "V") && String.length(provider_key) == 56 ->
-        {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
-
-      String.starts_with?(actor_key, "M") && String.length(actor_key) == 56 ->
-        {:actor, actor_key, "wasmbus.rpc.#{prefix}.#{actor_key}"}
-
-      true ->
-        :unknown
-    end
-  end
-
-  defp invoke(inv_bytes, target_subject) do
+  defp do_invoke(inv_bytes, target_subject) do
     # Perform RPC invocation over lattice
     case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
       {:ok, %{body: body}} -> body
