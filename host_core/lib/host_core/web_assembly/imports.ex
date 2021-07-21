@@ -2,6 +2,8 @@ defmodule HostCore.WebAssembly.Imports do
   require Logger
   alias HostCore.Actors.ActorModule.State
 
+  @wasmcloud_logging "wasmcloud:builtin:logging"
+
   def wapc_imports(agent) do
     %{
       __host_call:
@@ -217,7 +219,25 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp invoke(
          _token = %{
+           namespace: @wasmcloud_logging,
+           operation: operation,
+           payload: payload,
+           source_actor: actor
+         }
+       ) do
+    HostCore.Providers.Builtin.Logging.invoke(actor, operation, payload)
+    1
+  end
+
+  defp invoke(_token = %{verified: false, agent: agent}) do
+    Agent.update(agent, fn state -> %State{state | host_error: "Invocation not authorized"} end)
+    0
+  end
+
+  defp invoke(
+         _token = %{
            authorized: true,
+           verified: true,
            agent: agent,
            seed: seed,
            source_actor: actor,
@@ -239,7 +259,7 @@ defmodule HostCore.WebAssembly.Imports do
         operation,
         payload
       )
-      |> do_invoke(target_subject)
+      |> perform_rpc_invoke(target_subject)
 
     case unpack_invocation_response(invocation_res) do
       {1, :host_response, msg} ->
@@ -262,7 +282,7 @@ defmodule HostCore.WebAssembly.Imports do
     end
   end
 
-  defp do_invoke(inv_bytes, target_subject) do
+  defp perform_rpc_invoke(inv_bytes, target_subject) do
     # Perform RPC invocation over lattice
     case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
       {:ok, %{body: body}} -> body
