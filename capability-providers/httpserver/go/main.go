@@ -85,6 +85,7 @@ type HostData struct {
 	LatticeRPCURL      string            `json:"lattice_rpc_url"`
 	ProviderKey        string            `json:"provider_key"`
 	EnvValues          map[string]string `json:"env_values"`
+	InvocationSeed     string            `json:"invocation_seed"`
 }
 
 var (

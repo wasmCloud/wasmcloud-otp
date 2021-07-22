@@ -108,6 +108,7 @@ pub struct HostData {
     pub provider_key: String,
     #[serde(default)]
     pub env_values: HashMap<String, String>,
+    pub invocation_seed: String,
 }
 
 fn main() -> Result<()> {
@@ -117,8 +118,8 @@ fn main() -> Result<()> {
     let stdin = io::stdin();
     let mut handle = stdin.lock();
     let mut host_data_enc = String::new();
-    handle.read_to_string(&mut host_data_enc)?;
-    let host_data_dec = base64::decode(host_data_enc)?;
+    handle.read_line(&mut host_data_enc)?;
+    let host_data_dec = base64::decode(host_data_enc.trim_end())?;
     let host_data: HostData = serde_json::from_slice(&host_data_dec)?;
 
     let provider_key = host_data.provider_key;
