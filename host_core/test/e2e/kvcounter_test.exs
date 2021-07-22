@@ -156,7 +156,7 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
     IO.inspect(resp)
 
-    assert resp.body == "Guest call failed: Host error: Actor unauthorized\n"
+    assert resp.body == "Guest call failed: Host error: Invocation not authorized\n"
     assert resp.status_code == 500
   end
 end
