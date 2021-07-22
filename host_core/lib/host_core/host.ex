@@ -26,7 +26,7 @@ defmodule HostCore.Host do
   * `wasmbus.rpc.{prefix}.{public_key}` - Send invocations to an actor Invocation->InvocationResponse
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}` - Send invocations (from actors only) to Providers  Invocation->InvocationResponse
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.put` - Publish link definition (e.g. bind to an actor)
-  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.get` - Query all link defss for this provider. (queue subscribed)
+  * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.get` - Query all link defs for this provider. (queue subscribed)
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.del` - Remove a link def.
   * `wasmbus.rpc.{prefix}.claims.put` - Publish discovered claims
   * `wasmbus.rpc.{prefix}.claims.get` - Query all claims (queue subscribed by hosts)
@@ -47,7 +47,57 @@ defmodule HostCore.Host do
      %State{
        host_key: opts[:host_key],
        lattice_prefix: opts[:lattice_prefix]
-     }}
+     }, {:continue, :query_lattice_cache}}
+  end
+
+  @impl true
+  def handle_continue(:query_lattice_cache, state) do
+    Logger.debug("Querying lattice for cache...")
+
+    results =
+      ParallelTask.new()
+      |> ParallelTask.add(
+        claims: fn ->
+          HostCore.Claims.Manager.request_claims()
+        end
+      )
+      |> ParallelTask.add(
+        linkdefs: fn ->
+          HostCore.Linkdefs.Manager.request_link_definitions()
+        end
+      )
+      |> ParallelTask.add(
+        refmaps: fn ->
+          HostCore.Refmaps.Manager.request_refmaps()
+        end
+      )
+      |> ParallelTask.perform(3_000)
+
+    results.claims
+    |> Enum.map(fn claims ->
+      public_key = Map.get(claims, :sub)
+      HostCore.Claims.Manager.cache_claims(public_key, claims)
+      call_alias = Map.get(claims, :call_alias)
+      HostCore.Claims.Manager.cache_call_alias(call_alias, public_key)
+    end)
+
+    results.linkdefs
+    |> Enum.map(fn ld ->
+      HostCore.Linkdefs.Manager.cache_link_definition(
+        ld.actor_id,
+        ld.contract_id,
+        ld.link_name,
+        ld.provider_id,
+        ld.values
+      )
+    end)
+
+    results.refmaps
+    |> Enum.map(fn refmap ->
+      HostCore.Refmaps.Manager.cache_refmap(refmap.oci_url, refmap.public_key)
+    end)
+
+    {:noreply, state}
   end
 
   defp get_env_host_labels() do

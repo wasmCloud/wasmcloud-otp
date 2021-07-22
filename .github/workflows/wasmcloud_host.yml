@@ -170,8 +170,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: wasmcloud_host-v0.20.0-x86_64-linux-gnu
-          path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/0.20.0/x86_64-linux-gnu.tar.gz
+          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+          path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/${{ env.wasmcloud_host_version }}/x86_64-linux-gnu.tar.gz
 
   release-macos:
     name: Release MacOS Tarball
@@ -198,6 +198,9 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "14"
+
+      - name: Determine version
+        run: echo "wasmcloud_host_version=$(grep 'version:' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
 
       - name: Install erlang and elixir
         run: |
@@ -261,5 +264,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: wasmcloud_host-v0.20.0-x86_64-macos
-          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/0.20.0/wasmcloud_host.tar.gz
+          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-macos
+          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz

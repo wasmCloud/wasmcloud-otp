@@ -4,7 +4,7 @@ defmodule WasmcloudHost.MixProject do
   def project do
     [
       app: :wasmcloud_host,
-      version: "0.20.0",
+      version: "0.50.0",
       elixir: "~> 1.7",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: [:phoenix] ++ Mix.compilers(),
