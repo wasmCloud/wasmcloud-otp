@@ -63,6 +63,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
       [{pid, _val}] ->
         Logger.info("About to terminate child process")
         prefix = HostCore.Host.lattice_prefix()
+
         # Allow provider 2 seconds to respond/acknowledge termination request (give time to clean up resources)
         case Gnat.request(
                :lattice_nats,
@@ -73,6 +74,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
           {:ok, _msg} -> :ok
           {:error, :timeout} -> :error
         end
+
         # Pause for n milliseconds between shutdown request and forceful termination
         Process.sleep(HostCore.Host.provider_shutdown_delay())
         ProviderModule.halt(pid)
