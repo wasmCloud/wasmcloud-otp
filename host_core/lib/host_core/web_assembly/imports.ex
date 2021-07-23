@@ -3,6 +3,7 @@ defmodule HostCore.WebAssembly.Imports do
   alias HostCore.Actors.ActorModule.State
 
   @wasmcloud_logging "wasmcloud:builtin:logging"
+  @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
 
   def wapc_imports(agent) do
     %{
@@ -226,6 +227,19 @@ defmodule HostCore.WebAssembly.Imports do
          }
        ) do
     HostCore.Providers.Builtin.Logging.invoke(actor, operation, payload)
+    1
+  end
+
+  defp invoke(
+         _token = %{
+           namespace: @wasmcloud_numbergen,
+           operation: operation,
+           payload: payload,
+           agent: agent
+         }
+       ) do
+    res = HostCore.Providers.Builtin.Numbergen.invoke(operation, payload)
+    Agent.update(agent, fn state -> %State{state | host_response: res} end)
     1
   end
 
