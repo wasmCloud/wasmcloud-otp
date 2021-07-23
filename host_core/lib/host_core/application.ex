@@ -34,7 +34,9 @@ defmodule HostCore.Application do
           {:ctl_seed, "WASMCLOUD_CTL_SEED", default: ""},
           {:ctl_jwt, "WASMCLOUD_CTL_JWT", default: ""},
           {:cluster_seed, "WASMCLOUD_CLUSTER_SEED", default: def_cluster_seed},
-          {:cluster_issuers, "WASMCLOUD_CLUSTER_ISSUERS", default: def_cluster_key}
+          {:cluster_issuers, "WASMCLOUD_CLUSTER_ISSUERS", default: def_cluster_key},
+          {:provider_delay, "WASMCLOUD_PROV_SHUTDOWN_DELAY_MS",
+           default: 300, map: &String.to_integer/1}
         ]
       }
     ]
