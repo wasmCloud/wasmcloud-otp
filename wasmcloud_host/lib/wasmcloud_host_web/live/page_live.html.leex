@@ -93,7 +93,7 @@
             <use xlink:href="/coreui/free.svg#cil-basket"></use>
           </svg>
         </div>
-        <div class="text-value-lg"><%= Mix.Project.config()[:version] %></div>
+        <div class="text-value-lg"><%= Application.get_env(:wasmcloud_host, :app_version) %></div>
         <small class="text-muted text-uppercase font-weight-bold">wasmCloud Release</small>
         <div class="progress progress-white progress-xs mt-3">
           <%# <div class="progress-bar" role="progressbar" style="width: 75%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div> %>

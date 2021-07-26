@@ -1,10 +1,12 @@
 defmodule WasmcloudHost.MixProject do
   use Mix.Project
 
+  @app_vsn "0.50.0"
+
   def project do
     [
       app: :wasmcloud_host,
-      version: "0.50.0",
+      version: @app_vsn,
       elixir: "~> 1.7",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: [:phoenix] ++ Mix.compilers(),
@@ -20,7 +22,8 @@ defmodule WasmcloudHost.MixProject do
   def application do
     [
       mod: {WasmcloudHost.Application, []},
-      extra_applications: [:logger, :runtime_tools, :host_core]
+      extra_applications: [:logger, :runtime_tools, :host_core],
+      env: [app_version: @app_vsn]
     ]
   end
 
