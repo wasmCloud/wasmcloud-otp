@@ -228,6 +228,13 @@ defmodule HostCore.Host do
     end
   end
 
+  def provider_shutdown_delay() do
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:provider_delay]
+      _ -> 300
+    end
+  end
+
   def host_labels() do
     GenServer.call(__MODULE__, :get_labels)
   end
