@@ -12,7 +12,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  def start_executable_provider(path, public_key, link_name, contract_id, oci \\ "") do
+  defp start_executable_provider(path, public_key, link_name, contract_id, oci \\ "") do
     case Registry.count_match(Registry.ProviderRegistry, {public_key, link_name}, :_) do
       0 ->
         DynamicSupervisor.start_child(
@@ -25,31 +25,45 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  def start_executable_provider_from_oci(oci, link_name) do
-    case HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []) do
+  defp write_par_to_tmp(par) do
+    cache_path =
+      HostCore.WasmCloud.Native.par_cache_path(par.claims.public_key, par.claims.revision)
+
+    p = Path.split(cache_path)
+    tmpdir = p |> Enum.slice(0, length(p) - 1) |> Path.join()
+
+    with :ok <- File.mkdir_p(tmpdir),
+         :ok <- File.write(cache_path, par.target_bytes |> IO.iodata_to_binary()),
+         :ok <- File.chmod(cache_path, 0o755) do
+      {:ok, cache_path}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def start_provider_from_oci(oci, link_name) do
+    with {:ok, bytes} <- HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []),
+         par <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
+         {:ok, path} <- write_par_to_tmp(par) do
+      start_executable_provider(path, par.claims.public_key, link_name, par.contract_id, oci)
+    else
+      {:error, err} -> Logger.error("Error starting provider from OCI: #{err}")
+      _err -> Logger.error("Error starting provider from OCI")
+    end
+  end
+
+  def start_provider_from_file(path, link_name) do
+    with {:ok, bytes} <- File.read(path),
+         par <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
+         {:ok, tmp_path} <- write_par_to_tmp(par) do
+      start_executable_provider(tmp_path, par.claims.public_key, link_name, par.contract_id)
+    else
       {:error, err} ->
-        Logger.error("Failed to download OCI bytes for #{oci}")
-        {:stop, err}
+        Logger.error("Error starting provider from file: #{err}")
 
-      {:ok, bytes} ->
-        par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
-
-        cache_path =
-          HostCore.WasmCloud.Native.par_cache_path(par.claims.public_key, par.claims.revision)
-
-        p = Path.split(cache_path)
-        tmpdir = p |> Enum.slice(0, length(p) - 1) |> Path.join()
-        File.mkdir_p!(tmpdir)
-        File.write!(cache_path, par.target_bytes |> IO.iodata_to_binary())
-        File.chmod(cache_path, 0o755)
-
-        start_executable_provider(
-          cache_path,
-          par.claims.public_key,
-          link_name,
-          par.contract_id,
-          oci
-        )
+      err ->
+        Logger.error("Error starting provider from file")
+        err
     end
   end
 
