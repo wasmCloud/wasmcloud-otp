@@ -23,7 +23,7 @@ defmodule HostCore.ActorsTest do
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
 
     on_exit(fn ->
-      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
+      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_oci_key, 1)
     end)
 
     assert :error == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
@@ -35,7 +35,7 @@ defmodule HostCore.ActorsTest do
     assert :ok == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
 
     on_exit(fn ->
-      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
+      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_oci_key, 1)
     end)
 
     {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
