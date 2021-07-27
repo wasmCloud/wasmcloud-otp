@@ -56,7 +56,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def live_update(pid, bytes, claims) do
-    GenServer.call(pid, {:live_update, bytes, claims}, 30_000)
+    GenServer.call(pid, {:live_update, bytes, claims}, @thirty_seconds)
   end
 
   @impl true
@@ -65,7 +65,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def handle_call({:live_update, bytes, claims}, _from, agent) do
-    Logger.info("Actor #{claims.public_key} performing live update")
+    Logger.debug("Actor #{claims.public_key} performing live update")
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
@@ -92,7 +92,7 @@ defmodule HostCore.Actors.ActorModule do
     Wasmex.call_function(instance, :wapc_init, [])
 
     publish_actor_updated(claims.public_key, claims.revision)
-    Logger.info("Actor #{claims.public_key} updated")
+    Logger.debug("Actor #{claims.public_key} updated")
     {:reply, :ok, agent}
   end
 
