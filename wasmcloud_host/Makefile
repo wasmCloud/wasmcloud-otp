@@ -1,4 +1,4 @@
-.PHONY: help
+.PHONY: help deps
 
 NAME ?= `grep 'app:' ./wasmcloud_host/mix.exs | sed -e 's/\[//g' -e 's/ //g' -e 's/app://' -e 's/[:,]//g'`
 VERSION ?= `grep 'version:' ./wasmcloud_host/mix.exs | cut -d '"' -f2`
