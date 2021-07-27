@@ -76,10 +76,13 @@ fn get_oci_bytes(
     oci_ref: String,
     allow_latest: bool,
     allowed_insecure: Vec<String>,
-) -> Result<Vec<u8>, Error> {
-    task::TOKIO
-        .block_on(async { oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await })
-        .map_err(|_e| rustler::Error::Term(Box::new("Failed to fetch OCI bytes")))
+) -> Result<(Atom, Vec<u8>), Error> {
+    task::TOKIO.block_on(async {
+        match oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await {
+            Ok(b) => Ok((atoms::ok(), b)),
+            Err(_e) => Err(rustler::Error::Term(Box::new("Failed to fetch OCI bytes"))),
+        }
+    })
 }
 
 #[rustler::nif]
@@ -104,7 +107,7 @@ fn par_cache_path(subject: String, rev: u32) -> Result<String, Error> {
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
 /// in the form of a simple struct that will bubble its way up to Elixir as a native struct
 #[rustler::nif]
-fn extract_claims(binary: Binary) -> Result<Claims, Error> {
+fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
     let bytes = binary.as_slice();
 
     let extracted = match wasm::extract_claims(&bytes) {
@@ -144,7 +147,7 @@ fn extract_claims(binary: Binary) -> Result<Claims, Error> {
         tags: m.tags,
     };
 
-    Ok(out)
+    Ok((atoms::ok(), out))
 }
 
 #[rustler::nif]

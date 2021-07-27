@@ -354,7 +354,9 @@ mod test {
             .is_err());
 
         // Assert that it fails if the invocation wasn't issued by a valid issuer
-        assert!(inv.validate_antiforgery(vec!["NOTGOINGTOWORK".to_string()]).is_err());
+        assert!(inv
+            .validate_antiforgery(vec!["NOTGOINGTOWORK".to_string()])
+            .is_err());
 
         // And just to double-check the routing address
         assert_eq!(

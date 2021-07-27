@@ -23,7 +23,7 @@ defmodule HostCore.Actors.ActorSupervisor do
         Logger.error("Failed to extract claims from WebAssembly module")
         {:stop, err}
 
-      claims ->
+      {:ok, claims} ->
         DynamicSupervisor.start_child(
           __MODULE__,
           {HostCore.Actors.ActorModule, {claims, bytes, oci}}
@@ -38,8 +38,41 @@ defmodule HostCore.Actors.ActorSupervisor do
         Logger.error("Failed to download OCI bytes for #{oci}")
         {:stop, err}
 
-      bytes ->
+      {:ok, bytes} ->
         start_actor(bytes |> IO.iodata_to_binary(), oci)
+    end
+  end
+
+  def live_update(oci) do
+    with {:ok, bytes} <- HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []),
+         {:ok, new_claims} <-
+           HostCore.WasmCloud.Native.extract_claims(bytes |> IO.iodata_to_binary()),
+         {:ok, old_claims} <- HostCore.Claims.Manager.lookup_claims(new_claims.public_key),
+         :ok <- validate_actor_for_update(old_claims, new_claims) do
+      HostCore.Claims.Manager.put_claims(new_claims)
+      HostCore.Refmaps.Manager.put_refmap(oci, new_claims.public_key)
+      targets = find_actor(new_claims.public_key)
+      Logger.info("Performing live update on #{length(targets)} instances")
+
+      targets
+      |> Enum.each(fn pid ->
+        HostCore.Actors.ActorModule.live_update(pid, bytes |> IO.iodata_to_binary(), new_claims)
+      end)
+
+      :ok
+    else
+      _err -> :error
+    end
+  end
+
+  defp validate_actor_for_update({_pk, old_claims}, new_claims) do
+    {old_rev, _} = Integer.parse(old_claims.rev)
+    new_rev = new_claims.revision
+
+    if new_rev > old_rev do
+      :ok
+    else
+      :error
     end
   end
 

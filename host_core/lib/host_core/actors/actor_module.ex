@@ -55,9 +55,45 @@ defmodule HostCore.Actors.ActorModule do
     GenServer.call(pid, :health_check)
   end
 
+  def live_update(pid, bytes, claims) do
+    GenServer.call(pid, {:live_update, bytes, claims}, @thirty_seconds)
+  end
+
   @impl true
   def init({claims, bytes, oci}) do
     start_actor(claims, bytes, oci)
+  end
+
+  def handle_call({:live_update, bytes, claims}, _from, agent) do
+    Logger.debug("Actor #{claims.public_key} performing live update")
+
+    imports = %{
+      wapc: Imports.wapc_imports(agent),
+      wasmbus: Imports.wasmbus_imports(agent)
+    }
+
+    # shut down the previous Wasmex instance to avoid orphaning it
+    old_instance = Agent.get(agent, fn content -> content.instance end)
+    GenServer.stop(old_instance, :normal)
+
+    {:ok, instance} = Wasmex.start_link(%{bytes: bytes, imports: imports})
+
+    api_version =
+      case Wasmex.call_function(instance, :__wasmbus_rpc_version, []) do
+        {:ok, [v]} -> v
+        _ -> 0
+      end
+
+    Agent.update(agent, fn state ->
+      %State{state | claims: claims, api_version: api_version, instance: instance}
+    end)
+
+    Wasmex.call_function(instance, :start, [])
+    Wasmex.call_function(instance, :wapc_init, [])
+
+    publish_actor_updated(claims.public_key, claims.revision)
+    Logger.debug("Actor #{claims.public_key} updated")
+    {:reply, :ok, agent}
   end
 
   def handle_call(:get_api_ver, _from, agent) do
@@ -237,15 +273,15 @@ defmodule HostCore.Actors.ActorModule do
     {:ok, agent}
   end
 
-  defp publish_oci_map("", _pk) do
+  def publish_oci_map("", _pk) do
     # No Op
   end
 
-  defp publish_oci_map(nil, _pk) do
+  def publish_oci_map(nil, _pk) do
     # No Op
   end
 
-  defp publish_oci_map(oci, pk) do
+  def publish_oci_map(oci, pk) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
@@ -269,6 +305,21 @@ defmodule HostCore.Actors.ActorModule do
         api_version: api_version
       }
       |> CloudEvent.new("actor_started")
+
+    topic = "wasmbus.evt.#{prefix}"
+
+    Gnat.pub(:control_nats, topic, msg)
+  end
+
+  def publish_actor_updated(actor_pk, revision) do
+    prefix = HostCore.Host.lattice_prefix()
+
+    msg =
+      %{
+        public_key: actor_pk,
+        revision: revision
+      }
+      |> CloudEvent.new("actor_updated")
 
     topic = "wasmbus.evt.#{prefix}"
 
