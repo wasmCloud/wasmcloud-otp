@@ -157,11 +157,18 @@ defmodule HostCore.ControlInterface.Server do
   end
 
   # Update Actor
+  # input: %{"new_actor_ref" => "... oci URL ..."} , public key, etc needs to match a running actor
   defp handle_request({"cmd", host_id, "upd"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
-      _update_actor_command = Jason.decode!(body)
+      update_actor_command = Jason.decode!(body)
 
-      # TODO - live updates for actors is not implemented yet
+      response =
+        case HostCore.Actors.ActorSupervisor.live_update(update_actor_command["new_actor_ref"]) do
+          :ok -> Jason.encode!(%{accepted: true})
+          :error -> Jason.encode!(%{accepted: false})
+        end
+
+      {:reply, response}
     end
   end
 

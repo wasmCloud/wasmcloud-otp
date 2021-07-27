@@ -9,8 +9,8 @@ defmodule HostCore.WasmCloud.NativeTest do
   use ExUnit.Case, async: false
 
   test "retrieves provider archive from OCI image" do
-    bytes =
-      HostCore.WasmCloud.Native.get_oci_bytes(@httpserver_oci, false, []) |> IO.iodata_to_binary()
+    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(@httpserver_oci, false, [])
+    bytes = bytes |> IO.iodata_to_binary()
 
     par = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
 

@@ -31,7 +31,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
         Logger.error("Failed to download OCI bytes for #{oci}")
         {:stop, err}
 
-      bytes ->
+      {:ok, bytes} ->
         par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
 
         cache_path =

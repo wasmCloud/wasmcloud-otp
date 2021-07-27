@@ -16,7 +16,74 @@ defmodule HostCore.ActorsTest do
   @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
   @httpserver_link "default"
   @httpserver_contract "wasmcloud:httpserver"
+  @echo_old_oci_reference "wasmcloud.azurecr.io/echo:0.2.0"
   @echo_oci_reference "wasmcloud.azurecr.io/echo:0.2.1"
+
+  test "live update same revision fails" do
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
+
+    on_exit(fn ->
+      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
+    end)
+
+    assert :error == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
+  end
+
+  test "live update with new revision succeeds" do
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_old_oci_reference)
+
+    assert :ok == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
+
+    on_exit(fn ->
+      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
+    end)
+
+    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+
+    req =
+      %{
+        body: "hello",
+        header: %{},
+        path: "/",
+        queryString: "",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HandleRequest",
+        req
+      )
+
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_oci_key}"
+
+    res =
+      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+        {:ok, %{body: body}} -> body
+        {:error, :timeout} -> :fail
+      end
+
+    assert res != :fail
+
+    ir = res |> Msgpax.unpack!()
+
+    payload = ir["msg"] |> Msgpax.unpack!()
+
+    assert payload["header"] == %{}
+    assert payload["status"] == "OK"
+    assert payload["statusCode"] == 200
+
+    assert payload["body"] ==
+             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+  end
 
   test "can load actors" do
     {:ok, bytes} = File.read("priv/actors/kvcounter_s.wasm")
@@ -41,7 +108,7 @@ defmodule HostCore.ActorsTest do
     {:ok, bytes} = File.read("priv/actors/echo_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
-    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
     req =
       %{
@@ -99,7 +166,7 @@ defmodule HostCore.ActorsTest do
 
     assert actor_count == 1
 
-    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
     req =
       %{

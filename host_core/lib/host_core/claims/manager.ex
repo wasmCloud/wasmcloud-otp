@@ -14,7 +14,7 @@ defmodule HostCore.Claims.Manager do
 
   def lookup_claims(public_key) do
     case :ets.lookup(:claims_table, public_key) do
-      [ld] -> {:ok, ld}
+      [c] -> {:ok, c}
       [] -> :error
     end
   end
