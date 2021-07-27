@@ -5,11 +5,11 @@
       <div class="card-body">
         <div class="text-muted text-right mb-4">
           <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-user-follow"></use>
+            <use xlink:href="/coreui/free.svg#cil-data-transfer-down"></use>
           </svg>
         </div>
-        <div class="text-value-lg"><%= {{:input, num}, _out} = :erlang.statistics(:io); num%></div>
-        <small class="text-muted text-uppercase font-weight-bold">input bytes received</small>
+        <div class="text-value-lg"><%= {{:input, num}, _out} = :erlang.statistics(:io); num / 1_000_000 |> Float.round(2)%> MB</div>
+        <small class="text-muted text-uppercase font-weight-bold">Input</small>
       </div>
     </div>
   </div>
@@ -19,24 +19,24 @@
       <div class="card-body">
         <div class="text-muted text-right mb-4">
           <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-people"></use>
+            <use xlink:href="/coreui/free.svg#cil-data-transfer-up"></use>
           </svg>
         </div>
-        <div class="text-value-lg"><%= {_input, {:output, num}} = :erlang.statistics(:io); num%></div>
-        <small class="text-muted text-uppercase font-weight-bold">Output bytes sent</small>
+        <div class="text-value-lg"><%= {_input, {:output, num}} = :erlang.statistics(:io); num / 1_000_000 |> Float.round(2)%> MB</div>
+        <small class="text-muted text-uppercase font-weight-bold">Output</small>
       </div>
     </div>
   </div>
   <!-- /.col-->
   <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-primary">
+    <div class="card text-white bg-gradient-warning">
       <div class="card-body">
         <div class="text-muted text-right mb-4">
           <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-chart-pie"></use>
+            <use xlink:href="/coreui/free.svg#cil-vector"></use>
           </svg>
         </div>
-        <div class="text-value-lg"><%= :erlang.system_info(:process_count) %></div>
+        <div class="text-value-lg"><%= processes = :erlang.system_info(:process_count); processes %></div>
         <small class="text-muted text-uppercase font-weight-bold">Running Processes</small>
       </div>
     </div>
@@ -47,21 +47,31 @@
       <div class="card-body">
         <div class="text-muted text-right mb-4">
           <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-speedometer"></use>
+            <use xlink:href="/coreui/free.svg#cil-clock"></use>
           </svg>
         </div>
-        <div class="text-value-lg"><%= {time, _since_last} = :erlang.statistics(:wall_clock); time %></div>
-        <small class="text-muted text-uppercase font-weight-bold">Uptime (ms)</small>
+        <div class="text-value-lg">
+          <%= {time, _since_last} = :erlang.statistics(:wall_clock)
+          seconds = round(time / 1_000)
+          minutes = floor(seconds / 60)
+
+          seconds = rem(seconds, 60)
+          hours = floor(minutes / 60)
+          minutes = rem(minutes, 60)
+          "#{hours}H #{minutes}M #{seconds}S"
+        %>
+        </div>
+        <small class="text-muted text-uppercase font-weight-bold">Host Uptime</small>
       </div>
     </div>
   </div>
   <!-- /.col-->
   <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-info">
+    <div class="card text-white bg-gradient-primary">
       <div class="card-body">
         <div class="text-muted text-right mb-4">
           <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-speech"></use>
+            <use xlink:href="/coreui/free.svg#cil-screen-desktop"></use>
           </svg>
         </div>
         <div class="text-value-lg"><%= :erlang.system_info(:otp_release) %></div>
@@ -71,12 +81,10 @@
   </div>
   <!-- /.col-->
   <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-warning">
+    <div class="card text-white bg-gradient-success">
       <div class="card-body">
         <div class="text-muted text-right mb-4">
-          <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-basket"></use>
-          </svg>
+          <img class="c-icon c-icon-2xl" src="/images/wasmcloud_inversed_square.png" alt="wasmCloud logo">
         </div>
         <div class="text-value-lg"><%= Application.get_env(:wasmcloud_host, :app_version) %></div>
         <small class="text-muted text-uppercase font-weight-bold">wasmCloud Release</small>
