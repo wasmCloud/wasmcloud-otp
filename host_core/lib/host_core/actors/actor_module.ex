@@ -17,6 +17,7 @@ defmodule HostCore.Actors.ActorModule do
       :guest_error,
       :host_error,
       :instance,
+      :instance_id,
       :api_version,
       :invocation,
       :claims,
@@ -45,6 +46,10 @@ defmodule HostCore.Actors.ActorModule do
 
   def claims(pid) do
     GenServer.call(pid, :get_claims)
+  end
+
+  def instance_id(pid) do
+    GenServer.call(pid, :get_instance_id)
   end
 
   def halt(pid) do
@@ -76,6 +81,8 @@ defmodule HostCore.Actors.ActorModule do
     old_instance = Agent.get(agent, fn content -> content.instance end)
     GenServer.stop(old_instance, :normal)
 
+    instance_id = Agent.get(agent, fn content -> content.instance_id end)
+
     {:ok, instance} = Wasmex.start_link(%{bytes: bytes, imports: imports})
 
     api_version =
@@ -91,7 +98,7 @@ defmodule HostCore.Actors.ActorModule do
     Wasmex.call_function(instance, :start, [])
     Wasmex.call_function(instance, :wapc_init, [])
 
-    publish_actor_updated(claims.public_key, claims.revision)
+    publish_actor_updated(claims.public_key, claims.revision, instance_id)
     Logger.debug("Actor #{claims.public_key} updated")
     {:reply, :ok, agent}
   end
@@ -102,6 +109,10 @@ defmodule HostCore.Actors.ActorModule do
 
   def handle_call(:get_claims, _from, agent) do
     {:reply, Agent.get(agent, fn content -> content.claims end), agent}
+  end
+
+  def handle_call(:get_instance_id, _from, agent) do
+    {:reply, Agent.get(agent, fn content -> content.instance_id end), agent}
   end
 
   @impl true
@@ -120,8 +131,11 @@ defmodule HostCore.Actors.ActorModule do
     # Add cleanup if necessary here...
     Logger.info("Actor instance termination requested")
     subscription = Agent.get(agent, fn content -> content.subscription end)
+    public_key = Agent.get(agent, fn content -> content.claims.public_key end)
+    instance_id = Agent.get(agent, fn content -> content.instance_id end)
 
     Gnat.unsub(:lattice_nats, subscription)
+    publish_actor_stopped(public_key, instance_id)
 
     {:stop, :normal, :ok, agent}
   end
@@ -144,6 +158,7 @@ defmodule HostCore.Actors.ActorModule do
         agent
       ) do
     Logger.info("Received invocation on #{topic}")
+    iid = Agent.get(agent, fn content -> content.instance_id end)
     # TODO - handle failure
     {:ok, inv} = Msgpax.unpack(body)
     # TODO - perform antiforgery check
@@ -153,14 +168,16 @@ defmodule HostCore.Actors.ActorModule do
         {:ok, response} ->
           %{
             msg: response,
-            invocation_id: inv["id"]
+            invocation_id: inv["id"],
+            instance_id: iid
           }
 
         {:error, error} ->
           %{
             msg: nil,
             error: error,
-            invocation_id: inv["id"]
+            invocation_id: inv["id"],
+            instance_id: iid
           }
       end
 
@@ -173,7 +190,7 @@ defmodule HostCore.Actors.ActorModule do
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.Claims.Manager.put_claims(claims)
 
-    {:ok, agent} = Agent.start_link(fn -> %State{claims: claims} end)
+    {:ok, agent} = Agent.start_link(fn -> %State{claims: claims, instance_id: UUID.uuid4()} end)
 
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
@@ -262,6 +279,7 @@ defmodule HostCore.Actors.ActorModule do
       end
 
     claims = Agent.get(agent, fn content -> content.claims end)
+    instance_id = Agent.get(agent, fn content -> content.instance_id end)
     Wasmex.call_function(instance, :start, [])
     Wasmex.call_function(instance, :wapc_init, [])
 
@@ -269,7 +287,7 @@ defmodule HostCore.Actors.ActorModule do
       %State{content | api_version: api_version, instance: instance}
     end)
 
-    publish_actor_started(claims.public_key, api_version)
+    publish_actor_started(claims.public_key, api_version, instance_id)
     {:ok, agent}
   end
 
@@ -296,13 +314,14 @@ defmodule HostCore.Actors.ActorModule do
     Gnat.pub(:lattice_nats, topic, msg)
   end
 
-  def publish_actor_started(actor_pk, api_version) do
+  def publish_actor_started(actor_pk, api_version, instance_id) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: actor_pk,
-        api_version: api_version
+        api_version: api_version,
+        instance_id: instance_id
       }
       |> CloudEvent.new("actor_started")
 
@@ -311,13 +330,14 @@ defmodule HostCore.Actors.ActorModule do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  def publish_actor_updated(actor_pk, revision) do
+  def publish_actor_updated(actor_pk, revision, instance_id) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: actor_pk,
-        revision: revision
+        revision: revision,
+        instance_id: instance_id
       }
       |> CloudEvent.new("actor_updated")
 
@@ -326,13 +346,13 @@ defmodule HostCore.Actors.ActorModule do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  def publish_actor_stopped(actor_pk, remaining_count) do
+  def publish_actor_stopped(actor_pk, instance_id) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: actor_pk,
-        running_instances: remaining_count
+        instance_id: instance_id
       }
       |> CloudEvent.new("actor_stopped")
 
@@ -344,10 +364,12 @@ defmodule HostCore.Actors.ActorModule do
   defp publish_check_passed(agent) do
     prefix = HostCore.Host.lattice_prefix()
     claims = Agent.get(agent, fn content -> content.claims end)
+    iid = Agent.get(agent, fn content -> content.instance_id end)
 
     msg =
       %{
-        public_key: claims.public_key
+        public_key: claims.public_key,
+        instance_id: iid
       }
       |> CloudEvent.new("health_check_passed")
 
@@ -359,12 +381,13 @@ defmodule HostCore.Actors.ActorModule do
 
   defp publish_check_failed(agent, reason) do
     prefix = HostCore.Host.lattice_prefix()
-
     claims = Agent.get(agent, fn content -> content.claims end)
+    iid = Agent.get(agent, fn content -> content.instance_id end)
 
     msg =
       %{
         public_key: claims.public_key,
+        instance_id: iid,
         reason: reason
       }
       |> CloudEvent.new("health_check_failed")

@@ -23,9 +23,8 @@ defmodule HostCore.ProvidersTest do
 
     Process.sleep(1000)
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == [
-             {@httpserver_key, @httpserver_link, @httpserver_contract}
-           ]
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+             @httpserver_key
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
 
@@ -48,9 +47,8 @@ defmodule HostCore.ProvidersTest do
 
     Process.sleep(1000)
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == [
-             {@httpserver_key, @httpserver_link, @httpserver_contract}
-           ]
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+             @httpserver_key
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
 
@@ -76,9 +74,8 @@ defmodule HostCore.ProvidersTest do
     # give provider a moment to load
     Process.sleep(1000)
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == [
-             {@httpserver_key, @httpserver_link, @httpserver_contract}
-           ]
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+             @httpserver_key
 
     {:error, reason} =
       HostCore.Providers.ProviderSupervisor.start_executable_provider(
@@ -90,9 +87,8 @@ defmodule HostCore.ProvidersTest do
 
     assert reason == "Provider is already running on this host"
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == [
-             {@httpserver_key, @httpserver_link, @httpserver_contract}
-           ]
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+             @httpserver_key
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
 

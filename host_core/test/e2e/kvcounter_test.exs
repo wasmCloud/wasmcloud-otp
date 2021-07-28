@@ -53,10 +53,9 @@ defmodule HostCore.E2E.KVCounterTest do
 
     assert actor_count == 1
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == [
-             {@httpserver_key, @httpserver_link, @httpserver_contract},
-             {@redis_key, @redis_link, @redis_contract}
-           ]
+    ap = HostCore.Providers.ProviderSupervisor.all_providers()
+    assert elem(Enum.at(ap, 0), 0) == @httpserver_key
+    assert elem(Enum.at(ap, 1), 0) == @redis_key
 
     Process.sleep(2000)
 
@@ -125,10 +124,9 @@ defmodule HostCore.E2E.KVCounterTest do
 
     assert actor_count == 1
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == [
-             {@httpserver_key, @httpserver_link, @httpserver_contract},
-             {@redis_key, @redis_link, @redis_contract}
-           ]
+    ap = HostCore.Providers.ProviderSupervisor.all_providers()
+    assert elem(Enum.at(ap, 0), 0) == @httpserver_key
+    assert elem(Enum.at(ap, 1), 0) == @redis_key
 
     Process.sleep(2000)
 

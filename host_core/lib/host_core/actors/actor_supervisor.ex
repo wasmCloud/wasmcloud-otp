@@ -93,18 +93,17 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def terminate_actor(public_key, count) when count > 0 do
-    precount = Supervisor.which_children(HostCore.Actors.ActorSupervisor) |> length
-
     children =
       Registry.lookup(Registry.ActorRegistry, public_key)
       |> Enum.take(count)
       |> Enum.map(fn {pid, _v} -> pid end)
 
-    remaining = max(precount - count, 0)
     children |> Enum.each(fn pid -> ActorModule.halt(pid) end)
 
-    HostCore.Actors.ActorModule.publish_actor_stopped(public_key, remaining)
+    {:ok}
+  end
 
+  def terminate_actor(_public_key, 0) do
     {:ok}
   end
 

@@ -33,9 +33,8 @@ defmodule HostCore.E2E.EchoTest do
 
     assert actor_count == 1
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == [
-             {@httpserver_key, @httpserver_link, @httpserver_contract}
-           ]
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+             @httpserver_key
 
     Process.sleep(1000)
 
