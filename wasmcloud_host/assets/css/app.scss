@@ -12,15 +12,15 @@
   transition: opacity 1s ease-out;
 }
 
-.phx-disconnected{
+.phx-disconnected {
   cursor: wait;
 }
-.phx-disconnected *{
+.phx-disconnected * {
   pointer-events: none;
 }
 
 .phx-modal {
-  opacity: 1!important;
+  opacity: 1 !important;
   position: fixed;
   z-index: 1;
   left: 0;
@@ -28,8 +28,8 @@
   width: 100%;
   height: 100%;
   overflow: auto;
-  background-color: rgb(0,0,0);
-  background-color: rgba(0,0,0,0.4);
+  background-color: rgb(0, 0, 0);
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
 .phx-modal-content {
@@ -53,7 +53,6 @@
   text-decoration: none;
   cursor: pointer;
 }
-
 
 /* Alerts and form errors */
 .alert {
@@ -87,4 +86,30 @@
   color: #a94442;
   display: block;
   margin: -1rem 0 2rem;
+}
+
+/*
+Custom modal styles that don't hide when page is re-rendered
+*/
+.phoenix-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1050;
+  display: none;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  outline: 0;
+}
+
+.phoenix-modal-open {
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: block;
+}
+
+// Hide backdrop behind content when not shown
+#phoenix-modal-backdrop:not(.show) {
+  height: 0;
 }

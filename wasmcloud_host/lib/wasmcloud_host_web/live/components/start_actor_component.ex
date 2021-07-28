@@ -40,7 +40,7 @@ defmodule StartActorComponent do
   end
 
   def render(assigns) do
-    submit_action =
+    modal_id =
       if assigns.id == :start_actor_file_modal do
         "start_actor_file"
       else
@@ -48,7 +48,7 @@ defmodule StartActorComponent do
       end
 
     ~L"""
-    <form class="form-horizontal" phx-submit="<%= submit_action %>" phx-change="validate" phx-target="<%= @myself %>">
+    <form class="form-horizontal" phx-submit="<%= modal_id %>" phx-change="validate" phx-target="<%= @myself %>">
       <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
       <%= if assigns.id == :start_actor_file_modal do %>
       <div class="form-group row" phx-drop-target="<%= @uploads.actor.ref %>">
@@ -73,9 +73,8 @@ defmodule StartActorComponent do
         </div>
       </div>
       <div class="modal-footer">
-        <button id="close_modal-<%= @id %>" class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
-        <!-- onClick event closes modal -->
-        <button class="btn btn-primary" type="submit" onClick="document.getElementById('close_modal-<%= @id %>').click()">Submit</button>
+        <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
+        <button class="btn btn-primary" type="submit" phx-click="hide_modal">Submit</button>
       </div>
     </form>
     """

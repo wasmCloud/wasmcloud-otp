@@ -106,8 +106,8 @@
             <div class="dropdown d-inline-block">
               <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <button class="dropdown-item" data-toggle="modal" data-target="#start_actor_file">From File</button>
-                <button class="dropdown-item" data-toggle="modal" data-target="#start_actor_oci">From Registry</button>
+                <button class="dropdown-item" phx-click="show_modal" phx-value-modal="start_actor_file">From File</button>
+                <button class="dropdown-item" phx-click="show_modal" phx-value-modal="start_actor_ociref">From Registry</button>
               </div>
             </div>
           </div>
@@ -152,8 +152,8 @@
             <div class="dropdown d-inline-block">
               <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <button class="dropdown-item" data-toggle="modal" data-target="#start_provider_file">From File</button>
-                <button class="dropdown-item" data-toggle="modal" data-target="#start_provider_oci">From Registry</button>
+                <button class="dropdown-item" phx-click="show_modal" phx-value-modal="start_provider_file">From File</button>
+                <button class="dropdown-item" phx-click="show_modal" phx-value-modal="start_provider_ociref">From Registry</button>
               </div>
             </div>
           </div>
@@ -199,7 +199,7 @@
           </div>
           <div class="mfe-2">
             <div class="dropdown d-inline-block">
-              <button class="btn btn-secondary" type="button" data-toggle="modal" data-target="#define_link" aria-haspopup="true" aria-expanded="false">
+              <button class="btn btn-secondary" type="button" phx-click="show_modal" phx-value-modal="define_link" aria-haspopup="true" aria-expanded="false">
                 Define Link
                 <svg class="c-icon c-icon-sm">
                   <use xlink:href="/coreui/free.svg#cil-link"></use>
@@ -229,72 +229,4 @@
     </div>
   </div>
   <!-- /.col-->
-</div>
-<%# Start actor modal (One for file, one for OCI) %>
-<div class="modal fade" id="start_actor_file" tabindex="-1" role="dialog" aria-labelledby="start_actor_file_modal" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 class="modal-title">Start actor from file</h4>
-        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-      </div>
-      <div class="modal-body">
-        <%= live_component StartActorComponent, id: :start_actor_file_modal %>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="modal fade" id="start_actor_oci" tabindex="-1" role="dialog" aria-labelledby="start_actor_oci_modal" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 class="modal-title">Start actor from OCI registry</h4>
-        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-      </div>
-      <div class="modal-body">
-        <%= live_component StartActorComponent, id: :start_actor_oci_modal %>
-      </div>
-    </div>
-  </div>
-</div>
-<%# Start provider modal (One for file, one for OCI) %>
-<div class="modal fade" id="start_provider_file" tabindex="-1" role="dialog" aria-labelledby="start_provider_file_modal" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 class="modal-title">Start provider from file</h4>
-        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-      </div>
-      <div class="modal-body">
-        <%= live_component StartProviderComponent, id: :start_provider_file_modal %>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="modal fade" id="start_provider_oci" tabindex="-1" role="dialog" aria-labelledby="start_provider_oci_modal" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 class="modal-title">Start provider from registry</h4>
-        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-      </div>
-      <div class="modal-body">
-        <%= live_component StartProviderComponent, id: :start_provider_oci_modal %>
-      </div>
-    </div>
-  </div>
-</div>
-<%# Define link modal %>
-<div class="modal fade" id="define_link" tabindex="-1" role="dialog" aria-labelledby="define_link_modal" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 class="modal-title">Define link</h4>
-        <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-      </div>
-      <div class="modal-body">
-        <%= live_component DefineLinkComponent, id: :define_link_modal, actors: @actors, providers: @providers, claims: @claims %>
-      </div>
-    </div>
-  </div>
 </div>

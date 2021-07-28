@@ -110,9 +110,8 @@ defmodule StartProviderComponent do
         </div>
       </div>
       <div class="modal-footer">
-        <button id="close_modal-<%= @id %>" class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
-        <!-- onClick event closes modal -->
-        <button class="btn btn-primary" type="submit" onClick="document.getElementById('close_modal-<%= @id %>').click()">Submit</button>
+        <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
+        <button class="btn btn-primary" type="submit" phx-click="hide_modal">Submit</button>
       </div>
     </form>
     """
