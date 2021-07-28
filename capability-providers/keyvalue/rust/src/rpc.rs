@@ -23,16 +23,32 @@ use crate::generated::*;
 
 type OpResult = Result<InvocationResponse, Box<dyn Error + Send + Sync>>;
 
-pub(crate) fn handle_rpc(inv: Invocation) -> InvocationResponse {
+pub(crate) fn handle_rpc(inv: Invocation, instance_id: String) -> InvocationResponse {
     // We can assume all origins of calls coming to this provider
     // are from actors
-    match dispatch_operation(&inv.id, &inv.operation, &inv.origin.public_key, &inv.msg) {
+    match dispatch_operation(
+        &instance_id,
+        &inv.id,
+        &inv.operation,
+        &inv.origin.public_key,
+        &inv.msg,
+    ) {
         Ok(v) => v,
-        Err(e) => InvocationResponse::failure(&inv, &format!("{}", e)),
+        Err(e) => {
+            let mut f = InvocationResponse::failure(&inv, &format!("{}", e));
+            f.instance_id = instance_id.to_string();
+            f
+        }
     }
 }
 
-fn dispatch_operation(inv_id: &str, op: &str, actor: &str, bytes: &[u8]) -> OpResult {
+fn dispatch_operation(
+    instance_id: &str,
+    inv_id: &str,
+    op: &str,
+    actor: &str,
+    bytes: &[u8],
+) -> OpResult {
     let mut conn = actor_con(actor)?;
     let inv = match op {
         OP_ADD => add(&mut conn, deserialize(bytes)?),
@@ -53,6 +69,7 @@ fn dispatch_operation(inv_id: &str, op: &str, actor: &str, bytes: &[u8]) -> OpRe
     }?;
     Ok(InvocationResponse {
         invocation_id: inv_id.to_string(),
+        instance_id: instance_id.to_string(),
         ..inv
     })
 }
