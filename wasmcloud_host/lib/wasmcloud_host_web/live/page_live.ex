@@ -5,6 +5,7 @@ defmodule WasmcloudHostWeb.PageLive do
   @impl true
   def mount(_params, _session, socket) do
     WasmcloudHostWeb.Endpoint.subscribe("lattice:state")
+    WasmcloudHostWeb.Endpoint.subscribe("frontend")
 
     {:ok,
      socket
@@ -13,7 +14,8 @@ defmodule WasmcloudHostWeb.PageLive do
        providers: WasmcloudHost.Lattice.StateMonitor.get_providers(),
        linkdefs: WasmcloudHost.Lattice.StateMonitor.get_linkdefs(),
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
-       open_modal: ""
+       open_modal: "",
+       logs: []
      )}
   end
 
@@ -32,6 +34,17 @@ defmodule WasmcloudHostWeb.PageLive do
 
   def handle_info({:claims, claims}, socket) do
     {:noreply, assign(socket, claims: claims)}
+  end
+
+  def handle_info({:open_modal, modal}, socket) do
+    {:noreply, assign(socket, open_modal: modal)}
+  end
+
+  def handle_info({:append_log, log = %{"level" => _level, "msg" => msg}}, socket) do
+    Logger.warn(msg)
+    IO.inspect(socket.assigns)
+
+    {:noreply, assign(socket, logs: socket.assigns.logs ++ [log])}
   end
 
   @impl true

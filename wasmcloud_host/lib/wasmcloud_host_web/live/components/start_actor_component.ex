@@ -9,6 +9,7 @@ defmodule StartActorComponent do
   end
 
   def handle_event("validate", _params, socket) do
+    # TODO: Ensure valid ocireference is supplied
     {:noreply, socket}
   end
 
@@ -34,7 +35,26 @@ defmodule StartActorComponent do
     replicas = 1..String.to_integer(replicas)
 
     replicas
-    |> Enum.each(fn _ -> HostCore.Actors.ActorSupervisor.start_actor_from_oci(actor_ociref) end)
+    |> Enum.each(fn _ ->
+      case HostCore.Actors.ActorSupervisor.start_actor_from_oci(actor_ociref) do
+        {:stop, _err} ->
+          IO.puts('ono')
+
+          Phoenix.PubSub.broadcast(
+            WasmcloudHost.PubSub,
+            "frontend",
+            {:append_log, %{"level" => :info, "msg" => "error"}}
+          )
+
+        # Close modal after actor start is successful
+        {:ok, _pid} ->
+          Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", {:open_modal, ""})
+          :ok
+
+        _any ->
+          :ok
+      end
+    end)
 
     {:noreply, socket}
   end
@@ -74,7 +94,7 @@ defmodule StartActorComponent do
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
-        <button class="btn btn-primary" type="submit" phx-click="hide_modal">Submit</button>
+        <button class="btn btn-primary" type="submit" >Submit</button>
       </div>
     </form>
     """
