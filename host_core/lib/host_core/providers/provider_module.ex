@@ -6,7 +6,15 @@ defmodule HostCore.Providers.ProviderModule do
   @thirty_seconds 30_000
 
   defmodule State do
-    defstruct [:os_port, :os_pid, :link_name, :contract_id, :public_key, :lattice_prefix]
+    defstruct [
+      :os_port,
+      :os_pid,
+      :link_name,
+      :contract_id,
+      :public_key,
+      :lattice_prefix,
+      :instance_id
+    ]
   end
 
   @doc """
@@ -18,6 +26,10 @@ defmodule HostCore.Providers.ProviderModule do
 
   def identity_tuple(pid) do
     GenServer.call(pid, :identity_tuple)
+  end
+
+  def instance_id(pid) do
+    GenServer.call(pid, :get_instance_id)
   end
 
   def halt(pid) do
@@ -36,8 +48,10 @@ defmodule HostCore.Providers.ProviderModule do
     # Store the provider triple in an ETS table
     HostCore.Providers.register_provider(public_key, link_name, contract_id)
 
+    instance_id = UUID.uuid4()
+
     host_info =
-      HostCore.Host.generate_hostinfo_for(public_key, link_name)
+      HostCore.Host.generate_hostinfo_for(public_key, link_name, instance_id)
       |> Base.encode64()
       |> to_charlist()
 
@@ -49,7 +63,8 @@ defmodule HostCore.Providers.ProviderModule do
     # Worth pointing out here that this process doesn't need to subscribe to
     # the provider's NATS topic. The provider now subscribes to that directly
     # when it starts.
-    publish_provider_started(public_key, link_name, contract_id)
+
+    publish_provider_started(public_key, link_name, contract_id, instance_id)
 
     if oci != nil && oci != "" do
       publish_provider_oci_map(public_key, link_name, oci)
@@ -64,6 +79,7 @@ defmodule HostCore.Providers.ProviderModule do
        public_key: public_key,
        link_name: link_name,
        contract_id: contract_id,
+       instance_id: instance_id,
        lattice_prefix: HostCore.Host.lattice_prefix()
      }}
   end
@@ -76,13 +92,18 @@ defmodule HostCore.Providers.ProviderModule do
       System.cmd("kill", ["-9", "#{state.os_pid}"])
     end
 
-    publish_provider_stopped(state.public_key, state.link_name)
+    publish_provider_stopped(state.public_key, state.link_name, state.instance_id)
     {:stop, :normal, :ok, state}
   end
 
   @impl true
   def handle_call(:identity_tuple, _from, state) do
     {:reply, {state.public_key, state.link_name}, state}
+  end
+
+  @impl true
+  def handle_call(:get_instance_id, _from, state) do
+    {:reply, state.instance_id, state}
   end
 
   @impl true
@@ -164,13 +185,14 @@ defmodule HostCore.Providers.ProviderModule do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  def publish_provider_stopped(public_key, link_name) do
+  def publish_provider_stopped(public_key, link_name, instance_id) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: public_key,
-        link_name: link_name
+        link_name: link_name,
+        instance_id: instance_id
       }
       |> CloudEvent.new("provider_stopped")
 
@@ -179,14 +201,15 @@ defmodule HostCore.Providers.ProviderModule do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  defp publish_provider_started(pk, link_name, contract_id) do
+  defp publish_provider_started(pk, link_name, contract_id, instance_id) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: pk,
         link_name: link_name,
-        contract_id: contract_id
+        contract_id: contract_id,
+        instance_id: instance_id
       }
       |> CloudEvent.new("provider_started")
 

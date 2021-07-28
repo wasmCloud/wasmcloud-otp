@@ -41,8 +41,8 @@ defmodule HostCore.HeartbeatEmitter do
 
     providers =
       HostCore.Providers.ProviderSupervisor.all_providers()
-      |> Enum.map(fn {pk, link, contract} ->
-        %{public_key: pk, link_name: link, contract_id: contract}
+      |> Enum.map(fn {pk, link, contract, instance_id} ->
+        %{public_key: pk, link_name: link, contract_id: contract, instance_id: instance_id}
       end)
 
     %{

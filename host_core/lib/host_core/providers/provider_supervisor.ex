@@ -85,11 +85,12 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def terminate_all() do
-    all_providers() |> Enum.each(fn {pk, link, _contract} -> terminate_provider(pk, link) end)
+    all_providers()
+    |> Enum.each(fn {pk, link, _contract, _instance_id} -> terminate_provider(pk, link) end)
   end
 
   @doc """
-  Produces a list of tuples in the form of {public_key, link_name, contract_id}
+  Produces a list of tuples in the form of {public_key, link_name, contract_id, instance_id}
   of all of the current providers running
   """
   def all_providers() do
@@ -102,7 +103,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
   def provider_for_pid(pid) do
     case List.first(Registry.keys(Registry.ProviderRegistry, pid)) do
       {public_key, link_name} ->
-        {public_key, link_name, lookup_contract_id(public_key, link_name)}
+        {public_key, link_name, lookup_contract_id(public_key, link_name),
+         HostCore.Providers.ProviderModule.instance_id(pid)}
 
       nil ->
         nil

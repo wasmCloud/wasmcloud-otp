@@ -74,6 +74,7 @@ pub struct InvocationResponse {
     pub msg: Vec<u8>,
     pub error: Option<String>,
     pub invocation_id: String,
+    pub instance_id: String,
 }
 
 impl InvocationResponse {
@@ -81,6 +82,7 @@ impl InvocationResponse {
         InvocationResponse {
             error: Some(e.to_string()),
             invocation_id: inv.id.to_string(),
+            instance_id: YEET.into(),
             ..Default::default()
         }
     }
@@ -90,25 +92,35 @@ impl InvocationResponse {
     pub fn success(msg: impl Serialize) -> InvocationResponse {
         InvocationResponse {
             invocation_id: YEET.into(), // to be filled in later,
+            instance_id: YEET.into(),
             msg: serialize(&msg).unwrap(),
             error: None,
         }
     }
 }
 
-/// The response to an invocation
+/// The data supplied by the host at start time via stdin
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct HostData {
     pub host_id: String,
+    #[serde(default)]
     pub lattice_rpc_prefix: String,
+    #[serde(default)]
     pub link_name: String,
+    #[serde(default)]
     pub lattice_rpc_user_jwt: String,
+    #[serde(default)]
     pub lattice_rpc_user_seed: String,
+    #[serde(default)]
     pub lattice_rpc_url: String,
+    #[serde(default)]
     pub provider_key: String,
     #[serde(default)]
     pub env_values: HashMap<String, String>,
+    #[serde(default)]
     pub invocation_seed: String,
+    #[serde(default)]
+    pub instance_id: String,
 }
 
 fn main() -> Result<()> {
@@ -125,6 +137,7 @@ fn main() -> Result<()> {
     let provider_key = host_data.provider_key;
     let link_name = host_data.link_name;
     let lattice_rpc_prefix = host_data.lattice_rpc_prefix;
+    let instance_id = host_data.instance_id;
 
     info!("Starting Redis Capability Provider {}", provider_key);
 
@@ -214,7 +227,7 @@ fn main() -> Result<()> {
     let _sub = nc.subscribe(&rpc_topic)?.with_handler(move |msg| {
         let inv: Invocation = deserialize(&msg.data).unwrap();
         println!("Received RPC invocation");
-        let ir = rpc::handle_rpc(inv);
+        let ir = rpc::handle_rpc(inv, instance_id.clone());
         let _ = msg.respond(
             serialize(&ir).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
         );

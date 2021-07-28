@@ -57,6 +57,7 @@ type InvocationResponse struct {
 	InvocationID string `msgpack:"invocation_id"`
 	Msg          []byte `msgpack:"msg,omitempty"`
 	Error        string `msgpack:"error,omitempty"`
+	InstanceID   string `msgpack:"instance_id,omitempty"`
 }
 
 // HTTP Request object
@@ -86,6 +87,7 @@ type HostData struct {
 	ProviderKey        string            `json:"provider_key"`
 	EnvValues          map[string]string `json:"env_values"`
 	InvocationSeed     string            `json:"invocation_seed"`
+	InstanceID         string            `json:"instance_id"`
 }
 
 var (
@@ -117,6 +119,7 @@ func main() {
 	latticePrefix := hostData.LatticeRPCPrefix
 	providerKey := hostData.ProviderKey
 	linkName := hostData.LinkName
+	instanceID := hostData.InstanceID
 
 	fmt.Printf("Received host data (%s)\n", providerKey)
 
@@ -181,7 +184,7 @@ func main() {
 		serverCancels[linkdef.ActorID] = closeServer
 		linkDefs[linkdef.ActorID] = linkdef
 
-		srv := createHttpServer(providerKey, linkName, latticePrefix, linkdef.ActorID, nc, port)
+		srv := createHttpServer(instanceID, providerKey, linkName, latticePrefix, linkdef.ActorID, nc, port)
 		go func() {
 			<-ctx.Done()
 			fmt.Printf("Shutting down HTTP server for: %s\n", linkdef.ActorID)
@@ -205,17 +208,17 @@ func main() {
 	wg.Wait()
 }
 
-func createHttpServer(providerKey, linkName, latticePrefix, actorID string, nc *nats.Conn, port int) *http.Server {
+func createHttpServer(instanceID, providerKey, linkName, latticePrefix, actorID string, nc *nats.Conn, port int) *http.Server {
 	fmt.Printf("Creating HTTP server on port %d\n", port)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handleActorRequest(providerKey, linkName, latticePrefix, actorID, nc, w, r)
+		handleActorRequest(instanceID, providerKey, linkName, latticePrefix, actorID, nc, w, r)
 	})
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: handler}
 
 	return srv
 }
 
-func handleActorRequest(providerKey, linkName, latticePrefix, actorID string, nc *nats.Conn, w http.ResponseWriter, r *http.Request) {
+func handleActorRequest(instanceID, providerKey, linkName, latticePrefix, actorID string, nc *nats.Conn, w http.ResponseWriter, r *http.Request) {
 	origin := WasmCloudEntity{
 		PublicKey:  providerKey,
 		LinkName:   linkName,
