@@ -35,7 +35,7 @@ defmodule HostCore.Host do
   """
   @impl true
   def init(opts) do
-    start_gnat(opts)
+    # start_gnat(opts)
     configure_ets()
 
     :ets.insert(:config_table, {:config, opts})

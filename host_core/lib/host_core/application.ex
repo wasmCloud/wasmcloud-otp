@@ -51,7 +51,14 @@ defmodule HostCore.Application do
       # {HostCore.Worker, arg}
       {Registry, keys: :unique, name: Registry.ProviderRegistry},
       {Registry, keys: :duplicate, name: Registry.ActorRegistry},
-      {HostCore.Host, config},
+      Supervisor.child_spec(
+        {Gnat.ConnectionSupervisor, HostCore.Nats.control_connection_settings(config)},
+        id: :control_connection_supervisor
+      ),
+      Supervisor.child_spec(
+        {Gnat.ConnectionSupervisor, HostCore.Nats.rpc_connection_settings(config)},
+        id: :rpc_connection_supervisor
+      ),
       {HostCore.HeartbeatEmitter, config},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot},
@@ -119,7 +126,8 @@ defmodule HostCore.Application do
            ]
          }},
         id: :latticectl_consumer_supervisor
-      )
+      ),
+      {HostCore.Host, config}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
