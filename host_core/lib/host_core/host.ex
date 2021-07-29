@@ -35,7 +35,6 @@ defmodule HostCore.Host do
   """
   @impl true
   def init(opts) do
-    # start_gnat(opts)
     configure_ets()
 
     :ets.insert(:config_table, {:config, opts})
@@ -52,6 +51,7 @@ defmodule HostCore.Host do
 
   @impl true
   def handle_continue(:query_lattice_cache, state) do
+    Process.sleep(300)
     Logger.debug("Querying lattice for cache...")
 
     results =
@@ -115,80 +115,6 @@ defmodule HostCore.Host do
     labels = Map.merge(labels, HostCore.WasmCloud.Native.detect_core_host_labels())
 
     {:reply, labels, state}
-  end
-
-  defp start_gnat(opts) do
-    configure_lattice_gnat(%{
-      host: opts.rpc_host,
-      port: opts.rpc_port,
-      nkey_seed: opts.rpc_seed,
-      jwt: opts.rpc_jwt
-    })
-
-    configure_control_gnat(%{
-      host: opts.ctl_host,
-      port: opts.ctl_port,
-      nkey_seed: opts.ctl_seed,
-      jwt: opts.ctl_jwt
-    })
-  end
-
-  defp configure_lattice_gnat(opts) do
-    conn_settings =
-      Map.merge(%{host: opts.host, port: opts.port}, determine_auth_method(opts, "lattice"))
-
-    case Gnat.start_link(conn_settings, name: :lattice_nats) do
-      {:ok, _gnat} ->
-        :ok
-
-      {:error, :econnrefused} ->
-        Logger.error("Unable to establish lattice NATS connection, connection refused")
-
-      {:error, _} ->
-        Logger.error("Authentication to lattice NATS connection failed")
-    end
-  end
-
-  defp configure_control_gnat(opts) do
-    conn_settings =
-      Map.merge(
-        %{host: opts.host, port: opts.port},
-        determine_auth_method(opts, "control interface")
-      )
-
-    case Gnat.start_link(conn_settings, name: :control_nats) do
-      {:ok, _gnat} ->
-        :ok
-
-      {:error, :econnrefused} ->
-        Logger.error("Unable to establish control interface NATS connection, connection refused")
-
-      {:error, _} ->
-        Logger.error("Authentication to control interface NATS connection failed")
-    end
-  end
-
-  defp determine_auth_method(
-         %{
-           nkey_seed: nkey_seed,
-           jwt: jwt
-         },
-         conn_name
-       ) do
-    cond do
-      jwt != "" && nkey_seed != "" ->
-        Logger.info("Authenticating to #{conn_name} NATS with JWT and seed")
-        %{jwt: jwt, nkey_seed: nkey_seed, auth_required: true}
-
-      nkey_seed != "" ->
-        Logger.info("Authenticating to #{conn_name} NATS with seed")
-        %{nkey_seed: nkey_seed, auth_required: true}
-
-      # No arguments specified that create a valid authentication method
-      true ->
-        Logger.info("Connecting to #{conn_name} NATS without authentication")
-        %{}
-    end
   end
 
   defp configure_ets() do
