@@ -35,7 +35,6 @@ defmodule HostCore.Host do
   """
   @impl true
   def init(opts) do
-    start_gnat(opts)
     configure_ets()
 
     :ets.insert(:config_table, {:config, opts})
@@ -43,61 +42,15 @@ defmodule HostCore.Host do
     Logger.info("Host #{opts[:host_key]} started.")
     Logger.info("Valid cluster signers #{opts[:cluster_issuers]}")
 
+    # TODO
+    # Once we have a JetStream client, the cache should fill automatically
+    # by virtue of us creating ephemeral consumers on the stream for claims, linkdefs, and OCI maps.
+
     {:ok,
      %State{
        host_key: opts[:host_key],
        lattice_prefix: opts[:lattice_prefix]
-     }, {:continue, :query_lattice_cache}}
-  end
-
-  @impl true
-  def handle_continue(:query_lattice_cache, state) do
-    Logger.debug("Querying lattice for cache...")
-
-    results =
-      ParallelTask.new()
-      |> ParallelTask.add(
-        claims: fn ->
-          HostCore.Claims.Manager.request_claims()
-        end
-      )
-      |> ParallelTask.add(
-        linkdefs: fn ->
-          HostCore.Linkdefs.Manager.request_link_definitions()
-        end
-      )
-      |> ParallelTask.add(
-        refmaps: fn ->
-          HostCore.Refmaps.Manager.request_refmaps()
-        end
-      )
-      |> ParallelTask.perform(3_000)
-
-    results.claims
-    |> Enum.map(fn claims ->
-      public_key = Map.get(claims, :sub)
-      HostCore.Claims.Manager.cache_claims(public_key, claims)
-      call_alias = Map.get(claims, :call_alias)
-      HostCore.Claims.Manager.cache_call_alias(call_alias, public_key)
-    end)
-
-    results.linkdefs
-    |> Enum.map(fn ld ->
-      HostCore.Linkdefs.Manager.cache_link_definition(
-        ld.actor_id,
-        ld.contract_id,
-        ld.link_name,
-        ld.provider_id,
-        ld.values
-      )
-    end)
-
-    results.refmaps
-    |> Enum.map(fn refmap ->
-      HostCore.Refmaps.Manager.cache_refmap(refmap.oci_url, refmap.public_key)
-    end)
-
-    {:noreply, state}
+     }}
   end
 
   defp get_env_host_labels() do
@@ -115,80 +68,6 @@ defmodule HostCore.Host do
     labels = Map.merge(labels, HostCore.WasmCloud.Native.detect_core_host_labels())
 
     {:reply, labels, state}
-  end
-
-  defp start_gnat(opts) do
-    configure_lattice_gnat(%{
-      host: opts.rpc_host,
-      port: opts.rpc_port,
-      nkey_seed: opts.rpc_seed,
-      jwt: opts.rpc_jwt
-    })
-
-    configure_control_gnat(%{
-      host: opts.ctl_host,
-      port: opts.ctl_port,
-      nkey_seed: opts.ctl_seed,
-      jwt: opts.ctl_jwt
-    })
-  end
-
-  defp configure_lattice_gnat(opts) do
-    conn_settings =
-      Map.merge(%{host: opts.host, port: opts.port}, determine_auth_method(opts, "lattice"))
-
-    case Gnat.start_link(conn_settings, name: :lattice_nats) do
-      {:ok, _gnat} ->
-        :ok
-
-      {:error, :econnrefused} ->
-        Logger.error("Unable to establish lattice NATS connection, connection refused")
-
-      {:error, _} ->
-        Logger.error("Authentication to lattice NATS connection failed")
-    end
-  end
-
-  defp configure_control_gnat(opts) do
-    conn_settings =
-      Map.merge(
-        %{host: opts.host, port: opts.port},
-        determine_auth_method(opts, "control interface")
-      )
-
-    case Gnat.start_link(conn_settings, name: :control_nats) do
-      {:ok, _gnat} ->
-        :ok
-
-      {:error, :econnrefused} ->
-        Logger.error("Unable to establish control interface NATS connection, connection refused")
-
-      {:error, _} ->
-        Logger.error("Authentication to control interface NATS connection failed")
-    end
-  end
-
-  defp determine_auth_method(
-         %{
-           nkey_seed: nkey_seed,
-           jwt: jwt
-         },
-         conn_name
-       ) do
-    cond do
-      jwt != "" && nkey_seed != "" ->
-        Logger.info("Authenticating to #{conn_name} NATS with JWT and seed")
-        %{jwt: jwt, nkey_seed: nkey_seed, auth_required: true}
-
-      nkey_seed != "" ->
-        Logger.info("Authenticating to #{conn_name} NATS with seed")
-        %{nkey_seed: nkey_seed, auth_required: true}
-
-      # No arguments specified that create a valid authentication method
-      true ->
-        Logger.info("Connecting to #{conn_name} NATS without authentication")
-        %{}
-    end
   end
 
   defp configure_ets() do

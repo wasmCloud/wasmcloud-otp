@@ -21,7 +21,10 @@ defmodule WasmcloudHostWeb.Router do
   end
 
   # Other scopes may use custom stacks.
-  # scope "/api", WasmcloudHostWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", WasmcloudHostWeb do
+    pipe_through :api
+
+    get "/readyz", ProbeController, :ready
+    get "/livez", ProbeController, :live
+  end
 end

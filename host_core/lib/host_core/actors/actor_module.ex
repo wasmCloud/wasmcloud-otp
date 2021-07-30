@@ -300,6 +300,8 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def publish_oci_map(oci, pk) do
+    HostCore.Refmaps.Manager.put_refmap(oci, pk)
+
     prefix = HostCore.Host.lattice_prefix()
 
     msg =

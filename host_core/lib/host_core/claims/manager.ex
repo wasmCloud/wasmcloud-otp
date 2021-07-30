@@ -63,6 +63,7 @@ defmodule HostCore.Claims.Manager do
       sub: claims.public_key
     }
 
+    HostCore.Claims.Manager.cache_call_alias(claims.call_alias, claims.sub)
     cache_claims(key, claims)
     publish_claims(claims)
   end

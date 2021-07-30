@@ -1,5 +1,5 @@
 defmodule HostCoreTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   doctest HostCore
 
   @httpserver_path "priv/providers/httpserver"

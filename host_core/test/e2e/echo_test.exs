@@ -50,7 +50,7 @@ defmodule HostCore.E2E.EchoTest do
     Process.sleep(1000)
 
     HTTPoison.start()
-    {:ok, resp} = HTTPoison.get("http://localhost:8080/foo/bar")
+    {:ok, _resp} = HTTPoison.get("http://localhost:8080/foo/bar")
 
     Process.sleep(1000)
   end
