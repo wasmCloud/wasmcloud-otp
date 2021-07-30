@@ -8,7 +8,7 @@ create-build-dir:
 httpserver-linux: create-build-dir ## Build the httpserver capability provider for linux
 	cd httpserver/go && \
 	GOOS=linux go build -o httpserver-linux && \
-	cp httpserver-linux ../../_build/httpserver-linux
+	mv httpserver-linux ../../_build/httpserver-linux
 
 keyvalue-linux: create-build-dir ## Build the httpserver capability provider for linux
 	cd keyvalue/rust && \
@@ -18,7 +18,7 @@ keyvalue-linux: create-build-dir ## Build the httpserver capability provider for
 httpserver-mac: create-build-dir ## Build the httpserver capability provider for mac
 	cd httpserver/go && \
 	GOOS=darwin go build -o httpserver-mac && \
-	cp httpserver-mac ../../_build/httpserver-mac
+	mv httpserver-mac ../../_build/httpserver-mac
 
 keyvalue-mac: create-build-dir ## Build the keyvalue capability provider for mac
 	cd keyvalue/rust && \
@@ -28,7 +28,7 @@ keyvalue-mac: create-build-dir ## Build the keyvalue capability provider for mac
 httpserver-windows: create-build-dir ## Build the httpserver capability provider for windows
 	cd httpserver/go && \
 	GOOS=windows go build -o httpserver-windows && \
-	cp httpserver-windows ../../_build/httpserver-windows.exe
+	mv httpserver-windows ../../_build/httpserver-windows.exe
 
 keyvalue-windows: create-build-dir ## Build the keyvalue capability provider for windows 
 	cd keyvalue/rust && \
