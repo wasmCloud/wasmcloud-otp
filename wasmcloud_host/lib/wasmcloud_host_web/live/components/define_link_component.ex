@@ -15,14 +15,11 @@ defmodule DefineLinkComponent do
         linkdef,
         socket
       ) do
-    IO.inspect(linkdef)
     actor_id = Map.get(linkdef, "actor_id")
     provider_id = Map.get(linkdef, "provider_id")
     contract_id = Map.get(linkdef, "contract_id")
     link_name = Map.get(linkdef, "link_name")
     values = Map.get(linkdef, "values")
-
-    IO.inspect(values)
 
     values_map =
       case values do
