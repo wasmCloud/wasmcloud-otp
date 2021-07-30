@@ -215,6 +215,10 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke via call alias" do
+    # TODO
+    # there's no way we should need this.
+    Process.sleep(500)
+
     {:ok, bytes} = File.read("priv/actors/ponger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, bytes} = File.read("priv/actors/pinger_s.wasm")

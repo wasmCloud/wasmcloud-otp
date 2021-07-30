@@ -42,62 +42,15 @@ defmodule HostCore.Host do
     Logger.info("Host #{opts[:host_key]} started.")
     Logger.info("Valid cluster signers #{opts[:cluster_issuers]}")
 
+    # TODO
+    # Once we have a JetStream client, the cache should fill automatically
+    # by virtue of us creating ephemeral consumers on the stream for claims, linkdefs, and OCI maps.
+
     {:ok,
      %State{
        host_key: opts[:host_key],
        lattice_prefix: opts[:lattice_prefix]
-     }, {:continue, :query_lattice_cache}}
-  end
-
-  @impl true
-  def handle_continue(:query_lattice_cache, state) do
-    Process.sleep(300)
-    Logger.debug("Querying lattice for cache...")
-
-    results =
-      ParallelTask.new()
-      |> ParallelTask.add(
-        claims: fn ->
-          HostCore.Claims.Manager.request_claims()
-        end
-      )
-      |> ParallelTask.add(
-        linkdefs: fn ->
-          HostCore.Linkdefs.Manager.request_link_definitions()
-        end
-      )
-      |> ParallelTask.add(
-        refmaps: fn ->
-          HostCore.Refmaps.Manager.request_refmaps()
-        end
-      )
-      |> ParallelTask.perform(3_000)
-
-    results.claims
-    |> Enum.map(fn claims ->
-      public_key = Map.get(claims, :sub)
-      HostCore.Claims.Manager.cache_claims(public_key, claims)
-      call_alias = Map.get(claims, :call_alias)
-      HostCore.Claims.Manager.cache_call_alias(call_alias, public_key)
-    end)
-
-    results.linkdefs
-    |> Enum.map(fn ld ->
-      HostCore.Linkdefs.Manager.cache_link_definition(
-        ld.actor_id,
-        ld.contract_id,
-        ld.link_name,
-        ld.provider_id,
-        ld.values
-      )
-    end)
-
-    results.refmaps
-    |> Enum.map(fn refmap ->
-      HostCore.Refmaps.Manager.cache_refmap(refmap.oci_url, refmap.public_key)
-    end)
-
-    {:noreply, state}
+     }}
   end
 
   defp get_env_host_labels() do

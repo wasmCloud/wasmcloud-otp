@@ -79,7 +79,7 @@ defmodule HostCore.WasmCloud.NativeTest do
   end
 
   test "validate antiforgery rejects bad issuer" do
-    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
+    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
 
     req =
       %{
