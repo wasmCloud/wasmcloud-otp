@@ -53,9 +53,6 @@ COPY --from=deps-builder /opt/app /opt/app
 
 # Build wasmcloud native NIF and wasmex native NIF
 WORKDIR /opt/app/wasmcloud_host
-# Copy cargo config in case of cross-compilation
-COPY ./wasmcloud_host/rel/cargo-config.toml ../host_core/native/hostcore_wasmcloud_native/.cargo/config
-COPY ./wasmcloud_host/rel/cargo-config.toml deps/wasmex/native/wasmex/.cargo/config
 # If RUSTFLAGS are not provided, don't leave as blank environment variable. This can break cross-compilation
 RUN if [ -z "$RUSTFLAGS" ]; then unset RUSTFLAGS; fi && \
   make wasmcloud-nif && \
