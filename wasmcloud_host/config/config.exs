@@ -25,7 +25,9 @@ config :phoenix, :json_library, Jason
 
 # Allow wasm uploads
 config :mime, :types, %{
-  "application/wasm" => ["wasm"]
+  "application/wasm" => ["wasm"],
+  "application/tar" => ["par"],
+  "application/gzip" => ["gz"]
 }
 
 # Import environment specific config. This must remain at the bottom

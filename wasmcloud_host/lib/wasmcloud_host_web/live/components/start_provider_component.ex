@@ -6,8 +6,7 @@ defmodule StartProviderComponent do
      socket
      |> assign(:uploads, %{})
      |> assign(:error_msg, nil)
-     # TODO: Only allow parJEEzys
-     |> allow_upload(:provider, accept: :any, max_entries: 1)}
+     |> allow_upload(:provider, accept: ~w(.par .gz), max_entries: 1, max_file_size: 64_000_000)}
   end
 
   def handle_event("validate", _params, socket) do
@@ -17,25 +16,15 @@ defmodule StartProviderComponent do
   def handle_event(
         "start_provider_file",
         %{
-          "provider_key" => provider_key,
-          "provider_link_name" => provider_link_name,
-          "provider_contract_id" => provider_contract_id
+          "provider_link_name" => provider_link_name
         },
         socket
       ) do
     error_msg =
       Phoenix.LiveView.consume_uploaded_entries(socket, :provider, fn %{path: path}, _entry ->
-        {:ok, bytes} = File.read(path)
-        dir = System.tmp_dir!()
-        tmp_file = Path.join(dir, Path.basename(path))
-        File.write!(tmp_file, bytes)
-        File.chmod(tmp_file, 0o755)
-
-        case HostCore.Providers.ProviderSupervisor.start_executable_provider(
-               tmp_file,
-               provider_key,
-               provider_link_name,
-               provider_contract_id
+        case HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+               path,
+               provider_link_name
              ) do
           {:ok, _pid} -> ""
           {:error, reason} -> reason
@@ -45,7 +34,7 @@ defmodule StartProviderComponent do
 
     case error_msg do
       nil ->
-        {:noreply, assign(socket, error_msg: "Please select a provider file")}
+        {:noreply, assign(socket, error_msg: "Please select a provider archive file")}
 
       "" ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
@@ -65,7 +54,7 @@ defmodule StartProviderComponent do
         socket
       ) do
     error_msg =
-      case HostCore.Providers.ProviderSupervisor.start_executable_provider_from_oci(
+      case HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
              provider_ociref,
              provider_link_name
            ) do
@@ -97,19 +86,6 @@ defmodule StartProviderComponent do
         <label class="col-md-3 col-form-label" for="file-input">File</label>
         <div class="col-md-9">
           <%= live_file_input @uploads.provider %>
-        </div>
-      </div>
-      <div class="form-group row">
-        <label class="col-md-3 col-form-label" for="text-input">Public Key</label>
-        <div class="col-md-9">
-          <input class="form-control" id="text-input" type="text" name="provider_key" placeholder="VABCD..." required>
-          <span class="help-block">56 character provider public key (starts with "V")</span>
-        </div>
-      </div>
-      <div class="form-group row">
-        <label class="col-md-3 col-form-label" for="text-input">Contract ID</label>
-        <div class="col-md-9">
-          <input class="form-control" id="text-input" type="text" name="provider_contract_id" placeholder="wasmcloud:contract" required>
         </div>
       </div>
       <% else %>
