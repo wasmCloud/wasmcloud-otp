@@ -7,7 +7,7 @@
     phx-value-key="error"><%= live_flash(@flash, :error) %></p>
   <%= @inner_content %>
   <%# Modal backdrop %>
-  <div id="phoenix-modal-backdrop" class="modal-backdrop fade <%= if @open_modal != "" do "show" end %>"></div>
+  <div id="phoenix-modal-backdrop" class="modal-backdrop fade <%= if @open_modal != nil do "show" end %>"></div>
   <%= case @open_modal do %>
   <% "start_actor_file" -> %>
     <div class="phoenix-modal phoenix-modal-open show fade" id="start_actor_file" tabindex="-1" role="dialog" aria-labelledby="start_actor_file_modal" aria-hidden="true">
@@ -79,7 +79,7 @@
         </div>
       </div>
     </div>
-  <% _any -> %>
+  <% nil -> %>
   <%= "" %>
   <% end %>
 </main>

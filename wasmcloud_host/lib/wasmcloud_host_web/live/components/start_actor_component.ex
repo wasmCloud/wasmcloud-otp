@@ -5,11 +5,11 @@ defmodule StartActorComponent do
     {:ok,
      socket
      |> assign(:uploads, %{})
+     |> assign(:error_msg, nil)
      |> allow_upload(:actor, accept: ~w(.wasm), max_entries: 1)}
   end
 
   def handle_event("validate", _params, socket) do
-    # TODO: Ensure valid ocireference is supplied
     {:noreply, socket}
   end
 
@@ -18,13 +18,40 @@ defmodule StartActorComponent do
         %{"replicas" => replicas},
         socket
       ) do
-    Phoenix.LiveView.consume_uploaded_entries(socket, :actor, fn %{path: path}, _entry ->
-      replicas = 1..String.to_integer(replicas)
-      {:ok, bytes} = File.read(path)
-      replicas |> Enum.each(fn _ -> HostCore.Actors.ActorSupervisor.start_actor(bytes) end)
-    end)
+    error_msg =
+      Phoenix.LiveView.consume_uploaded_entries(socket, :actor, fn %{path: path}, _entry ->
+        replicas = 1..String.to_integer(replicas)
 
-    {:noreply, socket}
+        case File.read(path) do
+          {:ok, bytes} ->
+            replicas
+            |> Enum.reduce_while("", fn _, _ ->
+              case HostCore.Actors.ActorSupervisor.start_actor(bytes) do
+                {:stop, err} ->
+                  {:halt, "Error: #{err}"}
+
+                _any ->
+                  {:cont, ""}
+              end
+            end)
+
+          {:error, reason} ->
+            "Error #{reason}"
+        end
+      end)
+      |> List.first()
+
+    case error_msg do
+      nil ->
+        {:noreply, assign(socket, error_msg: "Please select a file")}
+
+      "" ->
+        Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
+        {:noreply, assign(socket, error_msg: nil)}
+
+      msg ->
+        {:noreply, assign(socket, error_msg: msg)}
+    end
   end
 
   def handle_event(
@@ -34,29 +61,24 @@ defmodule StartActorComponent do
       ) do
     replicas = 1..String.to_integer(replicas)
 
-    replicas
-    |> Enum.each(fn _ ->
-      case HostCore.Actors.ActorSupervisor.start_actor_from_oci(actor_ociref) do
-        {:stop, _err} ->
-          IO.puts('ono')
+    error_msg =
+      replicas
+      |> Enum.reduce_while("", fn _, _ ->
+        case HostCore.Actors.ActorSupervisor.start_actor_from_oci(actor_ociref) do
+          {:stop, err} ->
+            {:halt, "Error: #{err}"}
 
-          Phoenix.PubSub.broadcast(
-            WasmcloudHost.PubSub,
-            "frontend",
-            {:append_log, %{"level" => :info, "msg" => "error"}}
-          )
+          _any ->
+            {:cont, ""}
+        end
+      end)
 
-        # Close modal after actor start is successful
-        {:ok, _pid} ->
-          Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", {:open_modal, ""})
-          :ok
-
-        _any ->
-          :ok
-      end
-    end)
-
-    {:noreply, socket}
+    if error_msg != "" do
+      {:noreply, assign(socket, error_msg: error_msg)}
+    else
+      Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
+      {:noreply, assign(socket, error_msg: nil)}
+    end
   end
 
   def render(assigns) do
@@ -89,7 +111,8 @@ defmodule StartActorComponent do
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Replicas</label>
         <div class="col-md-9">
-          <input class="form-control" id="number-input" type="number" name="replicas" placeholder="1" value="1"><span class="help-block">Enter how many instances of this actor you want</span>
+          <input class="form-control" id="number-input" type="number" name="replicas" placeholder="1" value="1" min="1">
+          <span class="help-block">Enter how many instances of this actor you want</span>
         </div>
       </div>
       <div class="modal-footer">
@@ -97,6 +120,11 @@ defmodule StartActorComponent do
         <button class="btn btn-primary" type="submit" >Submit</button>
       </div>
     </form>
+    <%= if @error_msg != nil do %>
+    <div class="alert alert-danger">
+    <%= @error_msg %>
+    </div>
+    <% end %>
     """
   end
 end
