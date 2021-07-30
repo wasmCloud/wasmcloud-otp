@@ -1,11 +1,85 @@
-<main role="main" class="container">
+<main role="main" class="container" id="phoenix-liveview-container">
   <p class="alert alert-info" role="alert"
     phx-click="lv:clear-flash"
     phx-value-key="info"><%= live_flash(@flash, :info) %></p>
-
   <p class="alert alert-danger" role="alert"
     phx-click="lv:clear-flash"
     phx-value-key="error"><%= live_flash(@flash, :error) %></p>
-
   <%= @inner_content %>
+  <%# Modal backdrop %>
+  <div id="phoenix-modal-backdrop" class="modal-backdrop fade <%= if @open_modal != nil do "show" end %>"></div>
+  <%= case @open_modal do %>
+  <% "start_actor_file" -> %>
+    <div class="phoenix-modal phoenix-modal-open show fade" id="start_actor_file" tabindex="-1" role="dialog" aria-labelledby="start_actor_file_modal" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title">Start actor from file</h4>
+            <button class="close" type="button" phx-click="hide_modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+          </div>
+          <div class="modal-body">
+            <%= live_component StartActorComponent, id: :start_actor_file_modal %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% "start_actor_ociref" -> %>
+    <div class="phoenix-modal phoenix-modal-open show fade" id="start_actor_oci" tabindex="-1" role="dialog" aria-labelledby="start_actor_ociref_modal" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title">Start actor from OCI registry</h4>
+            <button class="close" type="button" phx-click="hide_modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+          </div>
+          <div class="modal-body">
+            <%= live_component StartActorComponent, id: :start_actor_oci_modal %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% "start_provider_file" -> %>
+    <div class="phoenix-modal phoenix-modal-open show fade" id="start_provider_file" tabindex="-1" role="dialog" aria-labelledby="start_provider_file_modal" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title">Start provider from file</h4>
+            <button class="close" type="button" phx-click="hide_modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+          </div>
+          <div class="modal-body">
+            <%= live_component StartProviderComponent, id: :start_provider_file_modal %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% "start_provider_ociref" -> %>
+    <div class="phoenix-modal phoenix-modal-open show fade" id="start_provider_oci" tabindex="-1" role="dialog" aria-labelledby="start_provider_ociref_modal" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title">Start provider from registry</h4>
+            <button class="close" type="button" phx-click="hide_modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+          </div>
+          <div class="modal-body">
+            <%= live_component StartProviderComponent, id: :start_provider_ociref_modal %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% "define_link" -> %>
+    <div class="phoenix-modal phoenix-modal-open show fade" id="define_link" tabindex="-1" role="dialog" aria-labelledby="define_link_modal" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title">Define link</h4>
+            <button class="close" type="button" phx-click="hide_modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+          </div>
+          <div class="modal-body">
+            <%= live_component DefineLinkComponent, id: :define_link_modal, actors: @actors, providers: @providers, claims: @claims %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% nil -> %>
+  <%= "" %>
+  <% end %>
 </main>

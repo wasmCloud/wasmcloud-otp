@@ -113,10 +113,14 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
     let extracted = match wasm::extract_claims(&bytes) {
         Ok(Some(c)) => c,
         Ok(None) => {
-            return Err(rustler::Error::Atom("No claims found in source module"));
+            return Err(rustler::Error::Term(Box::new(
+                "No claims found in source module",
+            )));
         }
         Err(_e) => {
-            return Err(rustler::Error::Atom("Failed to extract claims from module"));
+            return Err(rustler::Error::Term(Box::new(
+                "Failed to extract claims from module",
+            )));
         }
     };
     let c: wascap::jwt::Claims<wascap::jwt::Actor> = extracted.claims;

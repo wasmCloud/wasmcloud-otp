@@ -5,6 +5,7 @@ defmodule StartProviderComponent do
     {:ok,
      socket
      |> assign(:uploads, %{})
+     |> assign(:error_msg, nil)
      # TODO: Only allow parJEEzys
      |> allow_upload(:provider, accept: :any, max_entries: 1)}
   end
@@ -22,25 +23,37 @@ defmodule StartProviderComponent do
         },
         socket
       ) do
-    Phoenix.LiveView.consume_uploaded_entries(socket, :provider, fn %{path: path}, _entry ->
-      {:ok, bytes} = File.read(path)
-      dir = System.tmp_dir!()
-      tmp_file = Path.join(dir, Path.basename(path))
-      File.write!(tmp_file, bytes)
-      File.chmod(tmp_file, 0o755)
+    error_msg =
+      Phoenix.LiveView.consume_uploaded_entries(socket, :provider, fn %{path: path}, _entry ->
+        {:ok, bytes} = File.read(path)
+        dir = System.tmp_dir!()
+        tmp_file = Path.join(dir, Path.basename(path))
+        File.write!(tmp_file, bytes)
+        File.chmod(tmp_file, 0o755)
 
-      case HostCore.Providers.ProviderSupervisor.start_executable_provider(
-             tmp_file,
-             provider_key,
-             provider_link_name,
-             provider_contract_id
-           ) do
-        {:ok, _pid} -> :ok
-        {:error, _reason} -> :error
-      end
-    end)
+        case HostCore.Providers.ProviderSupervisor.start_executable_provider(
+               tmp_file,
+               provider_key,
+               provider_link_name,
+               provider_contract_id
+             ) do
+          {:ok, _pid} -> ""
+          {:error, reason} -> reason
+        end
+      end)
+      |> List.first()
 
-    {:noreply, socket}
+    case error_msg do
+      nil ->
+        {:noreply, assign(socket, error_msg: "Please select a provider file")}
+
+      "" ->
+        Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
+        {:noreply, assign(socket, error_msg: nil)}
+
+      msg ->
+        {:noreply, assign(socket, error_msg: msg)}
+    end
   end
 
   def handle_event(
@@ -51,16 +64,21 @@ defmodule StartProviderComponent do
         },
         socket
       ) do
-    case HostCore.Providers.ProviderSupervisor.start_executable_provider_from_oci(
-           provider_ociref,
-           provider_link_name
-         ) do
-      {:ok, _pid} -> :ok
-      {:error, _reason} -> :error
-      {:stop, _reason} -> :error
+    error_msg =
+      case HostCore.Providers.ProviderSupervisor.start_executable_provider_from_oci(
+             provider_ociref,
+             provider_link_name
+           ) do
+        {:ok, _pid} -> nil
+        {:error, reason} -> reason
+        {:stop, reason} -> reason
+      end
+
+    if error_msg == nil do
+      Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
     end
 
-    {:noreply, socket}
+    {:noreply, assign(socket, error_msg: error_msg)}
   end
 
   def render(assigns) do
@@ -84,14 +102,14 @@ defmodule StartProviderComponent do
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Public Key</label>
         <div class="col-md-9">
-          <input class="form-control" id="text-input" type="text" name="provider_key" placeholder="VABCD...">
+          <input class="form-control" id="text-input" type="text" name="provider_key" placeholder="VABCD..." required>
           <span class="help-block">56 character provider public key (starts with "V")</span>
         </div>
       </div>
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Contract ID</label>
         <div class="col-md-9">
-          <input class="form-control" id="text-input" type="text" name="provider_contract_id" placeholder="wasmcloud:contract">
+          <input class="form-control" id="text-input" type="text" name="provider_contract_id" placeholder="wasmcloud:contract" required>
         </div>
       </div>
       <% else %>
@@ -106,15 +124,19 @@ defmodule StartProviderComponent do
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Link Name</label>
         <div class="col-md-9">
-          <input class="form-control" id="text-input" type="text" name="provider_link_name" placeholder="default" value="default">
+          <input class="form-control" id="text-input" type="text" name="provider_link_name" placeholder="default" value="default" required>
         </div>
       </div>
       <div class="modal-footer">
-        <button id="close_modal-<%= @id %>" class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
-        <!-- onClick event closes modal -->
-        <button class="btn btn-primary" type="submit" onClick="document.getElementById('close_modal-<%= @id %>').click()">Submit</button>
+        <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
+        <button class="btn btn-primary" type="submit">Submit</button>
       </div>
     </form>
+    <%= if @error_msg != nil do %>
+    <div class="alert alert-danger">
+    <%= @error_msg %>
+    </div>
+    <% end %>
     """
   end
 end
