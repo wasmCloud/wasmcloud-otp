@@ -13,14 +13,14 @@ pub fn on_load(env: Env) -> bool {
 pub(crate) fn get_capid(par: &ProviderArchive) -> Result<String, Error> {
     match par.claims() {
         Some(c) => Ok(c.metadata.unwrap_or_default().capid),
-        None => Err(Error::Atom("No claims found in provider archive")),
+        None => Err(Error::Term(Box::new("No claims found in provider archive"))),
     }
 }
 
 pub(crate) fn get_vendor(par: &ProviderArchive) -> Result<String, Error> {
     match par.claims() {
         Some(c) => Ok(c.metadata.unwrap_or_default().vendor),
-        None => Err(Error::Atom("No claims found in provider archive")),
+        None => Err(Error::Term(Box::new("No claims found in provider archive"))),
     }
 }
 
@@ -34,7 +34,7 @@ pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {
             version: c.metadata.unwrap_or_default().ver,
             ..Default::default()
         }),
-        None => Err(Error::Atom("No claims found in provider archive")),
+        None => Err(Error::Term(Box::new("No claims found in provider archive"))),
     }
 }
 
