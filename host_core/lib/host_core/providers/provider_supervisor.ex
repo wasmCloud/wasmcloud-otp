@@ -60,6 +60,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     else
       {:error, err} ->
         Logger.error("Error starting provider from file: #{err}")
+        {:error, err}
 
       err ->
         Logger.error("Error starting provider from file")
