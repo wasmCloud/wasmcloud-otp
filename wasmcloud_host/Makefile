@@ -1,7 +1,7 @@
 .PHONY: help deps
 
 NAME ?= `grep 'app:' ./wasmcloud_host/mix.exs | sed -e 's/\[//g' -e 's/ //g' -e 's/app://' -e 's/[:,]//g'`
-VERSION ?= `grep 'version:' ./wasmcloud_host/mix.exs | cut -d '"' -f2`
+VERSION ?= `grep '@app_vsn ' ./wasmcloud_host/mix.exs | cut -d '"' -f2`
 BUILD ?= `git rev-parse --short HEAD`
 DOCKERFILE ?= ./wasmcloud_host/Dockerfile
 SKIP_PHOENIX ?= false

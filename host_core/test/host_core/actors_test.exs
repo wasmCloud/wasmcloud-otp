@@ -86,7 +86,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can load actors" do
-    {:ok, bytes} = File.read("priv/actors/kvcounter_s.wasm")
+    {:ok, bytes} = File.read("test/fixtures/actors/kvcounter_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
@@ -105,7 +105,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke the echo actor" do
-    {:ok, bytes} = File.read("priv/actors/echo_s.wasm")
+    {:ok, bytes} = File.read("test/fixtures/actors/echo_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
@@ -215,9 +215,9 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke via call alias" do
-    {:ok, bytes} = File.read("priv/actors/ponger_s.wasm")
+    {:ok, bytes} = File.read("test/fixtures/actors/ponger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, bytes} = File.read("priv/actors/pinger_s.wasm")
+    {:ok, bytes} = File.read("test/fixtures/actors/pinger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     on_exit(fn ->

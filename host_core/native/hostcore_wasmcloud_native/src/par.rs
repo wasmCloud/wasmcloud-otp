@@ -42,7 +42,9 @@ pub(crate) fn extract_target_bytes(par: &ProviderArchive) -> Result<Vec<u8>, Err
     let target = native_target();
     match par.target_bytes(&target) {
         Some(b) => Ok(b),
-        None => Err(Error::Atom("No suitable target found in provider archive")),
+        None => Err(Error::Term(Box::new(
+            "No suitable target found in provider archive",
+        ))),
     }
 }
 
@@ -54,7 +56,9 @@ pub(crate) fn cache_path(subject: String, rev: u32) -> Result<String, Error> {
     path.push(native_target());
     match path.into_os_string().into_string() {
         Ok(s) => Ok(s),
-        Err(_e) => Err(Error::Atom("FATAL - Could not convert path into string")),
+        Err(_e) => Err(Error::Term(Box::new(
+            "FATAL - Could not convert path into string",
+        ))),
     }
 }
 

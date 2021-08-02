@@ -2,11 +2,9 @@ defmodule HostCoreTest do
   use ExUnit.Case, async: false
   doctest HostCore
 
-  @httpserver_path "priv/providers/httpserver"
-  @echo_path "priv/actors/echo_s.wasm"
-  @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
+  @httpserver_path "test/fixtures/providers/httpserver.par.gz"
+  @echo_path "test/fixtures/actors/echo_s.wasm"
   @httpserver_link "default"
-  @httpserver_contract "wasmcloud:httpserver"
 
   test "greets the world" do
     assert HostCore.hello() == :world
@@ -31,15 +29,13 @@ defmodule HostCoreTest do
   end
 
   test "Host purges actors and providers" do
-    {:ok, bytes} = File.read("priv/actors/echo_s.wasm")
+    {:ok, bytes} = File.read("test/fixtures/actors/echo_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_executable_provider(
+      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @httpserver_path,
-        @httpserver_key,
-        @httpserver_link,
-        @httpserver_contract
+        @httpserver_link
       )
 
     Process.sleep(1_000)

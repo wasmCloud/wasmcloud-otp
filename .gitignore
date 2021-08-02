@@ -1,5 +1,6 @@
 # The directory Mix will write compiled artifacts to.
 /_build/
+_build/
 
 # If you run "mix test --cover", coverage assets end up here.
 /cover/
@@ -46,9 +47,6 @@ npm-debug.log
 # Stop committing temporary files
 *.tmp
 
-# Don't commit provider archive artifacts
-*.par.gz
-*.par
 # Or release artifacts
 *.tar.gz
 *.tar

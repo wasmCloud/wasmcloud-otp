@@ -9,7 +9,7 @@ defmodule HostCore.E2E.ControlInterfaceTest do
   @redis_contract "wasmcloud:keyvalue"
 
   test "can get claims" do
-    {:ok, bytes} = File.read("priv/actors/echo_s.wasm")
+    {:ok, bytes} = File.read("test/fixtures/actors/echo_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1) end)

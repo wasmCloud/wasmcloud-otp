@@ -4,19 +4,15 @@ defmodule HostCore.E2E.KVCounterTest do
   require Logger
 
   @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
-  @kvcounter_path "priv/actors/kvcounter_s.wasm"
+  @kvcounter_path "test/fixtures/actors/kvcounter_s.wasm"
 
   @kvcounter_unpriv_key "MAVJWHLVXBCJI3BPJDMHB3MFZMGFASOJ3CYDNSHNZJDVGW4B4E7SIYFG"
-  @kvcounter_unpriv_path "priv/actors/kvcounter_unpriv_s.wasm"
+  @kvcounter_unpriv_path "test/fixtures/actors/kvcounter_unpriv_s.wasm"
 
-  @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
   @httpserver_link "default"
-  @httpserver_contract "wasmcloud:httpserver"
-  @httpserver_path "priv/providers/httpserver"
-  @redis_key "VAZVC4RX54J2NVCMCW7BPCAHGGG5XZXDBXFUMDUXGESTMQEJLC3YVZWB"
+  @httpserver_path "test/fixtures/providers/httpserver.par.gz"
   @redis_link "default"
-  @redis_contract "wasmcloud:keyvalue"
-  @redis_path "priv/providers/wasmcloud-redis"
+  @redis_path "test/fixtures/providers/redis.par.gz"
 
   test "kvcounter roundtrip" do
     {:ok, bytes} = File.read(@kvcounter_path)
@@ -24,27 +20,33 @@ defmodule HostCore.E2E.KVCounterTest do
     on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_executable_provider(
+      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @httpserver_path,
-        @httpserver_key,
-        @httpserver_link,
-        @httpserver_contract
+        @httpserver_link
       )
 
+    {:ok, bytes} = File.read(@httpserver_path)
+    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    httpserver_key = par.claims.public_key
+    httpserver_contract = par.contract_id
+
     on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
     end)
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_executable_provider(
+      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @redis_path,
-        @redis_key,
-        @redis_link,
-        @redis_contract
+        @redis_link
       )
 
+    {:ok, bytes} = File.read(@redis_path)
+    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    redis_key = par.claims.public_key
+    redis_contract = par.contract_id
+
     on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(@redis_key, @redis_link)
+      HostCore.Providers.ProviderSupervisor.terminate_provider(redis_key, @redis_link)
     end)
 
     actor_count =
@@ -54,26 +56,26 @@ defmodule HostCore.E2E.KVCounterTest do
     assert actor_count == 1
 
     ap = HostCore.Providers.ProviderSupervisor.all_providers()
-    assert elem(Enum.at(ap, 0), 0) == @httpserver_key
-    assert elem(Enum.at(ap, 1), 0) == @redis_key
+    assert elem(Enum.at(ap, 0), 0) == httpserver_key
+    assert elem(Enum.at(ap, 1), 0) == redis_key
 
     Process.sleep(2000)
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
         @kvcounter_key,
-        @httpserver_contract,
+        httpserver_contract,
         @httpserver_link,
-        @httpserver_key,
+        httpserver_key,
         %{PORT: "8081"}
       )
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
         @kvcounter_key,
-        @redis_contract,
+        redis_contract,
         @redis_link,
-        @redis_key,
+        redis_key,
         %{URL: "redis://0.0.0.0:6379"}
       )
 
@@ -95,27 +97,33 @@ defmodule HostCore.E2E.KVCounterTest do
     on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_executable_provider(
+      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @httpserver_path,
-        @httpserver_key,
-        @httpserver_link,
-        @httpserver_contract
+        @httpserver_link
       )
 
+    {:ok, bytes} = File.read(@httpserver_path)
+    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    httpserver_key = par.claims.public_key
+    httpserver_contract = par.contract_id
+
     on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
     end)
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_executable_provider(
+      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @redis_path,
-        @redis_key,
-        @redis_link,
-        @redis_contract
+        @redis_link
       )
 
+    {:ok, bytes} = File.read(@redis_path)
+    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    redis_key = par.claims.public_key
+    redis_contract = par.contract_id
+
     on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(@redis_key, @redis_link)
+      HostCore.Providers.ProviderSupervisor.terminate_provider(redis_key, @redis_link)
     end)
 
     actor_count =
@@ -125,26 +133,26 @@ defmodule HostCore.E2E.KVCounterTest do
     assert actor_count == 1
 
     ap = HostCore.Providers.ProviderSupervisor.all_providers()
-    assert elem(Enum.at(ap, 0), 0) == @httpserver_key
-    assert elem(Enum.at(ap, 1), 0) == @redis_key
+    assert elem(Enum.at(ap, 0), 0) == httpserver_key
+    assert elem(Enum.at(ap, 1), 0) == redis_key
 
     Process.sleep(2000)
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
         @kvcounter_unpriv_key,
-        @httpserver_contract,
+        httpserver_contract,
         @httpserver_link,
-        @httpserver_key,
+        httpserver_key,
         %{PORT: "8081"}
       )
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
         @kvcounter_unpriv_key,
-        @redis_contract,
+        redis_contract,
         @redis_link,
-        @redis_key,
+        redis_key,
         %{URL: "redis://0.0.0.0:6379"}
       )
 
