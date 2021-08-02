@@ -25,13 +25,25 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  defp write_par_to_tmp(par) do
+  defp extract_executable_to_tmp(par, link_name) do
     cache_path =
       HostCore.WasmCloud.Native.par_cache_path(par.claims.public_key, par.claims.revision)
 
-    if File.exists?(cache_path) do
-      {:ok, cache_path}
-    else
+    provider_running =
+      case HostCore.Providers.lookup_provider(par.contract_id, link_name) do
+        {:ok, _pk} ->
+          Logger.warn(
+            "Executable provider is already running, unable to overwrite cached provider"
+          )
+
+          true
+
+        _ ->
+          false
+      end
+
+    # Write provider executable to cache if it is not cached yet or if it is not running
+    if !File.exists?(cache_path) || !provider_running do
       p = Path.split(cache_path)
       tmpdir = p |> Enum.slice(0, length(p) - 1) |> Path.join()
 
@@ -42,13 +54,15 @@ defmodule HostCore.Providers.ProviderSupervisor do
       else
         {:error, reason} -> {:error, reason}
       end
+    else
+      {:ok, cache_path}
     end
   end
 
   def start_provider_from_oci(oci, link_name) do
     with {:ok, bytes} <- HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []),
          par <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
-         {:ok, path} <- write_par_to_tmp(par) do
+         {:ok, path} <- extract_executable_to_tmp(par, link_name) do
       start_executable_provider(path, par.claims.public_key, link_name, par.contract_id, oci)
     else
       {:error, err} -> Logger.error("Error starting provider from OCI: #{err}")
@@ -59,7 +73,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   def start_provider_from_file(path, link_name) do
     with {:ok, bytes} <- File.read(path),
          par <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
-         {:ok, tmp_path} <- write_par_to_tmp(par) do
+         {:ok, tmp_path} <- extract_executable_to_tmp(par, link_name) do
       start_executable_provider(
         tmp_path,
         par.claims.public_key,
