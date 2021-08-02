@@ -29,15 +29,19 @@ defmodule HostCore.Providers.ProviderSupervisor do
     cache_path =
       HostCore.WasmCloud.Native.par_cache_path(par.claims.public_key, par.claims.revision)
 
-    p = Path.split(cache_path)
-    tmpdir = p |> Enum.slice(0, length(p) - 1) |> Path.join()
-
-    with :ok <- File.mkdir_p(tmpdir),
-         :ok <- File.write(cache_path, par.target_bytes |> IO.iodata_to_binary()),
-         :ok <- File.chmod(cache_path, 0o755) do
+    if File.exists?(cache_path) do
       {:ok, cache_path}
     else
-      {:error, reason} -> {:error, reason}
+      p = Path.split(cache_path)
+      tmpdir = p |> Enum.slice(0, length(p) - 1) |> Path.join()
+
+      with :ok <- File.mkdir_p(tmpdir),
+           :ok <- File.write(cache_path, par.target_bytes |> IO.iodata_to_binary()),
+           :ok <- File.chmod(cache_path, 0o755) do
+        {:ok, cache_path}
+      else
+        {:error, reason} -> {:error, reason}
+      end
     end
   end
 
@@ -54,9 +58,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
   def start_provider_from_file(path, link_name) do
     with {:ok, bytes} <- File.read(path),
-         par <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
-         {:ok, tmp_path} <- write_par_to_tmp(par) do
-      start_executable_provider(tmp_path, par.claims.public_key, link_name, par.contract_id)
+         par <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()) do
+      start_executable_provider(path, par.claims.public_key, link_name, par.contract_id)
     else
       {:error, err} ->
         Logger.error("Error starting provider from file: #{err}")
