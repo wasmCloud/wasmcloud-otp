@@ -116,7 +116,7 @@ defmodule HostCore.ControlInterface.Server do
       start_provider_command = Jason.decode!(body)
 
       ack =
-        case HostCore.Providers.ProviderSupervisor.start_executable_provider_from_oci(
+        case HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
                start_provider_command["provider_ref"],
                start_provider_command["link_name"]
              ) do
