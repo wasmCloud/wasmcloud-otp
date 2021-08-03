@@ -59,16 +59,19 @@ defmodule HostCore.ControlInterface.Server do
       }
 
       {:reply, Jason.encode!(res)}
+    else
+      {:reply,
+       Jason.encode!(%{
+         host_id: host_id,
+         failure: "Command received by incorrect host and could not be processed"
+       })}
     end
-
-    :ok
   end
 
   ### COMMANDS
 
   # Launch Actor
   # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx"}
-
   defp handle_request({"cmd", host_id, "la"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
       start_actor_command = Jason.decode!(body)
@@ -93,8 +96,12 @@ defmodule HostCore.ControlInterface.Server do
 
           {:reply, Jason.encode!(ack)}
       end
-
-      :ok
+    else
+      {:reply,
+       Jason.encode!(%{
+         host_id: host_id,
+         failure: "Command received by incorrect host and could not be processed"
+       })}
     end
   end
 
@@ -105,9 +112,13 @@ defmodule HostCore.ControlInterface.Server do
       HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
       ack = %{}
       {:reply, Jason.encode!(ack)}
+    else
+      {:reply,
+       Jason.encode!(%{
+         host_id: host_id,
+         failure: "Command received by incorrect host and could not be processed"
+       })}
     end
-
-    :ok
   end
 
   # Launch Provider
@@ -135,9 +146,13 @@ defmodule HostCore.ControlInterface.Server do
         end
 
       {:reply, Jason.encode!(ack)}
+    else
+      {:reply,
+       Jason.encode!(%{
+         host_id: host_id,
+         failure: "Command received by incorrect host and could not be processed"
+       })}
     end
-
-    :ok
   end
 
   # Stop Provider
@@ -151,9 +166,13 @@ defmodule HostCore.ControlInterface.Server do
       )
 
       {:reply, Jason.encode!(%{})}
+    else
+      {:reply,
+       Jason.encode!(%{
+         host_id: host_id,
+         failure: "Command received by incorrect host and could not be processed"
+       })}
     end
-
-    :ok
   end
 
   # Update Actor
@@ -187,9 +206,10 @@ defmodule HostCore.ControlInterface.Server do
       }
 
       {:reply, Jason.encode!(ack)}
+    else
+      # We don't respond to an auction request if this host cannot satisfy the constraints
+      :ok
     end
-
-    :ok
   end
 
   # Auction Provider
@@ -210,9 +230,10 @@ defmodule HostCore.ControlInterface.Server do
       }
 
       {:reply, Jason.encode!(ack)}
+    else
+      # We don't respond to an auction request if this host cannot satisfy the constraints
+      :ok
     end
-
-    :ok
   end
 
   # FALL THROUGH
