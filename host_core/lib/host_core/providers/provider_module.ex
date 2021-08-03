@@ -56,6 +56,7 @@ defmodule HostCore.Providers.ProviderModule do
       |> to_charlist()
 
     port = Port.open({:spawn, "#{path}"}, [:binary])
+    Port.monitor(port)
     Port.command(port, "#{host_info}\n")
 
     {:os_pid, pid} = Port.info(port, :os_pid)
@@ -92,7 +93,7 @@ defmodule HostCore.Providers.ProviderModule do
       System.cmd("kill", ["-9", "#{state.os_pid}"])
     end
 
-    publish_provider_stopped(state.public_key, state.link_name, state.instance_id)
+    publish_provider_stopped(state.public_key, state.link_name, state.instance_id, "normal")
     {:stop, :normal, :ok, state}
   end
 
@@ -111,6 +112,18 @@ defmodule HostCore.Providers.ProviderModule do
     Logger.info("[#{state.public_key}]: #{logline}")
 
     {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :port, _port, :normal}, state) do
+    Logger.debug("Received DOWN message from port (executable stopped normally)")
+
+    {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :port, _port, reason}, state) do
+    Logger.error("Received DOWN message from port (executable stopped) - #{reason}")
+    publish_provider_stopped(state.public_key, state.link_name, state.instance_id, "#{reason}")
+    {:stop, reason, state}
   end
 
   @impl true
@@ -185,14 +198,16 @@ defmodule HostCore.Providers.ProviderModule do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  def publish_provider_stopped(public_key, link_name, instance_id) do
+  @spec publish_provider_stopped(String.t(), String.t(), String.t(), String.t()) :: :ok
+  def publish_provider_stopped(public_key, link_name, instance_id, reason) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: public_key,
         link_name: link_name,
-        instance_id: instance_id
+        instance_id: instance_id,
+        reason: reason
       }
       |> CloudEvent.new("provider_stopped")
 
