@@ -106,8 +106,20 @@
             <div class="dropdown d-inline-block">
               <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <button class="dropdown-item" phx-click="show_modal" phx-value-modal="start_actor_file">From File</button>
-                <button class="dropdown-item" phx-click="show_modal" phx-value-modal="start_actor_ociref">From Registry</button>
+                <button class="dropdown-item"
+                  phx-click="show_modal"
+                  phx-value-title="Start Actor from File"
+                  phx-value-component="StartActorComponent"
+                  phx-value-id="start_actor_file_modal">
+                  From File
+                </button>
+                <button class="dropdown-item"
+                  phx-click="show_modal"
+                  phx-value-title="Start Actor from OCI Registry"
+                  phx-value-component="StartActorComponent"
+                  phx-value-id="start_actor_ociref_modal">
+                  From Registry
+                </button>
               </div>
             </div>
           </div>
@@ -122,18 +134,37 @@
               <th>Status</th>
               <th>Actor ID</th>
               <th>Host ID</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <%= for {actor, hosts_map} <- @actors do %>
-              <%= for {host_id, host_info} <- hosts_map do %>
-                <%= live_component ActorRowComponent,
+              <tr>
+                <%= actor_name = @claims |> Enum.find(fn {k, v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
+                <%= for {host_id, host_info} <- hosts_map do %>
+                  <%= live_component ActorRowComponent,
                   actor: actor,
                   host_id: host_id,
                   status: Map.get(host_info, :status),
                   count: Map.get(host_info, :count),
-                  claims: @claims %>
-              <% end %>
+                  name: actor_name %>
+                  <td>
+                    <button class="btn btn-sm btn-warning"
+                      data-toggle="tooltip"
+                      data-placement="top"
+                      title data-original-title="Scale Actor"
+                      phx-click="show_modal"
+                      phx-value-title="Scale Actor"
+                      phx-value-component="ScaleActorComponent"
+                      phx-value-id="scale_actor_modal"
+                      phx-value-actor="<%= actor %>">
+                      <svg class="c-icon" style="color: white">
+                        <use xlink:href="/coreui/free.svg#cil-equalizer"></use>
+                      </svg>
+                    </button>
+                  </td>
+                <% end %>
+              </tr>
             <% end %>
           </tbody>
         </table>
@@ -152,8 +183,20 @@
             <div class="dropdown d-inline-block">
               <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <button class="dropdown-item" phx-click="show_modal" phx-value-modal="start_provider_file">From File</button>
-                <button class="dropdown-item" phx-click="show_modal" phx-value-modal="start_provider_ociref">From Registry</button>
+                <button class="dropdown-item"
+                  phx-click="show_modal"
+                  phx-value-title="Start Provider from File"
+                  phx-value-component="StartProviderComponent"
+                  phx-value-id="start_provider_file_modal">
+                  From File
+                </button>
+                <button class="dropdown-item"
+                  phx-click="show_modal"
+                  phx-value-title="Start Provider from OCI Registry"
+                  phx-value-component="StartProviderComponent"
+                  phx-value-id="start_provider_ociref_modal">
+                  From Registry
+                </button>
               </div>
             </div>
           </div>
@@ -199,7 +242,11 @@
           </div>
           <div class="mfe-2">
             <div class="dropdown d-inline-block">
-              <button class="btn btn-secondary" type="button" phx-click="show_modal" phx-value-modal="define_link" aria-haspopup="true" aria-expanded="false">
+              <button class="btn btn-secondary"
+                  phx-click="show_modal"
+                  phx-value-title="Define Link Definition"
+                  phx-value-component="DefineLinkComponent"
+                  phx-value-id="define_link_modal">
                 Define Link
                 <svg class="c-icon c-icon-sm">
                   <use xlink:href="/coreui/free.svg#cil-link"></use>

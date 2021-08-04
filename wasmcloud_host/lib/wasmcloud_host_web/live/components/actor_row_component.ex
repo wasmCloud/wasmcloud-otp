@@ -7,12 +7,7 @@ defmodule ActorRowComponent do
 
   def render(assigns) do
     ~L"""
-    <tr>
-      <%= for {k, v} <- @claims do %>
-        <%= if k == @actor do %>
-          <td><%= v.name %> </td>
-        <% end %>
-      <% end %>
+      <td><%= @name %> </td>
       <td><%= @count %></td>
       <td>
         <span class="badge <%= case @status do
@@ -27,7 +22,7 @@ defmodule ActorRowComponent do
           <%= String.slice(@actor, 0..4) %>...
           <svg class="c-icon">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
-          </svg>&nbsp;
+          </svg>
         </button>
       </td>
       <td>
@@ -35,10 +30,9 @@ defmodule ActorRowComponent do
           <%= String.slice(@host_id, 0..4) %>...
           <svg class="c-icon">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
-          </svg>&nbsp;
+          </svg>
         </button>
       </td>
-    </tr>
     """
   end
 end

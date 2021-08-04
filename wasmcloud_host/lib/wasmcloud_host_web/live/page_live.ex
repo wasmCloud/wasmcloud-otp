@@ -49,6 +49,16 @@ defmodule WasmcloudHostWeb.PageLive do
   end
 
   @impl true
+  def handle_event(
+        "show_modal",
+        modal,
+        socket
+      ) do
+    IO.inspect(modal)
+    {:noreply, assign(socket, :open_modal, modal)}
+  end
+
+  @impl true
   def handle_event("hide_modal", _value, socket) do
     {:noreply, assign(socket, :open_modal, nil)}
   end

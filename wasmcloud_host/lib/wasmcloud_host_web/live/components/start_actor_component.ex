@@ -117,7 +117,7 @@ defmodule StartActorComponent do
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
-        <button class="btn btn-primary" type="submit" >Submit</button>
+        <button class="btn btn-primary" type="submit">Submit</button>
       </div>
     </form>
     <%= if @error_msg != nil do %>

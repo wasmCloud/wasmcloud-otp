@@ -22,7 +22,7 @@ defmodule ProviderRowComponent do
           <%= String.slice(@provider, 0..4) %>...
           <svg class="c-icon">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
-          </svg>&nbsp;
+          </svg>
         </button></td>
       <td>
         <%= for hid <- @host_ids do %>
@@ -30,7 +30,7 @@ defmodule ProviderRowComponent do
             <%= String.slice(hid, 0..4) %>...
             <svg class="c-icon">
               <use xlink:href="/coreui/free.svg#cil-copy"></use>
-            </svg>&nbsp;
+            </svg>
           </button>
         <% end %>
       </td>
