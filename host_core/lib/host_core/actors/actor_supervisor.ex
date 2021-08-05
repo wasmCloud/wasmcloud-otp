@@ -92,6 +92,34 @@ defmodule HostCore.Actors.ActorSupervisor do
     Map.get(all_actors(), public_key, [])
   end
 
+  @doc """
+  Ensures that the actor count is equal to the desired count by terminating instances
+  or starting instances on the host.
+  """
+  def scale_actor(public_key, desired_count) do
+    current_count = find_actor(public_key) |> Enum.count()
+
+    diff = current_count - desired_count
+    IO.puts("trying to scale")
+    IO.inspect(current_count)
+    IO.inspect(desired_count)
+    IO.inspect(diff)
+
+    cond do
+      # Current count is desired actor count
+      diff == 0 ->
+        {:ok}
+
+      # Current count is greater than desired count, terminate instances
+      diff > 0 ->
+        terminate_actor(public_key, diff)
+
+      # Current count is less than desired count, start more instances
+      diff < 0 ->
+        {"need to start actor"}
+    end
+  end
+
   def terminate_actor(public_key, count) when count > 0 do
     children =
       Registry.lookup(Registry.ActorRegistry, public_key)

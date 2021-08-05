@@ -140,13 +140,15 @@
           <tbody>
             <%= for {actor, hosts_map} <- @actors do %>
               <tr>
-                <%= actor_name = @claims |> Enum.find(fn {k, v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
+                <% actor_name = @claims |> Enum.find(fn {k, v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
                 <%= for {host_id, host_info} <- hosts_map do %>
+                  <% count = Map.get(host_info, :count) %>
+                  <% status = Map.get(host_info, :status) %>
                   <%= live_component ActorRowComponent,
                   actor: actor,
                   host_id: host_id,
-                  status: Map.get(host_info, :status),
-                  count: Map.get(host_info, :count),
+                  status: status,
+                  count: count,
                   name: actor_name %>
                   <td>
                     <button class="btn btn-sm btn-warning"
@@ -154,10 +156,12 @@
                       data-placement="top"
                       title data-original-title="Scale Actor"
                       phx-click="show_modal"
-                      phx-value-title="Scale Actor"
+                      phx-value-title='Scale "<%= actor_name %>"'
                       phx-value-component="ScaleActorComponent"
                       phx-value-id="scale_actor_modal"
-                      phx-value-actor="<%= actor %>">
+                      phx-value-actor="<%= actor %>"
+                      phx-value-host="<%= host_id %>"
+                      phx-value-replicas="<%= count %>">
                       <svg class="c-icon" style="color: white">
                         <use xlink:href="/coreui/free.svg#cil-equalizer"></use>
                       </svg>

@@ -54,7 +54,6 @@ defmodule WasmcloudHostWeb.PageLive do
         modal,
         socket
       ) do
-    IO.inspect(modal)
     {:noreply, assign(socket, :open_modal, modal)}
   end
 

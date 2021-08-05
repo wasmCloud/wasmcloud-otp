@@ -23,7 +23,7 @@
               <% "StartActorComponent" ->  %>
               <%= live_component StartActorComponent, id: modal_id %>
               <% "ScaleActorComponent" ->  %>
-              <%= live_component ScaleActorComponent, id: modal_id, actor_info: Map.get(@open_modal, "actor_info") %>
+              <%= live_component ScaleActorComponent, id: modal_id, modal: @open_modal %>
               <% "StartProviderComponent" ->  %>
               <%= live_component StartProviderComponent, id: modal_id %>
               <% "DefineLinkComponent" ->  %>
