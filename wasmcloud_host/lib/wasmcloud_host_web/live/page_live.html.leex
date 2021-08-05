@@ -139,36 +139,17 @@
           </thead>
           <tbody>
             <%= for {actor, hosts_map} <- @actors do %>
-              <tr>
-                <% actor_name = @claims |> Enum.find(fn {k, v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
-                <%= for {host_id, host_info} <- hosts_map do %>
-                  <% count = Map.get(host_info, :count) %>
-                  <% status = Map.get(host_info, :status) %>
-                  <%= live_component ActorRowComponent,
+              <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
+              <%= for {host_id, host_info} <- hosts_map do %>
+                <% count = Map.get(host_info, :count) %>
+                <% status = Map.get(host_info, :status) %>
+                <%= live_component ActorRowComponent,
                   actor: actor,
                   host_id: host_id,
                   status: status,
                   count: count,
                   name: actor_name %>
-                  <td>
-                    <button class="btn btn-sm btn-warning"
-                      data-toggle="tooltip"
-                      data-placement="top"
-                      title data-original-title="Scale Actor"
-                      phx-click="show_modal"
-                      phx-value-title='Scale "<%= actor_name %>"'
-                      phx-value-component="ScaleActorComponent"
-                      phx-value-id="scale_actor_modal"
-                      phx-value-actor="<%= actor %>"
-                      phx-value-host="<%= host_id %>"
-                      phx-value-replicas="<%= count %>">
-                      <svg class="c-icon" style="color: white">
-                        <use xlink:href="/coreui/free.svg#cil-equalizer"></use>
-                      </svg>
-                    </button>
-                  </td>
-                <% end %>
-              </tr>
+              <% end %>
             <% end %>
           </tbody>
         </table>
@@ -215,15 +196,18 @@
               <th>Status</th>
               <th>Provider ID</th>
               <th>Host IDs</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <%# One row per-provider instance, which is a public key, contract id and link name combination %>
             <%= for {provider, instances} <- @providers do %>
               <%= for instance <- instances do  %>
+                <% link_name = Map.get(instance, :link_name) %>
                 <%= live_component ProviderRowComponent,
+                  id: "#{provider} (#{link_name})",
                   provider: provider,
-                  link_name: Map.get(instance, :link_name),
+                  link_name: link_name,
                   contract_id: Map.get(instance, :contract_id),
                   status: Map.get(instance, :status),
                   host_ids: Map.get(instance, :host_ids)%>

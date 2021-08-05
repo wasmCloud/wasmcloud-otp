@@ -7,6 +7,7 @@ defmodule ActorRowComponent do
 
   def render(assigns) do
     ~L"""
+    <tr>
       <td><%= @name %> </td>
       <td><%= @count %></td>
       <td>
@@ -33,6 +34,24 @@ defmodule ActorRowComponent do
           </svg>
         </button>
       </td>
+      <td>
+        <button class="btn btn-sm btn-warning"
+          data-toggle="tooltip"
+          data-placement="top"
+          title data-original-title="Scale Actor"
+          phx-click="show_modal"
+          phx-value-title='Scale "<%= @name %>"'
+          phx-value-component="ScaleActorComponent"
+          phx-value-id="scale_actor_modal"
+          phx-value-actor="<%= @actor %>"
+          phx-value-host="<%= @host_id %>"
+          phx-value-replicas="<%= @count %>">
+          <svg class="c-icon" style="color: white">
+            <use xlink:href="/coreui/free.svg#cil-equalizer"></use>
+          </svg>
+        </button>
+      </td>
+      </tr>
     """
   end
 end
