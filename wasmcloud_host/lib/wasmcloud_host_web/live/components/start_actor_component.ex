@@ -61,26 +61,17 @@ defmodule StartActorComponent do
       ) do
     replicas = 1..String.to_integer(replicas)
 
-    # Much more efficient to download the oci_bytes and start from bytes
     error_msg =
-      case HostCore.WasmCloud.Native.get_oci_bytes(actor_ociref, false, []) do
-        {:error, _err} ->
-          "Failed to download OCI bytes for #{actor_ociref}"
+      replicas
+      |> Enum.reduce_while("", fn _, _ ->
+        case HostCore.Actors.ActorSupervisor.start_actor_from_oci(actor_ociref) do
+          {:stop, err} ->
+            {:halt, "Error: #{err}"}
 
-        {:ok, bytes} ->
-          actor_bytes = bytes |> IO.iodata_to_binary()
-
-          replicas
-          |> Enum.reduce_while("", fn _, _ ->
-            case HostCore.Actors.ActorSupervisor.start_actor(actor_bytes, actor_ociref) do
-              {:stop, err} ->
-                {:halt, "Error: #{err}"}
-
-              _any ->
-                {:cont, ""}
-            end
-          end)
-      end
+          _any ->
+            {:cont, ""}
+        end
+      end)
 
     if error_msg != "" do
       {:noreply, assign(socket, error_msg: error_msg)}

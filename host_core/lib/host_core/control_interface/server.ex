@@ -121,6 +121,43 @@ defmodule HostCore.ControlInterface.Server do
     end
   end
 
+  # Scale Actor
+  # input: #{"actor_id" => "...", "actor_ref" => "...", "replicas" => "..."}
+  defp handle_request({"cmd", host_id, "scale"}, body, _reply_to) do
+    scale_request = Jason.decode!(body)
+
+    if host_id == HostCore.Host.host_key() do
+      actor_id = scale_request["actor_id"]
+      actor_ref = scale_request["actor_ref"]
+      replicas = String.to_integer(scale_request["replicas"])
+
+      case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, replicas, actor_ref) do
+        {:ok} ->
+          {:reply,
+           Jason.encode!(%{
+             host_id: host_id,
+             actor_ref: actor_ref,
+             replicas: HostCore.Actors.ActorSupervisor.find_actor(actor_id) |> Enum.count()
+           })}
+
+        {:error, err} ->
+          {:reply,
+           Jason.encode!(%{
+             host_id: host_id,
+             actor_ref: actor_ref,
+             replicas: HostCore.Actors.ActorSupervisor.find_actor(actor_id) |> Enum.count(),
+             error: err
+           })}
+      end
+    else
+      {:reply,
+       Jason.encode!(%{
+         host_id: host_id,
+         failure: "Command received by incorrect host and could not be processed"
+       })}
+    end
+  end
+
   # Launch Provider
   defp handle_request({"cmd", host_id, "lp"}, body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
@@ -209,28 +246,6 @@ defmodule HostCore.ControlInterface.Server do
     else
       # We don't respond to an auction request if this host cannot satisfy the constraints
       :ok
-    end
-  end
-
-  # Scale Actor
-  # input: #{"actor_id" => "...", "host_id" => "...", "replicas" => <number>}
-  defp handle_request({"scale", "actor"}, body, _reply_to) do
-    scale_request = Jason.decode!(body)
-    host_id = scale_request["host_id"]
-
-    if host_id == HostCore.Host.host_key() do
-      # TODO: call scale
-      # %{
-      #   "MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5" => [#PID<0.1381.0>,
-      #    #PID<0.4086.0>, #PID<0.4092.0>, #PID<0.4098.0>],
-      #   "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E" => [#PID<0.6026.0>]
-      # }
-    else
-      {:reply,
-       Jason.encode!(%{
-         host_id: host_id,
-         failure: "Command received by incorrect host and could not be processed"
-       })}
     end
   end
 

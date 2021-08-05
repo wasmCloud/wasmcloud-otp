@@ -18,12 +18,11 @@ defmodule ScaleActorComponent do
       ) do
     desired = String.to_integer(Map.get(params, "desired_replicas"))
     actor_id = Map.get(params, "actor_id")
-    # host_id = Map.get(params, "host_id")
 
     error_msg =
       case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, desired) do
         {:ok} -> ""
-        _any -> "omg error"
+        {:error, err} -> err
       end
 
     case error_msg do
@@ -42,6 +41,7 @@ defmodule ScaleActorComponent do
       <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
       <input name="actor_id" type="hidden" value='<%= Map.get(@modal, "actor") %>'>
       <input name="host_id" type="hidden" value='<%= Map.get(@modal, "host") %>'>
+      <input name="actor_ociref" type="hidden" value='<%= Map.get(@modal, "oci") %>'>
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Replicas</label>
         <div class="col-md-9">
