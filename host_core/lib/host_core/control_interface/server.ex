@@ -23,7 +23,7 @@ defmodule HostCore.ControlInterface.Server do
 
     res = %{
       id: HostCore.Host.host_key(),
-      uptime: div(total, 1000)
+      uptime_seconds: div(total, 1000)
     }
 
     {:reply, Jason.encode!(res)}
