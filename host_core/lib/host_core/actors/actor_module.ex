@@ -21,7 +21,8 @@ defmodule HostCore.Actors.ActorModule do
       :api_version,
       :invocation,
       :claims,
-      :subscription
+      :subscription,
+      :ociref
     ]
   end
 
@@ -50,6 +51,10 @@ defmodule HostCore.Actors.ActorModule do
 
   def instance_id(pid) do
     GenServer.call(pid, :get_instance_id)
+  end
+
+  def ociref(pid) do
+    GenServer.call(pid, :get_ociref)
   end
 
   def halt(pid) do
@@ -113,6 +118,10 @@ defmodule HostCore.Actors.ActorModule do
 
   def handle_call(:get_instance_id, _from, agent) do
     {:reply, Agent.get(agent, fn content -> content.instance_id end), agent}
+  end
+
+  def handle_call(:get_ociref, _from, agent) do
+    {:reply, Agent.get(agent, fn content -> content.ociref end), agent}
   end
 
   @impl true
@@ -197,7 +206,7 @@ defmodule HostCore.Actors.ActorModule do
 
     Logger.info("Subscribing to #{topic}")
     {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
-    Agent.update(agent, fn state -> %State{state | subscription: subscription} end)
+    Agent.update(agent, fn state -> %State{state | subscription: subscription, ociref: oci} end)
 
     Process.send_after(self(), :do_health, @thirty_seconds)
 

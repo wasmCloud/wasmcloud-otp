@@ -151,13 +151,13 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   defp process_event(
          state,
          %Cloudevents.Format.V_1_0.Event{
-           data: %{"public_key" => public_key, "running_instances" => remaining_count},
+           data: %{"public_key" => public_key, "instance_id" => _instance_id},
            datacontenttype: "application/json",
            source: source_host,
            type: "com.wasmcloud.lattice.actor_stopped"
          }
        ) do
-    actors = set_actor_count(public_key, source_host, remaining_count, state.actors)
+    actors = remove_actor(public_key, source_host, state.actors)
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
     %State{state | actors: actors}
   end
@@ -183,15 +183,19 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   defp process_event(
          state,
          %Cloudevents.Format.V_1_0.Event{
-           data: %{"link_name" => _link_name, "public_key" => _pk},
+           data: %{"link_name" => link_name, "public_key" => pk},
            datacontenttype: "application/json",
            source: _source_host,
            type: "com.wasmcloud.lattice.provider_stopped"
          }
        ) do
-    providers = state.providers
-    # TODO - remove provider from list
+    instances =
+      Map.get(state.providers, pk)
+      |> Enum.filter(fn el -> el.link_name != link_name end)
 
+    providers = Map.put(state.providers, pk, instances)
+
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:providers, providers})
     %State{state | providers: providers}
   end
 
@@ -368,9 +372,22 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     Map.put(previous_map, pk, actor_map)
   end
 
-  defp set_actor_count(pk, host, count, previous_map) do
+  def remove_actor(pk, host, previous_map) do
     actor_map = Map.get(previous_map, pk, %{})
-    actor_map = Map.put(actor_map, host, count)
-    Map.put(previous_map, pk, actor_map)
+    host_info = Map.get(actor_map, host)
+
+    current_count =
+      host_info
+      |> Map.get(:count)
+
+    case current_count do
+      1 ->
+        Map.delete(previous_map, pk)
+
+      _other ->
+        host_map = Map.put(host_info, :count, current_count - 1)
+        actor_map = Map.put(actor_map, host, host_map)
+        Map.put(previous_map, pk, actor_map)
+    end
   end
 end
