@@ -206,8 +206,7 @@ defmodule HostCore.Actors.ActorModule do
 
     Logger.info("Subscribing to #{topic}")
     {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
-    Agent.update(agent, fn state -> %State{state | subscription: subscription} end)
-    Agent.update(agent, fn state -> %State{state | ociref: oci} end)
+    Agent.update(agent, fn state -> %State{state | subscription: subscription, ociref: oci} end)
 
     Process.send_after(self(), :do_health, @thirty_seconds)
 

@@ -132,7 +132,7 @@ defmodule HostCore.ControlInterface.Server do
       replicas = String.to_integer(scale_request["replicas"])
 
       case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, replicas, actor_ref) do
-        {:ok} ->
+        :ok ->
           {:reply,
            Jason.encode!(%{
              host_id: host_id,

@@ -118,7 +118,7 @@ defmodule HostCore.Actors.ActorSupervisor do
     cond do
       # Current count is desired actor count
       diff == 0 ->
-        {:ok}
+        :ok
 
       # Current count is greater than desired count, terminate instances
       diff > 0 ->
@@ -136,7 +136,7 @@ defmodule HostCore.Actors.ActorSupervisor do
                    {:cont, ""}
                end
              end) do
-          "" -> {:ok}
+          "" -> :ok
           err -> {:error, err}
         end
 

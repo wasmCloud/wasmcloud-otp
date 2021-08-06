@@ -21,7 +21,7 @@ defmodule ScaleActorComponent do
 
     error_msg =
       case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, desired) do
-        {:ok} -> ""
+        :ok -> ""
         {:error, err} -> err
       end
 
