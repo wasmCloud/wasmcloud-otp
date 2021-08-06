@@ -18,7 +18,7 @@ defmodule HostCore.E2E.EchoTest do
       )
 
     {:ok, bytes} = File.read(@httpserver_path)
-    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
