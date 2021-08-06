@@ -63,7 +63,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     with {:ok, bytes} <- HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []),
          par <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
          {:ok, path} <- extract_executable_to_tmp(par, link_name) do
-      start_executable_provider(path, par.claims.public_key, link_name, par.contract_id, oci)
+      start_executable_provider(path, par.claims, link_name, par.contract_id, oci)
     else
       {:error, err} -> Logger.error("Error starting provider from OCI: #{err}")
       _err -> Logger.error("Error starting provider from OCI")
