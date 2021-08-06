@@ -63,7 +63,7 @@ defmodule HostCore.Jetstream.Client do
 
   @impl true
   def handle_continue(:create_eph_consumer, state) do
-    Logger.info("Creating ephemeral consumer (cache loader)")
+    Logger.info("Attempting to create ephemeral consumer (cache loader)")
     stream_name = "LATTICECACHE_#{state.lattice_prefix}"
     consumer_name = String.replace(state.deliver_subject, "_INBOX.", "")
     create_topic = "$JS.API.CONSUMER.CREATE.#{stream_name}"
@@ -78,7 +78,7 @@ defmodule HostCore.Jetstream.Client do
           filter_subject: ">",
           deliver_policy: "last_per_subject",
           deliver_subject: state.deliver_subject,
-          # idle_heartbeat: 2_000_000_000,
+          #idle_heartbeat: 2_000_000_000,
           max_ack_pending: 20000,
           max_deliver: -1,
           replay_policy: "instant"
@@ -110,7 +110,7 @@ defmodule HostCore.Jetstream.Client do
 
   def handle_consumer_create_response(%{
         "type" => "io.nats.jetstream.api.v1.consumer_create_response",
-        "config" => _config
+        "config" => _config,
       }) do
     Logger.info("Created ephemeral consumer for lattice cache loader")
   end
