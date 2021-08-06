@@ -1,16 +1,5 @@
 defmodule HostCore.Claims.Manager do
-  use GenServer, restart: :transient
-
   require Logger
-
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: :claims_manager)
-  end
-
-  @impl true
-  def init(_opts) do
-    {:ok, :ok}
-  end
 
   def lookup_claims(public_key) do
     case :ets.lookup(:claims_table, public_key) do
@@ -63,37 +52,20 @@ defmodule HostCore.Claims.Manager do
       sub: claims.public_key
     }
 
-    HostCore.Claims.Manager.cache_call_alias(claims.call_alias, claims.sub)
+    cache_call_alias(claims.call_alias, claims.sub)
     cache_claims(key, claims)
     publish_claims(claims)
   end
 
   defp publish_claims(claims) do
     prefix = HostCore.Host.lattice_prefix()
-    topic = "wasmbus.rpc.#{prefix}.claims.put"
+    topic = "lc.#{prefix}.claims.#{claims.sub}"
 
-    Gnat.pub(:lattice_nats, topic, Msgpax.pack!(claims))
+    Gnat.pub(:control_nats, topic, Jason.encode!(claims))
   end
 
-  def request_claims() do
-    prefix = HostCore.Host.lattice_prefix()
-    topic = "wasmbus.rpc.#{prefix}.claims.get"
-
-    case Gnat.request(:lattice_nats, topic, [], receive_timeout: 2_000) do
-      {:ok, %{body: body}} ->
-        # Unpack claims, convert to map with atom keys
-        Msgpax.unpack!(body)
-        |> Enum.map(fn claims ->
-          claims
-          |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
-        end)
-
-      {:error, :timeout} ->
-        Logger.debug("No response for claims get, starting with empty claims cache")
-        []
-
-      _ ->
-        []
-    end
+  def get_claims() do
+    :ets.tab2list(:claims_table)
+    |> Enum.map(fn {_pk, %{} = claims} -> claims end)
   end
 end

@@ -37,21 +37,21 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   @impl true
-  def init({:executable, path, public_key, link_name, contract_id, oci}) do
+  def init({:executable, path, claims, link_name, contract_id, oci}) do
     Logger.info("Starting executable capability provider at  '#{path}'")
 
     # In case we want to know the contract ID of this provider, we can look it up as the
     # bound value in the registry.
 
     # Store the provider pid
-    Registry.register(Registry.ProviderRegistry, {public_key, link_name}, contract_id)
+    Registry.register(Registry.ProviderRegistry, {claims.public_key, link_name}, contract_id)
     # Store the provider triple in an ETS table
-    HostCore.Providers.register_provider(public_key, link_name, contract_id)
+    HostCore.Providers.register_provider(claims.public_key, link_name, contract_id)
 
     instance_id = UUID.uuid4()
 
     host_info =
-      HostCore.Host.generate_hostinfo_for(public_key, link_name, instance_id)
+      HostCore.Host.generate_hostinfo_for(claims.public_key, link_name, instance_id)
       |> Base.encode64()
       |> to_charlist()
 
@@ -65,10 +65,11 @@ defmodule HostCore.Providers.ProviderModule do
     # the provider's NATS topic. The provider now subscribes to that directly
     # when it starts.
 
-    publish_provider_started(public_key, link_name, contract_id, instance_id)
+    HostCore.Claims.Manager.put_claims(claims)
+    publish_provider_started(claims.public_key, link_name, contract_id, instance_id)
 
     if oci != nil && oci != "" do
-      publish_provider_oci_map(public_key, link_name, oci)
+      publish_provider_oci_map(claims.public_key, link_name, oci)
     end
 
     Process.send_after(self(), :do_health, @thirty_seconds)
@@ -77,7 +78,7 @@ defmodule HostCore.Providers.ProviderModule do
      %State{
        os_port: port,
        os_pid: pid,
-       public_key: public_key,
+       public_key: claims.public_key,
        link_name: link_name,
        contract_id: contract_id,
        instance_id: instance_id,
@@ -154,18 +155,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   defp publish_provider_oci_map(public_key, _link_name, oci) do
-    prefix = HostCore.Host.lattice_prefix()
-
-    msg =
-      %{
-        oci_url: oci,
-        public_key: public_key
-      }
-      |> Msgpax.pack!()
-      |> IO.iodata_to_binary()
-
-    topic = "wasmbus.rpc.#{prefix}.refmaps.put"
-    Gnat.pub(:lattice_nats, topic, msg)
+    HostCore.Refmaps.Manager.put_refmap(oci, public_key)
   end
 
   defp publish_health_passed(state) do

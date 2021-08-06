@@ -23,14 +23,14 @@ defmodule HostCore.ControlInterface.Server do
 
     res = %{
       id: HostCore.Host.host_key(),
-      uptime: div(total, 1000)
+      uptime_seconds: div(total, 1000)
     }
 
     {:reply, Jason.encode!(res)}
   end
 
   defp handle_request({"get", "claims"}, _body, _reply_to) do
-    claims = HostCore.Claims.Server.get_claims()
+    claims = HostCore.Claims.Manager.get_claims()
 
     res = %{
       claims: claims
@@ -40,7 +40,7 @@ defmodule HostCore.ControlInterface.Server do
   end
 
   defp handle_request({"get", "links"}, _body, _reply_to) do
-    links = HostCore.Linkdefs.Server.get_link_definitions()
+    links = HostCore.Linkdefs.Manager.get_link_definitions()
 
     res = %{
       links: links

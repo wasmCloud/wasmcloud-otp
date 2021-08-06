@@ -12,12 +12,12 @@ defmodule HostCore.Providers.ProviderSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  defp start_executable_provider(path, public_key, link_name, contract_id, oci \\ "") do
-    case Registry.count_match(Registry.ProviderRegistry, {public_key, link_name}, :_) do
+  defp start_executable_provider(path, claims, link_name, contract_id, oci \\ "") do
+    case Registry.count_match(Registry.ProviderRegistry, {claims.public_key, link_name}, :_) do
       0 ->
         DynamicSupervisor.start_child(
           __MODULE__,
-          {ProviderModule, {:executable, path, public_key, link_name, contract_id, oci}}
+          {ProviderModule, {:executable, path, claims, link_name, contract_id, oci}}
         )
 
       _ ->
@@ -76,7 +76,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
          {:ok, tmp_path} <- extract_executable_to_tmp(par, link_name) do
       start_executable_provider(
         tmp_path,
-        par.claims.public_key,
+        par.claims,
         link_name,
         par.contract_id
       )

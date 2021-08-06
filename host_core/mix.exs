@@ -32,6 +32,7 @@ defmodule HostCore.MixProject do
       {:jason, "~> 1.2.2"},
       {:vapor, "~> 0.10.0"},
       {:parallel_task, "~> 0.1.1"},
+      {:hashids, "~> 2.0"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:httpoison, "~> 1.8", only: [:test]},
