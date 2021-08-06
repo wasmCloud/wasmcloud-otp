@@ -60,7 +60,12 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def start_provider_from_oci(oci, link_name) do
-    with {:ok, bytes} <- HostCore.WasmCloud.Native.get_oci_bytes(oci, HostCore.Oci.allow_latest(), HostCore.Oci.allowed_insecure()),
+    with {:ok, bytes} <-
+           HostCore.WasmCloud.Native.get_oci_bytes(
+             oci,
+             HostCore.Oci.allow_latest(),
+             HostCore.Oci.allowed_insecure()
+           ),
          {:ok, par} <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
          {:ok, path} <- extract_executable_to_tmp(par, link_name) do
       start_executable_provider(path, par.claims.public_key, link_name, par.contract_id, oci)

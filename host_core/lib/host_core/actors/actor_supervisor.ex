@@ -32,7 +32,11 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def start_actor_from_oci(oci) do
-    case HostCore.WasmCloud.Native.get_oci_bytes(oci, HostCore.Oci.allow_latest(), HostCore.Oci.allowed_insecure()) do
+    case HostCore.WasmCloud.Native.get_oci_bytes(
+           oci,
+           HostCore.Oci.allow_latest(),
+           HostCore.Oci.allowed_insecure()
+         ) do
       {:error, err} ->
         Logger.error("Failed to download OCI bytes for #{oci}")
         {:stop, err}
@@ -43,7 +47,12 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def live_update(oci) do
-    with {:ok, bytes} <- HostCore.WasmCloud.Native.get_oci_bytes(oci, HostCore.Oci.allow_latest(), HostCore.Oci.allowed_insecure()),
+    with {:ok, bytes} <-
+           HostCore.WasmCloud.Native.get_oci_bytes(
+             oci,
+             HostCore.Oci.allow_latest(),
+             HostCore.Oci.allowed_insecure()
+           ),
          {:ok, new_claims} <-
            HostCore.WasmCloud.Native.extract_claims(bytes |> IO.iodata_to_binary()),
          {:ok, old_claims} <- HostCore.Claims.Manager.lookup_claims(new_claims.public_key),
