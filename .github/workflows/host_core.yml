@@ -19,7 +19,7 @@ jobs:
     services:
       nats:
         image: nats
-        options: --entrypoint ["/nats-server", "-js"]
+        options: --entrypoint '["/nats-server", "-js"]'
         ports:
           - 4222:4222
       redis:
