@@ -162,6 +162,11 @@ fn main() -> Result<()> {
         lattice_rpc_prefix, provider_key, link_name
     );
 
+    let health_topic = format!(
+        "wasmbus.rpc.{}.{}.{}.health",
+        lattice_rpc_prefix, provider_key, link_name
+    );
+
     let nc = nats::connect(&host_data.lattice_rpc_url)?; // TODO: use credentials from the host_data struct
 
     let _sub = nc
@@ -169,6 +174,15 @@ fn main() -> Result<()> {
         .with_handler(move |msg| {
             println!("Received request for linkdefs.");
             msg.respond(serialize(&*LINKDEFS.read().unwrap()).unwrap())
+                .unwrap();
+            Ok(())
+        });
+
+    let _sub = nc
+        .subscribe(&health_topic)?
+        .with_handler(move |msg| {
+            println!("Received health check request.");
+            msg.respond(serialize(vec![true]).unwrap())
                 .unwrap();
             Ok(())
         });
