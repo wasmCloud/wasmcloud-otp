@@ -78,7 +78,7 @@ defmodule HostCore.Jetstream.Client do
           filter_subject: ">",
           deliver_policy: "last_per_subject",
           deliver_subject: state.deliver_subject,
-          #idle_heartbeat: 2_000_000_000,
+          # idle_heartbeat: 2_000_000_000,
           max_ack_pending: 20000,
           max_deliver: -1,
           replay_policy: "instant"
@@ -110,7 +110,7 @@ defmodule HostCore.Jetstream.Client do
 
   def handle_consumer_create_response(%{
         "type" => "io.nats.jetstream.api.v1.consumer_create_response",
-        "config" => _config,
+        "config" => _config
       }) do
     Logger.info("Created ephemeral consumer for lattice cache loader")
   end
