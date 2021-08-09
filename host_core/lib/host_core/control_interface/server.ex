@@ -17,8 +17,9 @@ defmodule HostCore.ControlInterface.Server do
     |> handle_request(body, reply_to)
   end
 
-  # TODO: This should retrieve all hosts running in the lattice
-  defp handle_request({"get", "hosts"}, _body, _reply_to) do
+  ### PING
+  # Answered by all hosts in a collect/gather operation by clients
+  defp handle_request({"ping", "hosts"}, _body, _reply_to) do
     {total, _} = :erlang.statistics(:wall_clock)
 
     res = %{
@@ -29,8 +30,12 @@ defmodule HostCore.ControlInterface.Server do
     {:reply, Jason.encode!(res)}
   end
 
+  ### GET queries
+  # These are answered by one host per lattice (queue group subscription)
+
+  # Retrieves claims from the in-memory cache
   defp handle_request({"get", "claims"}, _body, _reply_to) do
-    claims = HostCore.Claims.Server.get_claims()
+    claims = HostCore.Claims.Manager.get_claims()
 
     res = %{
       claims: claims
@@ -39,8 +44,9 @@ defmodule HostCore.ControlInterface.Server do
     {:reply, Jason.encode!(res)}
   end
 
+  # Retrieves link definitions from the in-memory cache
   defp handle_request({"get", "links"}, _body, _reply_to) do
-    links = HostCore.Linkdefs.Server.get_link_definitions()
+    links = HostCore.Linkdefs.Manager.get_link_definitions()
 
     res = %{
       links: links
@@ -49,6 +55,7 @@ defmodule HostCore.ControlInterface.Server do
     {:reply, Jason.encode!(res)}
   end
 
+  # Retrieves the inventory of the current host
   defp handle_request({"get", host_id, "inv"}, _body, _reply_to) do
     if host_id == HostCore.Host.host_key() do
       res = %{
@@ -68,57 +75,79 @@ defmodule HostCore.ControlInterface.Server do
     end
   end
 
+  ### LINKDEFS
+  # These requests are targeted at one host per lattice, changes made as a result
+  # are emitted to the appropriate stream and cached
+
+  # Put a link definition
+  # This will first store the link definition in memory, then publish it to the stream
+  # then publish it directly to the relevant provider via the RPC channel
+  defp handle_request({"linkdefs", "put"}, body, _reply_to) do
+    ld = Jason.decode!(body)
+
+    HostCore.Linkdefs.Manager.put_link_definition(
+      ld["actor_id"],
+      ld["contract_id"],
+      ld["link_name"],
+      ld["provider_id"],
+      ld["values"]
+    )
+
+    {:reply, %{accepted: true} |> Jason.encode!()}
+  end
+
+  # Remove a link definition
+  # This will first remove the link definition from memory, then publish the removal
+  # message to the stream, then publish the removal directly to the relevant provider via the
+  # RPC channel
+  defp handle_request({"linkdefs", "del"}, body, _reply_to) do
+    ld = Jason.decode!(body)
+
+    HostCore.Linkdefs.Manager.del_link_definition(
+      ld["actor_id"],
+      ld["contract_id"],
+      ld["link_name"]
+    )
+
+    {:reply, %{accepted: true} |> Jason.encode!()}
+  end
+
   ### COMMANDS
+  # Commands are all targeted at a specific host and as such do not require
+  # a queue group
 
   # Launch Actor
   # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx"}
   defp handle_request({"cmd", host_id, "la"}, body, _reply_to) do
-    if host_id == HostCore.Host.host_key() do
-      start_actor_command = Jason.decode!(body)
+    start_actor_command = Jason.decode!(body)
 
-      case HostCore.Actors.ActorSupervisor.start_actor_from_oci(start_actor_command["actor_ref"]) do
-        {:ok, _pid} ->
-          ack = %{
-            host_id: host_id,
-            actor_ref: start_actor_command["actor_ref"]
-          }
+    case HostCore.Actors.ActorSupervisor.start_actor_from_oci(start_actor_command["actor_ref"]) do
+      {:ok, _pid} ->
+        ack = %{
+          host_id: host_id,
+          actor_ref: start_actor_command["actor_ref"]
+        }
 
-          {:reply, Jason.encode!(ack)}
+        {:reply, Jason.encode!(ack)}
 
-        {:error, e} ->
-          Logger.error("Failed to start actor per remote call")
+      {:error, e} ->
+        Logger.error("Failed to start actor per remote call")
 
-          ack = %{
-            host_id: host_id,
-            actor_ref: start_actor_command["actor_ref"],
-            failure: "Failed to start actor: #{e}"
-          }
+        ack = %{
+          host_id: host_id,
+          actor_ref: start_actor_command["actor_ref"],
+          failure: "Failed to start actor: #{e}"
+        }
 
-          {:reply, Jason.encode!(ack)}
-      end
-    else
-      {:reply,
-       Jason.encode!(%{
-         host_id: host_id,
-         failure: "Command received by incorrect host and could not be processed"
-       })}
+        {:reply, Jason.encode!(ack)}
     end
   end
 
   # Stop Actor
-  defp handle_request({"cmd", host_id, "sa"}, body, _reply_to) do
-    if host_id == HostCore.Host.host_key() do
-      stop_actor_command = Jason.decode!(body)
-      HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
-      ack = %{}
-      {:reply, Jason.encode!(ack)}
-    else
-      {:reply,
-       Jason.encode!(%{
-         host_id: host_id,
-         failure: "Command received by incorrect host and could not be processed"
-       })}
-    end
+  defp handle_request({"cmd", _host_id, "sa"}, body, _reply_to) do
+    stop_actor_command = Jason.decode!(body)
+    HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
+    {:reply, %{accepted: true} |> Jason.encode!()}
   end
 
   # Scale Actor
@@ -160,73 +189,59 @@ defmodule HostCore.ControlInterface.Server do
 
   # Launch Provider
   defp handle_request({"cmd", host_id, "lp"}, body, _reply_to) do
-    if host_id == HostCore.Host.host_key() do
-      start_provider_command = Jason.decode!(body)
+    start_provider_command = Jason.decode!(body)
 
-      ack =
-        case HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
-               start_provider_command["provider_ref"],
-               start_provider_command["link_name"]
-             ) do
-          {:ok, _pid} ->
-            %{
-              host_id: host_id,
-              provider_ref: start_provider_command["provider_ref"]
-            }
+    ack =
+      case HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+             start_provider_command["provider_ref"],
+             start_provider_command["link_name"]
+           ) do
+        {:ok, _pid} ->
+          %{
+            host_id: host_id,
+            provider_ref: start_provider_command["provider_ref"]
+          }
 
-          {:error, e} ->
-            %{
-              host_id: host_id,
-              provider_ref: start_provider_command["provider_ref"],
-              error: "Failed to start provider: #{e}"
-            }
-        end
+        {:error, e} ->
+          %{
+            host_id: host_id,
+            provider_ref: start_provider_command["provider_ref"],
+            error: "Failed to start provider: #{e}"
+          }
+      end
 
-      {:reply, Jason.encode!(ack)}
-    else
-      {:reply,
-       Jason.encode!(%{
-         host_id: host_id,
-         failure: "Command received by incorrect host and could not be processed"
-       })}
-    end
+    {:reply, Jason.encode!(ack)}
   end
 
   # Stop Provider
-  defp handle_request({"cmd", host_id, "sp"}, body, _reply_to) do
-    if host_id == HostCore.Host.host_key() do
-      stop_provider_command = Jason.decode!(body)
+  defp handle_request({"cmd", _host_id, "sp"}, body, _reply_to) do
+    stop_provider_command = Jason.decode!(body)
 
-      HostCore.Providers.ProviderSupervisor.terminate_provider(
-        stop_provider_command["provider_ref"],
-        stop_provider_command["link_name"]
-      )
+    HostCore.Providers.ProviderSupervisor.terminate_provider(
+      stop_provider_command["provider_ref"],
+      stop_provider_command["link_name"]
+    )
 
-      {:reply, Jason.encode!(%{})}
-    else
-      {:reply,
-       Jason.encode!(%{
-         host_id: host_id,
-         failure: "Command received by incorrect host and could not be processed"
-       })}
-    end
+    {:reply, %{accepted: true} |> Jason.encode!()}
   end
 
   # Update Actor
   # input: %{"new_actor_ref" => "... oci URL ..."} , public key, etc needs to match a running actor
-  defp handle_request({"cmd", host_id, "upd"}, body, _reply_to) do
-    if host_id == HostCore.Host.host_key() do
-      update_actor_command = Jason.decode!(body)
+  defp handle_request({"cmd", _host_id, "upd"}, body, _reply_to) do
+    update_actor_command = Jason.decode!(body)
 
-      response =
-        case HostCore.Actors.ActorSupervisor.live_update(update_actor_command["new_actor_ref"]) do
-          :ok -> Jason.encode!(%{accepted: true})
-          :error -> Jason.encode!(%{accepted: false})
-        end
+    response =
+      case HostCore.Actors.ActorSupervisor.live_update(update_actor_command["new_actor_ref"]) do
+        :ok -> Jason.encode!(%{accepted: true})
+        :error -> Jason.encode!(%{accepted: false})
+      end
 
-      {:reply, response}
-    end
+    {:reply, response}
   end
+
+  ### AUCTIONS
+  # All auctions are sent to every host within the lattice
+  # so no queue subscription is used.
 
   # Auction Actor
   # input: #{"actor_ref" => "...", "constraints" => %{}}

@@ -31,6 +31,10 @@ defmodule HostCore.Nats do
     }
   end
 
+  def sanitize_for_topic(input) do
+    Base.url_encode64(input, padding: false)
+  end
+
   defp determine_auth_method(nkey_seed, jwt, conn_name) do
     cond do
       jwt != "" && nkey_seed != "" ->

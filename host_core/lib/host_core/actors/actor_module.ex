@@ -310,19 +310,6 @@ defmodule HostCore.Actors.ActorModule do
 
   def publish_oci_map(oci, pk) do
     HostCore.Refmaps.Manager.put_refmap(oci, pk)
-
-    prefix = HostCore.Host.lattice_prefix()
-
-    msg =
-      %{
-        oci_url: oci,
-        public_key: pk
-      }
-      |> Msgpax.pack!()
-      |> IO.iodata_to_binary()
-
-    topic = "wasmbus.rpc.#{prefix}.refmaps.put"
-    Gnat.pub(:lattice_nats, topic, msg)
   end
 
   def publish_actor_started(actor_pk, api_version, instance_id) do

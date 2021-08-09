@@ -15,9 +15,18 @@ defmodule HostCore.Application do
     {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
     {def_cluster_key, def_cluster_seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
 
+    s =
+      Hashids.new(
+        salt: "lc_deliver_inbox",
+        min_len: 2
+      )
+
+    hid = Hashids.encode(s, Enum.random(1..4_294_967_295))
+
     providers = [
       %Vapor.Provider.Env{
         bindings: [
+          {:cache_deliver_inbox, "_DI", default: "_INBOX.#{hid}"},
           {:host_key, @hostkey_var, default: host_key},
           {:host_seed, @hostseed_var, default: host_seed},
           {:lattice_prefix, @prefix_var, default: @default_prefix},
@@ -51,7 +60,6 @@ defmodule HostCore.Application do
     config = config!()
 
     children = [
-      # {HostCore.Worker, arg}
       {Registry, keys: :unique, name: Registry.ProviderRegistry},
       {Registry, keys: :duplicate, name: Registry.ActorRegistry},
       Supervisor.child_spec(
@@ -68,57 +76,6 @@ defmodule HostCore.Application do
        strategy: :one_for_one,
        allow_latest: config.allow_latest,
        allowed_insecure: config.allowed_insecure},
-      {HostCore.Claims.Manager, strategy: :one_for_one, name: ClaimsManager},
-      {HostCore.Linkdefs.Manager, strategy: :one_for_one, name: LinkdefsManager},
-      # Handle advertised link definitions and corresponding queries
-      Supervisor.child_spec(
-        {Gnat.ConsumerSupervisor,
-         %{
-           connection_name: :lattice_nats,
-           module: HostCore.Linkdefs.Server,
-           subscription_topics: [
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.put"},
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.del"},
-             %{
-               topic: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.get",
-               queue_group: "wasmbus.rpc.#{config.lattice_prefix}.linkdefs.get"
-             }
-           ]
-         }},
-        id: :linkdefs_consumer_supervisor
-      ),
-      # Handle advertised PK->Claims maps and corresponding queries
-      Supervisor.child_spec(
-        {Gnat.ConsumerSupervisor,
-         %{
-           connection_name: :lattice_nats,
-           module: HostCore.Claims.Server,
-           subscription_topics: [
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.put"},
-             %{
-               topic: "wasmbus.rpc.#{config.lattice_prefix}.claims.get",
-               queue_group: "wasmbus.rpc.#{config.lattice_prefix}.claims.get"
-             }
-           ]
-         }},
-        id: :claims_consumer_supervisor
-      ),
-      # Handle advertised OCI->public key reference maps and corresponding queries
-      Supervisor.child_spec(
-        {Gnat.ConsumerSupervisor,
-         %{
-           connection_name: :lattice_nats,
-           module: HostCore.Refmaps.Server,
-           subscription_topics: [
-             %{topic: "wasmbus.rpc.#{config.lattice_prefix}.refmaps.put"},
-             %{
-               topic: "wasmbus.rpc.#{config.lattice_prefix}.refmaps.get",
-               queue_group: "wasmbus.rpc.#{config.lattice_prefix}.refmaps.get"
-             }
-           ]
-         }},
-        id: :refmaps_consumer_supervisor
-      ),
       # Handle lattice control interface requests
       Supervisor.child_spec(
         {Gnat.ConsumerSupervisor,
@@ -126,14 +83,34 @@ defmodule HostCore.Application do
            connection_name: :control_nats,
            module: HostCore.ControlInterface.Server,
            subscription_topics: [
-             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.cmd.>"},
-             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.get.>"},
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.cmd.#{config.host_key}.*"},
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.ping.hosts"},
+             %{
+               topic: "wasmbus.ctl.#{config.lattice_prefix}.linkdefs.*",
+               queue_group: "wasmbus.ctl.#{config.lattice_prefix}"
+             },
+             %{
+               topic: "wasmbus.ctl.#{config.lattice_prefix}.get.>",
+               queue_group: "wasmbus.ctl.#{config.lattice_prefix}"
+             },
              %{topic: "wasmbus.ctl.#{config.lattice_prefix}.auction.>"}
            ]
          }},
         id: :latticectl_consumer_supervisor
       ),
-      {HostCore.Host, config}
+      Supervisor.child_spec(
+        {Gnat.ConsumerSupervisor,
+         %{
+           connection_name: :control_nats,
+           module: HostCore.Jetstream.CacheLoader,
+           subscription_topics: [
+             %{topic: "#{config.cache_deliver_inbox}"}
+           ]
+         }},
+        id: :cacheloader_consumer_supervisor
+      ),
+      {HostCore.Host, config},
+      {HostCore.Jetstream.Client, config}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
