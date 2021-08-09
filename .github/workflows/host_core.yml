@@ -17,11 +17,11 @@ jobs:
         elixir: [1.12.1]
         otp: [22.0, 23.0, 23.3.4.1, 24.0]
     services:
-      nats:
-        image: nats
-        options: --entrypoint="/nats-server -js"
-        ports:
-          - 4222:4222
+      #nats:
+      #  image: nats
+      #  options: --entrypoint="/nats-server -js"
+      #  ports:
+      #    - 4222:4222
       redis:
         image: redis
         ports:
@@ -31,7 +31,13 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2      
+      
+      - name: Install and Run NATS
+        run: |
+          curl -L https://github.com/nats-io/nats-server/releases/download/v2.3.4/nats-server-v2.3.4-linux-amd64.zip -o nats-server.zip
+          unzip nats-server.zip -d nats-server
+          ./nats-server/nats-server -js &
 
       - name: Setup elixir
         uses: actions/setup-elixir@v1
