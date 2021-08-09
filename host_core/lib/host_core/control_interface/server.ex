@@ -147,7 +147,7 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"cmd", _host_id, "sa"}, body, _reply_to) do
     stop_actor_command = Jason.decode!(body)
     HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
-    {:reply, %{accepted: true} |> Jason.encode!}
+    {:reply, %{accepted: true} |> Jason.encode!()}
   end
 
   # Scale Actor

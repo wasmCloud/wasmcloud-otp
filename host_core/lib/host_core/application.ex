@@ -75,7 +75,7 @@ defmodule HostCore.Application do
       {HostCore.Actors.ActorSupervisor,
        strategy: :one_for_one,
        allow_latest: config.allow_latest,
-       allowed_insecure: config.allowed_insecure},      
+       allowed_insecure: config.allowed_insecure},
       # Handle lattice control interface requests
       Supervisor.child_spec(
         {Gnat.ConsumerSupervisor,
