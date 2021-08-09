@@ -12,7 +12,7 @@ defmodule HostCore.WasmCloud.NativeTest do
     {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(@httpserver_oci, false, [])
     bytes = bytes |> IO.iodata_to_binary()
 
-    par = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
+    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer

@@ -8,7 +8,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   @impl true
-  def init(_init_arg) do
+  def init(_opts) do
     Process.flag(:trap_exit, true)
     DynamicSupervisor.init(strategy: :one_for_one)
   end
@@ -32,8 +32,11 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def start_actor_from_oci(oci) do
-    # TODO use configuration for enabling insecure OCI and 'latest'
-    case HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []) do
+    case HostCore.WasmCloud.Native.get_oci_bytes(
+           oci,
+           HostCore.Oci.allow_latest(),
+           HostCore.Oci.allowed_insecure()
+         ) do
       {:error, err} ->
         Logger.error("Failed to download OCI bytes for #{oci}")
         {:stop, err}
@@ -44,7 +47,12 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def live_update(oci) do
-    with {:ok, bytes} <- HostCore.WasmCloud.Native.get_oci_bytes(oci, false, []),
+    with {:ok, bytes} <-
+           HostCore.WasmCloud.Native.get_oci_bytes(
+             oci,
+             HostCore.Oci.allow_latest(),
+             HostCore.Oci.allowed_insecure()
+           ),
          {:ok, new_claims} <-
            HostCore.WasmCloud.Native.extract_claims(bytes |> IO.iodata_to_binary()),
          {:ok, old_claims} <- HostCore.Claims.Manager.lookup_claims(new_claims.public_key),
@@ -90,6 +98,59 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   def find_actor(public_key) do
     Map.get(all_actors(), public_key, [])
+  end
+
+  @doc """
+  Ensures that the actor count is equal to the desired count by terminating instances
+  or starting instances on the host.
+  """
+  def scale_actor(public_key, desired_count, oci \\ "") do
+    current_instances = find_actor(public_key)
+    current_count = current_instances |> Enum.count()
+
+    # Attempt to retrieve OCI reference from running actor if not supplied
+    ociref =
+      cond do
+        oci != "" ->
+          oci
+
+        current_count >= 1 ->
+          ActorModule.ociref(current_instances |> List.first())
+
+        true ->
+          ""
+      end
+
+    diff = current_count - desired_count
+
+    cond do
+      # Current count is desired actor count
+      diff == 0 ->
+        :ok
+
+      # Current count is greater than desired count, terminate instances
+      diff > 0 ->
+        terminate_actor(public_key, diff)
+
+      # Current count is less than desired count, start more instances
+      diff < 0 && ociref != "" ->
+        case 1..abs(diff)
+             |> Enum.reduce_while("", fn _, _ ->
+               case start_actor_from_oci(ociref) do
+                 {:stop, err} ->
+                   {:halt, "Error: #{err}"}
+
+                 _any ->
+                   {:cont, ""}
+               end
+             end) do
+          "" -> :ok
+          err -> {:error, err}
+        end
+
+      diff < 0 ->
+        {:error, "Scaling actor up without an OCI reference is not currently supported"}
+    end
   end
 
   def terminate_actor(public_key, count) when count > 0 do

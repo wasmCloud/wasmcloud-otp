@@ -26,7 +26,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     {:ok, bytes} = File.read(@httpserver_path)
-    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
@@ -41,7 +41,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     {:ok, bytes} = File.read(@redis_path)
-    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     redis_key = par.claims.public_key
     redis_contract = par.contract_id
 
@@ -103,7 +103,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     {:ok, bytes} = File.read(@httpserver_path)
-    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
@@ -118,7 +118,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     {:ok, bytes} = File.read(@redis_path)
-    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     redis_key = par.claims.public_key
     redis_contract = par.contract_id
 

@@ -60,7 +60,6 @@ defmodule StartProviderComponent do
            ) do
         {:ok, _pid} -> nil
         {:error, reason} -> reason
-        {:stop, reason} -> reason
       end
 
     if error_msg == nil do
@@ -92,7 +91,7 @@ defmodule StartProviderComponent do
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="file-input">OCI Reference</label>
         <div class="col-md-9">
-          <input class="form-control" id="provider-ociref-input" type="text" name="provider_ociref" placeholder="wasmcloud.azurecr.io/httpserver:0.12.1" value="">
+          <input class="form-control" id="provider-ociref-input" type="text" name="provider_ociref" placeholder="wasmcloud.azurecr.io/httpserver:0.12.1" value="" required>
           <span class="help-block">Enter an OCI reference</span>
         </div>
       </div>

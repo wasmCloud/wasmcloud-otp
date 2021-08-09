@@ -14,14 +14,14 @@ defmodule LinkRowComponent do
           <%= String.slice(@actor_id, 0..4) %>...
           <svg class="c-icon">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
-          </svg>&nbsp;
+          </svg>
         </button></td>
       <td>
         <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= @provider_key %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
           <%= String.slice(@provider_key, 0..4) %>...
           <svg class="c-icon">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
-          </svg>&nbsp;
+          </svg>
         </button>
       </td>
     </tr>

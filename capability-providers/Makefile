@@ -38,7 +38,7 @@ keyvalue-windows: create-build-dir ## Build the keyvalue capability provider for
 build-all: httpserver-linux keyvalue-linux httpserver-mac keyvalue-mac httpserver-windows keyvalue-windows ## Build httpserver and keyvalue for linux, mac, and windows
 
 pars: par-httpserver par-redis ## Build the httpserver and redis provider with linux, mac, and windows binaries
-par-httpserver: build-all ## Build the httpserver provider archive with linux, mac, and windows binaries
+par-httpserver:  httpserver-linux httpserver-mac httpserver-windows ## Build the httpserver provider archive with linux, mac, and windows binaries
 	wash par create --arch x86_64-macos \
 		--binary _build/httpserver-mac \
 		--capid wasmcloud:httpserver \
@@ -57,7 +57,7 @@ par-httpserver: build-all ## Build the httpserver provider archive with linux, m
 		--arch x86_64-windows \
 		--binary _build/httpserver-windows.exe
 
-par-redis: build-all ## Build the redis provider archive with linux, mac, and windows binaries
+par-redis: keyvalue-linux keyvalue-mac keyvalue-windows ## Build the redis provider archive with linux, mac, and windows binaries
 	wash par create --arch x86_64-macos \
 		--binary _build/wasmcloud-redis-mac \
 		--capid wasmcloud:keyvalue \

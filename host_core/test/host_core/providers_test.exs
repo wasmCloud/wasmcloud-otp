@@ -14,7 +14,7 @@ defmodule HostCore.ProvidersTest do
       )
 
     {:ok, bytes} = File.read(@httpserver_path)
-    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     httpserver_key = par.claims.public_key
 
     # Ensure provider is cleaned up regardless of test errors
@@ -66,7 +66,7 @@ defmodule HostCore.ProvidersTest do
       )
 
     {:ok, bytes} = File.read(@httpserver_path)
-    par = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     httpserver_key = par.claims.public_key
 
     # Ensure provider is cleaned up regardless of test errors

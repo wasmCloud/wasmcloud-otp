@@ -90,6 +90,10 @@ type HostData struct {
 	InstanceID         string            `json:"instance_id"`
 }
 
+type HealthCheck struct {
+	Placeholder bool `msgpack:"placeholder"`
+}
+
 var (
 	serverCancels map[string]context.CancelFunc
 	linkDefs      map[string]LinkDefinition
@@ -134,9 +138,19 @@ func main() {
 	lddel_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.del", latticePrefix, providerKey, linkName)
 	ldput_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.linkdefs.put", latticePrefix, providerKey, linkName)
 	shutdown_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.shutdown", latticePrefix, providerKey, linkName)
+	health_topic := fmt.Sprintf("wasmbus.rpc.%s.%s.%s.health", latticePrefix, providerKey, linkName)
 
 	nc.QueueSubscribe(ldget_topic, ldget_topic, func(m *nats.Msg) {
 		msg, err := msgpack.Marshal(linkDefs)
+		if err != nil {
+			fmt.Printf("Failed to pack msgpack: %s\n", err)
+		}
+		nc.Publish(m.Reply, msg)
+	})
+
+	// Respond with an empty struct to satisfy health check
+	nc.Subscribe(health_topic, func(m *nats.Msg) {
+		msg, err := msgpack.Marshal(struct{}{})
 		if err != nil {
 			fmt.Printf("Failed to pack msgpack: %s\n", err)
 		}

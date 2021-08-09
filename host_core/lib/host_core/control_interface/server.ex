@@ -150,6 +150,43 @@ defmodule HostCore.ControlInterface.Server do
     {:reply, %{accepted: true} |> Jason.encode!}
   end
 
+  # Scale Actor
+  # input: #{"actor_id" => "...", "actor_ref" => "...", "replicas" => "..."}
+  defp handle_request({"cmd", host_id, "scale"}, body, _reply_to) do
+    scale_request = Jason.decode!(body)
+
+    if host_id == HostCore.Host.host_key() do
+      actor_id = scale_request["actor_id"]
+      actor_ref = scale_request["actor_ref"]
+      replicas = String.to_integer(scale_request["replicas"])
+
+      case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, replicas, actor_ref) do
+        :ok ->
+          {:reply,
+           Jason.encode!(%{
+             host_id: host_id,
+             actor_ref: actor_ref,
+             replicas: HostCore.Actors.ActorSupervisor.find_actor(actor_id) |> Enum.count()
+           })}
+
+        {:error, err} ->
+          {:reply,
+           Jason.encode!(%{
+             host_id: host_id,
+             actor_ref: actor_ref,
+             replicas: HostCore.Actors.ActorSupervisor.find_actor(actor_id) |> Enum.count(),
+             error: err
+           })}
+      end
+    else
+      {:reply,
+       Jason.encode!(%{
+         host_id: host_id,
+         failure: "Command received by incorrect host and could not be processed"
+       })}
+    end
+  end
+
   # Launch Provider
   defp handle_request({"cmd", host_id, "lp"}, body, _reply_to) do
     start_provider_command = Jason.decode!(body)
