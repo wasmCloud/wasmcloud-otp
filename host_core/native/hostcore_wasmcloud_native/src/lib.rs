@@ -80,21 +80,21 @@ fn get_oci_bytes(
     task::TOKIO.block_on(async {
         match oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await {
             Ok(b) => Ok((atoms::ok(), b)),
-            Err(_e) => Err(rustler::Error::Term(Box::new("Failed to fetch OCI bytes"))),
+            Err(e) => Err(rustler::Error::Term(Box::new(format!("{}", e)))),
         }
     })
 }
 
 #[rustler::nif]
-fn par_from_bytes(binary: Binary) -> Result<ProviderArchiveResource, Error> {
+fn par_from_bytes(binary: Binary) -> Result<(Atom, ProviderArchiveResource), Error> {
     match ProviderArchive::try_load(binary.as_slice()) {
         Ok(par) => {
-            return Ok(ProviderArchiveResource {
+            return Ok((atoms::ok(), ProviderArchiveResource {
                 claims: par::extract_claims(&par)?,
                 target_bytes: par::extract_target_bytes(&par)?,
                 contract_id: par::get_capid(&par)?,
                 vendor: par::get_vendor(&par)?,
-            })
+            }))
         }
         Err(_) => Err(Error::BadArg),
     }

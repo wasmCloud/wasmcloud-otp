@@ -234,7 +234,7 @@ defmodule HostCore.ActorsTest do
       )
     end)
 
-    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
     req =
       %{

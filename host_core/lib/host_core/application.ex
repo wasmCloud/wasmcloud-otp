@@ -36,7 +36,10 @@ defmodule HostCore.Application do
           {:cluster_seed, "WASMCLOUD_CLUSTER_SEED", default: def_cluster_seed},
           {:cluster_issuers, "WASMCLOUD_CLUSTER_ISSUERS", default: def_cluster_key},
           {:provider_delay, "WASMCLOUD_PROV_SHUTDOWN_DELAY_MS",
-           default: 300, map: &String.to_integer/1}
+           default: 300, map: &String.to_integer/1},
+          {:allow_latest, "WASMCLOUD_OCI_ALLOW_LATEST", default: false, map: &String.to_atom/1},
+          {:allowed_insecure, "WASMCLOUD_OCI_ALLOWED_INSECURE",
+           default: [], map: &String.split(&1, ",")}
         ]
       }
     ]
@@ -61,7 +64,10 @@ defmodule HostCore.Application do
       ),
       {HostCore.HeartbeatEmitter, config},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
-      {HostCore.Actors.ActorSupervisor, strategy: :one_for_one, name: ActorRoot},
+      {HostCore.Actors.ActorSupervisor,
+       strategy: :one_for_one,
+       allow_latest: config.allow_latest,
+       allowed_insecure: config.allowed_insecure},
       {HostCore.Claims.Manager, strategy: :one_for_one, name: ClaimsManager},
       {HostCore.Linkdefs.Manager, strategy: :one_for_one, name: LinkdefsManager},
       # Handle advertised link definitions and corresponding queries

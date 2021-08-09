@@ -29,7 +29,7 @@ defmodule HostCoreTest do
   end
 
   test "Host purges actors and providers" do
-    {:ok, bytes} = File.read("test/fixtures/actors/echo_s.wasm")
+    {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     {:ok, _pid} =
