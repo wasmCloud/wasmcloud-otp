@@ -93,7 +93,7 @@ defmodule HostCore.ControlInterface.Server do
       ld["values"]
     )
 
-    {:reply, ""}
+    {:reply, %{accepted: true} |> Jason.encode!()}
   end
 
   # Remove a link definition
@@ -109,7 +109,7 @@ defmodule HostCore.ControlInterface.Server do
       ld["link_name"]
     )
 
-    {:reply, ""}
+    {:reply, %{accepted: true} |> Jason.encode!()}
   end
 
   ### COMMANDS
@@ -147,8 +147,7 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"cmd", _host_id, "sa"}, body, _reply_to) do
     stop_actor_command = Jason.decode!(body)
     HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
-    ack = %{}
-    {:reply, Jason.encode!(ack)}
+    {:reply, %{accepted: true} |> Jason.encode!}
   end
 
   # Launch Provider
@@ -186,7 +185,7 @@ defmodule HostCore.ControlInterface.Server do
       stop_provider_command["link_name"]
     )
 
-    {:reply, Jason.encode!(%{})}
+    {:reply, %{accepted: true} |> Jason.encode!()}
   end
 
   # Update Actor
