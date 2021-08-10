@@ -88,6 +88,7 @@ type HostData struct {
 	EnvValues          map[string]string `json:"env_values"`
 	InvocationSeed     string            `json:"invocation_seed"`
 	InstanceID         string            `json:"instance_id"`
+	LinkDefinitions    []LinkDefinition  `json:"link_definitions"`
 }
 
 type HealthCheck struct {

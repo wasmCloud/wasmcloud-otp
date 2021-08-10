@@ -135,6 +135,12 @@ defmodule HostCore.Host do
           {"0.0.0.0:4222", "", ""}
       end
 
+    lds =
+      HostCore.Linkdefs.Manager.get_link_definitions()
+      |> Enum.filter(fn %{link_name: ln, provider_id: prov} ->
+        ln == link_name && prov == provider_key
+      end)
+
     %{
       host_id: host_key(),
       lattice_rpc_prefix: lattice_prefix(),
@@ -144,6 +150,7 @@ defmodule HostCore.Host do
       lattice_rpc_url: url,
       instance_id: instance_id,
       provider_key: provider_key,
+      link_definitions: lds,
       # TODO
       env_values: %{},
       invocation_seed: cluster_seed()
