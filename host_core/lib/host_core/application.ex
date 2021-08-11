@@ -90,8 +90,11 @@ defmodule HostCore.Application do
                queue_group: "wasmbus.ctl.#{config.lattice_prefix}"
              },
              %{
-               topic: "wasmbus.ctl.#{config.lattice_prefix}.get.>",
+               topic: "wasmbus.ctl.#{config.lattice_prefix}.get.*",
                queue_group: "wasmbus.ctl.#{config.lattice_prefix}"
+             },
+             %{
+               topic: "wasmbus.ctl.#{config.lattice_prefix}.get.#{config.host_key}.inv"
              },
              %{topic: "wasmbus.ctl.#{config.lattice_prefix}.auction.>"}
            ]
