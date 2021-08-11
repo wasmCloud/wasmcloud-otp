@@ -23,11 +23,13 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     topic = "wasmbus.evt.#{prefix}"
     {:ok, _sub} = Gnat.sub(:control_nats, self(), topic)
 
-    ldtopic = "wasmbus.rpc.#{prefix}.*.*.linkdefs.*"
-    {:ok, _sub} = Gnat.sub(:lattice_nats, self(), ldtopic)
+    # TODO: should not listen on `lc` topic
+    ldtopic = "lc.#{prefix}.linkdefs.*"
+    {:ok, _sub} = Gnat.sub(:control_nats, self(), ldtopic)
 
+    # TODO: should not listen on `lc` topic
     claimstopic = "lc.#{prefix}.claims.*"
-    {:ok, _sub} = Gnat.sub(:lattice_nats, self(), claimstopic)
+    {:ok, _sub} = Gnat.sub(:control_nats, self(), claimstopic)
 
     {:ok, state}
   end
@@ -90,35 +92,32 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     GenServer.call(:state_monitor, :claims_query)
   end
 
-  defp handle_linkdef(state, body, topic) do
+  defp handle_linkdef(state, body, _topic) do
     Logger.info("Handling linkdef state update")
-    cmd = topic |> String.split(".") |> Enum.at(6)
-    ld = Msgpax.unpack!(body)
+    ld = Jason.decode!(body)
     key = {ld["actor_id"], ld["contract_id"], ld["link_name"]}
     map = %{values: ld["values"], provider_key: ld["provider_id"]}
 
     linkdefs =
-      if cmd == "put" do
-        Map.put(state.linkdefs, key, map)
-      else
+      if Map.get(ld, "deleted") do
         Map.delete(state.linkdefs, key)
+      else
+        Map.put(state.linkdefs, key, map)
       end
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
     %State{state | linkdefs: linkdefs}
   end
 
-  defp handle_claims(state, body, topic) do
+  defp handle_claims(state, body, _topic) do
     Logger.info("Handling claims state")
-    # TODO: the shape of claims changed, need to fix here
-    cmd = topic |> String.split(".") |> Enum.at(4)
-    claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
+    claims = Jason.decode!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
 
     cmap =
-      if cmd == "put" do
-        Map.put(state.claims, claims.sub, claims)
-      else
+      if Map.get(claims, :deleted) do
         Map.delete(state.claims, claims.sub)
+      else
+        Map.put(state.claims, claims.sub, claims)
       end
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:claims, cmap})

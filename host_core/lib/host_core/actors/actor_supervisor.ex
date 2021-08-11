@@ -161,11 +161,11 @@ defmodule HostCore.Actors.ActorSupervisor do
 
     children |> Enum.each(fn pid -> ActorModule.halt(pid) end)
 
-    {:ok}
+    :ok
   end
 
   def terminate_actor(_public_key, 0) do
-    {:ok}
+    :ok
   end
 
   def terminate_all() do
