@@ -69,7 +69,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       :ok
     else
-      _err -> :error
+      err -> {:error, err}
     end
   end
 

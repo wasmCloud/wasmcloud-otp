@@ -67,11 +67,7 @@ defmodule HostCore.ControlInterface.Server do
 
       {:reply, Jason.encode!(res)}
     else
-      {:reply,
-       Jason.encode!(%{
-         host_id: host_id,
-         failure: "Command received by incorrect host and could not be processed"
-       })}
+      {:reply, failure_ack("Command received by incorrect host and could not be processed")}
     end
   end
 
@@ -93,7 +89,7 @@ defmodule HostCore.ControlInterface.Server do
       ld["values"]
     )
 
-    {:reply, %{accepted: true} |> Jason.encode!()}
+    {:reply, success_ack()}
   end
 
   # Remove a link definition
@@ -109,7 +105,7 @@ defmodule HostCore.ControlInterface.Server do
       ld["link_name"]
     )
 
-    {:reply, %{accepted: true} |> Jason.encode!()}
+    {:reply, success_ack()}
   end
 
   ### COMMANDS
@@ -118,28 +114,16 @@ defmodule HostCore.ControlInterface.Server do
 
   # Launch Actor
   # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx"}
-  defp handle_request({"cmd", host_id, "la"}, body, _reply_to) do
+  defp handle_request({"cmd", _host_id, "la"}, body, _reply_to) do
     start_actor_command = Jason.decode!(body)
 
     case HostCore.Actors.ActorSupervisor.start_actor_from_oci(start_actor_command["actor_ref"]) do
       {:ok, _pid} ->
-        ack = %{
-          host_id: host_id,
-          actor_ref: start_actor_command["actor_ref"]
-        }
-
-        {:reply, Jason.encode!(ack)}
+        {:reply, success_ack()}
 
       {:error, e} ->
         Logger.error("Failed to start actor per remote call")
-
-        ack = %{
-          host_id: host_id,
-          actor_ref: start_actor_command["actor_ref"],
-          failure: "Failed to start actor: #{e}"
-        }
-
-        {:reply, Jason.encode!(ack)}
+        {:reply, failure_ack("Failed to start actor: #{e}")}
     end
   end
 
@@ -147,7 +131,7 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"cmd", _host_id, "sa"}, body, _reply_to) do
     stop_actor_command = Jason.decode!(body)
     HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
-    {:reply, %{accepted: true} |> Jason.encode!()}
+    {:reply, success_ack()}
   end
 
   # Scale Actor
@@ -162,33 +146,18 @@ defmodule HostCore.ControlInterface.Server do
 
       case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, replicas, actor_ref) do
         :ok ->
-          {:reply,
-           Jason.encode!(%{
-             host_id: host_id,
-             actor_ref: actor_ref,
-             replicas: HostCore.Actors.ActorSupervisor.find_actor(actor_id) |> Enum.count()
-           })}
+          {:reply, success_ack()}
 
         {:error, err} ->
-          {:reply,
-           Jason.encode!(%{
-             host_id: host_id,
-             actor_ref: actor_ref,
-             replicas: HostCore.Actors.ActorSupervisor.find_actor(actor_id) |> Enum.count(),
-             error: err
-           })}
+          {:reply, failure_ack("Error scaling actor: #{err}")}
       end
     else
-      {:reply,
-       Jason.encode!(%{
-         host_id: host_id,
-         failure: "Command received by incorrect host and could not be processed"
-       })}
+      {:reply, failure_ack("Command received by incorrect host and could not be processed")}
     end
   end
 
   # Launch Provider
-  defp handle_request({"cmd", host_id, "lp"}, body, _reply_to) do
+  defp handle_request({"cmd", _host_id, "lp"}, body, _reply_to) do
     start_provider_command = Jason.decode!(body)
 
     ack =
@@ -197,20 +166,13 @@ defmodule HostCore.ControlInterface.Server do
              start_provider_command["link_name"]
            ) do
         {:ok, _pid} ->
-          %{
-            host_id: host_id,
-            provider_ref: start_provider_command["provider_ref"]
-          }
+          success_ack()
 
         {:error, e} ->
-          %{
-            host_id: host_id,
-            provider_ref: start_provider_command["provider_ref"],
-            error: "Failed to start provider: #{e}"
-          }
+          failure_ack("Failed to start provider: #{e}")
       end
 
-    {:reply, Jason.encode!(ack)}
+    {:reply, ack}
   end
 
   # Stop Provider
@@ -222,7 +184,7 @@ defmodule HostCore.ControlInterface.Server do
       stop_provider_command["link_name"]
     )
 
-    {:reply, %{accepted: true} |> Jason.encode!()}
+    {:reply, success_ack()}
   end
 
   # Update Actor
@@ -232,8 +194,8 @@ defmodule HostCore.ControlInterface.Server do
 
     response =
       case HostCore.Actors.ActorSupervisor.live_update(update_actor_command["new_actor_ref"]) do
-        :ok -> Jason.encode!(%{accepted: true})
-        :error -> Jason.encode!(%{accepted: false})
+        :ok -> success_ack()
+        {:error, err} -> failure_ack("Unable to perform live update: #{err}")
       end
 
     {:reply, response}
@@ -291,5 +253,19 @@ defmodule HostCore.ControlInterface.Server do
   # FALL THROUGH
   defp handle_request(tuple, _body, _reply_to) do
     Logger.warn("Unexpected/unhandled lattice control command: #{tuple}")
+  end
+
+  defp success_ack() do
+    Jason.encode!(%{
+      accepted: true,
+      error: ""
+    })
+  end
+
+  defp failure_ack(error) do
+    Jason.encode!(%{
+      accepted: false,
+      error: error
+    })
   end
 end
