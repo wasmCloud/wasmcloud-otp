@@ -26,7 +26,7 @@ defmodule HostCore.ActorsTest do
       HostCore.Actors.ActorSupervisor.terminate_actor(@echo_oci_key, 1)
     end)
 
-    assert :error == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
+    assert {:error, :error} == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
   end
 
   test "live update with new revision succeeds" do

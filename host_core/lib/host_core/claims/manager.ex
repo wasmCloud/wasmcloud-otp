@@ -29,7 +29,12 @@ defmodule HostCore.Claims.Manager do
           claims.call_alias
         end,
       iss: claims.issuer,
-      name: claims.name,
+      name:
+        if claims.name == nil do
+          ""
+        else
+          claims.name
+        end,
       caps:
         if claims.caps == nil do
           ""
