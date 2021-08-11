@@ -26,7 +26,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     ldtopic = "wasmbus.rpc.#{prefix}.*.*.linkdefs.*"
     {:ok, _sub} = Gnat.sub(:lattice_nats, self(), ldtopic)
 
-    claimstopic = "wasmbus.rpc.#{prefix}.claims.put"
+    claimstopic = "lc.#{prefix}.claims.*"
     {:ok, _sub} = Gnat.sub(:lattice_nats, self(), claimstopic)
 
     {:ok, state}
@@ -110,6 +110,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   defp handle_claims(state, body, topic) do
     Logger.info("Handling claims state")
+    # TODO: the shape of claims changed, need to fix here
     cmd = topic |> String.split(".") |> Enum.at(4)
     claims = Msgpax.unpack!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
 
