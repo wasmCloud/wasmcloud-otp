@@ -35,7 +35,7 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::sync::RwLock;
 
-#[derive(Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LinkDefinition {
     pub actor_id: String,
     pub provider_id: String,
@@ -121,6 +121,8 @@ pub struct HostData {
     pub invocation_seed: String,
     #[serde(default)]
     pub instance_id: String,
+    #[serde(default)]
+    pub link_definitions: Vec<LinkDefinition>,
 }
 
 fn main() -> Result<()> {
@@ -178,14 +180,11 @@ fn main() -> Result<()> {
             Ok(())
         });
 
-    let _sub = nc
-        .subscribe(&health_topic)?
-        .with_handler(move |msg| {
-            println!("Received health check request.");
-            msg.respond(serialize(vec![true]).unwrap())
-                .unwrap();
-            Ok(())
-        });
+    let _sub = nc.subscribe(&health_topic)?.with_handler(move |msg| {
+        println!("Received health check request.");
+        msg.respond(serialize(vec![true]).unwrap()).unwrap();
+        Ok(())
+    });
 
     let _sub = nc.subscribe(&lddel_topic)?.with_handler(move |msg| {
         let ld: LinkDefinition = deserialize(&msg.data).unwrap();
