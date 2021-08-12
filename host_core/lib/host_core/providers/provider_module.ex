@@ -134,7 +134,7 @@ defmodule HostCore.Providers.ProviderModule do
 
     res =
       try do
-        Gnat.request(:lattice_nats, topic, payload, receive_timeout: 2_000)
+        Gnat.request(:lattice_nats, topic, payload, receive_timeout: HostCore.Host.rpc_timeout())
       rescue
         _e -> {:error, "Received no response on health check topic from provider"}
       end

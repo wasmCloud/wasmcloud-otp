@@ -298,7 +298,9 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp perform_rpc_invoke(inv_bytes, target_subject) do
     # Perform RPC invocation over lattice
-    case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: 2_000) do
+    case Gnat.request(:lattice_nats, target_subject, inv_bytes,
+           receive_timeout: HostCore.Host.rpc_timeout()
+         ) do
       {:ok, %{body: body}} -> body
       {:error, :timeout} -> :fail
     end

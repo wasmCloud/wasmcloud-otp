@@ -114,6 +114,13 @@ defmodule HostCore.Host do
     end
   end
 
+  def rpc_timeout() do
+    case :ets.lookup(:rpc_timeout, :config) do
+      [config: config_map] -> config_map[:rpc_timeout]
+      _ -> 2_000
+    end
+  end
+
   def host_labels() do
     GenServer.call(__MODULE__, :get_labels)
   end

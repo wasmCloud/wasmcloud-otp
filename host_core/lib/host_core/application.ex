@@ -33,6 +33,7 @@ defmodule HostCore.Application do
           {:rpc_host, "WASMCLOUD_RPC_HOST", default: "0.0.0.0"},
           {:rpc_port, "WASMCLOUD_RPC_PORT", default: 4222, map: &String.to_integer/1},
           {:rpc_seed, "WASMCLOUD_RPC_SEED", default: ""},
+          {:rpc_timeout, "WASMCLOUD_RPC_TIMEOUT_MS", default: 2000, map: &String.to_integer/1},
           {:rpc_jwt, "WASMCLOUD_RPC_JWT", default: ""},
           {:prov_rpc_host, "WASMCLOUD_PROV_RPC_HOST", default: "0.0.0.0"},
           {:prov_rpc_port, "WASMCLOUD_PROV_RPC_PORT", default: 4222, map: &String.to_integer/1},
