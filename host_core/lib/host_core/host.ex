@@ -115,7 +115,7 @@ defmodule HostCore.Host do
   end
 
   def rpc_timeout() do
-    case :ets.lookup(:rpc_timeout, :config) do
+    case :ets.lookup(:config_table, :config) do
       [config: config_map] -> config_map[:rpc_timeout]
       _ -> 2_000
     end
