@@ -3,7 +3,7 @@ defmodule HostCore.Jetstream.CacheLoader do
 
   # To observe cache loader events, first add the pid of the listener (a GenServer)
   # to the registry:
-  # Registry.register(Registry.EventMonitorRegistry, "cache_loader_events")
+  # Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
   #
   # Then define handle_casts for the pattern {:cache_load_event, :linkdef_removed | :linkdef_added | :claims_added, data}
 
