@@ -12,7 +12,7 @@ defmodule ActorRowComponent do
       <td><%= @count %></td>
       <td>
         <span class="badge <%= case @status do
-          "Starting" -> "badge-secondary"
+          "Awaiting" -> "badge-secondary"
           "Healthy" -> "badge-success"
           "Unhealthy" -> "badge-danger"
           end%>">

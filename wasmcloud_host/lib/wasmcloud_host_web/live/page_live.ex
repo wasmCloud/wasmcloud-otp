@@ -14,6 +14,7 @@ defmodule WasmcloudHostWeb.PageLive do
        providers: WasmcloudHost.Lattice.StateMonitor.get_providers(),
        linkdefs: WasmcloudHost.Lattice.StateMonitor.get_linkdefs(),
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
+       hosts: WasmcloudHost.Lattice.StateMonitor.get_hosts(),
        open_modal: nil
      )}
   end

@@ -37,55 +37,13 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     topic = "wasmbus.evt.#{prefix}"
     {:ok, _sub} = Gnat.sub(:control_nats, self(), topic)
 
-    # Registry.start_link(keys: :duplicate, name: Registry.EventMonitorRegistry)
-    # Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
+    Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
 
-    {:ok, state, {:continue, :retrieve_hosts}}
-  end
-
-  @impl true
-  def handle_continue(:retrieve_hosts, state) do
-    # pinged_hosts =
-    #   case Gnat.request(
-    #          :control_nats,
-    #          "wasmbus.ctl.#{HostCore.Host.lattice_prefix()}.ping.hosts",
-    #          ""
-    #        ) do
-    #     {:ok, host_list} -> Map.get(host_list, :body) |> Jason.decode!()
-    #     {:error, :timeout} -> %{}
-    #   end
-
-    # hosts =
-    #   pinged_hosts
-    #   |> IO.inspect()
-    #   |> Enum.reduce(%{}, fn host, host_map ->
-    #     # query host inventory
-    #     Map.put(host_map, Map.get(host, "id"), %{
-    #       actors: %{},
-    #       providers: %{},
-    #       labels: %{}
-    #     })
-    #   end)
-
-    # %{
-    #   "ND4XPUEI6FR47MUX2WJ6QRIML6KUYIFKR3H3ZX4C7XOZDBIJT6ZB3SSJ" => %{
-    #     actors: %{},
-    #     labels: %{
-    #       "hostcore.arch" => "x86_64",
-    #       "hostcore.os" => "linux",
-    #       "hostcore.osfamily" => "unix"
-    #     },
-    #     providers: %{}
-    #   }
-    # }
-
-    {:noreply, state, {:continue, :retrieve_cache}}
+    {:ok, state, {:continue, :retrieve_cache}}
   end
 
   @impl true
   def handle_continue(:retrieve_cache, state) do
-    IO.puts("gettin claims")
-
     cmap =
       HostCore.Claims.Manager.get_claims()
       |> Enum.reduce(state.claims, fn claims, cmap ->
@@ -94,6 +52,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:claims, cmap})
     {:noreply, Map.put(state, :claims, cmap)}
+  end
+
+  @impl true
+  def handle_call(:hosts_query, _from, state) do
+    {:reply, state.hosts, state}
   end
 
   @impl true
@@ -124,18 +87,15 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     Logger.info("StateMonitor handle info #{topic}")
 
     state =
-      cond do
-        String.starts_with?(topic, "wasmbus.evt.") ->
-          handle_event(state, body)
-
-        String.contains?(topic, ".linkdefs.") ->
-          handle_linkdef(state, body, topic)
-
-        String.contains?(topic, ".claims.") ->
-          handle_claims(state, body, topic)
+      if String.starts_with?(topic, "wasmbus.evt.") do
+        handle_event(state, body)
       end
 
     {:noreply, state}
+  end
+
+  def get_hosts() do
+    GenServer.call(:state_monitor, :hosts_query)
   end
 
   def get_actors() do
@@ -155,56 +115,38 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :linkdef_removed, data}, state) do
-    IO.puts("LD removed")
-    IO.inspect(data)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:cache_load_event, :linkdef_added, data}, state) do
-    IO.puts("LD added")
-    IO.inspect(data)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:cache_load_event, :claims_added, data}, state) do
-    IO.puts("Claims added")
-    IO.inspect(data)
-    {:noreply, state}
-  end
-
-  defp handle_linkdef(state, body, _topic) do
-    Logger.info("Handling linkdef state update")
-    ld = Jason.decode!(body)
+  def handle_cast({:cache_load_event, :linkdef_removed, ld}, state) do
     key = {ld["actor_id"], ld["contract_id"], ld["link_name"]}
-    map = %{values: ld["values"], provider_key: ld["provider_id"]}
-
-    linkdefs =
-      if Map.get(ld, "deleted") do
-        Map.delete(state.linkdefs, key)
-      else
-        Map.put(state.linkdefs, key, map)
-      end
+    linkdefs = Map.delete(state.linkdefs, key)
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
-    %State{state | linkdefs: linkdefs}
+    {:noreply, %State{state | linkdefs: linkdefs}}
   end
 
-  defp handle_claims(state, body, _topic) do
-    Logger.info("Handling claims state")
-    claims = Jason.decode!(body) |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
+  @impl true
+  def handle_cast({:cache_load_event, :linkdef_added, ld}, state) do
+    key = {ld.actor_id, ld.contract_id, ld.link_name}
+    map = %{values: ld.values, provider_key: ld.provider_id}
 
-    cmap =
-      if Map.get(claims, :deleted) do
-        Map.delete(state.claims, claims.sub)
-      else
-        Map.put(state.claims, claims.sub, claims)
-      end
+    linkdefs = Map.put(state.linkdefs, key, map)
+
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
+    {:noreply, %State{state | linkdefs: linkdefs}}
+  end
+
+  @impl true
+  def handle_cast({:cache_load_event, :claims_added, claims}, state) do
+    cmap = Map.put(state.claims, claims.sub, claims)
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:claims, cmap})
-    %State{state | claims: cmap}
+    {:noreply, %State{state | claims: cmap}}
+  end
+
+  @impl true
+  def handle_cast({:cache_load_event, :ocimap_added, data}, state) do
+    IO.puts("OCIMap added")
+    IO.inspect(data)
+    {:noreply, state}
   end
 
   defp handle_event(state, body) do
@@ -295,18 +237,37 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     current_host = Map.get(state.hosts, source_host)
 
+    actor_map =
+      actors
+      |> Enum.reduce(%{}, fn actor, actor_map ->
+        Map.put(actor_map, Map.get(actor, "actor"), %{
+          count: Map.get(actor, "instances"),
+          status: "Awaiting"
+        })
+      end)
+
+    provider_map =
+      providers
+      |> Enum.reduce(%{}, fn provider, provider_map ->
+        Map.put(provider_map, Map.get(provider, "public_key"), %{
+          contract_id: Map.get(provider, "contract_id"),
+          link_name: Map.get(provider, "link_name"),
+          status: "Awaiting"
+        })
+      end)
+
     host =
       if current_host == nil do
         %{
-          actors: actors,
-          providers: providers,
-          # TODO: get lables from host inventory
+          actors: actor_map,
+          providers: provider_map,
+          # TODO: get labels from host inventory
           labels: %{}
         }
       else
         %{
-          actors: actors,
-          providers: providers,
+          actors: actor_map,
+          providers: provider_map,
           labels: state.hosts |> Map.get(source_host) |> Map.get(:labels)
         }
       end

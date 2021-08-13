@@ -138,11 +138,11 @@
             </tr>
           </thead>
           <tbody>
-            <%= for {actor, hosts_map} <- @actors do %>
+            <%= for {host_id, host_map} <- @hosts do %>
+            <%= for {actor, info_map} <- Map.get(host_map, :actors) do %>
               <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
-              <%= for {host_id, host_info} <- hosts_map do %>
-                <% count = Map.get(host_info, :count) %>
-                <% status = Map.get(host_info, :status) %>
+                <% count = Map.get(info_map, :count) %>
+                <% status = Map.get(info_map, :status) %>
                 <%= live_component ActorRowComponent,
                   actor: actor,
                   host_id: host_id,
