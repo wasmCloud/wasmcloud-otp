@@ -63,6 +63,10 @@ defmodule HostCore.Application do
     children = [
       {Registry, keys: :unique, name: Registry.ProviderRegistry},
       {Registry, keys: :duplicate, name: Registry.ActorRegistry},
+      {Registry,
+       keys: :duplicate,
+       name: Registry.EventMonitorRegistry,
+       partitions: System.schedulers_online()},
       Supervisor.child_spec(
         {Gnat.ConnectionSupervisor, HostCore.Nats.control_connection_settings(config)},
         id: :control_connection_supervisor

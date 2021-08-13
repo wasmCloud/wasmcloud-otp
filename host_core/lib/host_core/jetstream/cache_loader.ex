@@ -1,4 +1,12 @@
 defmodule HostCore.Jetstream.CacheLoader do
+  @cache_event_key "cache_loader_events"
+
+  # To observe cache loader events, first add the pid of the listener (a GenServer)
+  # to the registry:
+  # Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
+  #
+  # Then define handle_casts for the pattern {:cache_load_event, :linkdef_removed | :linkdef_added | :claims_added, data}
+
   require Logger
   use Gnat.Server
 
@@ -22,6 +30,7 @@ defmodule HostCore.Jetstream.CacheLoader do
     if ld.deleted == true do
       HostCore.Linkdefs.Manager.uncache_link_definition(ld.actor_id, ld.contract_id, ld.link_name)
       Logger.debug("Removed link definition #{key} from #{ld.actor_id} to #{ld.provider_id}")
+      broadcast_event(:linkdef_removed, ld)
     else
       HostCore.Linkdefs.Manager.cache_link_definition(
         key,
@@ -33,6 +42,7 @@ defmodule HostCore.Jetstream.CacheLoader do
       )
 
       Logger.debug("Cached link definition #{key} from #{ld.actor_id} to #{ld.provider_id}")
+      broadcast_event(:linkdef_added, ld)
     end
   end
 
@@ -42,6 +52,7 @@ defmodule HostCore.Jetstream.CacheLoader do
     HostCore.Claims.Manager.cache_call_alias(claims.call_alias, key)
 
     Logger.debug("Cached claims for #{key}")
+    broadcast_event(:claims_added, claims)
   end
 
   def handle_request({"ocimap", _key}, body) do
@@ -49,6 +60,7 @@ defmodule HostCore.Jetstream.CacheLoader do
     HostCore.Refmaps.Manager.cache_refmap(refmap.oci_url, refmap.public_key)
 
     Logger.debug("Cached OCI map reference from #{refmap.oci_url} to #{refmap.public_key}")
+    broadcast_event(:ocimap_added, refmap)
   end
 
   def handle_request({keytype, _key}, _body) do
@@ -57,5 +69,11 @@ defmodule HostCore.Jetstream.CacheLoader do
 
   defp atomize(map) do
     for {key, val} <- map, into: %{}, do: {String.to_atom(key), val}
+  end
+
+  defp broadcast_event(evt_type, payload) do
+    Registry.dispatch(Registry.EventMonitorRegistry, @cache_event_key, fn entries ->
+      for {pid, _} <- entries, do: GenServer.cast(pid, {:cache_load_event, evt_type, payload})
+    end)
   end
 end
