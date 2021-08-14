@@ -6,12 +6,12 @@ defmodule HostCore.Providers.Builtin.Numbergen do
   def invoke("RandomInRange", payload) do
     params = Msgpax.unpack!(payload)
 
-    min = min(params["min"], 0)
-    max = max(params["max"], 4_294_967_295)
+    min = max(params["min"], 0)
+    max = min(params["max"] - 1, 4_294_967_295)
     Msgpax.pack!(Enum.random(min..max))
   end
 
   def invoke("Random32", _payload) do
-    Msgpax.pack!(floor(:rand.uniform(4_294_967_294)))
+    Msgpax.pack!(Enum.random(0..4_294_967_295))
   end
 end
