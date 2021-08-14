@@ -4,6 +4,7 @@ defmodule HostCore.WebAssembly.Imports do
 
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
+  @builtin_contracts [@wasmcloud_logging, @wasmcloud_numbergen]
 
   def wapc_imports(agent) do
     %{
@@ -179,6 +180,17 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp verify_link(token = %{target: {:actor, _, _}}) do
+    %{token | verified: true}
+  end
+
+  # Built-in Providers do not have link definitions
+  # Auto-verify the built-in contract IDs (claims check will be performed below in authorize_call)
+
+  defp verify_link(token = %{namespace: @wasmcloud_numbergen}) do
+    %{token | verified: true}
+  end
+
+  defp verify_link(token = %{namespace: @wasmcloud_logging}) do
     %{token | verified: true}
   end
 
