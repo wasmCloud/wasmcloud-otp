@@ -4,7 +4,6 @@ defmodule HostCore.WebAssembly.Imports do
 
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
-  @builtin_contracts [@wasmcloud_logging, @wasmcloud_numbergen]
 
   def wapc_imports(agent) do
     %{
