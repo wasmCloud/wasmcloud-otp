@@ -213,12 +213,12 @@ defmodule HostCore.WebAssembly.Imports do
     %{token | authorized: false}
   end
 
-  defp authorize_call(token = %{namespace: @wasmcloud_logging}) do
-    %{token | authorized: true}
+  defp authorize_call(token = %{namespace: @wasmcloud_logging, claims: claims}) do
+    %{token | authorized: Enum.member?(claims.caps, @wasmcloud_logging)}
   end
 
-  defp authorize_call(token = %{namespace: @wasmcloud_numbergen}) do
-    %{token | authorized: true}
+  defp authorize_call(token = %{namespace: @wasmcloud_numbergen, claims: claims}) do
+    %{token | authorized: Enum.member?(claims.caps, @wasmcloud_numbergen)}
   end
 
   defp authorize_call(
