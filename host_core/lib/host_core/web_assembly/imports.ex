@@ -174,22 +174,21 @@ defmodule HostCore.WebAssembly.Imports do
     %{token | target: target}
   end
 
-  defp verify_link(token = %{target: :unknown}) do
-    %{token | verified: false}
-  end
-
-  defp verify_link(token = %{target: {:actor, _, _}}) do
-    %{token | verified: true}
-  end
-
   # Built-in Providers do not have link definitions
   # Auto-verify the built-in contract IDs (claims check will be performed below in authorize_call)
+  defp verify_link(token = %{namespace: @wasmcloud_logging}) do
+    %{token | verified: true}
+  end
 
   defp verify_link(token = %{namespace: @wasmcloud_numbergen}) do
     %{token | verified: true}
   end
 
-  defp verify_link(token = %{namespace: @wasmcloud_logging}) do
+  defp verify_link(token = %{target: :unknown}) do
+    %{token | verified: false}
+  end
+
+  defp verify_link(token = %{target: {:actor, _, _}}) do
     %{token | verified: true}
   end
 
@@ -214,7 +213,11 @@ defmodule HostCore.WebAssembly.Imports do
     %{token | authorized: false}
   end
 
-  defp authorize_call(token = %{target: {:actor, _pk, _topic}}) do
+  defp authorize_call(token = %{namespace: @wasmcloud_logging}) do
+    %{token | authorized: true}
+  end
+
+  defp authorize_call(token = %{namespace: @wasmcloud_numbergen}) do
     %{token | authorized: true}
   end
 
