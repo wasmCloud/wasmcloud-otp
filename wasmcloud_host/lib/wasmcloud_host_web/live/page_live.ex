@@ -10,8 +10,7 @@ defmodule WasmcloudHostWeb.PageLive do
     {:ok,
      socket
      |> assign(
-       actors: WasmcloudHost.Lattice.StateMonitor.get_actors(),
-       providers: WasmcloudHost.Lattice.StateMonitor.get_providers(),
+       hosts: WasmcloudHost.Lattice.StateMonitor.get_hosts(),
        linkdefs: WasmcloudHost.Lattice.StateMonitor.get_linkdefs(),
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
        open_modal: nil
@@ -19,20 +18,16 @@ defmodule WasmcloudHostWeb.PageLive do
   end
 
   @impl true
-  def handle_info({:actors, actors}, socket) do
-    {:noreply, assign(socket, actors: actors)}
-  end
-
-  def handle_info({:providers, providers}, socket) do
-    {:noreply, assign(socket, providers: providers)}
-  end
-
   def handle_info({:linkdefs, linkdefs}, socket) do
     {:noreply, assign(socket, linkdefs: linkdefs)}
   end
 
   def handle_info({:claims, claims}, socket) do
     {:noreply, assign(socket, claims: claims)}
+  end
+
+  def handle_info({:hosts, hosts}, socket) do
+    {:noreply, assign(socket, hosts: hosts)}
   end
 
   def handle_info({:open_modal, modal}, socket) do

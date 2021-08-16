@@ -19,7 +19,7 @@ defmodule ProviderRowComponent do
       <td><%= @contract_id %></td>
       <td>
         <span class="badge <%= case @status do
-            "Starting" -> "badge-secondary"
+            "Awaiting" -> "badge-secondary"
             "Healthy" -> "badge-success"
             "Unhealthy" -> "badge-danger"
             end%>">
@@ -32,14 +32,12 @@ defmodule ProviderRowComponent do
           </svg>
         </button></td>
       <td>
-        <%= for hid <- @host_ids do %>
-          <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= hid %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-            <%= String.slice(hid, 0..4) %>...
-            <svg class="c-icon">
-              <use xlink:href="/coreui/free.svg#cil-copy"></use>
-            </svg>
-          </button>
-        <% end %>
+        <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= @host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+          <%= String.slice(@host_id, 0..4) %>...
+          <svg class="c-icon">
+            <use xlink:href="/coreui/free.svg#cil-copy"></use>
+          </svg>
+        </button>
       </td>
       <td>
       <button class="btn btn-sm btn-danger"

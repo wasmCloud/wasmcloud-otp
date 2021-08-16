@@ -37,7 +37,7 @@
           </svg>
         </div>
         <div class="text-value-lg"><%= processes = :erlang.system_info(:process_count); processes %></div>
-        <small class="text-muted text-uppercase font-weight-bold">Running Processes</small>
+        <small class="text-muted text-uppercase font-weight-bold">Running Processes (OTP)</small>
       </div>
     </div>
   </div>
@@ -138,11 +138,11 @@
             </tr>
           </thead>
           <tbody>
-            <%= for {actor, hosts_map} <- @actors do %>
+            <%= for {host_id, host_map} <- @hosts do %>
+            <%= for {actor, info_map} <- Map.get(host_map, :actors) do %>
               <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
-              <%= for {host_id, host_info} <- hosts_map do %>
-                <% count = Map.get(host_info, :count) %>
-                <% status = Map.get(host_info, :status) %>
+                <% count = Map.get(info_map, :count) %>
+                <% status = Map.get(info_map, :status) %>
                 <%= live_component ActorRowComponent,
                   actor: actor,
                   host_id: host_id,
@@ -195,22 +195,21 @@
               <th>Contract ID</th>
               <th>Status</th>
               <th>Provider ID</th>
-              <th>Host IDs</th>
+              <th>Host ID</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <%# One row per-provider instance, which is a public key, contract id and link name combination %>
-            <%= for {provider, instances} <- @providers do %>
-              <%= for instance <- instances do  %>
-                <% link_name = Map.get(instance, :link_name) %>
+            <%= for {host_id, host_map} <- @hosts do %>
+              <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers) do %>
                 <%= live_component ProviderRowComponent,
                   id: "#{provider} (#{link_name})",
                   provider: provider,
                   link_name: link_name,
-                  contract_id: Map.get(instance, :contract_id),
-                  status: Map.get(instance, :status),
-                  host_ids: Map.get(instance, :host_ids)%>
+                  contract_id: Map.get(info_map, :contract_id),
+                  status: Map.get(info_map, :status),
+                  host_id: host_id%>
               <% end %>
             <% end %>
           </tbody>
