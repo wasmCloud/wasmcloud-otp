@@ -168,9 +168,9 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: "com.wasmcloud.lattice.actor_started"
          }
        ) do
-    actors = add_actor(pk, source_host, state.actors)
-    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
-    %State{state | actors: actors}
+    hosts = add_actor(pk, source_host, state.hosts)
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
+    %State{state | hosts: hosts}
   end
 
   defp process_event(
@@ -182,9 +182,9 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: "com.wasmcloud.lattice.actor_stopped"
          }
        ) do
-    actors = remove_actor(public_key, source_host, state.actors)
-    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
-    %State{state | actors: actors}
+    hosts = remove_actor(public_key, source_host, state.hosts)
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
+    %State{state | hosts: hosts}
   end
 
   defp process_event(
@@ -261,7 +261,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         %{
           actors: actor_map,
           providers: provider_map,
-          # TODO: get labels from host inventory
+          # TODO: get labels from host inventory, ctl query
           labels: %{}
         }
       else
@@ -286,7 +286,15 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
          }
        ) do
     Logger.info("Handling successful health check for #{public_key}")
-    update_status(state, public_key, source_host, "Healthy")
+
+    case update_status(public_key, source_host, state.hosts, "Healthy") do
+      {:hosts, hosts} ->
+        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
+        %State{state | hosts: hosts}
+
+      {:error, _err} ->
+        state
+    end
   end
 
   defp process_event(
@@ -299,27 +307,37 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
          }
        ) do
     Logger.info("Handling failed health check for #{public_key}")
-    update_status(state, public_key, source_host, "Unhealthy")
+
+    case update_status(public_key, source_host, state.hosts, "Unhealthy") do
+      {:hosts, hosts} ->
+        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
+        %State{state | hosts: hosts}
+
+      # Could not update hosts, don't change state
+      {:error, _err} ->
+        state
+    end
   end
 
-  defp update_status(state, public_key, source_host, new_status) do
-    actors = state.actors
-    providers = state.providers
-    actor = Map.get(actors, public_key, nil)
-    provider_list = Map.get(providers, public_key, nil)
+  defp update_status(public_key, source_host, hosts, new_status) do
+    host_map = Map.get(hosts, source_host, %{})
+    actors = Map.get(host_map, :actors, %{})
+    providers = Map.get(host_map, :providers, %{})
+
+    actor_map = Map.get(actors, public_key, nil)
+    provider_map = Map.get(providers, public_key, nil)
 
     cond do
-      actor != nil ->
-        host_map = Map.get(actor, source_host, %{})
-        host_map = Map.put(host_map, :status, new_status)
-        actor = Map.put(actor, source_host, host_map)
-        actors = Map.put(actors, public_key, actor)
-        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:actors, actors})
-        %State{state | actors: actors}
+      actor_map != nil ->
+        actor_map = Map.put(actor_map, :status, new_status)
+        actors = Map.put(actors, public_key, actor_map)
+        host_map = Map.put(host_map, :actors, actors)
+        hosts = Map.put(hosts, source_host, host_map)
+        {:hosts, hosts}
 
-      provider_list != nil ->
-        provider_list =
-          provider_list
+      provider_map != nil ->
+        provider_map =
+          provider_map
           |> Enum.map(
             fn instance = %{
                  link_name: link_name,
@@ -340,13 +358,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
             end
           )
 
-        providers = Map.put(providers, public_key, provider_list)
-        PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:providers, providers})
-        %State{state | providers: providers}
+        providers = Map.put(providers, public_key, provider_map)
+        {:providers, providers}
 
-      # Did not match currently running provider or actor
       true ->
-        state
+        {:error, "Public key did not match running provider or actor"}
     end
   end
 
@@ -411,7 +427,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   # This map is keyed with the actor public key and holds a map
   # containing a host ID mapping to the status of the actor on that
   # host and a total count on that host
-  #
+  # TODO: this map is incorrect, fix
   # %{
   #   "Mxxxx" : %{
   #     "Nxxxxx": %{
@@ -425,32 +441,48 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   #   }
   # }
   def add_actor(pk, host, previous_map) do
-    actor_map = Map.get(previous_map, pk, %{})
-    host_map = Map.get(actor_map, host, %{})
-    new_count = Map.get(host_map, :count, 0) + 1
-    host_map = Map.put(host_map, :count, new_count)
-    host_map = Map.put(host_map, :status, "Starting")
+    # Retrieve inventory map for host
+    host_map = Map.get(previous_map, host, %{})
+    # Retrieve actor map, update count, update status
+    actors_map = Map.get(host_map, :actors, %{})
+    actor_map = Map.get(actors_map, pk, %{})
+    new_count = Map.get(actor_map, :count, 0) + 1
+    actor_map = Map.put(actor_map, :count, new_count)
+    actor_map = Map.put(actor_map, :status, "Awaiting")
+    actors_map = Map.put(actors_map, pk, actor_map)
+    # Update host inventory with new actor information
+    host_map = Map.put(host_map, :actors, actors_map)
 
-    actor_map = Map.put(actor_map, host, host_map)
-    Map.put(previous_map, pk, actor_map)
+    # Update hosts map with updated host
+    Map.put(previous_map, host, host_map)
   end
 
   def remove_actor(pk, host, previous_map) do
-    actor_map = Map.get(previous_map, pk, %{})
-    host_info = Map.get(actor_map, host)
+    # Retrieve host inventory
+    host_map = Map.get(previous_map, host, %{})
+    actors_map = Map.get(host_map, :actors, %{})
 
-    current_count =
-      host_info
-      |> Map.get(:count)
+    # Retrieve actor and current count
+    actor_map = Map.get(actors_map, pk, %{})
+    current_count = Map.get(actor_map, :count, nil)
 
-    case current_count do
-      1 ->
-        Map.delete(previous_map, pk)
+    actors_map =
+      case current_count do
+        # Remove the actor from the host inventory
+        1 ->
+          Map.delete(actors_map, pk)
 
-      _other ->
-        host_map = Map.put(host_info, :count, current_count - 1)
-        actor_map = Map.put(actor_map, host, host_map)
-        Map.put(previous_map, pk, actor_map)
-    end
+        # Actor was not found, no-op
+        nil ->
+          actors_map
+
+        # Reduce actor count by 1
+        _other ->
+          actor_map = Map.put(actor_map, :count, current_count - 1)
+          Map.put(actors_map, pk, actor_map)
+      end
+
+    host_map = Map.put(host_map, :actors, actors_map)
+    Map.put(previous_map, host, host_map)
   end
 end

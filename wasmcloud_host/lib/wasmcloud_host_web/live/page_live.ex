@@ -36,6 +36,10 @@ defmodule WasmcloudHostWeb.PageLive do
     {:noreply, assign(socket, claims: claims)}
   end
 
+  def handle_info({:hosts, hosts}, socket) do
+    {:noreply, assign(socket, hosts: hosts)}
+  end
+
   def handle_info({:open_modal, modal}, socket) do
     {:noreply, assign(socket, open_modal: modal)}
   end
