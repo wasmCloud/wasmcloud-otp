@@ -227,6 +227,11 @@ defmodule HostCore.WebAssembly.Imports do
     %{token | authorized: Enum.member?(claims.caps, namespace)}
   end
 
+  # allow actor-to-actor calls
+  defp authorize_call(token = %{target: {:actor, _, _}}) do
+    %{token | authorized: true}
+  end
+
   defp invoke(_token = %{authorized: false, agent: agent}) do
     Agent.update(agent, fn state -> %State{state | host_error: "Invocation not authorized"} end)
     0
