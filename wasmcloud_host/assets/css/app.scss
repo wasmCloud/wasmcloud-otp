@@ -1,6 +1,7 @@
 /* This file is for your main application css. */
 @import "./coreui/style.min.css";
 
+
 /* LiveView specific classes for your customizations */
 .phx-no-feedback.invalid-feedback,
 .phx-no-feedback .invalid-feedback {
@@ -112,4 +113,10 @@ Custom modal styles that don't hide when page is re-rendered
 // Hide backdrop behind content when not shown
 #phoenix-modal-backdrop:not(.show) {
   height: 0;
+}
+
+.container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl{
+  @media (min-width: 1680px) {
+    max-width: 1600px;
+  }
 }

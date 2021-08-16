@@ -1,3 +1,19 @@
+<!--
+
+Move metrics into a different pane, "Local Host metrics"?
+
+Main view should include all information for hosts across the lattice, perhaps a quick enumeration of hosts as buttons, and you can click to filter
+only by that host? Otherwise a dropdown should suffice.
+
+Need a "selected_host" attribute in the PageLive view, and shown information will need to be filtered by that host.
+Essentially, if there's a selected_host then we just don't enumerate every host and instead Map.get(@hosts, @selected_host_id)
+
+I think I may need to bring in the full <body> tag into this file, simply because the entire dashboard can be influenced by state
+This shouldn't be an issue (might need to sort out some @conn things)
+If I do that, widgets can go into a LiveComponent and there are other ways that I can cut down on the length of this file
+
+-->
+
 <%# Widgets Row %>
 <div class="row">
   <div class="col-sm-6 col-md-2">
@@ -37,7 +53,7 @@
           </svg>
         </div>
         <div class="text-value-lg"><%= processes = :erlang.system_info(:process_count); processes %></div>
-        <small class="text-muted text-uppercase font-weight-bold">Running Processes (OTP)</small>
+        <small class="text-muted text-uppercase font-weight-bold">OTP Processes</small>
       </div>
     </div>
   </div>
@@ -139,7 +155,7 @@
           </thead>
           <tbody>
             <%= for {host_id, host_map} <- @hosts do %>
-            <%= for {actor, info_map} <- Map.get(host_map, :actors) do %>
+            <%= for {actor, info_map} <- Map.get(host_map, :actors, %{}) do %>
               <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
                 <% count = Map.get(info_map, :count) %>
                 <% status = Map.get(info_map, :status) %>
@@ -202,7 +218,7 @@
           <tbody>
             <%# One row per-provider instance, which is a public key, contract id and link name combination %>
             <%= for {host_id, host_map} <- @hosts do %>
-              <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers) do %>
+              <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers, %{}) do %>
                 <%= live_component ProviderRowComponent,
                   id: "#{provider} (#{link_name})",
                   provider: provider,
