@@ -146,9 +146,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :ocimap_added, data}, state) do
-    IO.puts("OCIMap added")
-    IO.inspect(data)
+  def handle_cast({:cache_load_event, :ocimap_added, _data}, state) do
+    # Currently we don't display or store OCImaps in the state monitor
     {:noreply, state}
   end
 
@@ -259,8 +258,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
       end)
 
     # TODO: Also ensure that providers don't exist in the dashboard that aren't in the health check
-    # Provider map is keyed by a tuple of the form
-    # {public_key, link_name}
+    # Provider map is keyed by a tuple of the form {public_key, link_name}
     provider_map =
       providers
       |> Enum.reduce(%{}, fn provider, provider_map ->
@@ -294,8 +292,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
                  [{:receive_timeout, 2_000}]
                ) do
             {:ok, msg} ->
-              inv = Jason.decode!(msg.body)
-              Map.get(inv, "labels", %{})
+              Map.get(Jason.decode!(msg.body), "labels", %{})
 
             {:error, :timeout} ->
               %{}
@@ -393,26 +390,20 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
   end
 
-  # This map is keyed by provider public key, which contains a list of
-  # maps with the keys "link_name", "contract_id", and "host_ids", as
-  # shown below.
-  # TODO: This is wrong
+  # The `providers_map` is keyed by a tuple in the form of {public key, link_name}
+  # and contains a values map containing the contract_id and the status. An example
+  # of the providers_map is shown below. This map is a part of each host inventory
+  # under the `providers` key.
   #
   # %{
-  #     "Vxxxx":  [
-  #        %{
-  #            "link_name": "default",
-  #            "contract_id": "wasmcloud:keyvalue",
-  #            "host_ids": ["Nxxxx"],
-  #            "status": "Starting"
-  #         },
-  #        %{
-  #            "link_name": "special",
-  #            "contract_id": "wasmcloud:keyvalue",
-  #            "host_ids": ["Nxxxx"],
-  #            "status": "Healthy"
-  #         },
-  #    ]
+  #    {"Vxxxx", "default"}: %{
+  #      "contract_id": "wasmcloud:keyvalue",
+  #      "status": "Awaiting"
+  #    },
+  #    {"Vxyxy", "special"}: %{
+  #      "contract_id": "wasmcloud:keyvalue",
+  #      "status": "Unhealthy"
+  #    },
   # }
   def add_provider(pk, link_name, contract_id, source_host, previous_map) do
     # Get the source host and its current running providers
@@ -439,21 +430,18 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
   end
 
-  # This map is keyed with the actor public key and holds a map
-  # containing a host ID mapping to the status of the actor on that
-  # host and a total count on that host
-  # TODO: this map is incorrect, fix
+  # The actors_map is keyed with the actor public key and holds a value
+  # map containing the status and count of that actor. The actors_map is
+  # a part of each host inventory under the key `actors`.
   # %{
-  #   "Mxxxx" : %{
-  #     "Nxxxxx": %{
-  #       "status": "Healthy"/"Unhealthy"/"Starting",
-  #       "count": 3
-  #     },
-  #     "Nxxxxy": %{
-  #       "status": "Healthy"/"Unhealthy"/"Starting",
-  #       "count": 3
-  #     },
-  #   }
+  #    "Mxxxx": %{
+  #      "count": 1,
+  #      "status": "Awaiting"
+  #    },
+  #    "Mxyxy": %{
+  #      "count": 3,
+  #      "status": "Healthy"
+  #    },
   # }
   def add_actor(pk, host, previous_map) do
     # Retrieve inventory map for host
