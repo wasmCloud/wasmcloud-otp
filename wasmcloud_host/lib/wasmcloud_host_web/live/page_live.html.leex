@@ -195,22 +195,21 @@
               <th>Contract ID</th>
               <th>Status</th>
               <th>Provider ID</th>
-              <th>Host IDs</th>
+              <th>Host ID</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <%# One row per-provider instance, which is a public key, contract id and link name combination %>
-            <%= for {provider, instances} <- @providers do %>
-              <%= for instance <- instances do  %>
-                <% link_name = Map.get(instance, :link_name) %>
+            <%= for {host_id, host_map} <- @hosts do %>
+              <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers) do %>
                 <%= live_component ProviderRowComponent,
                   id: "#{provider} (#{link_name})",
                   provider: provider,
                   link_name: link_name,
-                  contract_id: Map.get(instance, :contract_id),
-                  status: Map.get(instance, :status),
-                  host_ids: Map.get(instance, :host_ids)%>
+                  contract_id: Map.get(info_map, :contract_id),
+                  status: Map.get(info_map, :status),
+                  host_id: host_id%>
               <% end %>
             <% end %>
           </tbody>
