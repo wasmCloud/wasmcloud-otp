@@ -286,11 +286,25 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
     host =
       if current_host == %{} do
+        labels =
+          case Gnat.request(
+                 :control_nats,
+                 "wasmbus.ctl.#{HostCore.Host.lattice_prefix()}.get.#{source_host}.inv",
+                 "",
+                 [{:receive_timeout, 2_000}]
+               ) do
+            {:ok, msg} ->
+              inv = Jason.decode!(msg.body)
+              Map.get(inv, "labels", %{})
+
+            {:error, :timeout} ->
+              %{}
+          end
+
         %{
           actors: actor_map,
           providers: provider_map,
-          # TODO: get labels from host inventory, ctl query
-          labels: %{}
+          labels: labels
         }
       else
         %{
