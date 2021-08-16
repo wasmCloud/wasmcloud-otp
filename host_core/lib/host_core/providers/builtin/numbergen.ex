@@ -7,7 +7,7 @@ defmodule HostCore.Providers.Builtin.Numbergen do
     params = Msgpax.unpack!(payload)
 
     min = max(params["min"], 0)
-    max = min(params["max"] - 1, 4_294_967_295)
+    max = min(params["max"], 4_294_967_295)
     IO.iodata_to_binary(Msgpax.pack!(Enum.random(min..max)))
   end
 
