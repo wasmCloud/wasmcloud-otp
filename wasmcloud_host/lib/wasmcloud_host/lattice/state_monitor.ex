@@ -8,7 +8,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   # map AND in ETS storage under their respective manager processes.
 
   defmodule State do
-    defstruct [:actors, :providers, :linkdefs, :refmaps, :claims, :hosts]
+    defstruct [:linkdefs, :refmaps, :claims, :hosts]
   end
 
   def start_link(opts) do
@@ -18,8 +18,6 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   @impl true
   def init(_opts) do
     state = %State{
-      actors: %{},
-      providers: %{},
       linkdefs: %{},
       refmaps: %{},
       claims: %{},
@@ -50,23 +48,28 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         Map.put(cmap, claims.sub, claims)
       end)
 
+    ldefs =
+      HostCore.Linkdefs.Manager.get_link_definitions()
+      |> Enum.reduce(state.linkdefs, fn ld, linkdefs_map ->
+        key = {ld.actor_id, ld.contract_id, ld.link_name}
+        map = %{values: ld.values, provider_key: ld.provider_id}
+        Map.put(linkdefs_map, key, map)
+      end)
+
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:claims, cmap})
-    {:noreply, Map.put(state, :claims, cmap)}
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, ldefs})
+
+    new_state =
+      state
+      |> Map.put(:claims, cmap)
+      |> Map.put(:linkdefs, ldefs)
+
+    {:noreply, new_state}
   end
 
   @impl true
   def handle_call(:hosts_query, _from, state) do
     {:reply, state.hosts, state}
-  end
-
-  @impl true
-  def handle_call(:actor_query, _from, state) do
-    {:reply, state.actors, state}
-  end
-
-  @impl true
-  def handle_call(:provider_query, _from, state) do
-    {:reply, state.providers, state}
   end
 
   @impl true
@@ -210,18 +213,19 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
          %Cloudevents.Format.V_1_0.Event{
            data: %{"link_name" => link_name, "public_key" => pk},
            datacontenttype: "application/json",
-           source: _source_host,
+           source: source_host,
            type: "com.wasmcloud.lattice.provider_stopped"
          }
        ) do
-    instances =
-      Map.get(state.providers, pk)
-      |> Enum.filter(fn el -> el.link_name != link_name end)
+    host_map = Map.get(state.hosts, source_host, %{})
+    providers_map = Map.get(host_map, :providers, %{})
+    providers_map = Map.delete(providers_map, {pk, link_name})
 
-    providers = Map.put(state.providers, pk, instances)
+    host_map = Map.put(host_map, :providers, providers_map)
+    hosts = Map.put(state.hosts, source_host, host_map)
 
-    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:providers, providers})
-    %State{state | providers: providers}
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
+    %State{state | hosts: hosts}
   end
 
   defp process_event(
@@ -235,14 +239,14 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
        ) do
     Logger.info("Handling host heartbeat")
 
-    current_host = Map.get(state.hosts, source_host)
+    current_host = Map.get(state.hosts, source_host, %{})
 
     # TODO: Also ensure that actors don't exist in the dashboard that aren't in the health check
     actor_map =
       actors
       |> Enum.reduce(%{}, fn actor, actor_map ->
         actor_id = Map.get(actor, "actor")
-        existing_actor = current_host |> Map.get(:actors) |> Map.get(actor_id)
+        existing_actor = current_host |> Map.get(:actors, %{}) |> Map.get(actor_id)
 
         if existing_actor != nil && Map.get(existing_actor, :count) == Map.get(actor, "instances") do
           Map.put(actor_map, actor_id, existing_actor)
@@ -264,14 +268,14 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         link_name = Map.get(provider, "link_name")
 
         existing_provider =
-          current_host |> Map.get(:providers) |> Map.get({provider_id, link_name})
+          current_host |> Map.get(:providers, %{}) |> Map.get({provider_id, link_name})
 
         if existing_provider != nil do
           Map.put(provider_map, {provider_id, link_name}, existing_provider)
         else
           Map.put(
             provider_map,
-            {Map.get(provider, "public_key"), Map.get(provider, "link_name")},
+            {provider_id, link_name},
             %{
               contract_id: Map.get(provider, "contract_id"),
               status: "Awaiting"
@@ -281,7 +285,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
       end)
 
     host =
-      if current_host == nil do
+      if current_host == %{} do
         %{
           actors: actor_map,
           providers: provider_map,
@@ -310,8 +314,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
          }
        ) do
     public_key = Map.get(data, "public_key")
-    Logger.info("Handling successful health check for #{public_key}")
     link_name = Map.get(data, "link_name")
+    Logger.info("Handling successful health check for #{public_key}")
 
     case update_status(public_key, link_name, source_host, state.hosts, "Healthy") do
       {:hosts, hosts} ->
@@ -333,8 +337,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
          }
        ) do
     public_key = Map.get(data, "public_key")
-    Logger.info("Handling failed health check for #{public_key}")
     link_name = Map.get(data, "link_name")
+    Logger.info("Handling failed health check for #{public_key}")
 
     case update_status(public_key, link_name, source_host, state.hosts, "Unhealthy") do
       {:hosts, hosts} ->
@@ -400,13 +404,12 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     # Get the source host and its current running providers
     host_map = Map.get(previous_map, source_host, %{})
     providers_map = Map.get(host_map, :providers, %{})
-
     provider_map = Map.get(providers_map, {pk, link_name}, nil)
 
     if provider_map == nil do
       providers_map =
         Map.put(
-          provider_map,
+          providers_map,
           {pk, link_name},
           %{
             contract_id: contract_id,

@@ -75,12 +75,10 @@ defmodule DefineLinkComponent do
         <div class="col-md-9">
           <select class="form-control select2-single" id="select2-1" name="actor_id">
             <option hidden disabled selected value> -- select an actor -- </option>
-            <%= for {actor, _host_map} <- @actors do %>
               <%= for {k, v} <- @claims do %>
-                <%= if k == actor do %>
-                  <option value="<%= actor %>"><%= v.name %> (<%= String.slice(actor, 0..4) %>...) </option>
+                <%= if String.starts_with?(k, "M") && String.length(k) == 56 do %>
+                  <option value="<%= k %>"><%= v.name %> (<%= String.slice(k, 0..4) %>...) </option>
                 <% end %>
-              <% end %>
             <% end %>
           </select>
         </div>
@@ -94,12 +92,12 @@ defmodule DefineLinkComponent do
             document.getElementById('linkdef-linkname-input').value = data['linkname']
             document.getElementById('linkdef-contractid-input').value = data['contractid']">
             <option hidden disabled selected value> -- select a provider -- </option>
-            <%= for {provider, instances} <- @providers do %>
-              <%= for instance <- instances do  %>
+            <%= for {_host_id, host_map} <- @hosts do %>
+            <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers, %{}) do %>
                 <option value="<%= provider %>"
-                  data-linkname="<%= Map.get(instance, :link_name)%>"
-                  data-contractid="<%= Map.get(instance, :contract_id)%>">
-                  <%= String.slice(provider, 0..4) %>... (<%= Map.get(instance, :link_name) %>)
+                  data-linkname="<%= link_name %>"
+                  data-contractid="<%= Map.get(info_map, :contract_id)%>">
+                  <%= String.slice(provider, 0..4) %>... (<%= link_name %>)
                 </option>
               <% end %>
             <% end %>
