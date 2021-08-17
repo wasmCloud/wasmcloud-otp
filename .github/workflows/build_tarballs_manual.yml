@@ -1,0 +1,263 @@
+name: Build Linux and Mac Tarballs
+
+on: workflow_dispatch
+
+env:
+  working-directory: wasmcloud_host
+
+jobs:
+  build:
+    strategy:
+      # simplified test matrix to only test versions we use
+      matrix:
+        elixir: [1.12.1]
+        otp: [24.0]
+    services:
+      nats:
+        image: nats
+        ports:
+          - 4222:4222
+
+    name: Build and test
+    runs-on: ubuntu-18.04
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup elixir
+        uses: actions/setup-elixir@v1
+        with:
+          elixir-version: ${{ matrix.elixir }} # Define the elixir version [required]
+          otp-version: ${{ matrix.otp }} # Define the OTP version [required]
+
+      - name: Retrieve Mix Dependencies Cache
+        uses: actions/cache@v2
+        id: mix-cache #id to use in retrieve action
+        with:
+          path: |
+            wasmcloud_host/deps
+            wasmcloud_host/_build
+          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        if: steps.mix-cache.outputs.cache-hit != 'true'
+        run: |
+          mix local.rebar --force
+          mix local.hex --force
+          mix do deps.get, deps.compile
+
+      - name: Check Formatting
+        working-directory: ${{env.working-directory}}
+        run: mix format --check-formatted
+
+      - name: Run Credo
+        working-directory: ${{env.working-directory}}
+        continue-on-error: true # Don't fail entire action with refactoring opportunities for now
+        run: mix credo --strict
+
+      - name: Run Tests
+        working-directory: ${{env.working-directory}}
+        run: |
+          WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
+          mix test
+
+      - name: Retrieve PLT Cache
+        uses: actions/cache@v2
+        id: plt-cache
+        with:
+          path: wasmcloud_host/priv/plts
+          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+
+      - name: Create PLTs
+        working-directory: ${{env.working-directory}}
+        if: steps.plt-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p priv/plts
+          mix dialyzer --plt
+
+      - name: Run dialyzer
+        working-directory: ${{env.working-directory}}
+        continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
+        run: mix dialyzer --no-check
+
+  # When event type is release published, also run release workflow
+  release-linux:
+    needs: [build]
+    if: github.event.payload.ref_type == 'tag' # Triggers on tag push only
+    name: Release Linux Tarball and Docker Image
+    runs-on: ubuntu-18.04
+    env:
+      MIX_ENV: prod
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to AzureCR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.AZURECR_PUSH_URL }}
+          username: ${{ secrets.AZURECR_PUSH_USER }}
+          password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Determine version
+        run: echo "wasmcloud_host_version=$(grep 'version:' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+
+      - name: Build tarball image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          load: true
+          file: ${{env.working-directory}}/Dockerfile
+          build-args: |
+            NIF_IMAGE=rust:1.53-slim-buster 
+            NIF_INSTALL=apt-nif-install.sh 
+            BUILDER_IMAGE=elixir:1.12.2-slim 
+            BUILD_INSTALL=apt-build-install.sh 
+            RUSTARCH=x86_64 
+            RUSTTARGET=unknown-linux-gnu 
+            APP_NAME=wasmcloud_host
+            APP_VSN=${{ env.wasmcloud_host_version }}
+            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+          tags: |
+            wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+
+      - name: Build and release image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: false # Note here that the image will NOT be pushed to our container registries
+          file: ${{env.working-directory}}/Dockerfile.release
+          build-args: |
+            BUILD_IMAGE=wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+            RELEASE_IMAGE=debian:buster-slim  
+            RELEASE_INSTALL=apt-release-install.sh 
+            APP_NAME=wasmcloud_host
+            APP_VSN=${{ env.wasmcloud_host_version }}
+            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+          tags: |
+            wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
+            wasmcloud.azurecr.io/wasmcloud_host:latest
+            wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
+            wasmcloud/wasmcloud_host:latest
+
+      # This make step retrieves the tarball from the build image
+      - name: Retrieve Artifact
+        working-directory: ${{env.working-directory}}
+        run: |
+          make tarball-x86_64-linux-gnu
+
+      # Currently just attached to the action output, should be in the Release assets
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+          path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/${{ env.wasmcloud_host_version }}/x86_64-linux-gnu.tar.gz
+
+  release-macos:
+    name: Release MacOS Tarball
+    needs: [build]
+    runs-on: macos-10.15
+    env:
+      MIX_ENV: prod
+      ERLANG_VERSION: 24.0.3
+      ELIXIR_VERSION: 1.12.2
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # Setup Rust for NIF dependencies
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-apple-darwin
+          override: true
+
+      # Setup node for phoenix deps
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Determine version
+        run: echo "wasmcloud_host_version=$(grep 'version:' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+
+      - name: Install erlang and elixir
+        run: |
+          brew install erlang
+          brew install elixir
+          elixir --version
+
+      - name: Retrieve Mix Dependencies Cache
+        uses: actions/cache@v2
+        id: mix-cache #id to use in retrieve action
+        with:
+          path: |
+            wasmcloud_host/deps
+            wasmcloud_host/_build
+          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix local.rebar --force 
+          mix local.hex --force
+          mix deps.get
+
+      - name: Build hostcore_wasmcloud_native NIF
+        working-directory: ${{env.working-directory}}
+        env:
+          RUST_ARCH: x86_64
+          RUST_TARGET: apple-darwin
+        run: |
+          make wasmcloud-nif
+
+      - name: Build wasmex_native NIF
+        working-directory: ${{env.working-directory}}
+        env:
+          RUST_ARCH: x86_64
+          RUST_TARGET: apple-darwin
+        run: |
+          make wasmex-nif
+
+      - name: Compile Elixir
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix deps.compile
+
+      - name: Compile Phoenix Assets
+        working-directory: ${{env.working-directory}}/assets
+        run: |
+          yarn install
+          yarn deploy
+
+      - name: Create digest
+        working-directory: ${{env.working-directory}}
+        run: mix phx.digest
+
+      - name: Create Distillery Release
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix distillery.release --verbose
+
+      # Currently just attached to the action output, should be in the Release assets
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-macos
+          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz
