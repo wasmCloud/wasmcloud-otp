@@ -149,13 +149,14 @@ defmodule HostCore.WebAssembly.Imports do
          token = %{
            namespace: namespace,
            binding: binding,
-           prefix: prefix
+           prefix: prefix,
+           source_actor: actor_id
          }
        ) do
     target =
-      case HostCore.Providers.lookup_provider(namespace, binding) do
-        {:ok, provider_key} ->
-          {:provider, provider_key, "wasmbus.rpc.#{prefix}.#{provider_key}.#{binding}"}
+      case HostCore.Linkdefs.Manager.lookup_link_definition(actor_id, namespace, binding) do
+        {:ok, ld} ->
+          {:provider, ld.provider_id, "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{binding}"}
 
         _ ->
           if String.starts_with?(namespace, "M") && String.length(namespace) == 56 do
