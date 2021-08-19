@@ -312,6 +312,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
       end
 
     hosts = Map.put(state.hosts, source_host, host)
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
     %State{state | hosts: hosts}
   end
 
