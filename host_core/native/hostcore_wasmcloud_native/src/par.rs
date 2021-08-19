@@ -48,18 +48,38 @@ pub(crate) fn extract_target_bytes(par: &ProviderArchive) -> Result<Vec<u8>, Err
     }
 }
 
-pub(crate) fn cache_path(subject: String, rev: u32) -> Result<String, Error> {
+pub(crate) fn cache_path(
+    subject: String,
+    rev: u32,
+    contract_id: String,
+    link_name: String,
+) -> Result<String, Error> {
     let mut path = temp_dir();
     path.push("wasmcloudcache");
     path.push(&subject);
     path.push(format!("{}", rev));
-    path.push(native_target());
+
+    let contract = normalize_for_filename(&contract_id);
+    let link_name = normalize_for_filename(&link_name);
+    let filename = if cfg!(windows) {
+        format!("{}_{}.exe", contract, link_name)
+    } else {
+        format!("{}_{}", contract, link_name)
+    };
+    path.push(filename);
+
     match path.into_os_string().into_string() {
         Ok(s) => Ok(s),
         Err(_e) => Err(Error::Term(Box::new(
             "FATAL - Could not convert path into string",
         ))),
     }
+}
+
+fn normalize_for_filename(input: &str) -> String {
+    input
+        .to_lowercase()
+        .replace(|c: char| !c.is_ascii_alphanumeric(), "_")
 }
 
 fn native_target() -> String {

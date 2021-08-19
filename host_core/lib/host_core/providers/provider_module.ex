@@ -13,7 +13,8 @@ defmodule HostCore.Providers.ProviderModule do
       :contract_id,
       :public_key,
       :lattice_prefix,
-      :instance_id
+      :instance_id,
+      :executable_path
     ]
   end
 
@@ -32,6 +33,10 @@ defmodule HostCore.Providers.ProviderModule do
     GenServer.call(pid, :get_instance_id)
   end
 
+  def path(pid) do
+    GenServer.call(pid, :get_path)
+  end
+
   def halt(pid) do
     GenServer.call(pid, :halt_cleanup)
   end
@@ -40,6 +45,7 @@ defmodule HostCore.Providers.ProviderModule do
   def init({:executable, path, claims, link_name, contract_id, oci}) do
     Logger.info("Starting executable capability provider at  '#{path}'")
 
+    instance_id = UUID.uuid4()
     # In case we want to know the contract ID of this provider, we can look it up as the
     # bound value in the registry.
 
@@ -47,8 +53,6 @@ defmodule HostCore.Providers.ProviderModule do
     Registry.register(Registry.ProviderRegistry, {claims.public_key, link_name}, contract_id)
     # Store the provider triple in an ETS table
     HostCore.Providers.register_provider(claims.public_key, link_name, contract_id)
-
-    instance_id = UUID.uuid4()
 
     host_info =
       HostCore.Host.generate_hostinfo_for(claims.public_key, link_name, instance_id)
@@ -82,7 +86,8 @@ defmodule HostCore.Providers.ProviderModule do
        link_name: link_name,
        contract_id: contract_id,
        instance_id: instance_id,
-       lattice_prefix: HostCore.Host.lattice_prefix()
+       lattice_prefix: HostCore.Host.lattice_prefix(),
+       executable_path: path
      }}
   end
 
@@ -106,6 +111,11 @@ defmodule HostCore.Providers.ProviderModule do
   @impl true
   def handle_call(:get_instance_id, _from, state) do
     {:reply, state.instance_id, state}
+  end
+
+  @impl true
+  def handle_call(:get_path, _from, state) do
+    {:reply, state.executable_path, state}
   end
 
   @impl true
