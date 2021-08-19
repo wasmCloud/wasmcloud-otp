@@ -105,6 +105,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
+        with:
+          driver: docker
 
       - name: Login to AzureCR
         uses: azure/docker-login@v1
@@ -133,14 +135,19 @@ jobs:
             NIF_INSTALL=apt-nif-install.sh 
             BUILDER_IMAGE=elixir:1.12.2-slim 
             BUILD_INSTALL=apt-build-install.sh 
-            RUSTARCH=x86_64 
-            RUSTTARGET=unknown-linux-gnu 
+            RUST_ARCH=x86_64 
+            RUST_TARGET=unknown-linux-gnu 
             APP_NAME=wasmcloud_host
             APP_VSN=${{ env.wasmcloud_host_version }}
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
           tags: |
-            wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+            wasmcloud.azurecr.io/build/wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+            wasmcloud_host:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
 
+      - name: Inspect
+        run: |
+          docker image ls -a
+          
       - name: Build and release image
         uses: docker/build-push-action@v2
         with:
@@ -148,16 +155,16 @@ jobs:
           push: true
           file: ${{env.working-directory}}/Dockerfile.release
           build-args: |
-            BUILD_IMAGE=wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
-            RELEASE_IMAGE=debian:buster-slim  
+            BUILD_IMAGE=wasmcloud.azurecr.io/build/wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+            RELEASE_IMAGE=debian:buster-slim 
             RELEASE_INSTALL=apt-release-install.sh 
             APP_NAME=wasmcloud_host
             APP_VSN=${{ env.wasmcloud_host_version }}
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
           tags: |
-            wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
+            wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}
             wasmcloud.azurecr.io/wasmcloud_host:latest
-            wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}-rc0
+            wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
             wasmcloud/wasmcloud_host:latest
 
       # This make step retrieves the tarball from the build image
@@ -172,6 +179,7 @@ jobs:
         with:
           name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
           path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/${{ env.wasmcloud_host_version }}/x86_64-linux-gnu.tar.gz
+
 
   release-macos:
     name: Release MacOS Tarball
