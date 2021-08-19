@@ -46,7 +46,7 @@ tarball-x86_64-linux-gnu: ## Retrieve tarball artifact
 		--env TARGET=x86_64-linux-gnu \
 		--env NAME=$(NAME) \
 		--env VERSION=$(VERSION) \
-		--rm -it $(NAME):$(VERSION)-x86_64-linux-gnu /host/rel/scripts/copy-release.sh
+		--rm $(NAME):$(VERSION)-x86_64-linux-gnu /host/rel/scripts/copy-release.sh
 
 run: ## Run the docker compose with specified image tag
 	cd ../ && \
