@@ -13,7 +13,8 @@ defmodule WasmcloudHostWeb.PageLive do
        hosts: WasmcloudHost.Lattice.StateMonitor.get_hosts(),
        linkdefs: WasmcloudHost.Lattice.StateMonitor.get_linkdefs(),
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
-       open_modal: nil
+       open_modal: nil,
+       selected_host: nil
      )}
   end
 
@@ -36,6 +37,15 @@ defmodule WasmcloudHostWeb.PageLive do
 
   def handle_info(:hide_modal, socket) do
     {:noreply, assign(socket, open_modal: nil)}
+  end
+
+  @impl true
+  def handle_event("select_host", %{"host" => host}, socket) do
+    {:noreply, assign(socket, :selected_host, host)}
+  end
+
+  def handle_event("show_all_hosts", _values, socket) do
+    {:noreply, assign(socket, :selected_host, nil)}
   end
 
   @impl true

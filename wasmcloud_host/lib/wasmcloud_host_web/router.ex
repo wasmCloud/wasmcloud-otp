@@ -20,6 +20,12 @@ defmodule WasmcloudHostWeb.Router do
     live "/", PageLive, :index
   end
 
+  scope "/metrics", WasmcloudHostWeb do
+    pipe_through :browser
+
+    live "/", MetricsLive, :index
+  end
+
   # Other scopes may use custom stacks.
   scope "/api", WasmcloudHostWeb do
     pipe_through :api

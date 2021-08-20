@@ -1,266 +1,275 @@
-<%# Widgets Row %>
-<div class="row">
-  <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-info">
-      <div class="card-body">
-        <div class="text-muted text-right mb-4">
-          <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-data-transfer-down"></use>
-          </svg>
-        </div>
-        <div class="text-value-lg"><%= {{:input, num}, _out} = :erlang.statistics(:io); num / 1_000_000 |> Float.round(2)%> MB</div>
-        <small class="text-muted text-uppercase font-weight-bold">Input</small>
-      </div>
-    </div>
-  </div>
-  <!-- /.col-->
-  <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-success">
-      <div class="card-body">
-        <div class="text-muted text-right mb-4">
-          <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-data-transfer-up"></use>
-          </svg>
-        </div>
-        <div class="text-value-lg"><%= {_input, {:output, num}} = :erlang.statistics(:io); num / 1_000_000 |> Float.round(2)%> MB</div>
-        <small class="text-muted text-uppercase font-weight-bold">Output</small>
-      </div>
-    </div>
-  </div>
-  <!-- /.col-->
-  <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-warning">
-      <div class="card-body">
-        <div class="text-muted text-right mb-4">
-          <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-vector"></use>
-          </svg>
-        </div>
-        <div class="text-value-lg"><%= processes = :erlang.system_info(:process_count); processes %></div>
-        <small class="text-muted text-uppercase font-weight-bold">Running Processes (OTP)</small>
-      </div>
-    </div>
-  </div>
-  <!-- /.col-->
-  <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-danger">
-      <div class="card-body">
-        <div class="text-muted text-right mb-4">
-          <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-clock"></use>
-          </svg>
-        </div>
-        <div class="text-value-lg">
-          <%= {time, _since_last} = :erlang.statistics(:wall_clock)
-          seconds = round(time / 1_000)
-          minutes = floor(seconds / 60)
-
-          seconds = rem(seconds, 60)
-          hours = floor(minutes / 60)
-          minutes = rem(minutes, 60)
-          "#{hours}H #{minutes}M #{seconds}S"
-        %>
-        </div>
-        <small class="text-muted text-uppercase font-weight-bold">Host Uptime</small>
-      </div>
-    </div>
-  </div>
-  <!-- /.col-->
-  <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-primary">
-      <div class="card-body">
-        <div class="text-muted text-right mb-4">
-          <svg class="c-icon c-icon-2xl">
-            <use xlink:href="/coreui/free.svg#cil-screen-desktop"></use>
-          </svg>
-        </div>
-        <div class="text-value-lg"><%= :erlang.system_info(:otp_release) %></div>
-        <small class="text-muted text-uppercase font-weight-bold">OTP Release</small>
-      </div>
-    </div>
-  </div>
-  <!-- /.col-->
-  <div class="col-sm-6 col-md-2">
-    <div class="card text-white bg-gradient-success">
-      <div class="card-body">
-        <div class="text-muted text-right mb-4">
-          <img class="c-icon c-icon-2xl" src="/images/wasmcloud_inversed_square.png" alt="wasmCloud logo">
-        </div>
-        <div class="text-value-lg"><%= Application.get_env(:wasmcloud_host, :app_version) %></div>
-        <small class="text-muted text-uppercase font-weight-bold">wasmCloud Release</small>
-      </div>
-    </div>
-  </div>
-  <!-- /.col-->
-</div>
-<%# Actors Row %>
-<div class="row">
-  <div class="col-xl-6 col-lg-12 col-md-12">
-    <div class="card">
-      <div class="card-header justify-content-between">
-        <div class="row justify-content-between">
-          <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:200px">
-            <h3>Actors</h3>
-          </div>
-          <div class="mfe-2">
-            <div class="dropdown d-inline-block">
-              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
-              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <button class="dropdown-item"
-                  phx-click="show_modal"
-                  phx-value-title="Start Actor from File"
-                  phx-value-component="StartActorComponent"
-                  phx-value-id="start_actor_file_modal">
-                  From File
-                </button>
-                <button class="dropdown-item"
-                  phx-click="show_modal"
-                  phx-value-title="Start Actor from OCI Registry"
-                  phx-value-component="StartActorComponent"
-                  phx-value-id="start_actor_ociref_modal">
-                  From Registry
-                </button>
-              </div>
+<main class="c-main">
+   <div class="container-fluid">
+      <div class="fade-in">
+         <div class="row">
+            <div class="col-xl-12 col-lg-12 col-md-12">
+               <div class="card">
+                  <div class="card-header justify-content-between">
+                     <div class="row">
+                        <div class="col-lg-12 col-md-12 col-sm-12">
+                           <strong>Host Selector</strong>
+                           <% button_color = if @selected_host == nil do "btn-outline-primary active" else "btn-outline-primary" end %>
+                           <button class="btn <%= button_color %>" type="button" phx-click="show_all_hosts">
+                           Show All
+                           </button>
+                           <%= for {host_id, _host_info} <- @hosts do %>
+                           <% button_color = if host_id == @selected_host do "btn-outline-primary active" else "btn-outline-primary" end%>
+                           <button class="btn <%= button_color %>" type="button" phx-click="select_host"phx-value-host="<%= host_id %>">
+                           <%= String.slice(host_id, 0..4) %>...
+                           </button>
+                           <% end %>
+                        </div>
+                     </div>
+                  </div>
+               </div>
             </div>
-          </div>
-        </div>
-      </div>
-      <div class="card-body">
-        <table class="table table-responsive-sm table-bordered table-striped table-sm">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Count</th>
-              <th>Status</th>
-              <th>Actor ID</th>
-              <th>Host ID</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <%= for {host_id, host_map} <- @hosts do %>
-            <%= for {actor, info_map} <- Map.get(host_map, :actors) do %>
-              <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
-                <% count = Map.get(info_map, :count) %>
-                <% status = Map.get(info_map, :status) %>
-                <%= live_component ActorRowComponent,
-                  actor: actor,
-                  host_id: host_id,
-                  status: status,
-                  count: count,
-                  name: actor_name %>
-              <% end %>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <!-- /.col-->
-  <div class="col-xl-6 col-lg-12 col-md-12">
-    <div class="card">
-      <div class="card-header">
-        <div class="row justify-content-between">
-          <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:200px">
-            <h3>Providers</h3>
-          </div>
-          <div class="mfe-2">
-            <div class="dropdown d-inline-block">
-              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
-              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <button class="dropdown-item"
-                  phx-click="show_modal"
-                  phx-value-title="Start Provider from File"
-                  phx-value-component="StartProviderComponent"
-                  phx-value-id="start_provider_file_modal">
-                  From File
-                </button>
-                <button class="dropdown-item"
-                  phx-click="show_modal"
-                  phx-value-title="Start Provider from OCI Registry"
-                  phx-value-component="StartProviderComponent"
-                  phx-value-id="start_provider_ociref_modal">
-                  From Registry
-                </button>
-              </div>
+         </div>
+         <%# display_hosts map that either contains all hosts, or a specific host in the case of filtering by host %>
+         <% display_hosts = if @selected_host == nil do @hosts else %{@selected_host => @hosts |> Map.get(@selected_host, %{})} end %>
+         <div class="row">
+            <%# Actors Column%>
+            <div class="col-xl-6 col-lg-12 col-md-12">
+               <div class="card">
+                  <div class="card-header justify-content-between">
+                     <div class="row justify-content-between">
+                        <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:250px">
+                           <h3>Actors</h3>
+                        </div>
+                        <div class="mfe-2">
+                           <div class="dropdown d-inline-block">
+                              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
+                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                 <button class="dropdown-item"
+                                    phx-click="show_modal"
+                                    phx-value-title="Start Actor from File"
+                                    phx-value-component="StartActorComponent"
+                                    phx-value-id="start_actor_file_modal">
+                                 From File
+                                 </button>
+                                 <button class="dropdown-item"
+                                    phx-click="show_modal"
+                                    phx-value-title="Start Actor from OCI Registry"
+                                    phx-value-component="StartActorComponent"
+                                    phx-value-id="start_actor_ociref_modal">
+                                 From Registry
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                  <div class="card-body">
+                     <table class="table table-responsive-sm table-bordered table-striped table-sm">
+                        <thead>
+                           <tr>
+                              <th>Name</th>
+                              <th>Count</th>
+                              <th>Status</th>
+                              <th>Actor ID</th>
+                              <th>Host ID</th>
+                              <th>Actions</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <%= for {host_id, host_map} <- display_hosts do %>
+                           <%= for {actor, info_map} <- Map.get(host_map, :actors, %{}) do %>
+                           <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
+                           <% count = Map.get(info_map, :count) %>
+                           <% status = Map.get(info_map, :status) %>
+                           <%= live_component ActorRowComponent,
+                              actor: actor,
+                              host_id: host_id,
+                              status: status,
+                              count: count,
+                              name: actor_name %>
+                           <% end %>
+                           <% end %>
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
             </div>
-          </div>
-        </div>
-      </div>
-      <div class="card-body">
-        <table class="table table-responsive-sm table-bordered table-striped table-sm">
-          <thead>
-            <tr>
-              <th>Link Name</th>
-              <th>Contract ID</th>
-              <th>Status</th>
-              <th>Provider ID</th>
-              <th>Host ID</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <%# One row per-provider instance, which is a public key, contract id and link name combination %>
-            <%= for {host_id, host_map} <- @hosts do %>
-              <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers) do %>
-                <%= live_component ProviderRowComponent,
-                  id: "#{provider} (#{link_name})",
-                  provider: provider,
-                  link_name: link_name,
-                  contract_id: Map.get(info_map, :contract_id),
-                  status: Map.get(info_map, :status),
-                  host_id: host_id%>
-              <% end %>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-<%# Link Definitions row %>
-<div class="row">
-  <div class="col-xl-6 col-lg-12 col-md-12">
-    <div class="card">
-      <div class="card-header">
-        <div class="row justify-content-between">
-          <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:200px">
-            <h3>Link Definitions</h3>
-          </div>
-          <div class="mfe-2">
-            <div class="dropdown d-inline-block">
-              <button class="btn btn-secondary"
-                  phx-click="show_modal"
-                  phx-value-title="Define Link Definition"
-                  phx-value-component="DefineLinkComponent"
-                  phx-value-id="define_link_modal">
-                Define Link
-                <svg class="c-icon c-icon-sm">
-                  <use xlink:href="/coreui/free.svg#cil-link"></use>
-                </svg>
-              </button>
+            <!-- /.col-->
+            <%# Providers Column %>
+            <div class="col-xl-6 col-lg-12 col-md-12">
+               <div class="card">
+                  <div class="card-header">
+                     <div class="row justify-content-between">
+                        <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:250px">
+                           <h3>Providers</h3>
+                        </div>
+                        <div class="mfe-2">
+                           <div class="dropdown d-inline-block">
+                              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
+                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                 <button class="dropdown-item"
+                                    phx-click="show_modal"
+                                    phx-value-title="Start Provider from File"
+                                    phx-value-component="StartProviderComponent"
+                                    phx-value-id="start_provider_file_modal">
+                                 From File
+                                 </button>
+                                 <button class="dropdown-item"
+                                    phx-click="show_modal"
+                                    phx-value-title="Start Provider from OCI Registry"
+                                    phx-value-component="StartProviderComponent"
+                                    phx-value-id="start_provider_ociref_modal">
+                                 From Registry
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                  <div class="card-body">
+                     <table class="table table-responsive-sm table-bordered table-striped table-sm">
+                        <thead>
+                           <tr>
+                              <th>Link Name</th>
+                              <th>Contract ID</th>
+                              <th>Status</th>
+                              <th>Provider ID</th>
+                              <th>Host ID</th>
+                              <th>Actions</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <%# One row per-provider instance, which is a public key, contract id and link name combination %>
+                           <%= for {host_id, host_map} <- display_hosts do %>
+                           <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers, %{}) do %>
+                           <%= live_component ProviderRowComponent,
+                              id: "#{provider} (#{link_name})",
+                              provider: provider,
+                              link_name: link_name,
+                              contract_id: Map.get(info_map, :contract_id),
+                              status: Map.get(info_map, :status),
+                              host_id: host_id%>
+                           <% end %>
+                           <% end %>
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
             </div>
-          </div>
-        </div>
-      </div>
-      <div class="card-body">
-        <table class="table table-responsive-sm table-bordered table-striped table-sm">
-          <thead>
-            <tr>
-              <th>Link Name</th>
-              <th>Contract ID</th>
-              <th>Actor ID</th>
-              <th>Provider ID</th>
-            </tr>
-          </thead>
-          <tbody>
-            <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
-              <%= live_component LinkRowComponent, link_name: link_name, contract_id: contract_id, actor_id: actor_id, provider_key: v.provider_key %>
+         </div>
+         <div class="row">
+            <%# Link Definitions column%>
+            <div class="col-xl-6 col-lg-12 col-md-12">
+               <div class="card">
+                  <div class="card-header">
+                     <div class="row justify-content-between">
+                        <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:250px">
+                           <h3>Link Definitions</h3>
+                        </div>
+                        <div class="mfe-2">
+                           <div class="dropdown d-inline-block">
+                              <button class="btn btn-secondary"
+                                 phx-click="show_modal"
+                                 phx-value-title="Define Link Definition"
+                                 phx-value-component="DefineLinkComponent"
+                                 phx-value-id="define_link_modal">
+                                 Define Link
+                                 <svg class="c-icon c-icon-sm">
+                                    <use xlink:href="/coreui/free.svg#cil-link"></use>
+                                 </svg>
+                              </button>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                  <div class="card-body">
+                     <table class="table table-responsive-sm table-bordered table-striped table-sm">
+                        <thead>
+                           <tr>
+                              <th>Link Name</th>
+                              <th>Contract ID</th>
+                              <th>Actor ID</th>
+                              <th>Provider ID</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
+                           <%= live_component LinkRowComponent, link_name: link_name, contract_id: contract_id, actor_id: actor_id, provider_key: v.provider_key %>
+                           <% end %>
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
+            </div>
+            <!-- /.col-->
+            <% host_id = @selected_host %>
+            <%# Hosts Column %>
+            <%= if host_id != nil do %>
+            <div class="col-xl-6 col-lg-12 col-md-12">
+               <div class="card">
+                  <div class="card-header">
+                     <div class="row justify-content-between">
+                        <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:250px">
+                           <h3>Host Info</h3>
+                        </div>
+                        <div class="mfe-2">
+                           <button class="btn btn-secondary" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                              <%= String.slice(host_id, 0..4) %>...
+                              <svg class="c-icon">
+                                 <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                              </svg>
+                           </button>
+                        </div>
+                     </div>
+                  </div>
+                  <div class="card-body">
+                     <table class="table table-responsive-sm table-bordered table-striped table-sm">
+                        <thead>
+                           <tr>
+                              <th>Label</th>
+                              <th>Value</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <%= for {k, v} <- Map.get(Map.get(@hosts, host_id, %{}), :labels, %{}) do %>
+                           <tr>
+                              <td><%= k %></td>
+                              <td><%= v %></td>
+                           </tr>
+                           <% end %>
+                        </tbody>
+                     </table>
+                     <table class="table table-responsive-sm table-bordered table-striped table-sm">
+                        <thead>
+                           <tr>
+                              <th>Lattice Prefix</th>
+                              <th>Local</th>
+                              <th>Actors</th>
+                              <th>Providers</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <tr>
+                              <td>
+                                 <%= HostCore.Host.lattice_prefix() %>
+                              </td>
+                              <td>
+                                 <%= host_id == HostCore.Host.host_key() %>
+                              </td>
+                              <td>
+                                 <%= Map.get(@hosts, host_id, %{})
+                                    |> Map.get(:actors, %{})
+                                    |> Enum.map(fn {_actor_id, info} -> Map.get(info, :count, 0) end)
+                                    |> Enum.reduce(0, fn count, acc -> count + acc end) %>
+                              </td>
+                              <td>
+                                 <%= Map.get(@hosts, host_id, %{})
+                                    |> Map.get(:providers, %{})
+                                    |> Enum.count() %>
+                              </td>
+                           </tr>
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
+            </div>
             <% end %>
-          </tbody>
-        </table>
+         </div>
       </div>
-    </div>
-  </div>
-  <!-- /.col-->
-</div>
+   </div>
+</main>
