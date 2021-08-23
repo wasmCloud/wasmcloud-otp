@@ -89,21 +89,30 @@ fn get_oci_bytes(
 fn par_from_bytes(binary: Binary) -> Result<(Atom, ProviderArchiveResource), Error> {
     match ProviderArchive::try_load(binary.as_slice()) {
         Ok(par) => {
-            return Ok((atoms::ok(), ProviderArchiveResource {
-                claims: par::extract_claims(&par)?,
-                target_bytes: par::extract_target_bytes(&par)?,
-                contract_id: par::get_capid(&par)?,
-                vendor: par::get_vendor(&par)?,
-            }))
+            return Ok((
+                atoms::ok(),
+                ProviderArchiveResource {
+                    claims: par::extract_claims(&par)?,
+                    target_bytes: par::extract_target_bytes(&par)?,
+                    contract_id: par::get_capid(&par)?,
+                    vendor: par::get_vendor(&par)?,
+                },
+            ))
         }
         Err(_) => Err(Error::BadArg),
     }
 }
 
 #[rustler::nif]
-fn par_cache_path(subject: String, rev: u32) -> Result<String, Error> {
-    par::cache_path(subject, rev)
+fn par_cache_path(
+    subject: String,
+    rev: u32,
+    contract_id: String,
+    link_name: String,
+) -> Result<String, Error> {
+    par::cache_path(subject, rev, contract_id, link_name)
 }
+
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
 /// in the form of a simple struct that will bubble its way up to Elixir as a native struct
 #[rustler::nif]

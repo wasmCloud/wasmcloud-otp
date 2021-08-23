@@ -27,7 +27,12 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
   defp extract_executable_to_tmp(par, link_name) do
     cache_path =
-      HostCore.WasmCloud.Native.par_cache_path(par.claims.public_key, par.claims.revision)
+      HostCore.WasmCloud.Native.par_cache_path(
+        par.claims.public_key,
+        par.claims.revision,
+        par.contract_id,
+        link_name
+      )
 
     provider_running =
       case HostCore.Providers.lookup_provider(par.contract_id, link_name) do

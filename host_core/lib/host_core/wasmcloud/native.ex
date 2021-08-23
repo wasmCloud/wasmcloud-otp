@@ -19,7 +19,7 @@ defmodule HostCore.WasmCloud.Native do
 
   def get_oci_bytes(_oci_ref, _allow_latest, _allowed_insecure), do: error()
   def par_from_bytes(_bytes), do: error()
-  def par_cache_path(_subject, _rev), do: error()
+  def par_cache_path(_subject, _rev, _contract_id, _link_name), do: error()
   def detect_core_host_labels(), do: error()
 
   # When the NIF is loaded, it will override functions in this module.
