@@ -120,3 +120,8 @@ Custom modal styles that don't hide when page is re-rendered
     max-width: 1600px;
   }
 }
+
+// Monospace styling for NATS 56 character IDs
+.id-monospace {
+  font-family: monospace;
+}

@@ -21,11 +21,11 @@
           <div class="modal-body">
             <%= case Map.get(@open_modal, "component") do %>
               <% "StartActorComponent" ->  %>
-              <%= live_component StartActorComponent, id: modal_id %>
+              <%= live_component StartActorComponent, id: modal_id, hosts: @hosts, selected_host: @selected_host %>
               <% "ScaleActorComponent" ->  %>
-              <%= live_component ScaleActorComponent, id: modal_id, modal: @open_modal %>
+              <%= live_component ScaleActorComponent, id: modal_id, modal: @open_modal, selected_host: @selected_host %>
               <% "StartProviderComponent" ->  %>
-              <%= live_component StartProviderComponent, id: modal_id %>
+              <%= live_component StartProviderComponent, id: modal_id, hosts: @hosts, selected_host: @selected_host %>
               <% "DefineLinkComponent" ->  %>
               <%= live_component DefineLinkComponent, id: modal_id, hosts: @hosts, claims: @claims %>
             <% end %>

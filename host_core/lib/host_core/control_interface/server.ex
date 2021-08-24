@@ -116,6 +116,7 @@ defmodule HostCore.ControlInterface.Server do
   # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx"}
   defp handle_request({"cmd", _host_id, "la"}, body, _reply_to) do
     start_actor_command = Jason.decode!(body)
+    # TODO: Include replicas in start actor request
 
     case HostCore.Actors.ActorSupervisor.start_actor_from_oci(start_actor_command["actor_ref"]) do
       {:ok, _pid} ->

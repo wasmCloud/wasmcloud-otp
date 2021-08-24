@@ -1,29 +1,6 @@
 <main class="c-main">
    <div class="container-fluid">
       <div class="fade-in">
-         <div class="row">
-            <div class="col-xl-12 col-lg-12 col-md-12">
-               <div class="card">
-                  <div class="card-header justify-content-between">
-                     <div class="row">
-                        <div class="col-lg-12 col-md-12 col-sm-12">
-                           <strong>Host Selector</strong>
-                           <% button_color = if @selected_host == nil do "btn-outline-primary active" else "btn-outline-primary" end %>
-                           <button class="btn <%= button_color %>" type="button" phx-click="show_all_hosts">
-                           Show All
-                           </button>
-                           <%= for {host_id, _host_info} <- @hosts do %>
-                           <% button_color = if host_id == @selected_host do "btn-outline-primary active" else "btn-outline-primary" end%>
-                           <button class="btn <%= button_color %>" type="button" phx-click="select_host"phx-value-host="<%= host_id %>">
-                           <%= String.slice(host_id, 0..4) %>...
-                           </button>
-                           <% end %>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         </div>
          <%# display_hosts map that either contains all hosts, or a specific host in the case of filtering by host %>
          <% display_hosts = if @selected_host == nil do @hosts else %{@selected_host => @hosts |> Map.get(@selected_host, %{})} end %>
          <div class="row">
@@ -33,12 +10,13 @@
                   <div class="card-header justify-content-between">
                      <div class="row justify-content-between">
                         <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:250px">
-                           <h3>Actors</h3>
+                           <h2><strong>Actors</strong></h2>
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
                               <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
                               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <%= if @selected_host == HostCore.Host.host_key() do %>
                                  <button class="dropdown-item"
                                     phx-click="show_modal"
                                     phx-value-title="Start Actor from File"
@@ -46,6 +24,7 @@
                                     phx-value-id="start_actor_file_modal">
                                  From File
                                  </button>
+                              <% end %>
                                  <button class="dropdown-item"
                                     phx-click="show_modal"
                                     phx-value-title="Start Actor from OCI Registry"
@@ -96,12 +75,13 @@
                   <div class="card-header">
                      <div class="row justify-content-between">
                         <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:250px">
-                           <h3>Providers</h3>
+                           <h2><strong>Providers</strong></h2>
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
                               <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
                               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <%= if @selected_host == HostCore.Host.host_key() do %>
                                  <button class="dropdown-item"
                                     phx-click="show_modal"
                                     phx-value-title="Start Provider from File"
@@ -109,6 +89,7 @@
                                     phx-value-id="start_provider_file_modal">
                                  From File
                                  </button>
+                              <% end %>
                                  <button class="dropdown-item"
                                     phx-click="show_modal"
                                     phx-value-title="Start Provider from OCI Registry"
@@ -158,8 +139,8 @@
                <div class="card">
                   <div class="card-header">
                      <div class="row justify-content-between">
-                        <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:250px">
-                           <h3>Link Definitions</h3>
+                        <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:300px">
+                           <h2><strong>Link Definitions</strong></h2>
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
@@ -199,41 +180,47 @@
             <!-- /.col-->
             <% host_id = @selected_host %>
             <%# Hosts Column %>
-            <%= if host_id != nil do %>
             <div class="col-xl-6 col-lg-12 col-md-12">
                <div class="card">
                   <div class="card-header">
                      <div class="row justify-content-between">
                         <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:250px">
-                           <h3>Host Info</h3>
+                           <h2><strong>Host Info</strong></h2>
                         </div>
-                        <div class="mfe-2">
-                           <button class="btn btn-secondary" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
-                              <%= String.slice(host_id, 0..4) %>...
-                              <svg class="c-icon">
-                                 <use xlink:href="/coreui/free.svg#cil-copy"></use>
-                              </svg>
-                           </button>
-                        </div>
+                        <div class="dropdown d-inline-block">
+                              <button class="btn btn-light dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                 Select Host
+                                 <span class="badge badge-pill badge-primary"><%= @hosts |> Enum.count() %></span>
+                              </button>
+                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                 <button class="dropdown-item" phx-click="show_all_hosts">
+                                 Show All
+                                 </button>
+                                 <%= for {host_id, _host_info} <- @hosts do %>
+                                    <% button_color = cond do
+                                    host_id == @selected_host -> "btn-ghost-primary active"
+                                    true -> "btn-ghost-primary" end %>
+                                    <button class="btn dropdown-item <%= button_color %> id-monospace"
+                                       type="button"
+                                       phx-click="select_host"
+                                       phx-value-host="<%= host_id %>"
+                                       style="padding-top: 5px; padding-bottom: 5px">
+                                    <svg class="c-icon">
+                                       <%= if host_id == HostCore.Host.host_key() do %>
+                                       <use xlink:href="/coreui/free.svg#cil-laptop"></use>
+                                       <% else %>
+                                       <use xlink:href="/coreui/free.svg#cil-lan"></use>
+                                       <% end %>
+                                    </svg>&nbsp;
+                                    <%= String.slice(host_id, 0..4) %>...
+                                    </button>
+                                 <% end %>
+                              </div>
+                           </div>
                      </div>
                   </div>
+                  <%= if host_id != nil do %>
                   <div class="card-body">
-                     <table class="table table-responsive-sm table-bordered table-striped table-sm">
-                        <thead>
-                           <tr>
-                              <th>Label</th>
-                              <th>Value</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           <%= for {k, v} <- Map.get(Map.get(@hosts, host_id, %{}), :labels, %{}) do %>
-                           <tr>
-                              <td><%= k %></td>
-                              <td><%= v %></td>
-                           </tr>
-                           <% end %>
-                        </tbody>
-                     </table>
                      <table class="table table-responsive-sm table-bordered table-striped table-sm">
                         <thead>
                            <tr>
@@ -241,6 +228,7 @@
                               <th>Local</th>
                               <th>Actors</th>
                               <th>Providers</th>
+                              <th>ID</th>
                            </tr>
                         </thead>
                         <tbody>
@@ -262,13 +250,37 @@
                                     |> Map.get(:providers, %{})
                                     |> Enum.count() %>
                               </td>
+                              <td>
+                                 <button class="btn btn-ghost-dark id-monospace" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                                    <%= String.slice(host_id, 0..4) %>...
+                                    <svg class="c-icon">
+                                       <use xlink:href="/coreui/free.svg#cil-copy"></use>
+                                    </svg>
+                                 </button>
+                              </td>
                            </tr>
                         </tbody>
                      </table>
+                     <table class="table table-responsive-sm table-bordered table-striped table-sm">
+                        <thead>
+                           <tr>
+                              <th>Label</th>
+                              <th>Value</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <%= for {k, v} <- Map.get(Map.get(@hosts, host_id, %{}), :labels, %{}) do %>
+                           <tr>
+                              <td><%= k %></td>
+                              <td><%= v %></td>
+                           </tr>
+                           <% end %>
+                        </tbody>
+                     </table>
                   </div>
+                  <% end %>
                </div>
             </div>
-            <% end %>
          </div>
       </div>
    </div>

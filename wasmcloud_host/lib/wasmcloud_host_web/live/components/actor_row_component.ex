@@ -19,7 +19,7 @@ defmodule ActorRowComponent do
           <%= @status %></span>
       </td>
       <td>
-        <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= @actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+        <button class="btn btn-primary btn-sm id-monospace" type="button" onClick="navigator.clipboard.writeText('<%= @actor %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
           <%= String.slice(@actor, 0..4) %>...
           <svg class="c-icon">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
@@ -27,7 +27,7 @@ defmodule ActorRowComponent do
         </button>
       </td>
       <td>
-        <button class="btn btn-primary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= @host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+        <button class="btn btn-primary btn-sm id-monospace" type="button" onClick="navigator.clipboard.writeText('<%= @host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
           <%= String.slice(@host_id, 0..4) %>...
           <svg class="c-icon">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
