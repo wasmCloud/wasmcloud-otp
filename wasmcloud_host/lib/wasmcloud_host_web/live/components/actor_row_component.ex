@@ -45,7 +45,8 @@ defmodule ActorRowComponent do
           phx-value-id="scale_actor_modal"
           phx-value-actor="<%= @actor %>"
           phx-value-host="<%= @host_id %>"
-          phx-value-replicas="<%= @count %>">
+          phx-value-replicas="<%= @count %>"
+          phx-value-oci="<%= @oci_ref %>">
           <svg class="c-icon" style="color: white">
             <use xlink:href="/coreui/free.svg#cil-equalizer"></use>
           </svg>

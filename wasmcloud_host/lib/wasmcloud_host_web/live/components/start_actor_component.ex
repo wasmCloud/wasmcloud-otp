@@ -59,20 +59,17 @@ defmodule StartActorComponent do
         %{"replicas" => replicas, "actor_ociref" => actor_ociref, "host_id" => host_id},
         socket
       ) do
-    replicas = 1..String.to_integer(replicas)
+    if host_id == "" do
+      IO.puts("need auction")
+    end
 
-    error_msg =
-      case WasmcloudHost.Lattice.ControlInterface.start_actor(actor_ociref, replicas, host_id) do
-        :ok -> ""
-        {:error, :timeout} -> "Request to start actor timed out"
-        {:error, error} -> error
-      end
+    case WasmcloudHost.Lattice.ControlInterface.start_actor(actor_ociref, replicas, host_id) do
+      :ok ->
+        Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
+        {:noreply, assign(socket, error_msg: nil)}
 
-    if error_msg != "" do
-      {:noreply, assign(socket, error_msg: error_msg)}
-    else
-      Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
-      {:noreply, assign(socket, error_msg: nil)}
+      {:error, error} ->
+        {:noreply, assign(socket, error_msg: error)}
     end
   end
 
@@ -83,8 +80,6 @@ defmodule StartActorComponent do
       else
         "start_actor_ociref"
       end
-
-    IO.inspect(assigns)
 
     ~L"""
     <form class="form-horizontal" phx-submit="<%= modal_id %>" phx-change="validate" phx-target="<%= @myself %>">

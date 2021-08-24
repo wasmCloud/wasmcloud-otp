@@ -53,6 +53,7 @@
                            <%= for {host_id, host_map} <- display_hosts do %>
                            <%= for {actor, info_map} <- Map.get(host_map, :actors, %{}) do %>
                            <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
+                           <% oci_ref = @ocirefs |> Enum.find(fn {_oci, id} -> id == actor end) |> elem(0) %>
                            <% count = Map.get(info_map, :count) %>
                            <% status = Map.get(info_map, :status) %>
                            <%= live_component ActorRowComponent,
@@ -60,7 +61,8 @@
                               host_id: host_id,
                               status: status,
                               count: count,
-                              name: actor_name %>
+                              name: actor_name,
+                              oci_ref: oci_ref %>
                            <% end %>
                            <% end %>
                         </tbody>
@@ -119,7 +121,7 @@
                            <%= for {host_id, host_map} <- display_hosts do %>
                            <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers, %{}) do %>
                            <%= live_component ProviderRowComponent,
-                              id: "#{provider} (#{link_name})",
+                              id: "#{provider} (#{link_name}) (#{host_id})",
                               provider: provider,
                               link_name: link_name,
                               contract_id: Map.get(info_map, :contract_id),
@@ -251,7 +253,7 @@
                                     |> Enum.count() %>
                               </td>
                               <td>
-                                 <button class="btn btn-ghost-dark id-monospace" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                                 <button class="btn btn-sm btn-primary id-monospace" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                                     <%= String.slice(host_id, 0..4) %>...
                                     <svg class="c-icon">
                                        <use xlink:href="/coreui/free.svg#cil-copy"></use>

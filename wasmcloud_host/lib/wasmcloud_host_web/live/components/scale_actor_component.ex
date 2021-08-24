@@ -13,30 +13,32 @@ defmodule ScaleActorComponent do
 
   def handle_event(
         "scale_actor",
-        params,
+        %{
+          "desired_replicas" => replicas,
+          "actor_id" => actor_id,
+          "actor_ociref" => actor_ref,
+          "host_id" => host_id
+        },
         socket
       ) do
-    desired = String.to_integer(Map.get(params, "desired_replicas"))
-    actor_id = Map.get(params, "actor_id")
-
-    error_msg =
-      case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, desired) do
-        :ok -> ""
-        {:error, err} -> err
-      end
-
-    case error_msg do
-      "" ->
+    case WasmcloudHost.Lattice.ControlInterface.scale_actor(
+           actor_id,
+           actor_ref,
+           replicas,
+           host_id
+         ) do
+      :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
         {:noreply, assign(socket, error_msg: nil)}
 
-      msg ->
-        {:noreply, assign(socket, error_msg: msg)}
+      {:error, error} ->
+        {:noreply, assign(socket, error_msg: error)}
     end
   end
 
   def render(assigns) do
     ~L"""
+    <% IO.inspect(@modal) %>
     <form class="form-horizontal" phx-submit="scale_actor" phx-change="validate" phx-target="<%= @myself %>">
       <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
       <input name="actor_id" type="hidden" value='<%= Map.get(@modal, "actor") %>'>

@@ -49,24 +49,27 @@ defmodule StartProviderComponent do
         "start_provider_ociref",
         %{
           "provider_ociref" => provider_ociref,
-          "provider_link_name" => provider_link_name
+          "provider_link_name" => provider_link_name,
+          "host_id" => host_id
         },
         socket
       ) do
-    error_msg =
-      case HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
-             provider_ociref,
-             provider_link_name
-           ) do
-        {:ok, _pid} -> nil
-        {:error, reason} -> reason
-      end
-
-    if error_msg == nil do
-      Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
+    if host_id == "" do
+      IO.puts("need auction")
     end
 
-    {:noreply, assign(socket, error_msg: error_msg)}
+    case WasmcloudHost.Lattice.ControlInterface.start_provider(
+           provider_ociref,
+           provider_link_name,
+           host_id
+         ) do
+      :ok ->
+        Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
+        {:noreply, assign(socket, error_msg: nil)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error_msg: error)}
+    end
   end
 
   def render(assigns) do
@@ -88,6 +91,39 @@ defmodule StartProviderComponent do
         </div>
       </div>
       <% else %>
+      <div class="form-group row">
+        <label class="col-md-3 col-form-label" for="text-input">Desired Host</label>
+        <div class="col-md-9">
+          <%# On select, populate the linkname and contract_id options with the matching data %>
+          <select class="form-control select2-single id-monospace" id="host-id-select" name="host_id">
+            <%= if @selected_host != nil do %>
+              <option value> -- First available -- </option>
+              <%= for {host_id, _host_map} <- @hosts do %>
+                <%= if host_id == @selected_host do %>
+                  <option selected value="<%= host_id %>"
+                    data-host-id="<%= host_id %>">
+                    <%= String.slice(host_id, 0..4) %>...
+                  </option>
+                <% else %>
+                  <option value="<%= host_id %>"
+                    data-host-id="<%= host_id %>">
+                    <%= String.slice(host_id, 0..4) %>...
+                  </option>
+                <% end %>
+              <% end %>
+            <% else %>
+              <option selected value> -- First available -- </option>
+              <%= for {host_id, _host_map} <- @hosts do %>
+                <option value="<%= host_id %>"
+                  data-host-id="<%= host_id %>">
+                  <%= String.slice(host_id, 0..4) %>...
+                </option>
+              <% end %>
+            <% end %>
+          </select>
+          <span class="help-block"><strong>First available</strong> will hold an auction for an appropriate host</span>
+        </div>
+      </div>
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="file-input">OCI Reference</label>
         <div class="col-md-9">

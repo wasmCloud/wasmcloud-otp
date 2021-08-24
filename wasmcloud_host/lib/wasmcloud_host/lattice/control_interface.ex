@@ -2,8 +2,8 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
   @wasmbus_prefix "wasmbus.ctl."
 
   def start_actor(actor_ociref, _replicas, host_id) do
-    payload = Jason.encode!(%{"actor_ref" => actor_ociref, "host_id" => host_id})
     topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.cmd.#{host_id}.la"
+    payload = Jason.encode!(%{"actor_ref" => actor_ociref, "host_id" => host_id})
 
     case ctl_request(topic, payload, 2_000) do
       {:ok, %{body: body}} ->
@@ -16,12 +16,89 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         end
 
       {:error, :timeout} ->
-        {:error, :timeout}
+        {:error, "Request to start actor timed out"}
+    end
+  end
+
+  def scale_actor(actor_id, actor_ref, desired_replicas, host_id) do
+    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.cmd.#{host_id}.scale"
+
+    payload =
+      Jason.encode!(%{
+        "actor_id" => actor_id,
+        "actor_ref" => actor_ref,
+        "replicas" => desired_replicas
+      })
+
+    case ctl_request(topic, payload, 2_000) do
+      {:ok, %{body: body}} ->
+        resp = Jason.decode!(body)
+
+        if Map.get(resp, "accepted", false) do
+          :ok
+        else
+          {:error, Map.get(resp, "error", "")}
+        end
+
+      {:error, :timeout} ->
+        {:error, "Request to start actor timed out"}
+    end
+  end
+
+  def start_provider(provider_ociref, link_name, host_id) do
+    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.cmd.#{host_id}.lp"
+
+    payload =
+      Jason.encode!(%{
+        "provider_ref" => provider_ociref,
+        "link_name" => link_name
+      })
+
+    case ctl_request(topic, payload, 2_000) do
+      {:ok, %{body: body}} ->
+        resp = Jason.decode!(body)
+
+        if Map.get(resp, "accepted", false) do
+          :ok
+        else
+          {:error, Map.get(resp, "error", "")}
+        end
+
+      {:error, :timeout} ->
+        {:error, "Request to start provider timed out"}
+    end
+  end
+
+  def stop_provider(provider_id, link_name, host_id) do
+    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.cmd.#{host_id}.sp"
+
+    payload =
+      Jason.encode!(%{
+        "provider_ref" => provider_id,
+        "link_name" => link_name
+      })
+
+    case ctl_request(topic, payload, 2_000) do
+      {:ok, %{body: body}} ->
+        resp = Jason.decode!(body)
+
+        if Map.get(resp, "accepted", false) do
+          :ok
+        else
+          {:error, Map.get(resp, "error", "")}
+        end
+
+      {:error, :timeout} ->
+        {:error, "Request to stop provider timed out"}
     end
   end
 
   defp auction_actor(actor_ociref, _constraints) do
     topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.auction.actor"
+  end
+
+  defp auction_provider(provider_ociref, _link_name, _constraints) do
+    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.auction.provider"
   end
 
   defp ctl_request(topic, payload, timeout) do

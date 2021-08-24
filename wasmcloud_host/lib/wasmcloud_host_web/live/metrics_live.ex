@@ -12,7 +12,7 @@ defmodule WasmcloudHostWeb.MetricsLive do
                     <div class="col-lg-12 col-md-12 col-sm-12">
                       <div class="card-header">
                           Erlang Metrics for
-                          <button class="btn btn-secondary btn-sm" type="button" onClick="navigator.clipboard.writeText('<%= HostCore.Host.host_key() %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                          <button class="btn btn-ghost-dark btn-sm id-monospace" type="button" onClick="navigator.clipboard.writeText('<%= HostCore.Host.host_key() %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
                             <%= String.slice(HostCore.Host.host_key(), 0..4) %>...
                             <svg class="c-icon">
                                 <use xlink:href="/coreui/free.svg#cil-copy"></use>

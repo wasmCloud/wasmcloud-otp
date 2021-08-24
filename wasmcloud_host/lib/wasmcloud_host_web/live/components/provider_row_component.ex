@@ -5,10 +5,12 @@ defmodule ProviderRowComponent do
     {:ok, socket}
   end
 
-  def handle_event("delete_provider", params, socket) do
-    provider = params["provider"]
-    link_name = params["link_name"]
-    HostCore.Providers.ProviderSupervisor.terminate_provider(provider, link_name)
+  def handle_event(
+        "delete_provider",
+        %{"provider" => provider, "link_name" => link_name, "host_id" => host_id},
+        socket
+      ) do
+    WasmcloudHost.Lattice.ControlInterface.stop_provider(provider, link_name, host_id)
     {:noreply, socket}
   end
 
@@ -47,7 +49,8 @@ defmodule ProviderRowComponent do
         phx-target="<%= @myself %>"
         phx-click="delete_provider"
         phx-value-provider="<%= @provider %>"
-        phx-value-link_name="<%= @link_name %>">
+        phx-value-link_name="<%= @link_name %>"
+        phx-value-host_id="<%= @host_id %>">
       <svg class="c-icon" style="color: white">
         <use xlink:href="/coreui/free.svg#cil-trash"></use>
       </svg>
