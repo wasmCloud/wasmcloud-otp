@@ -12,6 +12,7 @@ defmodule WasmcloudHostWeb.PageLive do
      |> assign(
        hosts: WasmcloudHost.Lattice.StateMonitor.get_hosts(),
        linkdefs: WasmcloudHost.Lattice.StateMonitor.get_linkdefs(),
+       ocirefs: WasmcloudHost.Lattice.StateMonitor.get_ocirefs(),
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
        open_modal: nil,
        selected_host: nil
@@ -25,6 +26,10 @@ defmodule WasmcloudHostWeb.PageLive do
 
   def handle_info({:claims, claims}, socket) do
     {:noreply, assign(socket, claims: claims)}
+  end
+
+  def handle_info({:ocirefs, ocirefs}, socket) do
+    {:noreply, assign(socket, ocirefs: ocirefs)}
   end
 
   def handle_info({:hosts, hosts}, socket) do

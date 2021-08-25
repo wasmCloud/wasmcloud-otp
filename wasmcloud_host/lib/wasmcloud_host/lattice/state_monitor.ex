@@ -83,6 +83,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
+  def handle_call(:refmaps_query, _from, state) do
+    {:reply, state.refmaps, state}
+  end
+
+  @impl true
   def handle_info(
         {:msg, %{body: body, topic: topic}},
         state
@@ -117,6 +122,10 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     GenServer.call(:state_monitor, :claims_query)
   end
 
+  def get_ocirefs() do
+    GenServer.call(:state_monitor, :refmaps_query)
+  end
+
   @impl true
   def handle_cast({:cache_load_event, :linkdef_removed, ld}, state) do
     key = {ld["actor_id"], ld["contract_id"], ld["link_name"]}
@@ -146,9 +155,9 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :ocimap_added, _data}, state) do
-    # Currently we don't display or store OCImaps in the state monitor
-    {:noreply, state}
+  def handle_cast({:cache_load_event, :ocimap_added, ocimap}, state) do
+    ocirefs = Map.put(state.refmaps, ocimap.oci_url, ocimap.public_key)
+    {:noreply, %State{state | refmaps: ocirefs}}
   end
 
   defp handle_event(state, body) do

@@ -26,14 +26,18 @@ pub(crate) fn get_vendor(par: &ProviderArchive) -> Result<String, Error> {
 
 pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {
     match par.claims() {
-        Some(c) => Ok(crate::Claims {
-            issuer: c.issuer,
-            public_key: c.subject,
-            revision: c.metadata.clone().unwrap_or_default().rev,
-            tags: None,
-            version: c.metadata.unwrap_or_default().ver,
-            ..Default::default()
-        }),
+        Some(c) => {
+            let metadata = c.metadata.unwrap_or_default();
+            Ok(crate::Claims {
+                issuer: c.issuer,
+                public_key: c.subject,
+                revision: metadata.rev,
+                tags: None,
+                version: metadata.ver,
+                name: metadata.name,
+                ..Default::default()
+            })
+        }
         None => Err(Error::Term(Box::new("No claims found in provider archive"))),
     }
 }

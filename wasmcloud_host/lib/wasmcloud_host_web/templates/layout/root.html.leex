@@ -7,119 +7,132 @@
 * License (https://coreui.io/pro/license)
 -->
 <html lang="en">
-  <head>
-    <base href="./">
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-    <meta name="description" content="wasmCloud - From Napkin to Production, via the Cloud">
-    <meta name="author" content="wasmCloud Team">
-    <meta name="keyword" content="WebAssembly,Rust,wasm,Open,Source,wasmCloud,Dashboard">
-    <%= csrf_meta_tag() %>
-    <%= live_title_tag assigns[:page_title] || "wasmCloud Dashboard", suffix: " · Phoenix Framework" %>
-    <!-- Main styles for this application-->
-    <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
-    <!-- Includes all JS files in /js/ -->
-    <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
-  </head>
-  <!-- Main body -->
-  <body class="c-app c-no-layout-transition">
-    <div class="c-sidebar c-sidebar-dark c-sidebar-fixed c-sidebar-lg-show" id="sidebar">
-      <div class="c-sidebar-brand d-md-down-none">
-        <!-- Expanded logo -->
-        <div class="c-sidebar-brand-full" alt="wasmCloud Horizontal">
-          <img width="200px" src="/images/wasmcloud_horizontal_white.png">
-        </div>
-        <!-- Collapsed logo -->
-        <div class="c-sidebar-brand-minimized" alt="wasmCloud Minimized">
-          <img width="36px" src="/images/wasmcloud_inversed.png">
-        </div>
+
+<head>
+  <base href="./">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <meta name="description" content="wasmCloud - From Napkin to Production, via the Cloud">
+  <meta name="author" content="wasmCloud Team">
+  <meta name="keyword" content="WebAssembly,Rust,wasm,Open,Source,wasmCloud,Dashboard">
+  <%= csrf_meta_tag() %>
+  <%= live_title_tag assigns[:page_title] || "wasmCloud Dashboard" %>
+  <!-- Main styles for this application-->
+  <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>" />
+  <!-- Includes all JS files in /js/ -->
+  <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+</head>
+<!-- Main body -->
+
+<body class="c-app c-no-layout-transition">
+  <div class="c-sidebar c-sidebar-dark c-sidebar-fixed c-sidebar-lg-show" id="sidebar">
+    <div class="c-sidebar-brand d-md-down-none">
+      <!-- Expanded logo -->
+      <div class="c-sidebar-brand-full" alt="wasmCloud Horizontal">
+        <img width="200px" src="/images/wasmcloud_horizontal_white.png">
       </div>
-      <!-- Navigation sidebar -->
-      <ul class="c-sidebar-nav">
-        <li class="c-sidebar-nav-item">
-          <a class="c-sidebar-nav-link" href="/">
-            <svg class="c-sidebar-nav-icon">
-              <use xlink:href="/coreui/free.svg#cil-speedometer"></use>
-            </svg>
-            Dashboard
-          </a>
-        </li>
-        <li class="c-sidebar-nav-item">
-          <a class="c-sidebar-nav-link" href="/metrics">
-            <svg class="c-sidebar-nav-icon">
-              <use xlink:href="/coreui/free.svg#cil-chart"></use>
-            </svg>
-            Metrics
-          </a>
-        </li>
-      </ul>
-      <!-- Toggles navigation collapse -->
-      <button class="c-sidebar-minimizer c-class-toggler" type="button" data-target="_parent" data-class="c-sidebar-unfoldable"></button>
+      <!-- Collapsed logo -->
+      <div class="c-sidebar-brand-minimized" alt="wasmCloud Minimized">
+        <img width="36px" src="/images/wasmcloud_inversed.png">
+      </div>
     </div>
-    <div class="c-sidebar c-sidebar-lg c-sidebar-light c-sidebar-right c-sidebar-overlaid" id="aside">
-      <button class="c-sidebar-close c-class-toggler" type="button" data-target="_parent" data-class="c-sidebar-show">
-        <svg class="c-icon">
-          <use xlink:href="/coreui/free.svg#cil-x"></use>
+    <!-- Navigation sidebar -->
+    <ul class="c-sidebar-nav">
+      <li class="c-sidebar-nav-item">
+        <a class="c-sidebar-nav-link" href="/">
+          <svg class="c-sidebar-nav-icon">
+            <use xlink:href="/coreui/free.svg#cil-speedometer"></use>
+          </svg>
+          Dashboard
+        </a>
+      </li>
+      <li class="c-sidebar-nav-item">
+        <a class="c-sidebar-nav-link" href="/metrics">
+          <svg class="c-sidebar-nav-icon">
+            <use xlink:href="/coreui/free.svg#cil-chart"></use>
+          </svg>
+          Metrics
+        </a>
+      </li>
+    </ul>
+    <!-- Toggles navigation collapse -->
+    <button class="c-sidebar-minimizer c-class-toggler" type="button" data-target="_parent"
+      data-class="c-sidebar-unfoldable"></button>
+  </div>
+  <div class="c-sidebar c-sidebar-lg c-sidebar-light c-sidebar-right c-sidebar-overlaid" id="aside">
+    <button class="c-sidebar-close c-class-toggler" type="button" data-target="_parent" data-class="c-sidebar-show">
+      <svg class="c-icon">
+        <use xlink:href="/coreui/free.svg#cil-x"></use>
+      </svg>
+    </button>
+  </div>
+  <div class="c-wrapper">
+    <header class="c-header c-header-light c-header-fixed">
+      <button class="c-header-toggler c-class-toggler d-lg-none mfe-auto" type="button" data-target="#sidebar"
+        data-class="c-sidebar-show">
+        <svg class="c-icon c-icon-lg">
+          <use xlink:href="/coreui/free.svg#cil-menu"></use>
+        </svg>
+      </button><a class="c-header-brand d-lg-none c-header-brand-sm-up-center" href="#">
+        <svg width="118" height="46" alt="CoreUI Logo">
+          <use xlink:href="/coreui/free.svg#full"></use>
+        </svg></a>
+      <button class="c-header-toggler c-class-toggler mfs-3 d-md-down-none" type="button" data-target="#sidebar"
+        data-class="c-sidebar-lg-show" responsive="true">
+        <svg class="c-icon c-icon-lg">
+          <use xlink:href="/coreui/free.svg#cil-menu"></use>
         </svg>
       </button>
-    </div>
-    <div class="c-wrapper">
-      <header class="c-header c-header-light c-header-fixed">
-        <button class="c-header-toggler c-class-toggler d-lg-none mfe-auto" type="button" data-target="#sidebar" data-class="c-sidebar-show">
-          <svg class="c-icon c-icon-lg">
-            <use xlink:href="/coreui/free.svg#cil-menu"></use>
-          </svg>
-        </button><a class="c-header-brand d-lg-none c-header-brand-sm-up-center" href="#">
-          <svg width="118" height="46" alt="CoreUI Logo">
-            <use xlink:href="/coreui/free.svg#full"></use>
-          </svg></a>
-        <button class="c-header-toggler c-class-toggler mfs-3 d-md-down-none" type="button" data-target="#sidebar" data-class="c-sidebar-lg-show" responsive="true">
-          <svg class="c-icon c-icon-lg">
-            <use xlink:href="/coreui/free.svg#cil-menu"></use>
-          </svg>
-        </button>
-        <div id="kowasmi-container" style="display: flex; align-items: center; flex-wrap: wrap; max-width: 528px">
-          <svg id="kowasmi" class="c-icon" style="display: none">
-            <use xlink:href="/coreui/free.svg#cil-heart"></use>
-          </svg>
-        </div>
-        <ul class="c-header-nav mfs-auto">
-          <li class="c-header-nav-item px-3 c-d-legacy-none">
-            <button class="c-class-toggler c-header-nav-btn" type="button" id="header-tooltip" data-target="body" data-class="c-dark-theme" data-toggle="c-tooltip" data-placement="bottom" title="Toggle Light/Dark Mode">
-              <svg class="c-icon c-d-dark-none">
-                <use xlink:href="/coreui/free.svg#cil-moon"></use>
-              </svg>
-              <svg class="c-icon c-d-default-none">
-                <use xlink:href="/coreui/free.svg#cil-sun"></use>
-              </svg>
-            </button>
-          </li>
-        </ul>
-        <ul class="c-header-nav">
-          <li class="c-header-nav-item dropdown"><a class="c-header-nav-link" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
-              <div class="c-avatar"><img class="c-avatar-img" src="/images/wasmcloud_extraspace.png" alt="wasmCloud logo"></div>
-            </a>
-            <div class="dropdown-menu dropdown-menu-right pt-0">
-              <a class="dropdown-item" href="#">
-                Version<span class="badge badge-success mfs-auto"><%= Application.get_env(:wasmcloud_host, :app_version) %></span>
-              </a>
-              <!-- Can include more actions here at the account level-->
-            </div>
-          </li>
-        </ul>
-      </header>
-      <div class="c-body">
-        <%= @inner_content %>
+      <div id="kowasmi-container" style="display: flex; align-items: center; flex-wrap: wrap; max-width: 528px">
+        <svg id="kowasmi" class="c-icon" style="display: none">
+          <use xlink:href="/coreui/free.svg#cil-heart"></use>
+        </svg>
       </div>
+      <ul class="c-header-nav mfs-auto">
+        <li class="c-header-nav-item px-3 c-d-legacy-none">
+          <button class="c-class-toggler c-header-nav-btn" type="button" id="header-tooltip" data-target="body"
+            data-class="c-dark-theme" data-toggle="c-tooltip" data-placement="bottom" title="Toggle Light/Dark Mode">
+            <svg class="c-icon c-d-dark-none">
+              <use xlink:href="/coreui/free.svg#cil-moon"></use>
+            </svg>
+            <svg class="c-icon c-d-default-none">
+              <use xlink:href="/coreui/free.svg#cil-sun"></use>
+            </svg>
+          </button>
+        </li>
+      </ul>
+      <ul class="c-header-nav">
+        <li class="c-header-nav-item dropdown"><a class="c-header-nav-link" data-toggle="dropdown" href="#"
+            role="button" aria-haspopup="true" aria-expanded="false">
+            <div class="c-avatar"><img class="c-avatar-img" src="/images/wasmcloud_extraspace.png" alt="wasmCloud logo">
+            </div>
+          </a>
+          <div class="dropdown-menu dropdown-menu-right pt-0">
+            <a class="dropdown-item">
+              Version<span
+                class="badge badge-success mfs-auto"><%= Application.get_env(:wasmcloud_host, :app_version) %></span>
+            </a>
+            <a class="dropdown-item">
+              Lattice <span class="badge badge-info mfs-auto"><%= HostCore.Host.lattice_prefix() %></span>
+            </a>
+            <!-- Can include more actions here at the account level-->
+          </div>
+        </li>
+      </ul>
+    </header>
+    <div class="c-body" id="dashboard-main-body">
+      <%= @inner_content %>
     </div>
-    <!-- Transition on-load -->
-    <script>
-      document.addEventListener("DOMContentLoaded", function(event) {
-        setTimeout(function() {
-          document.body.classList.remove('c-no-layout-transition')
-        }, 1999);
-      });
-    </script>
-  </body>
+  </div>
+  <!-- Transition on-load -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function (event) {
+      setTimeout(function () {
+        document.body.classList.remove('c-no-layout-transition')
+      }, 1999);
+    });
+  </script>
+</body>
+
 </html>
