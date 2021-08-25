@@ -1,3 +1,13 @@
+<script>
+// Custom function that can be called to create a CoreUI tooltip
+var createTooltip = (element) => {
+   if (window.TooltipCreate === undefined) {
+      setTimeout(() => createTooltip(element), 200)
+   } else if (element.dataset.toggle = "tooltip") {
+      window.TooltipCreate(element)
+   }
+}
+</script>
 <main class="c-main">
    <div class="container-fluid">
       <div class="fade-in">
@@ -10,7 +20,7 @@
                   <div class="card-header justify-content-between">
                      <div class="row justify-content-between">
                         <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:250px">
-                           <h2><strong>Actors</strong></h2>
+                           <h3><strong>Actors</strong></h3>
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
@@ -44,8 +54,6 @@
                               <th>Name</th>
                               <th>Count</th>
                               <th>Status</th>
-                              <th>Actor ID</th>
-                              <th>Host ID</th>
                               <th>Actions</th>
                            </tr>
                         </thead>
@@ -53,7 +61,7 @@
                            <%= for {host_id, host_map} <- display_hosts do %>
                            <%= for {actor, info_map} <- Map.get(host_map, :actors, %{}) do %>
                            <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
-                           <% oci_ref = @ocirefs |> Enum.find(fn {_oci, id} -> id == actor end) |> elem(0) %>
+                           <% oci_ref = @ocirefs |> Enum.find({"", actor}, fn {_oci, id} -> id == actor end) |> elem(0) %>
                            <% count = Map.get(info_map, :count) %>
                            <% status = Map.get(info_map, :status) %>
                            <%= live_component ActorRowComponent,
@@ -77,7 +85,7 @@
                   <div class="card-header">
                      <div class="row justify-content-between">
                         <div class="col-lg-2 col-md-3 col-sm-3" style="max-width:250px">
-                           <h2><strong>Providers</strong></h2>
+                           <h3><strong>Providers</strong></h3>
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
@@ -108,11 +116,10 @@
                      <table class="table table-responsive-sm table-bordered table-striped table-sm">
                         <thead>
                            <tr>
+                              <th>Name</th>
                               <th>Link Name</th>
                               <th>Contract ID</th>
                               <th>Status</th>
-                              <th>Provider ID</th>
-                              <th>Host ID</th>
                               <th>Actions</th>
                            </tr>
                         </thead>
@@ -120,9 +127,11 @@
                            <%# One row per-provider instance, which is a public key, contract id and link name combination %>
                            <%= for {host_id, host_map} <- display_hosts do %>
                            <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers, %{}) do %>
+                           <% provider_name = @claims |> Enum.find(fn {k, _v} -> k == provider end) |> elem(1) |> Map.get(:name, "N/A") %>
                            <%= live_component ProviderRowComponent,
                               id: "#{provider} (#{link_name}) (#{host_id})",
                               provider: provider,
+                              provider_name: provider_name,
                               link_name: link_name,
                               contract_id: Map.get(info_map, :contract_id),
                               status: Map.get(info_map, :status),
@@ -142,7 +151,7 @@
                   <div class="card-header">
                      <div class="row justify-content-between">
                         <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:300px">
-                           <h2><strong>Link Definitions</strong></h2>
+                           <h3><strong>Link Definitions</strong></h3>
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
@@ -187,7 +196,7 @@
                   <div class="card-header">
                      <div class="row justify-content-between">
                         <div class="col-lg-6 col-md-6 col-sm-6" style="max-width:250px">
-                           <h2><strong>Host Info</strong></h2>
+                           <h3><strong>Host Info</strong></h3>
                         </div>
                         <div class="dropdown d-inline-block">
                               <button class="btn btn-light dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

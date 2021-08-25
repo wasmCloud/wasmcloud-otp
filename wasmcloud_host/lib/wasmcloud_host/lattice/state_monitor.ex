@@ -156,7 +156,6 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   @impl true
   def handle_cast({:cache_load_event, :ocimap_added, ocimap}, state) do
-    # Currently we don't display or store OCImaps in the state monitor
     ocirefs = Map.put(state.refmaps, ocimap.oci_url, ocimap.public_key)
     {:noreply, %State{state | refmaps: ocirefs}}
   end

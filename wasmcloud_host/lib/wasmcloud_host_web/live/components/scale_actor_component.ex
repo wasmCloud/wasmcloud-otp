@@ -38,7 +38,6 @@ defmodule ScaleActorComponent do
 
   def render(assigns) do
     ~L"""
-    <% IO.inspect(@modal) %>
     <form class="form-horizontal" phx-submit="scale_actor" phx-change="validate" phx-target="<%= @myself %>">
       <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
       <input name="actor_id" type="hidden" value='<%= Map.get(@modal, "actor") %>'>

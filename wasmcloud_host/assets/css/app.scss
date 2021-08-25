@@ -125,3 +125,13 @@ Custom modal styles that don't hide when page is re-rendered
 .id-monospace {
   font-family: monospace;
 }
+
+.c-icon {
+  margin: 0 !important;
+  padding: 0px 0px 0px 0px;
+  pointer-events: none;
+}
+
+button.btn.btn-sm {
+  padding: 5px 5px 5px 5px !important;
+}

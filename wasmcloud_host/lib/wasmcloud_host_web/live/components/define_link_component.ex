@@ -71,7 +71,7 @@ defmodule DefineLinkComponent do
     <form class="form-horizontal" phx-submit="define_link" phx-change="validate" phx-target="<%= @myself %>">
       <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
       <div class="form-group row">
-        <label class="col-md-3 col-form-label" for="text-input">Actor Public Key</label>
+        <label class="col-md-3 col-form-label" for="text-input">Actor</label>
         <div class="col-md-9">
           <select class="form-control select2-single" id="select2-1" name="actor_id">
             <option hidden disabled selected value> -- select an actor -- </option>
@@ -84,7 +84,7 @@ defmodule DefineLinkComponent do
         </div>
       </div>
       <div class="form-group row">
-        <label class="col-md-3 col-form-label" for="text-input">Provider Public Key</label>
+        <label class="col-md-3 col-form-label" for="text-input">Provider</label>
         <div class="col-md-9">
           <%# On select, populate the linkname and contract_id options with the matching data %>
           <select class="form-control select2-single" id="linkdefs-providerid-select" name="provider_id"
@@ -94,10 +94,11 @@ defmodule DefineLinkComponent do
             <option hidden disabled selected value> -- select a provider -- </option>
             <%= for {_host_id, host_map} <- @hosts do %>
             <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers, %{}) do %>
+                <% provider_name = @claims |> Enum.find(fn {k, _v} -> k == provider end) |> elem(1) |> Map.get(:name, "N/A") %>
                 <option value="<%= provider %>"
                   data-linkname="<%= link_name %>"
                   data-contractid="<%= Map.get(info_map, :contract_id)%>">
-                  <%= String.slice(provider, 0..4) %>... (<%= link_name %>)
+                  <%= provider_name %> (<%= String.slice(provider, 0..4) %>...) [<%= link_name %>]
                 </option>
               <% end %>
             <% end %>

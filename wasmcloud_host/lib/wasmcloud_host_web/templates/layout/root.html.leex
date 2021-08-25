@@ -101,15 +101,18 @@
               <div class="c-avatar"><img class="c-avatar-img" src="/images/wasmcloud_extraspace.png" alt="wasmCloud logo"></div>
             </a>
             <div class="dropdown-menu dropdown-menu-right pt-0">
-              <a class="dropdown-item" href="#">
+              <a class="dropdown-item" >
                 Version<span class="badge badge-success mfs-auto"><%= Application.get_env(:wasmcloud_host, :app_version) %></span>
+              </a>
+              <a class="dropdown-item">
+                Lattice <span class="badge badge-info mfs-auto"><%= HostCore.Host.lattice_prefix() %></span>
               </a>
               <!-- Can include more actions here at the account level-->
             </div>
           </li>
         </ul>
       </header>
-      <div class="c-body">
+      <div class="c-body" id="dashboard-main-body">
         <%= @inner_content %>
       </div>
     </div>
