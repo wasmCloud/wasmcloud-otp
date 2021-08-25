@@ -56,13 +56,11 @@ defmodule ActorRowComponent do
           phx-value-host="<%= @host_id %>"
           phx-value-replicas="<%= @count %>"
           phx-value-oci="<%= @oci_ref %>">
-          <script>console.log('renderrr')</script>
           <svg class="c-icon" style="color: white">
             <use xlink:href="/coreui/free.svg#cil-equalizer"></use>
           </svg>
         </button>
         <script>
-          console.log('creating tooltips for row')
           createTooltip(document.getElementById("scale_actor_button_<%= @actor %>_<%= @host_id %>"))
           createTooltip(document.getElementById("copy_actor_id_<%= @actor %>_<%= @host_id %>"))
           createTooltip(document.getElementById("copy_host_id_<%= @actor %>_<%= @host_id %>"))

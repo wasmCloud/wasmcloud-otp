@@ -54,10 +54,26 @@ defmodule StartProviderComponent do
         },
         socket
       ) do
-    if host_id == "" do
-      IO.puts("need auction")
-    end
+    case host_id do
+      "" ->
+        case WasmcloudHost.Lattice.ControlInterface.auction_provider(
+               provider_ociref,
+               provider_link_name,
+               %{}
+             ) do
+          {:ok, auction_host_id} ->
+            start_provider(provider_ociref, provider_link_name, auction_host_id, socket)
 
+          {:error, error} ->
+            {:noreply, assign(socket, error_msg: error)}
+        end
+
+      host_id ->
+        start_provider(provider_ociref, provider_link_name, host_id, socket)
+    end
+  end
+
+  defp start_provider(provider_ociref, provider_link_name, host_id, socket) do
     case WasmcloudHost.Lattice.ControlInterface.start_provider(
            provider_ociref,
            provider_link_name,

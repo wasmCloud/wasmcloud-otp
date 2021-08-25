@@ -93,12 +93,55 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
     end
   end
 
-  defp auction_actor(actor_ociref, _constraints) do
+  def auction_actor(actor_ociref, _constraints) do
     topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.auction.actor"
+
+    payload =
+      Jason.encode!(%{
+        "constraints" => %{},
+        "actor_ref" => actor_ociref
+      })
+
+    case ctl_request(topic, payload, 2_000) do
+      {:ok, %{body: body}} ->
+        resp = Jason.decode!(body)
+        host_id = Map.get(resp, "host_id", nil)
+
+        if host_id != nil do
+          {:ok, host_id}
+        else
+          {:error, "Auction response did not contain Host ID"}
+        end
+
+      {:error, :timeout} ->
+        {:error, "Auction request timed out, no suitable hosts found"}
+    end
   end
 
-  defp auction_provider(provider_ociref, _link_name, _constraints) do
+  def auction_provider(provider_ociref, link_name, _constraints) do
     topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.auction.provider"
+
+    payload =
+      Jason.encode!(%{
+        "constraints" => %{},
+        "provider_ref" => provider_ociref,
+        "link_name" => link_name
+      })
+
+    case ctl_request(topic, payload, 2_000) do
+      {:ok, %{body: body}} ->
+        resp = Jason.decode!(body)
+        host_id = Map.get(resp, "host_id", nil)
+
+        if host_id != nil do
+          {:ok, host_id}
+        else
+          {:error, "Auction response did not contain Host ID"}
+        end
+
+      {:error, :timeout} ->
+        {:error, "Auction request timed out, no suitable hosts found"}
+    end
   end
 
   defp ctl_request(topic, payload, timeout) do

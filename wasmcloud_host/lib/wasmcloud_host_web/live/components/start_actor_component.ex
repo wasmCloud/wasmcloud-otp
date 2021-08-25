@@ -59,10 +59,22 @@ defmodule StartActorComponent do
         %{"replicas" => replicas, "actor_ociref" => actor_ociref, "host_id" => host_id},
         socket
       ) do
-    if host_id == "" do
-      IO.puts("need auction")
-    end
+    case host_id do
+      "" ->
+        case WasmcloudHost.Lattice.ControlInterface.auction_actor(actor_ociref, %{}) do
+          {:ok, auction_host_id} ->
+            start_actor(actor_ociref, replicas, auction_host_id, socket)
 
+          {:error, error} ->
+            {:noreply, assign(socket, error_msg: error)}
+        end
+
+      host_id ->
+        start_actor(actor_ociref, replicas, host_id, socket)
+    end
+  end
+
+  defp start_actor(actor_ociref, replicas, host_id, socket) do
     case WasmcloudHost.Lattice.ControlInterface.start_actor(actor_ociref, replicas, host_id) do
       :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
