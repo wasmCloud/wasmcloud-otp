@@ -75,7 +75,17 @@ defmodule StartActorComponent do
   end
 
   defp start_actor(actor_ociref, replicas, host_id, socket) do
-    case WasmcloudHost.Lattice.ControlInterface.start_actor(actor_ociref, replicas, host_id) do
+    actor_id =
+      WasmcloudHost.Lattice.StateMonitor.get_ocirefs()
+      |> Enum.find({actor_ociref, ""}, fn {oci, _id} -> oci == actor_ociref end)
+      |> elem(1)
+
+    case WasmcloudHost.Lattice.ControlInterface.scale_actor(
+           actor_id,
+           actor_ociref,
+           replicas,
+           host_id
+         ) do
       :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
         {:noreply, assign(socket, error_msg: nil)}
