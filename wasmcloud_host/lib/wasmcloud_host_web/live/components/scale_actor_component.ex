@@ -46,7 +46,8 @@ defmodule ScaleActorComponent do
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Replicas</label>
         <div class="col-md-9">
-          <input class="form-control" id="number-input" type="number" name="desired_replicas" value='<%= Map.get(@modal, "replicas") %>' min="0">
+          <input class="form-control" id="number-input" type="number" name="desired_replicas"
+            value='<%= Map.get(@modal, "replicas") %>' min="0">
           <span class="help-block">Enter how many instances of this actor you want</span>
         </div>
       </div>
@@ -57,7 +58,7 @@ defmodule ScaleActorComponent do
     </form>
     <%= if @error_msg != nil do %>
     <div class="alert alert-danger">
-    <%= @error_msg %>
+      <%= @error_msg %>
     </div>
     <% end %>
     """

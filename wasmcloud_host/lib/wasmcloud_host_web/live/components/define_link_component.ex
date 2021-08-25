@@ -75,10 +75,10 @@ defmodule DefineLinkComponent do
         <div class="col-md-9">
           <select class="form-control select2-single" id="select2-1" name="actor_id">
             <option hidden disabled selected value> -- select an actor -- </option>
-              <%= for {k, v} <- @claims do %>
-                <%= if String.starts_with?(k, "M") && String.length(k) == 56 do %>
-                  <option value="<%= k %>"><%= v.name %> (<%= String.slice(k, 0..4) %>...) </option>
-                <% end %>
+            <%= for {k, v} <- @claims do %>
+            <%= if String.starts_with?(k, "M") && String.length(k) == 56 do %>
+            <option value="<%= k %>"><%= v.name %> (<%= String.slice(k, 0..4) %>...) </option>
+            <% end %>
             <% end %>
           </select>
         </div>
@@ -87,20 +87,12 @@ defmodule DefineLinkComponent do
         <label class="col-md-3 col-form-label" for="text-input">Provider</label>
         <div class="col-md-9">
           <%# On select, populate the linkname and contract_id options with the matching data %>
-          <select class="form-control select2-single" id="linkdefs-providerid-select" name="provider_id"
-          onChange="let data = this.options[this.selectedIndex].dataset
-            document.getElementById('linkdef-linkname-input').value = data['linkname']
-            document.getElementById('linkdef-contractid-input').value = data['contractid']">
+          <select class="form-control select2-single" id="linkdefs-providerid-select" name="provider_id">
             <option hidden disabled selected value> -- select a provider -- </option>
-            <%= for {_host_id, host_map} <- @hosts do %>
-            <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers, %{}) do %>
-                <% provider_name = @claims |> Enum.find(fn {k, _v} -> k == provider end) |> elem(1) |> Map.get(:name, "N/A") %>
-                <option value="<%= provider %>"
-                  data-linkname="<%= link_name %>"
-                  data-contractid="<%= Map.get(info_map, :contract_id)%>">
-                  <%= provider_name %> (<%= String.slice(provider, 0..4) %>...) [<%= link_name %>]
-                </option>
-              <% end %>
+            <%= for {k, v} <- @claims do %>
+            <%= if String.starts_with?(k, "V") && String.length(k) == 56 do %>
+            <option value="<%= k %>"><%= v.name %> (<%= String.slice(k, 0..4) %>...) </option>
+            <% end %>
             <% end %>
           </select>
         </div>
@@ -108,15 +100,15 @@ defmodule DefineLinkComponent do
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="linkdef-linkname-input">Link Name</label>
         <div class="col-md-9">
-          <input class="form-control" id="linkdef-linkname-input" type="text" name="link_name" placeholder="default" value="default" readonly>
-          <span class="help-block">Select a provider to autopopulate the link name</span>
+          <input class="form-control" id="linkdef-linkname-input" type="text" name="link_name" placeholder="default"
+            value="default" required>
         </div>
       </div>
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="linkdef-contractid-input">Contract ID</label>
         <div class="col-md-9">
-          <input class="form-control" id="linkdef-contractid-input" type="text" name="contract_id" placeholder="wasmcloud:contract" readonly>
-          <span class="help-block">Select a provider to autopopulate the contract id</span>
+          <input class="form-control" id="linkdef-contractid-input" type="text" name="contract_id"
+            placeholder="wasmcloud:contract" required>
         </div>
       </div>
       <div class="form-group row">
@@ -133,7 +125,7 @@ defmodule DefineLinkComponent do
     </form>
     <%= if @error_msg != nil do %>
     <div class="alert alert-danger">
-    <%= @error_msg %>
+      <%= @error_msg %>
     </div>
     <% end %>
     """

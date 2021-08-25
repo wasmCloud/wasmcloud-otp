@@ -1,12 +1,12 @@
 <script>
-// Custom function that can be called to create a CoreUI tooltip
-var createTooltip = (element) => {
-   if (window.TooltipCreate === undefined) {
-      setTimeout(() => createTooltip(element), 200)
-   } else if (element.dataset.toggle = "tooltip") {
-      window.TooltipCreate(element)
+   // Custom function that can be called to create a CoreUI tooltip
+   var createTooltip = (element) => {
+      if (window.TooltipCreate === undefined) {
+         setTimeout(() => createTooltip(element), 200)
+      } else if (element.dataset.toggle = "tooltip") {
+         window.TooltipCreate(element)
+      }
    }
-}
 </script>
 <main class="c-main">
    <div class="container-fluid">
@@ -24,23 +24,20 @@ var createTooltip = (element) => {
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
-                              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
+                              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button"
+                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
                               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                              <%= if @selected_host == HostCore.Host.host_key() do %>
-                                 <button class="dropdown-item"
-                                    phx-click="show_modal"
-                                    phx-value-title="Start Actor from File"
-                                    phx-value-component="StartActorComponent"
+                                 <%= if @selected_host == HostCore.Host.host_key() do %>
+                                 <button class="dropdown-item" phx-click="show_modal"
+                                    phx-value-title="Start Actor from File" phx-value-component="StartActorComponent"
                                     phx-value-id="start_actor_file_modal">
-                                 From File
+                                    From File
                                  </button>
-                              <% end %>
-                                 <button class="dropdown-item"
-                                    phx-click="show_modal"
+                                 <% end %>
+                                 <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Actor from OCI Registry"
-                                    phx-value-component="StartActorComponent"
-                                    phx-value-id="start_actor_ociref_modal">
-                                 From Registry
+                                    phx-value-component="StartActorComponent" phx-value-id="start_actor_ociref_modal">
+                                    From Registry
                                  </button>
                               </div>
                            </div>
@@ -89,23 +86,23 @@ var createTooltip = (element) => {
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
-                              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Provider</button>
+                              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button"
+                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start
+                                 Provider</button>
                               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                              <%= if @selected_host == HostCore.Host.host_key() do %>
-                                 <button class="dropdown-item"
-                                    phx-click="show_modal"
+                                 <%= if @selected_host == HostCore.Host.host_key() do %>
+                                 <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Provider from File"
                                     phx-value-component="StartProviderComponent"
                                     phx-value-id="start_provider_file_modal">
-                                 From File
+                                    From File
                                  </button>
-                              <% end %>
-                                 <button class="dropdown-item"
-                                    phx-click="show_modal"
+                                 <% end %>
+                                 <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Provider from OCI Registry"
                                     phx-value-component="StartProviderComponent"
                                     phx-value-id="start_provider_ociref_modal">
-                                 From Registry
+                                    From Registry
                                  </button>
                               </div>
                            </div>
@@ -155,10 +152,8 @@ var createTooltip = (element) => {
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
-                              <button class="btn btn-secondary"
-                                 phx-click="show_modal"
-                                 phx-value-title="Define Link Definition"
-                                 phx-value-component="DefineLinkComponent"
+                              <button class="btn btn-secondary" phx-click="show_modal"
+                                 phx-value-title="Define Link Definition" phx-value-component="DefineLinkComponent"
                                  phx-value-id="define_link_modal">
                                  Define Link
                                  <svg class="c-icon c-icon-sm">
@@ -199,35 +194,34 @@ var createTooltip = (element) => {
                            <h3><strong>Host Info</strong></h3>
                         </div>
                         <div class="dropdown d-inline-block">
-                              <button class="btn btn-light dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                 Select Host
-                                 <span class="badge badge-pill badge-primary"><%= @hosts |> Enum.count() %></span>
-                              </button>
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                 <button class="dropdown-item" phx-click="show_all_hosts">
+                           <button class="btn btn-light dropdown-toggle" id="dropdownMenuButton" type="button"
+                              data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                              Select Host
+                              <span class="badge badge-pill badge-primary"><%= @hosts |> Enum.count() %></span>
+                           </button>
+                           <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <button class="dropdown-item" phx-click="show_all_hosts">
                                  Show All
-                                 </button>
-                                 <%= for {host_id, _host_info} <- @hosts do %>
-                                    <% button_color = cond do
+                              </button>
+                              <%= for {host_id, _host_info} <- @hosts do %>
+                              <% button_color = cond do
                                     host_id == @selected_host -> "btn-ghost-primary active"
                                     true -> "btn-ghost-primary" end %>
-                                    <button class="btn dropdown-item <%= button_color %> id-monospace"
-                                       type="button"
-                                       phx-click="select_host"
-                                       phx-value-host="<%= host_id %>"
-                                       style="padding-top: 5px; padding-bottom: 5px">
-                                    <svg class="c-icon">
-                                       <%= if host_id == HostCore.Host.host_key() do %>
-                                       <use xlink:href="/coreui/free.svg#cil-laptop"></use>
-                                       <% else %>
-                                       <use xlink:href="/coreui/free.svg#cil-lan"></use>
-                                       <% end %>
-                                    </svg>&nbsp;
-                                    <%= String.slice(host_id, 0..4) %>...
-                                    </button>
-                                 <% end %>
-                              </div>
+                              <button class="btn dropdown-item <%= button_color %> id-monospace" type="button"
+                                 phx-click="select_host" phx-value-host="<%= host_id %>"
+                                 style="padding-top: 5px; padding-bottom: 5px">
+                                 <svg class="c-icon">
+                                    <%= if host_id == HostCore.Host.host_key() do %>
+                                    <use xlink:href="/coreui/free.svg#cil-laptop"></use>
+                                    <% else %>
+                                    <use xlink:href="/coreui/free.svg#cil-lan"></use>
+                                    <% end %>
+                                 </svg>&nbsp;
+                                 <%= String.slice(host_id, 0..4) %>...
+                              </button>
+                              <% end %>
                            </div>
+                        </div>
                      </div>
                   </div>
                   <%= if host_id != nil do %>
@@ -262,7 +256,9 @@ var createTooltip = (element) => {
                                     |> Enum.count() %>
                               </td>
                               <td>
-                                 <button class="btn btn-sm btn-primary id-monospace" type="button" onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover" data-trigger="focus" title="" data-content="Copied!">
+                                 <button class="btn btn-sm btn-primary id-monospace" type="button"
+                                    onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover"
+                                    data-trigger="focus" title="" data-content="Copied!">
                                     <%= String.slice(host_id, 0..4) %>...
                                     <svg class="c-icon">
                                        <use xlink:href="/coreui/free.svg#cil-copy"></use>
