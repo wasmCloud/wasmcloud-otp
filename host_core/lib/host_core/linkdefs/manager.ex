@@ -79,7 +79,7 @@ defmodule HostCore.Linkdefs.Manager do
     cache_topic = "lc.#{prefix}.linkdefs.#{ld.id}"
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.del"
     Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
-    ld = %{ld | deleted: true}
+    ld = Map.put(ld, :deleted, true)
     Gnat.pub(:control_nats, cache_topic, Jason.encode!(ld))
   end
 

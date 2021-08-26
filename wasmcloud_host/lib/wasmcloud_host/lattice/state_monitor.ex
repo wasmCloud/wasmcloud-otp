@@ -128,7 +128,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   @impl true
   def handle_cast({:cache_load_event, :linkdef_removed, ld}, state) do
-    key = {ld["actor_id"], ld["contract_id"], ld["link_name"]}
+    key = {ld.actor_id, ld.contract_id, ld.link_name}
     linkdefs = Map.delete(state.linkdefs, key)
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
