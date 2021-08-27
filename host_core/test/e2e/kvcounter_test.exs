@@ -1,6 +1,15 @@
 defmodule HostCore.E2E.KVCounterTest do
   use ExUnit.Case, async: false
 
+  setup do
+    {:ok, evt_watcher} =
+      GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
+
+    [
+      evt_watcher: evt_watcher
+    ]
+  end
+
   require Logger
 
   @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
@@ -14,10 +23,12 @@ defmodule HostCore.E2E.KVCounterTest do
   @redis_link "default"
   @redis_path "test/fixtures/providers/redis.par.gz"
 
-  test "kvcounter roundtrip" do
+  test "kvcounter roundtrip", %{:evt_watcher => evt_watcher} do
     {:ok, bytes} = File.read(@kvcounter_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
+
+    :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_key)
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
@@ -49,6 +60,22 @@ defmodule HostCore.E2E.KVCounterTest do
       HostCore.Providers.ProviderSupervisor.terminate_provider(redis_key, @redis_link)
     end)
 
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_provider_start(
+        evt_watcher,
+        redis_contract,
+        @redis_link,
+        redis_key
+      )
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_provider_start(
+        evt_watcher,
+        httpserver_contract,
+        @httpserver_link,
+        httpserver_key
+      )
+
     actor_count =
       Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key)
       |> length
@@ -58,8 +85,6 @@ defmodule HostCore.E2E.KVCounterTest do
     ap = HostCore.Providers.ProviderSupervisor.all_providers()
     assert elem(Enum.at(ap, 0), 0) == httpserver_key
     assert elem(Enum.at(ap, 1), 0) == redis_key
-
-    Process.sleep(2000)
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
@@ -79,7 +104,21 @@ defmodule HostCore.E2E.KVCounterTest do
         %{URL: "redis://0.0.0.0:6379"}
       )
 
-    Process.sleep(1000)
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_linkdef(
+        evt_watcher,
+        @kvcounter_key,
+        redis_contract,
+        @redis_link
+      )
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_linkdef(
+        evt_watcher,
+        @kvcounter_key,
+        httpserver_contract,
+        @httpserver_link
+      )
 
     HTTPoison.start()
     {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
@@ -91,10 +130,11 @@ defmodule HostCore.E2E.KVCounterTest do
     assert resp.body == "{\"counter\":#{incr_count}}"
   end
 
-  test "kvcounter unprivileged access denied" do
+  test "kvcounter unprivileged access denied", %{:evt_watcher => evt_watcher} do
     {:ok, bytes} = File.read(@kvcounter_unpriv_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
+    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_unpriv_key, 1) end)
+    :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_unpriv_key)
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
@@ -132,11 +172,25 @@ defmodule HostCore.E2E.KVCounterTest do
 
     assert actor_count == 1
 
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_provider_start(
+        evt_watcher,
+        redis_contract,
+        @redis_link,
+        redis_key
+      )
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_provider_start(
+        evt_watcher,
+        httpserver_contract,
+        @httpserver_link,
+        httpserver_key
+      )
+
     ap = HostCore.Providers.ProviderSupervisor.all_providers()
     assert elem(Enum.at(ap, 0), 0) == httpserver_key
     assert elem(Enum.at(ap, 1), 0) == redis_key
-
-    Process.sleep(2000)
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
@@ -156,7 +210,21 @@ defmodule HostCore.E2E.KVCounterTest do
         %{URL: "redis://0.0.0.0:6379"}
       )
 
-    Process.sleep(1000)
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_linkdef(
+        evt_watcher,
+        @kvcounter_unpriv_key,
+        redis_contract,
+        @redis_link
+      )
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_linkdef(
+        evt_watcher,
+        @kvcounter_unpriv_key,
+        httpserver_contract,
+        @httpserver_link
+      )
 
     HTTPoison.start()
     {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
