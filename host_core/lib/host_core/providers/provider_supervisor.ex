@@ -34,21 +34,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
         link_name
       )
 
-    provider_running =
-      case HostCore.Providers.lookup_provider(par.contract_id, link_name) do
-        {:ok, _pk} ->
-          Logger.warn(
-            "Executable provider is already running, unable to overwrite cached provider"
-          )
-
-          true
-
-        _ ->
-          false
-      end
-
-    # Write provider executable to cache if it is not cached yet or if it is not running
-    if !File.exists?(cache_path) || !provider_running do
+    # Write provider executable to cache if it does not yet exist
+    if !File.exists?(cache_path) do
       p = Path.split(cache_path)
       tmpdir = p |> Enum.slice(0, length(p) - 1) |> Path.join()
 
