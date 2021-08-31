@@ -19,14 +19,25 @@ defmodule HostCoreTest.EventWatcher do
 
   @impl true
   def init(prefix) do
+    purge_topic = "$JS.API.STREAM.PURGE.LATTICECACHE_#{prefix}"
+    stream_topic = "lc.#{prefix}.>"
+
+    case Gnat.request(:control_nats, purge_topic, []) do
+      {:ok, %{body: body}} ->
+        Logger.debug("Purged NATS stream for events watcher")
+
+      {:error, :timeout} ->
+        Logger.error("Failed to purge NATS stream for events watcher")
+    end
+
+    Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
+
     # Subscribe to lattice events stream
     topic = "wasmbus.evt.#{prefix}"
     {:ok, sub} = Gnat.sub(:control_nats, self(), topic)
 
-    # Register as a cache loader interested party (receive cache events)
-    # Note: this CAN receive previously cached claims, linkdefs, and ocireferences. It's
-    # suggested to restart nats-server between test runs to avoid interfering with tests
-    Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
+    # Wait for first ping/pong
+    Process.sleep(2_000)
 
     {:ok, %State{topic: topic, sub: sub, events: [], claims: %{}, linkdefs: %{}, ocirefs: %{}}}
   end
@@ -54,6 +65,8 @@ defmodule HostCoreTest.EventWatcher do
     map = %{values: ld.values, provider_key: ld.provider_id}
 
     linkdefs = Map.put(state.linkdefs, key, map)
+    Logger.debug("received linkdef")
+    IO.inspect(linkdefs)
 
     {:noreply, %State{state | linkdefs: linkdefs}}
   end
@@ -222,6 +235,10 @@ defmodule HostCoreTest.EventWatcher do
   # Waits for a linkdef to be established with given parameters until timeout
   def wait_for_linkdef(pid, actor_id, contract_id, link_name, timeout \\ 30_000) do
     linkdef = Map.get(linkdefs(pid), {actor_id, contract_id, link_name}, nil)
+    Logger.debug("Waiting for linkdef")
+    IO.inspect(linkdefs(pid))
+    IO.inspect(linkdef)
+    IO.inspect(:ets.tab2list(:linkdef_table))
 
     cond do
       linkdef != nil ->

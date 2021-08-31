@@ -11,6 +11,9 @@ defmodule HostCore.Jetstream.CacheLoader do
   use Gnat.Server
 
   def request(%{topic: topic, body: body}) do
+    IO.puts("MESSAGE RECEIVED")
+    IO.inspect(body)
+
     topic
     |> String.split(".")
     # lc
@@ -25,7 +28,9 @@ defmodule HostCore.Jetstream.CacheLoader do
   end
 
   def handle_request({"linkdefs", key}, body) do
+    IO.puts("received linkdef")
     ld = body |> Jason.decode!() |> atomize
+    IO.inspect(ld)
 
     if ld.deleted == true do
       HostCore.Linkdefs.Manager.uncache_link_definition(ld.actor_id, ld.contract_id, ld.link_name)

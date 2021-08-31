@@ -53,6 +53,8 @@ defmodule HostCore.E2E.EchoTest do
     assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
              httpserver_key
 
+    IO.inspect(:ets.tab2list(:linkdef_table))
+
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
         @echo_key,
@@ -61,6 +63,8 @@ defmodule HostCore.E2E.EchoTest do
         httpserver_key,
         %{PORT: "8080"}
       )
+
+    IO.inspect(:ets.tab2list(:linkdef_table))
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_linkdef(

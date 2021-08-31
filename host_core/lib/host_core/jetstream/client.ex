@@ -19,7 +19,7 @@ defmodule HostCore.Jetstream.Client do
   @impl true
   def handle_continue(:ensure_stream, state) do
     # TODO get rid of this
-    Process.sleep(100)
+    Process.sleep(1000)
     create_topic = "$JS.API.STREAM.CREATE.LATTICECACHE_#{state.lattice_prefix}"
     stream_topic = "lc.#{state.lattice_prefix}.>"
 
@@ -109,9 +109,10 @@ defmodule HostCore.Jetstream.Client do
 
   def handle_consumer_create_response(%{
         "type" => "io.nats.jetstream.api.v1.consumer_create_response",
-        "config" => _config
+        "config" => config
       }) do
     Logger.info("Created ephemeral consumer for lattice cache loader")
+    IO.inspect(config)
   end
 
   def handle_stream_create_response(%{
