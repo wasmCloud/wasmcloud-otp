@@ -18,5 +18,7 @@ You can find the [host core](./host_core/README.md) in this github repository.
 ## Dashboard Web UI
 The dashboard web UI (often colloquially referred to as the _washboard_) is a **Phoenix** application that fits snugly atop the host core, providing real-time web access to a variety of information, telemetry, and insight while also exposing a graphical interface to controlling the host and portions of the lattice.
 
+You can find the [dashboard UI](./wasmcloud_host/README.md) in this github repository.
+
 ### NATS
 All of wasmCloud's _lattice_ functionality requires the use of [NATS](https://nats.io).

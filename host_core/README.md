@@ -7,7 +7,7 @@ The use of the [Makefile](./Makefile) is preferred for building and running this
 
 If you have a functioning Elixir development environment that includes NATS, then you can simply git pull this entire repository, `cd` into the `host_core` directory, and run `iex -S mix` to launch the application with an active `iex` console.
 
-If instead you prefer to work from the production release, then consult our [installation]() guide for the exact instructions.
+If instead you prefer to work from the production release, then consult our [installation](https://wasmcloud.dev/overview/installation/) guide for the exact instructions.
 
 ### NATS
 
