@@ -1,11 +1,11 @@
 defmodule HostCore.Providers.Builtin.Numbergen do
   def invoke(method, _payload)
-      when method == "NumberGen.GenerateGuid" or method == "GenerateGuid" do
+      when method in ["NumberGen.GenerateGuid", "GenerateGuid"] do
     IO.iodata_to_binary(Msgpax.pack!(UUID.uuid4()))
   end
 
   def invoke(method, payload)
-      when method == "NumberGen.RandomInRange" or method == "RandomInRange" do
+      when method in ["NumberGen.RandomInRange", "RandomInRange"] do
     params = Msgpax.unpack!(payload)
 
     min = max(params["min"], 0)
@@ -14,7 +14,7 @@ defmodule HostCore.Providers.Builtin.Numbergen do
   end
 
   def invoke(method, _payload)
-      when method == "NumberGen.Random32" or method == "RandomRandom32" do
+      when method in ["NumberGen.Random32", "Random32"] do
     IO.iodata_to_binary(Msgpax.pack!(Enum.random(0..4_294_967_295)))
   end
 end
