@@ -89,8 +89,8 @@ jobs:
 
   # When event type is release published, also run release workflow
   release-linux:
-    needs: [build]
-    if: github.event.payload.ref_type == 'tag' # Triggers on tag push only
+    needs: build
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     name: Release Linux Tarball and Docker Image
     runs-on: ubuntu-18.04
     env:
@@ -144,10 +144,6 @@ jobs:
             wasmcloud.azurecr.io/build/wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
             wasmcloud_host:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
 
-      - name: Inspect
-        run: |
-          docker image ls -a
-          
       - name: Build and release image
         uses: docker/build-push-action@v2
         with:
@@ -180,11 +176,10 @@ jobs:
           name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
           path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/${{ env.wasmcloud_host_version }}/x86_64-linux-gnu.tar.gz
 
-
   release-macos:
     name: Release MacOS Tarball
-    needs: [build]
-    if: github.event.payload.ref_type == 'tag' # Triggers on tag push only
+    needs: build
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     runs-on: macos-10.15
     env:
       MIX_ENV: prod
@@ -274,3 +269,21 @@ jobs:
         with:
           name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-macos
           path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz
+
+  github-release:
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    needs: [release-linux, release-macos]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Release Tarballs
+      uses: actions/download-artifact@v2
+      with:
+        path: tarballs
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: tarballs/*.tar.gz
+        token: ${{ secrets.GITHUB_TOKEN }}
+        prerelease: true
+        draft: false

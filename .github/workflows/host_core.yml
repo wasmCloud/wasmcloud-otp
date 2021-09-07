@@ -28,11 +28,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2      
       
-      - name: Install and Run NATS
-        run: |
-          curl -L https://github.com/nats-io/nats-server/releases/download/v2.3.4/nats-server-v2.3.4-linux-amd64.zip -o nats-server.zip
-          unzip nats-server.zip -d nats-server
-          ./nats-server/nats-server-v2.3.4-linux-amd64/nats-server -js &
+      - id: run-nats
+        uses: wasmcloud/common-actions/run-nats@main
+        with:
+          options: '-js'
 
       - name: Setup elixir
         uses: actions/setup-elixir@v1
