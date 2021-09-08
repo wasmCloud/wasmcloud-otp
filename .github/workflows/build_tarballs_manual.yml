@@ -2,8 +2,6 @@ name: Build Linux and Mac Tarballs
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
 
 env:
   working-directory: wasmcloud_host
@@ -278,15 +276,12 @@ jobs:
     - name: Download Release Tarballs
       uses: actions/download-artifact@v2
       with:
-        path: ${{ env.working-directory }}/build
-    
-    - name: Debug
-      run: ls -lahR ${{ env.working-directory }}/build
+        path: ${{ env.working-directory }}/release
 
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        files: ${{ env.working-directory }}/build/**/*.tar.gz
+        files: ${{ env.working-directory }}/release/**/*.tar.gz
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: true
         draft: false

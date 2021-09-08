@@ -173,7 +173,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+          name: x86_64-linux-gnu
           path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/${{ env.wasmcloud_host_version }}/x86_64-linux-gnu.tar.gz
 
   release-macos:
@@ -263,27 +263,31 @@ jobs:
         run: |
           mix distillery.release --verbose
 
-      # Currently just attached to the action output, should be in the Release assets
+      # It's currently output as `wasmcloud_host.tar.gz`, but we want it to be indicative of the ARCH-OS pair
+      - name: Rename release for Upload
+        run: |
+          mv ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz ${{env.working-directory}}/_build/x86_64-macos.tar.gz
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-macos
-          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz
+          name: x86_64-macos
+          path: ${{env.working-directory}}/_build/x86_64-macos.tar.gz
 
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs: [release-linux, release-macos]
     runs-on: ubuntu-latest
-    steps:
     - name: Download Release Tarballs
       uses: actions/download-artifact@v2
       with:
-        path: tarballs
+        path: ${{ env.working-directory }}/release
 
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        files: tarballs/*.tar.gz
+        files: ${{ env.working-directory }}/release/**/*.tar.gz
         token: ${{ secrets.GITHUB_TOKEN }}
-        prerelease: true
+        prerelease: false
         draft: false
+
