@@ -267,22 +267,3 @@ jobs:
         with:
           name: x86_64-macos
           path: ${{env.working-directory}}/_build/x86_64-macos.tar.gz
-
-
-  github-release:
-    needs: [release-linux, release-macos]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download Release Tarballs
-      uses: actions/download-artifact@v2
-      with:
-        path: ${{ env.working-directory }}/release
-
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: ${{ env.working-directory }}/release/**/*.tar.gz
-        token: ${{ secrets.GITHUB_TOKEN }}
-        prerelease: true
-        draft: false
-        tag_name: build_tarball_manual
