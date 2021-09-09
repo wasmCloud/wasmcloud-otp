@@ -84,9 +84,8 @@ jobs:
         continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
         run: mix dialyzer --no-check
 
-  # When event type is release published, also run release workflow
   release-linux:
-    needs: [build]
+    needs: build
     name: Release Linux Tarball and Docker Image
     runs-on: ubuntu-18.04
     env:
@@ -140,10 +139,6 @@ jobs:
             wasmcloud.azurecr.io/build/wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
             wasmcloud_host:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
 
-      - name: Inspect
-        run: |
-          docker image ls -a
-          
       - name: Build and release image
         uses: docker/build-push-action@v2
         with:
@@ -170,16 +165,15 @@ jobs:
         run: |
           make tarball-x86_64-linux-gnu
 
-      # Currently just attached to the action output, should be in the Release assets
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
+          name: x86_64-linux-gnu
           path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/${{ env.wasmcloud_host_version }}/x86_64-linux-gnu.tar.gz
 
   release-macos:
     name: Release MacOS Tarball
-    needs: [build]
+    needs: build
     runs-on: macos-10.15
     env:
       MIX_ENV: prod
@@ -263,9 +257,13 @@ jobs:
         run: |
           mix distillery.release --verbose
 
-      # Currently just attached to the action output, should be in the Release assets
+      # It's currently output as `wasmcloud_host.tar.gz`, but we want it to be indicative of the ARCH-OS pair
+      - name: Rename release for Upload
+        run: |
+          mv ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz ${{env.working-directory}}/_build/x86_64-macos.tar.gz
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-x86_64-macos
-          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz
+          name: x86_64-macos
+          path: ${{env.working-directory}}/_build/x86_64-macos.tar.gz
