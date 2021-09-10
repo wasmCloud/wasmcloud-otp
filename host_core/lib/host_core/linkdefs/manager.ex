@@ -30,10 +30,8 @@ defmodule HostCore.Linkdefs.Manager do
   end
 
   def put_link_definition(actor, contract_id, link_name, provider_key, values) do
-    IO.puts("putting linkdef")
     ldid = UUID.uuid4()
     cache_link_definition(ldid, actor, contract_id, link_name, provider_key, values)
-    IO.inspect(:ets.tab2list(:linkdef_table))
 
     ld = %{
       id: ldid,
@@ -63,18 +61,12 @@ defmodule HostCore.Linkdefs.Manager do
 
   # Publishes a link definition to the lattice and the applicable provider for configuration
   defp publish_link_definition(ld) do
-    IO.puts("pubbing linkdef")
-    IO.inspect(ld)
     prefix = HostCore.Host.lattice_prefix()
     cache_topic = "lc.#{prefix}.linkdefs.#{ld.id}"
-    IO.inspect(cache_topic)
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
-    IO.inspect(provider_topic)
 
     ldres = Gnat.pub(:control_nats, cache_topic, Jason.encode!(ld))
-    IO.inspect(ldres)
     lattice_res = Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
-    IO.inspect(lattice_res)
   end
 
   # Publishes the removal of a link definition to the stream and tells the provider via RPC

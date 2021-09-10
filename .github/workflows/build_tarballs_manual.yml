@@ -146,7 +146,6 @@ jobs:
           push: false # Note here that the image will NOT be pushed to our container registries
           load: true
           file: ${{env.working-directory}}/Dockerfile.release
-          outputs: type=docker,dest=/tmp/wasmcloud_host.tar
           build-args: |
             BUILD_IMAGE=wasmcloud.azurecr.io/build/wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
             RELEASE_IMAGE=debian:buster-slim 
@@ -171,12 +170,6 @@ jobs:
         with:
           name: x86_64-linux-gnu
           path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/${{ env.wasmcloud_host_version }}/x86_64-linux-gnu.tar.gz
-
-      - name: Upload docker image
-        uses: actions/upload-artifact@v2
-        with:
-          name: wasmcloud_host-v${{ env.wasmcloud_host_version }}-docker
-          path: /tmp/wasmcloud_host.tar
 
   release-macos:
     name: Release MacOS Tarball

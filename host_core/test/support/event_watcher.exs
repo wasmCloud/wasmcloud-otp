@@ -37,6 +37,8 @@ defmodule HostCoreTest.EventWatcher do
     {:ok, sub} = Gnat.sub(:control_nats, self(), topic)
 
     # Wait for first ping/pong
+    # This is the result of a long time of debugging, and hypothesizing that the first ping/pong must
+    # be answered successfully or the jetstream client is immediately closed.
     Process.sleep(2_000)
 
     {:ok, %State{topic: topic, sub: sub, events: [], claims: %{}, linkdefs: %{}, ocirefs: %{}}}
@@ -65,9 +67,6 @@ defmodule HostCoreTest.EventWatcher do
     map = %{values: ld.values, provider_key: ld.provider_id}
 
     linkdefs = Map.put(state.linkdefs, key, map)
-    Logger.debug("received linkdef")
-    IO.inspect(linkdefs)
-
     {:noreply, %State{state | linkdefs: linkdefs}}
   end
 
@@ -235,10 +234,6 @@ defmodule HostCoreTest.EventWatcher do
   # Waits for a linkdef to be established with given parameters until timeout
   def wait_for_linkdef(pid, actor_id, contract_id, link_name, timeout \\ 30_000) do
     linkdef = Map.get(linkdefs(pid), {actor_id, contract_id, link_name}, nil)
-    Logger.debug("Waiting for linkdef")
-    IO.inspect(linkdefs(pid))
-    IO.inspect(linkdef)
-    IO.inspect(:ets.tab2list(:linkdef_table))
 
     cond do
       linkdef != nil ->
