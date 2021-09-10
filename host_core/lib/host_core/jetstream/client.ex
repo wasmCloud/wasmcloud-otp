@@ -1,6 +1,7 @@
 defmodule HostCore.Jetstream.Client do
   @moduledoc false
   use GenServer
+
   require Logger
 
   def start_link(config) do
