@@ -1,4 +1,5 @@
 defmodule HostCore.Jetstream.CacheLoader do
+  @moduledoc false
   @cache_event_key "cache_loader_events"
 
   # To observe cache loader events, first add the pid of the listener (a GenServer)

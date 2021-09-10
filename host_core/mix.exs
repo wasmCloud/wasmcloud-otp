@@ -16,7 +16,7 @@ defmodule HostCore.MixProject do
   def application do
     [
       extra_applications: [:logger, :crypto],
-      mod: {HostCore.Application, []}
+      mod: {HostCore, []}
     ]
   end
 

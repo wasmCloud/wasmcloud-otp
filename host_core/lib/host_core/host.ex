@@ -1,4 +1,5 @@
 defmodule HostCore.Host do
+  @moduledoc false
   use GenServer, restart: :transient
   require Logger
 
@@ -6,6 +7,7 @@ defmodule HostCore.Host do
   # by a mix release.
 
   defmodule State do
+    @moduledoc false
     defstruct [:host_key, :lattice_prefix]
   end
 

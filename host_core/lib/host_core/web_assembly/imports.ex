@@ -1,4 +1,5 @@
 defmodule HostCore.WebAssembly.Imports do
+  @moduledoc false
   require Logger
   alias HostCore.Actors.ActorModule.State
 

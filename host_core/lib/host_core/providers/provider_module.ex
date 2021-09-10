@@ -1,4 +1,5 @@
 defmodule HostCore.Providers.ProviderModule do
+  @moduledoc false
   use GenServer, restart: :transient
   require Logger
   alias HostCore.CloudEvent
@@ -6,6 +7,8 @@ defmodule HostCore.Providers.ProviderModule do
   @thirty_seconds 30_000
 
   defmodule State do
+    @moduledoc false
+
     defstruct [
       :os_port,
       :os_pid,

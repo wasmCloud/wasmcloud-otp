@@ -1,4 +1,5 @@
 defmodule HostCore.WasmCloud.Native do
+  @moduledoc false
   use Rustler, otp_app: :host_core, crate: :hostcore_wasmcloud_native
 
   def extract_claims(_bytes), do: error()
@@ -27,6 +28,7 @@ defmodule HostCore.WasmCloud.Native do
   defp error, do: :erlang.nif_error(:nif_not_loaded)
 
   defmodule ProviderArchive do
+    @moduledoc false
     def from_bytes(bytes), do: HostCore.WasmCloud.Native.par_from_bytes(bytes)
   end
 end

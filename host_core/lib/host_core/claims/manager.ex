@@ -1,4 +1,5 @@
 defmodule HostCore.Claims.Manager do
+  @moduledoc false
   require Logger
 
   def lookup_claims(public_key) do

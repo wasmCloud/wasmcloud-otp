@@ -1,4 +1,5 @@
 defmodule HostCore.Refmaps.Manager do
+  @moduledoc false
   require Logger
 
   def lookup_refmap(oci_url) do

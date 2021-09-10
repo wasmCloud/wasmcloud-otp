@@ -1,4 +1,5 @@
 defmodule HostCore.Nats do
+  @moduledoc false
   require Logger
 
   def rpc_connection_settings(opts) do

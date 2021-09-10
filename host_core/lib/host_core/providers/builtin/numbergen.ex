@@ -1,4 +1,6 @@
 defmodule HostCore.Providers.Builtin.Numbergen do
+  @moduledoc false
+
   def invoke(method, _payload)
       when method in ["NumberGen.GenerateGuid", "GenerateGuid"] do
     IO.iodata_to_binary(Msgpax.pack!(UUID.uuid4()))

@@ -1,4 +1,5 @@
 defmodule HostCore.Jetstream.Client do
+  @moduledoc false
   use GenServer
   require Logger
 
@@ -78,7 +79,7 @@ defmodule HostCore.Jetstream.Client do
           filter_subject: ">",
           deliver_policy: "last_per_subject",
           deliver_subject: state.deliver_subject,
-          max_ack_pending: 20000,
+          max_ack_pending: 20_000,
           max_deliver: -1,
           replay_policy: "instant"
         }
@@ -150,7 +151,9 @@ defmodule HostCore.Jetstream.Client do
 
   def handle_stream_create_response(body) do
     Logger.error(
-      "Received unexpected response from NATS when attempting to create cache stream: #{inspect(body)}"
+      "Received unexpected response from NATS when attempting to create cache stream: #{
+        inspect(body)
+      }"
     )
 
     false
