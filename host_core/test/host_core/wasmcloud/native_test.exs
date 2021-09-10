@@ -2,7 +2,7 @@ defmodule HostCore.WasmCloud.NativeTest do
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
   @httpserver_link "default"
   @httpserver_contract "wasmcloud:httpserver"
-  @httpserver_oci "wasmcloud.azurecr.io/httpserver-test:0.13.0"
+  @httpserver_oci "wasmcloud.azurecr.io/httpserver:0.13.1"
   @official_issuer "ACOJJN6WUP4ODD75XEBKKTCCUJJCY5ZKQ56XVKYK4BEJWGVAOOQHZMCW"
   @httpserver_vendor "wasmCloud"
 
@@ -21,13 +21,13 @@ defmodule HostCore.WasmCloud.NativeTest do
     target_bytes =
       case :os.type() do
         {:unix, :darwin} ->
-          7_823_168
+          7_827_360
 
         {:unix, _linux} ->
-          7_912_517
+          7_916_857
 
         {:win32, :nt} ->
-          7_867_904
+          7_875_072
       end
 
     assert byte_size(par.target_bytes |> IO.iodata_to_binary()) == target_bytes
