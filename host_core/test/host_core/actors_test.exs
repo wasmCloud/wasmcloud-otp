@@ -6,6 +6,15 @@ defmodule HostCore.ActorsTest do
 
   doctest HostCore.Actors
 
+  setup do
+    {:ok, evt_watcher} =
+      GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
+
+    [
+      evt_watcher: evt_watcher
+    ]
+  end
+
   # Oddly enough, the key we have for the local .wasm for echo and the
   # key for the one in the OCI Azure registry are NOT the same. This is a classic
   # example of something that can really mess with a developer's day.
@@ -85,14 +94,21 @@ defmodule HostCore.ActorsTest do
              "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
   end
 
-  test "can load actors" do
+  test "can load actors", %{:evt_watcher => evt_watcher} do
     {:ok, bytes} = File.read("test/fixtures/actors/kvcounter_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    Process.sleep(1_000)
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_event(
+        evt_watcher,
+        :actor_started,
+        %{"public_key" => @kvcounter_key},
+        5
+      )
 
     actor_count =
       Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key)
@@ -100,7 +116,15 @@ defmodule HostCore.ActorsTest do
 
     assert actor_count == 5
     HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 5)
-    Process.sleep(500)
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_event(
+        evt_watcher,
+        :actor_stopped,
+        %{"public_key" => @kvcounter_key},
+        5
+      )
+
     assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key) == nil
   end
 
