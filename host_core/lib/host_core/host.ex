@@ -121,6 +121,13 @@ defmodule HostCore.Host do
     end
   end
 
+  def cluster_issuers() do
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:cluster_issuers] |> String.split(",")
+      _ -> []
+    end
+  end
+
   def host_labels() do
     GenServer.call(__MODULE__, :get_labels)
   end

@@ -169,23 +169,41 @@ defmodule HostCore.Actors.ActorModule do
     Logger.info("Received invocation on #{topic}")
     iid = Agent.get(agent, fn content -> content.instance_id end)
     # TODO - handle failure
-    {:ok, inv} = Msgpax.unpack(body)
-    # TODO - perform antiforgery check
-
     ir =
-      case perform_invocation(agent, inv["operation"], inv["msg"]) do
-        {:ok, response} ->
-          %{
-            msg: response,
-            invocation_id: inv["id"],
-            instance_id: iid
-          }
+      with {:ok, inv} <- Msgpax.unpack(body) do
+        case HostCore.WasmCloud.Native.validate_antiforgery(body, HostCore.Host.cluster_issuers()) do
+          {:error, msg} ->
+            %{
+              msg: nil,
+              invocation_id: inv["id"],
+              error: msg,
+              instance_id: iid
+            }
 
-        {:error, error} ->
+          _ ->
+            case perform_invocation(agent, inv["operation"], inv["msg"]) do
+              {:ok, response} ->
+                %{
+                  msg: response,
+                  invocation_id: inv["id"],
+                  instance_id: iid
+                }
+
+              {:error, error} ->
+                %{
+                  msg: nil,
+                  error: error,
+                  invocation_id: inv["id"],
+                  instance_id: iid
+                }
+            end
+        end
+      else
+        _ ->
           %{
             msg: nil,
-            error: error,
-            invocation_id: inv["id"],
+            invocation_id: "",
+            error: "Failed to deserialize msgpack invocation",
             instance_id: iid
           }
       end

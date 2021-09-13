@@ -2,6 +2,7 @@ use data_encoding::HEXUPPER;
 use ring::digest::{Context, Digest, SHA256};
 use rmp_serde::Deserializer;
 use rmp_serde::Serializer;
+use rustler::Atom;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -142,7 +143,7 @@ impl Invocation {
 
     /// Validates the current invocation to ensure that the invocation claims have
     /// not been forged, are not expired, etc
-    pub fn validate_antiforgery(&self, valid_issuers: Vec<String>) -> Result<()> {
+    pub fn validate_antiforgery(&self, valid_issuers: Vec<String>) -> Result<Atom> {
         let vr = wascap::jwt::validate_token::<wascap::prelude::Invocation>(&self.encoded_claims)
             .map_err(|e| format!("{}", e))?;
         let claims = Claims::<wascap::prelude::Invocation>::decode(&self.encoded_claims)
@@ -180,7 +181,7 @@ impl Invocation {
             return Err("Invocation claims and invocation origin URL do not match".into());
         }
 
-        Ok(())
+        Ok(crate::atoms::ok())
     }
 }
 

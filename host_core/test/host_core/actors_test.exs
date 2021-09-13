@@ -38,7 +38,7 @@ defmodule HostCore.ActorsTest do
       HostCore.Actors.ActorSupervisor.terminate_actor(@echo_oci_key, 1)
     end)
 
-    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    seed = HostCore.Host.cluster_seed()
 
     req =
       %{
@@ -108,7 +108,7 @@ defmodule HostCore.ActorsTest do
     {:ok, bytes} = File.read("test/fixtures/actors/echo_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
-    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    seed = HostCore.Host.cluster_seed()
 
     req =
       %{
@@ -145,6 +145,7 @@ defmodule HostCore.ActorsTest do
     HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
 
     ir = res |> Msgpax.unpack!()
+    IO.inspect ir
 
     payload = ir["msg"] |> Msgpax.unpack!()
 
@@ -166,7 +167,7 @@ defmodule HostCore.ActorsTest do
 
     assert actor_count == 1
 
-    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    seed = HostCore.Host.cluster_seed()
 
     req =
       %{
@@ -234,7 +235,7 @@ defmodule HostCore.ActorsTest do
       )
     end)
 
-    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    seed = HostCore.Host.cluster_seed()
 
     req =
       %{
