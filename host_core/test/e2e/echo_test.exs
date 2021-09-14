@@ -16,9 +16,9 @@ defmodule HostCore.E2E.EchoTest do
   @httpserver_path HostCoreTest.Constants.httpserver_path()
 
   test "echo roundtrip", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1) end)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_key)
 
@@ -32,10 +32,6 @@ defmodule HostCore.E2E.EchoTest do
     {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
-
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
-    end)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_start(

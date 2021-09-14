@@ -24,9 +24,9 @@ defmodule HostCore.E2E.KVCounterTest do
   @redis_path HostCoreTest.Constants.redis_path()
 
   test "kvcounter roundtrip", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@kvcounter_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_key)
 
@@ -41,10 +41,6 @@ defmodule HostCore.E2E.KVCounterTest do
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
-    end)
-
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @redis_path,
@@ -55,10 +51,6 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     redis_key = par.claims.public_key
     redis_contract = par.contract_id
-
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(redis_key, @redis_link)
-    end)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_start(
@@ -131,9 +123,9 @@ defmodule HostCore.E2E.KVCounterTest do
   end
 
   test "kvcounter unprivileged access denied", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@kvcounter_unpriv_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_unpriv_key, 1) end)
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_unpriv_key)
 
     {:ok, _pid} =
@@ -147,10 +139,6 @@ defmodule HostCore.E2E.KVCounterTest do
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
-    end)
-
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @redis_path,
@@ -161,10 +149,6 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     redis_key = par.claims.public_key
     redis_contract = par.contract_id
-
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(redis_key, @redis_link)
-    end)
 
     actor_count =
       Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_unpriv_key)

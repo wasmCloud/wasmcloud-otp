@@ -27,23 +27,17 @@ defmodule HostCore.ActorsTest do
   @httpserver_link HostCoreTest.Constants.default_link()
 
   test "live update same revision fails" do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
-
-    on_exit(fn ->
-      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
-    end)
 
     assert {:error, :error} == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
   end
 
   test "live update with new revision succeeds" do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_old_oci_reference)
 
     assert :ok == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
-
-    on_exit(fn ->
-      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
-    end)
 
     {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
@@ -92,6 +86,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can load actors", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@kvcounter_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
@@ -234,25 +229,11 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke via call alias" do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read("test/fixtures/actors/ponger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, bytes} = File.read("test/fixtures/actors/pinger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-
-    on_exit(fn ->
-      # Ponger
-      HostCore.Actors.ActorSupervisor.terminate_actor(
-        "MBMOM2EZZICFYM4KATRMH2JUO5QWE3YWCHGFZVRQQ2SQI4I5BKWIGMBS",
-        1
-      )
-
-      # Pinger
-      HostCore.Actors.ActorSupervisor.terminate_actor(
-        "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN",
-        1
-      )
-    end)
-
     {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
     req =

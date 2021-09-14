@@ -9,10 +9,9 @@ defmodule HostCore.E2E.ControlInterfaceTest do
   @redis_contract HostCoreTest.Constants.keyvalue_contract()
 
   test "can get claims" do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-
-    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1) end)
 
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.ctl.#{prefix}.get.claims"
