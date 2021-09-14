@@ -198,7 +198,7 @@ defmodule HostCore.E2E.KVCounterTest do
         httpserver_contract,
         @httpserver_link,
         httpserver_key,
-        %{PORT: "8081"}
+        %{PORT: "8082"}
       )
 
     :ok =
@@ -227,10 +227,10 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     HTTPoison.start()
-    {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
+    {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
     IO.inspect(resp)
 
-    assert resp.body == "Guest call failed: Host error: Invocation not authorized\n"
+    assert resp.body == "{\"error\":\"Host send error Invocation not authorized\"}"
     assert resp.status_code == 500
   end
 end

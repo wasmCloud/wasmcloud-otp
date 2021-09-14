@@ -1,11 +1,11 @@
 defmodule HostCoreTest.Constants do
   # Actor related constants
   @echo_key "MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5"
-  @echo_ociref "wasmcloud.azurecr.io/echo:0.2.0"
-  @echo_ociref_updated "wasmcloud.azurecr.io/echo:0.2.1"
-  @echo_path "test/fixtures/actors/echo_s.wasm"
+  @echo_ociref "wasmcloud.azurecr.io/echo:0.3.1"
+  @echo_ociref_updated "wasmcloud.azurecr.io/echo:0.3.1-liveupdate"
+  @echo_path "test/fixtures/actors/echo.wasm"
   @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
-  @kvcounter_path "test/fixtures/actors/kvcounter_s.wasm"
+  @kvcounter_path "test/fixtures/actors/kvcounter.wasm"
   @kvcounter_unpriv_key "MBW3UGAIONCX3RIDDUGDCQIRGBQQOWS643CVICQ5EZ7SWNQPZLZTSQKU"
   @kvcounter_unpriv_path "test/fixtures/actors/kvcounter_unpriv_s.wasm"
   @pinger_path "test/fixtures/actors/pinger_s.wasm"
@@ -14,7 +14,7 @@ defmodule HostCoreTest.Constants do
   # Provider related constants
   @httpserver_contract "wasmcloud:httpserver"
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-  @httpserver_ociref "wasmcloud.azurecr.io/httpserver:0.13.1"
+  @httpserver_ociref "wasmcloud.azurecr.io/httpserver:0.14.2"
   @httpserver_path "test/fixtures/providers/httpserver.par.gz"
   @keyvalue_contract "wasmcloud:keyvalue"
   @redis_key "VAZVC4RX54J2NVCMCW7BPCAHGGG5XZXDBXFUMDUXGESTMQEJLC3YVZWB"

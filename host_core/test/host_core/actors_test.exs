@@ -64,7 +64,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_key,
         @httpserver_contract,
         @httpserver_link,
-        "HandleRequest",
+        "HttpServer.HandleRequest",
         req
       )
 
@@ -83,11 +83,10 @@ defmodule HostCore.ActorsTest do
     payload = ir["msg"] |> Msgpax.unpack!()
 
     assert payload["header"] == %{}
-    assert payload["status"] == "OK"
     assert payload["statusCode"] == 200
 
     assert payload["body"] ==
-             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+             "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
   test "can load actors", %{:evt_watcher => evt_watcher} do
@@ -149,7 +148,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_key,
         @httpserver_contract,
         @httpserver_link,
-        "HandleRequest",
+        "HttpServer.HandleRequest",
         req
       )
 
@@ -169,11 +168,10 @@ defmodule HostCore.ActorsTest do
     payload = ir["msg"] |> Msgpax.unpack!()
 
     assert payload["header"] == %{}
-    assert payload["status"] == "OK"
     assert payload["statusCode"] == 200
 
     assert payload["body"] ==
-             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+             "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
   test "can invoke echo via OCI reference" do
@@ -207,7 +205,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_key,
         @httpserver_contract,
         @httpserver_link,
-        "HandleRequest",
+        "HttpServer.HandleRequest",
         req
       )
 
@@ -227,11 +225,10 @@ defmodule HostCore.ActorsTest do
     payload = ir["msg"] |> Msgpax.unpack!()
 
     assert payload["header"] == %{}
-    assert payload["status"] == "OK"
     assert payload["statusCode"] == 200
 
     assert payload["body"] ==
-             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+             "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
   test "can invoke via call alias" do
