@@ -15,8 +15,8 @@ defmodule HostCore.E2E.KVCounterTest do
   @kvcounter_key HostCoreTest.Constants.kvcounter_key()
   @kvcounter_path HostCoreTest.Constants.kvcounter_path()
 
-  @kvcounter_unpriv_key HostCoreTest.Constants.pinger_key()
-  @kvcounter_unpriv_path HostCoreTest.Constants.pinger_path()
+  @kvcounter_unpriv_key HostCoreTest.Constants.kvcounter_unpriv_key()
+  @kvcounter_unpriv_path HostCoreTest.Constants.kvcounter_unpriv_path()
 
   @httpserver_link HostCoreTest.Constants.default_link()
   @httpserver_path HostCoreTest.Constants.httpserver_path()

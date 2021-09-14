@@ -6,6 +6,8 @@ defmodule HostCoreTest.Constants do
   @echo_path "test/fixtures/actors/echo_s.wasm"
   @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
   @kvcounter_path "test/fixtures/actors/kvcounter_s.wasm"
+  @kvcounter_unpriv_key "MBW3UGAIONCX3RIDDUGDCQIRGBQQOWS643CVICQ5EZ7SWNQPZLZTSQKU"
+  @kvcounter_unpriv_path "test/fixtures/actors/kvcounter_unpriv_s.wasm"
   @pinger_path "test/fixtures/actors/pinger_s.wasm"
   @pinger_key "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN"
 
@@ -30,6 +32,8 @@ defmodule HostCoreTest.Constants do
   def echo_ociref_updated, do: @echo_ociref_updated
   def kvcounter_key, do: @kvcounter_key
   def kvcounter_path, do: @kvcounter_path
+  def kvcounter_unpriv_key, do: @kvcounter_unpriv_key
+  def kvcounter_unpriv_path, do: @kvcounter_unpriv_path
   def pinger_path, do: @pinger_path
   def pinger_key, do: @pinger_key
 
