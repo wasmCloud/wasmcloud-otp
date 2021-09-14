@@ -133,7 +133,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     |> Enum.map(fn {_d, pid, _type, _modules} ->
       provider_for_pid(pid)
     end)
-    |> Enum.filter(fn provider -> provider != nil end)
+    |> Enum.reject(&is_nil/1)
   end
 
   def provider_for_pid(pid) do
