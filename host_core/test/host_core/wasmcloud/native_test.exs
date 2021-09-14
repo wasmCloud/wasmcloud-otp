@@ -1,10 +1,10 @@
 defmodule HostCore.WasmCloud.NativeTest do
-  @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-  @httpserver_link "default"
-  @httpserver_contract "wasmcloud:httpserver"
-  @httpserver_oci "wasmcloud.azurecr.io/httpserver:0.13.1"
-  @official_issuer "ACOJJN6WUP4ODD75XEBKKTCCUJJCY5ZKQ56XVKYK4BEJWGVAOOQHZMCW"
-  @httpserver_vendor "wasmCloud"
+  @httpserver_key HostCoreTest.Constants.httpserver_key()
+  @httpserver_link HostCoreTest.Constants.default_link()
+  @httpserver_contract HostCoreTest.Constants.httpserver_contract()
+  @httpserver_oci HostCoreTest.Constants.httpserver_ociref()
+  @official_issuer HostCoreTest.Constants.wasmcloud_issuer()
+  @httpserver_vendor HostCoreTest.Constants.wasmcloud_vendor()
 
   use ExUnit.Case, async: false
 
@@ -105,7 +105,7 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     res =
       HostCore.WasmCloud.Native.validate_antiforgery(inv |> IO.iodata_to_binary(), [
-        "CSUPERBADKEYIAMAMALICIOUSACTOR"
+        "CMYNAMEISKEVINIAMAMALICIOUSACTOR"
       ])
 
     assert res ==

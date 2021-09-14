@@ -11,11 +11,11 @@ defmodule HostCore.ProvidersTest do
     ]
   end
 
-  @httpserver_path "test/fixtures/providers/httpserver.par.gz"
-  @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-  @httpserver_link "default"
-  @httpserver_oci "wasmcloud.azurecr.io/httpserver:0.13.1"
-  @httpserver_contract "wasmcloud:httpserver"
+  @httpserver_path HostCoreTest.Constants.httpserver_path()
+  @httpserver_key HostCoreTest.Constants.httpserver_key()
+  @httpserver_link HostCoreTest.Constants.default_link()
+  @httpserver_oci HostCoreTest.Constants.httpserver_ociref()
+  @httpserver_contract HostCoreTest.Constants.httpserver_contract()
 
   test "can load provider from file", %{:evt_watcher => evt_watcher} do
     {:ok, _pid} =

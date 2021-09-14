@@ -12,16 +12,16 @@ defmodule HostCore.E2E.KVCounterTest do
 
   require Logger
 
-  @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
-  @kvcounter_path "test/fixtures/actors/kvcounter_s.wasm"
+  @kvcounter_key HostCoreTest.Constants.kvcounter_key()
+  @kvcounter_path HostCoreTest.Constants.kvcounter_path()
 
-  @kvcounter_unpriv_key "MAVJWHLVXBCJI3BPJDMHB3MFZMGFASOJ3CYDNSHNZJDVGW4B4E7SIYFG"
-  @kvcounter_unpriv_path "test/fixtures/actors/kvcounter_unpriv_s.wasm"
+  @kvcounter_unpriv_key HostCoreTest.Constants.pinger_key()
+  @kvcounter_unpriv_path HostCoreTest.Constants.pinger_path()
 
-  @httpserver_link "default"
-  @httpserver_path "test/fixtures/providers/httpserver.par.gz"
-  @redis_link "default"
-  @redis_path "test/fixtures/providers/redis.par.gz"
+  @httpserver_link HostCoreTest.Constants.default_link()
+  @httpserver_path HostCoreTest.Constants.httpserver_path()
+  @redis_link HostCoreTest.Constants.default_link()
+  @redis_path HostCoreTest.Constants.redis_path()
 
   test "kvcounter roundtrip", %{:evt_watcher => evt_watcher} do
     {:ok, bytes} = File.read(@kvcounter_path)
