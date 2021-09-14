@@ -104,7 +104,7 @@ defmodule HostCore.Actors.ActorModule do
     Wasmex.call_function(instance, :wapc_init, [])
 
     publish_actor_updated(claims.public_key, claims.revision, instance_id)
-    Logger.debug("Actor #{claims.public_key} updated")
+    Logger.debug("Actor #{claims.public_key} live update complete")
     {:reply, :ok, agent}
   end
 
@@ -126,7 +126,6 @@ defmodule HostCore.Actors.ActorModule do
 
   @impl true
   def handle_call(:get_invocation, _from, agent) do
-    Logger.info("Getting invocation")
     {:reply, Agent.get(agent, fn content -> content.invocation end), agent}
   end
 
@@ -138,7 +137,7 @@ defmodule HostCore.Actors.ActorModule do
   @impl true
   def handle_call(:halt_and_cleanup, _from, agent) do
     # Add cleanup if necessary here...
-    Logger.info("Actor instance termination requested")
+    Logger.debug("Actor instance termination requested")
     subscription = Agent.get(agent, fn content -> content.subscription end)
     public_key = Agent.get(agent, fn content -> content.claims.public_key end)
     instance_id = Agent.get(agent, fn content -> content.instance_id end)
@@ -166,9 +165,9 @@ defmodule HostCore.Actors.ActorModule do
          }},
         agent
       ) do
-    Logger.info("Received invocation on #{topic}")
+    Logger.debug("Received invocation on #{topic}")
     iid = Agent.get(agent, fn content -> content.instance_id end)
-    # TODO - handle failure
+
     ir =
       with {:ok, inv} <- Msgpax.unpack(body) do
         case HostCore.WasmCloud.Native.validate_antiforgery(body, HostCore.Host.cluster_issuers()) do
@@ -222,7 +221,7 @@ defmodule HostCore.Actors.ActorModule do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
 
-    Logger.info("Subscribing to #{topic}")
+    Logger.debug("Subscribing to #{topic}")
     {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
     Agent.update(agent, fn state -> %State{state | subscription: subscription, ociref: oci} end)
 
@@ -240,7 +239,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp perform_invocation(agent, operation, payload) do
-    Logger.info("performing invocation #{operation}")
+    Logger.debug("performing invocation #{operation}")
     raw_state = Agent.get(agent, fn content -> content end)
 
     raw_state = %State{
@@ -254,7 +253,7 @@ defmodule HostCore.Actors.ActorModule do
     }
 
     Agent.update(agent, fn _content -> raw_state end)
-    Logger.info("Agent state updated")
+    Logger.debug("Agent state updated")
 
     # invoke __guest_call
     # if it fails, set guest_error, return 1
@@ -267,7 +266,6 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp to_guest_call_result({:ok, [res]}, agent) do
-    Logger.info("OK result")
     state = Agent.get(agent, fn content -> content end)
 
     case res do

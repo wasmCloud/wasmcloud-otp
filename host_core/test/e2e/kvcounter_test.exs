@@ -92,7 +92,8 @@ defmodule HostCore.E2E.KVCounterTest do
         httpserver_contract,
         @httpserver_link,
         httpserver_key,
-        %{PORT: "8081"}
+        # %{PORT: "8081"}
+        %{config_json: "{\"address\":\"127.0.0.1:8082\"}"}
       )
 
     :ok =
@@ -121,12 +122,13 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     HTTPoison.start()
-    {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
+    {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
 
     # Retrieve current count, assert next request increments by 1
+    IO.puts(resp.body)
     {:ok, body} = resp.body |> JSON.decode()
     incr_count = Map.get(body, "counter") + 1
-    {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
+    {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
     assert resp.body == "{\"counter\":#{incr_count}}"
   end
 
@@ -198,7 +200,8 @@ defmodule HostCore.E2E.KVCounterTest do
         httpserver_contract,
         @httpserver_link,
         httpserver_key,
-        %{PORT: "8081"}
+        # %{PORT: "8081"}
+        %{config_json: "{\"address\":\"127.0.0.1:8083\"}"}
       )
 
     :ok =
@@ -227,7 +230,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     HTTPoison.start()
-    {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
+    {:ok, resp} = HTTPoison.get("http://localhost:8083/foobar")
     IO.inspect(resp)
 
     assert resp.body == "Guest call failed: Host error: Invocation not authorized\n"

@@ -59,7 +59,8 @@ defmodule HostCore.E2E.EchoTest do
         httpserver_contract,
         @httpserver_link,
         httpserver_key,
-        %{PORT: "8080"}
+        # %{PORT: "8080"}
+        %{config_json: "{\"address\":\"127.0.0.1:8080\"}"}
       )
 
     :ok =

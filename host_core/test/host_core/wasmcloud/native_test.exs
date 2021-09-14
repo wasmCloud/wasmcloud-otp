@@ -16,7 +16,7 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
-    assert par.claims.version == "0.13.0"
+    assert par.claims.version == "0.14.0"
 
     target_bytes =
       case :os.type() do

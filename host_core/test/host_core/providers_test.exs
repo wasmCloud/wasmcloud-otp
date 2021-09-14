@@ -14,6 +14,7 @@ defmodule HostCore.ProvidersTest do
   @httpserver_path "test/fixtures/providers/httpserver.par.gz"
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
   @httpserver_link "default"
+  @httpserver_contract "wasmcloud:httpserver"
 
   @httpserver_oci "wasmcloud.azurecr.io/httpserver:0.14.0"
 
