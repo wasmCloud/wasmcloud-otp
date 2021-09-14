@@ -16,8 +16,10 @@ defmodule HostCore.ActorsTest do
   end
 
   @echo_key HostCoreTest.Constants.echo_key()
+  @echo_path HostCoreTest.Constants.echo_path()
   @echo_old_oci_reference HostCoreTest.Constants.echo_ociref()
   @echo_oci_reference HostCoreTest.Constants.echo_ociref_updated()
+  @kvcounter_path HostCoreTest.Constants.kvcounter_path()
 
   @httpserver_key HostCoreTest.Constants.httpserver_key()
   @kvcounter_key HostCoreTest.Constants.kvcounter_key()
@@ -90,7 +92,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can load actors", %{:evt_watcher => evt_watcher} do
-    {:ok, bytes} = File.read(HostCoreTest.Constants.kvcounter_path())
+    {:ok, bytes} = File.read(@kvcounter_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
@@ -124,7 +126,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke the echo actor" do
-    {:ok, bytes} = File.read(HostCoreTest.Constants.echo_path())
+    {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)

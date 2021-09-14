@@ -11,11 +11,12 @@ defmodule HostCore.E2E.EchoTest do
   end
 
   @echo_key HostCoreTest.Constants.echo_key()
+  @echo_path HostCoreTest.Constants.echo_path()
   @httpserver_link HostCoreTest.Constants.default_link()
   @httpserver_path HostCoreTest.Constants.httpserver_path()
 
   test "echo roundtrip", %{:evt_watcher => evt_watcher} do
-    {:ok, bytes} = File.read(HostCoreTest.Constants.echo_path())
+    {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1) end)
 
