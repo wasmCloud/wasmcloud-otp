@@ -152,9 +152,7 @@ defmodule HostCore.Jetstream.Client do
 
   def handle_stream_create_response(body) do
     Logger.error(
-      "Received unexpected response from NATS when attempting to create cache stream: #{
-        inspect(body)
-      }"
+      "Received unexpected response from NATS when attempting to create cache stream: #{inspect(body)}"
     )
 
     false
