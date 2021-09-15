@@ -16,18 +16,18 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
-    assert par.claims.version == "0.14.2"
+    assert par.claims.version == "0.14.3"
 
     target_bytes =
       case :os.type() do
         {:unix, :darwin} ->
-          8_669_464
+          8_669_384
 
         {:unix, _linux} ->
-          13_573_440
+          13_572_128
 
         {:win32, :nt} ->
-          22_159_629
+          22_161_225
       end
 
     assert byte_size(par.target_bytes |> IO.iodata_to_binary()) == target_bytes

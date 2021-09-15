@@ -14,7 +14,7 @@ defmodule HostCoreTest.Constants do
   # Provider related constants
   @httpserver_contract "wasmcloud:httpserver"
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-  @httpserver_ociref "wasmcloud.azurecr.io/httpserver:0.14.2"
+  @httpserver_ociref "wasmcloud.azurecr.io/httpserver:0.14.3"
   @httpserver_path "test/fixtures/providers/httpserver.par.gz"
   @keyvalue_contract "wasmcloud:keyvalue"
   @redis_key "VAZVC4RX54J2NVCMCW7BPCAHGGG5XZXDBXFUMDUXGESTMQEJLC3YVZWB"
