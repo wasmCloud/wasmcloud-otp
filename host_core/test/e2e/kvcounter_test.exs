@@ -12,21 +12,21 @@ defmodule HostCore.E2E.KVCounterTest do
 
   require Logger
 
-  @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
-  @kvcounter_path "test/fixtures/actors/kvcounter_s.wasm"
+  @kvcounter_key HostCoreTest.Constants.kvcounter_key()
+  @kvcounter_path HostCoreTest.Constants.kvcounter_path()
 
-  @kvcounter_unpriv_key "MAVJWHLVXBCJI3BPJDMHB3MFZMGFASOJ3CYDNSHNZJDVGW4B4E7SIYFG"
-  @kvcounter_unpriv_path "test/fixtures/actors/kvcounter_unpriv_s.wasm"
+  @kvcounter_unpriv_key HostCoreTest.Constants.kvcounter_unpriv_key()
+  @kvcounter_unpriv_path HostCoreTest.Constants.kvcounter_unpriv_path()
 
-  @httpserver_link "default"
-  @httpserver_path "test/fixtures/providers/httpserver.par.gz"
-  @redis_link "default"
-  @redis_path "test/fixtures/providers/redis.par.gz"
+  @httpserver_link HostCoreTest.Constants.default_link()
+  @httpserver_path HostCoreTest.Constants.httpserver_path()
+  @redis_link HostCoreTest.Constants.default_link()
+  @redis_path HostCoreTest.Constants.redis_path()
 
   test "kvcounter roundtrip", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@kvcounter_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 1) end)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_key)
 
@@ -41,10 +41,6 @@ defmodule HostCore.E2E.KVCounterTest do
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
-    end)
-
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @redis_path,
@@ -55,10 +51,6 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     redis_key = par.claims.public_key
     redis_contract = par.contract_id
-
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(redis_key, @redis_link)
-    end)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_start(
@@ -92,8 +84,7 @@ defmodule HostCore.E2E.KVCounterTest do
         httpserver_contract,
         @httpserver_link,
         httpserver_key,
-        # %{PORT: "8081"}
-        %{config_json: "{\"address\":\"127.0.0.1:8082\"}"}
+        %{PORT: "8081"}
       )
 
     :ok =
@@ -122,20 +113,20 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     HTTPoison.start()
-    {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
+    {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
 
     # Retrieve current count, assert next request increments by 1
     IO.puts(resp.body)
     {:ok, body} = resp.body |> JSON.decode()
     incr_count = Map.get(body, "counter") + 1
-    {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
+    {:ok, resp} = HTTPoison.get("http://localhost:8081/foobar")
     assert resp.body == "{\"counter\":#{incr_count}}"
   end
 
   test "kvcounter unprivileged access denied", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@kvcounter_unpriv_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_unpriv_key, 1) end)
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_unpriv_key)
 
     {:ok, _pid} =
@@ -149,10 +140,6 @@ defmodule HostCore.E2E.KVCounterTest do
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
-    end)
-
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @redis_path,
@@ -163,10 +150,6 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     redis_key = par.claims.public_key
     redis_contract = par.contract_id
-
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(redis_key, @redis_link)
-    end)
 
     actor_count =
       Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_unpriv_key)
@@ -200,8 +183,7 @@ defmodule HostCore.E2E.KVCounterTest do
         httpserver_contract,
         @httpserver_link,
         httpserver_key,
-        # %{PORT: "8081"}
-        %{config_json: "{\"address\":\"127.0.0.1:8083\"}"}
+        %{PORT: "8082"}
       )
 
     :ok =
@@ -230,10 +212,11 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     HTTPoison.start()
-    {:ok, resp} = HTTPoison.get("http://localhost:8083/foobar")
+
+    {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
     IO.inspect(resp)
 
-    assert resp.body == "Guest call failed: Host error: Invocation not authorized\n"
+    assert resp.body == "{\"error\":\"Host send error Invocation not authorized\"}"
     assert resp.status_code == 500
   end
 end
