@@ -11,13 +11,15 @@ defmodule HostCore.ProvidersTest do
     ]
   end
 
-  @httpserver_path "test/fixtures/providers/httpserver.par.gz"
-  @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-  @httpserver_link "default"
-  @httpserver_oci "wasmcloud.azurecr.io/httpserver:0.13.1"
-  @httpserver_contract "wasmcloud:httpserver"
+  @httpserver_path HostCoreTest.Constants.httpserver_path()
+  @httpserver_key HostCoreTest.Constants.httpserver_key()
+  @httpserver_link HostCoreTest.Constants.default_link()
+  @httpserver_oci HostCoreTest.Constants.httpserver_ociref()
+  @httpserver_contract HostCoreTest.Constants.httpserver_contract()
 
   test "can load provider from file", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
+
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @httpserver_path,
@@ -37,11 +39,6 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
-    # Ensure provider is cleaned up regardless of test errors
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
-    end)
-
     assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
              httpserver_key
 
@@ -58,16 +55,13 @@ defmodule HostCore.ProvidersTest do
   end
 
   test "can load provider from OCI", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
+
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
         @httpserver_oci,
         "default"
       )
-
-    # Ensure provider is cleaned up regardless of test errors
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
-    end)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_start(
@@ -93,6 +87,8 @@ defmodule HostCore.ProvidersTest do
   end
 
   test "prevents starting duplicate local providers", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
+
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @httpserver_path,
@@ -103,11 +99,6 @@ defmodule HostCore.ProvidersTest do
     {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
-
-    # Ensure provider is cleaned up regardless of test errors
-    on_exit(fn ->
-      HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
-    end)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_start(

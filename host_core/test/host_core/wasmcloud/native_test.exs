@@ -1,10 +1,10 @@
 defmodule HostCore.WasmCloud.NativeTest do
-  @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-  @httpserver_link "default"
-  @httpserver_contract "wasmcloud:httpserver"
-  @httpserver_oci "wasmcloud.azurecr.io/httpserver:0.13.1"
-  @official_issuer "ACOJJN6WUP4ODD75XEBKKTCCUJJCY5ZKQ56XVKYK4BEJWGVAOOQHZMCW"
-  @httpserver_vendor "wasmCloud"
+  @httpserver_key HostCoreTest.Constants.httpserver_key()
+  @httpserver_link HostCoreTest.Constants.default_link()
+  @httpserver_contract HostCoreTest.Constants.httpserver_contract()
+  @httpserver_oci HostCoreTest.Constants.httpserver_ociref()
+  @official_issuer HostCoreTest.Constants.wasmcloud_issuer()
+  @httpserver_vendor HostCoreTest.Constants.wasmcloud_vendor()
 
   use ExUnit.Case, async: false
 
@@ -16,18 +16,18 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
-    assert par.claims.version == "0.13.0"
+    assert par.claims.version == "0.14.2"
 
     target_bytes =
       case :os.type() do
         {:unix, :darwin} ->
-          7_827_360
+          8_669_464
 
         {:unix, _linux} ->
-          7_916_857
+          13_573_440
 
         {:win32, :nt} ->
-          7_875_072
+          22_159_629
       end
 
     assert byte_size(par.target_bytes |> IO.iodata_to_binary()) == target_bytes
@@ -105,7 +105,7 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     res =
       HostCore.WasmCloud.Native.validate_antiforgery(inv |> IO.iodata_to_binary(), [
-        "CSUPERBADKEYIAMAMALICIOUSACTOR"
+        "CMYNAMEISKEVINIAMAMALICIOUSACTOR"
       ])
 
     assert res ==

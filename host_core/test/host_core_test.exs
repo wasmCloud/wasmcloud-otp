@@ -11,10 +11,10 @@ defmodule HostCoreTest do
     ]
   end
 
-  @httpserver_path "test/fixtures/providers/httpserver.par.gz"
-  @echo_path "test/fixtures/actors/echo_s.wasm"
-  @echo_key "MADQAFWOOOCZFDKYEYHC7AUQKDJTP32XUC5TDSMN4JLTDTU2WXBVPG4G"
-  @httpserver_link "default"
+  @httpserver_path HostCoreTest.Constants.httpserver_path()
+  @echo_path HostCoreTest.Constants.echo_path()
+  @echo_key HostCoreTest.Constants.echo_key()
+  @httpserver_link HostCoreTest.Constants.default_link()
 
   test "greets the world" do
     assert HostCore.hello() == :world

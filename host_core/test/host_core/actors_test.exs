@@ -15,37 +15,29 @@ defmodule HostCore.ActorsTest do
     ]
   end
 
-  # Oddly enough, the key we have for the local .wasm for echo and the
-  # key for the one in the OCI Azure registry are NOT the same. This is a classic
-  # example of something that can really mess with a developer's day.
-  @echo_key "MADQAFWOOOCZFDKYEYHC7AUQKDJTP32XUC5TDSMN4JLTDTU2WXBVPG4G"
-  @echo_oci_key "MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5"
+  @echo_key HostCoreTest.Constants.echo_key()
+  @echo_path HostCoreTest.Constants.echo_path()
+  @echo_old_oci_reference HostCoreTest.Constants.echo_ociref()
+  @echo_oci_reference HostCoreTest.Constants.echo_ociref_updated()
+  @kvcounter_path HostCoreTest.Constants.kvcounter_path()
 
-  @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
-  @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
-  @httpserver_link "default"
-  @httpserver_contract "wasmcloud:httpserver"
-  @echo_old_oci_reference "wasmcloud.azurecr.io/echo:0.2.0"
-  @echo_oci_reference "wasmcloud.azurecr.io/echo:0.2.1"
+  @httpserver_key HostCoreTest.Constants.httpserver_key()
+  @kvcounter_key HostCoreTest.Constants.kvcounter_key()
+  @httpserver_contract HostCoreTest.Constants.httpserver_contract()
+  @httpserver_link HostCoreTest.Constants.default_link()
 
   test "live update same revision fails" do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
-
-    on_exit(fn ->
-      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_oci_key, 1)
-    end)
 
     assert {:error, :error} == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
   end
 
   test "live update with new revision succeeds" do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_old_oci_reference)
 
     assert :ok == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
-
-    on_exit(fn ->
-      HostCore.Actors.ActorSupervisor.terminate_actor(@echo_oci_key, 1)
-    end)
 
     {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
@@ -68,11 +60,11 @@ defmodule HostCore.ActorsTest do
         @httpserver_key,
         @httpserver_contract,
         @httpserver_link,
-        "HandleRequest",
+        "HttpServer.HandleRequest",
         req
       )
 
-    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_oci_key}"
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
 
     res =
       case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
@@ -87,15 +79,15 @@ defmodule HostCore.ActorsTest do
     payload = ir["msg"] |> Msgpax.unpack!()
 
     assert payload["header"] == %{}
-    assert payload["status"] == "OK"
     assert payload["statusCode"] == 200
 
     assert payload["body"] ==
-             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+             "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
   test "can load actors", %{:evt_watcher => evt_watcher} do
-    {:ok, bytes} = File.read("test/fixtures/actors/kvcounter_s.wasm")
+    on_exit(fn -> HostCore.Host.purge() end)
+    {:ok, bytes} = File.read(@kvcounter_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
@@ -129,7 +121,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke the echo actor" do
-    {:ok, bytes} = File.read("test/fixtures/actors/echo_s.wasm")
+    {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
@@ -153,7 +145,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_key,
         @httpserver_contract,
         @httpserver_link,
-        "HandleRequest",
+        "HttpServer.HandleRequest",
         req
       )
 
@@ -173,11 +165,10 @@ defmodule HostCore.ActorsTest do
     payload = ir["msg"] |> Msgpax.unpack!()
 
     assert payload["header"] == %{}
-    assert payload["status"] == "OK"
     assert payload["statusCode"] == 200
 
     assert payload["body"] ==
-             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"HEYOOO\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+             "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
   test "can invoke echo via OCI reference" do
@@ -185,7 +176,7 @@ defmodule HostCore.ActorsTest do
     assert Process.alive?(pid)
 
     actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @echo_oci_key)
+      Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @echo_key)
       |> length
 
     assert actor_count == 1
@@ -211,11 +202,11 @@ defmodule HostCore.ActorsTest do
         @httpserver_key,
         @httpserver_contract,
         @httpserver_link,
-        "HandleRequest",
+        "HttpServer.HandleRequest",
         req
       )
 
-    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_oci_key}"
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
 
     res =
       case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
@@ -224,40 +215,25 @@ defmodule HostCore.ActorsTest do
       end
 
     assert res != :fail
-    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_oci_key, 1)
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
 
     ir = res |> Msgpax.unpack!()
 
     payload = ir["msg"] |> Msgpax.unpack!()
 
     assert payload["header"] == %{}
-    assert payload["status"] == "OK"
     assert payload["statusCode"] == 200
 
     assert payload["body"] ==
-             "{\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\",\"headers\":{},\"body\":[104,101,108,108,111]}"
+             "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
   test "can invoke via call alias" do
+    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read("test/fixtures/actors/ponger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     {:ok, bytes} = File.read("test/fixtures/actors/pinger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-
-    on_exit(fn ->
-      # Ponger
-      HostCore.Actors.ActorSupervisor.terminate_actor(
-        "MBMOM2EZZICFYM4KATRMH2JUO5QWE3YWCHGFZVRQQ2SQI4I5BKWIGMBS",
-        1
-      )
-
-      # Pinger
-      HostCore.Actors.ActorSupervisor.terminate_actor(
-        "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN",
-        1
-      )
-    end)
-
     {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
 
     req =
