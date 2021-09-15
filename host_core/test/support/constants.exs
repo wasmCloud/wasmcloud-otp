@@ -18,7 +18,7 @@ defmodule HostCoreTest.Constants do
   @httpserver_path "test/fixtures/providers/httpserver.par.gz"
   @keyvalue_contract "wasmcloud:keyvalue"
   @redis_key "VAZVC4RX54J2NVCMCW7BPCAHGGG5XZXDBXFUMDUXGESTMQEJLC3YVZWB"
-  @redis_path "test/fixtures/providers/redis.par.gz"
+  @redis_path "test/fixtures/providers/kvredis.par.gz"
 
   # Other related constants
   @default_link "default"
