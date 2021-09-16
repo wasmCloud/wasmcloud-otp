@@ -172,7 +172,8 @@ defmodule HostCore.Actors.ActorModule do
       with {:ok, inv} <- Msgpax.unpack(body) do
         case HostCore.WasmCloud.Native.validate_antiforgery(body, HostCore.Host.cluster_issuers()) do
           {:error, msg} ->
-            Logger.error "Invocation failed anti-forgery validation check: #{msg}"
+            Logger.error("Invocation failed anti-forgery validation check: #{msg}")
+
             %{
               msg: nil,
               invocation_id: inv["id"],
@@ -190,7 +191,8 @@ defmodule HostCore.Actors.ActorModule do
                 }
 
               {:error, error} ->
-                Logger.error "Invocation failure: #{error}"
+                Logger.error("Invocation failure: #{error}")
+
                 %{
                   msg: nil,
                   error: error,
