@@ -208,7 +208,7 @@ fn validate_antiforgery<'a>(inv: Binary, valid_issuers: Vec<String>) -> Result<A
         .and_then(|i| {
             i.validate_antiforgery(valid_issuers).map_err(|e| {
                 rustler::Error::Term(Box::new(format!(
-                    "Validation of invocation/AF token failed: {}",
+                    "{}",
                     e
                 )))
             })

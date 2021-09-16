@@ -161,7 +161,6 @@ defmodule HostCore.ActorsTest do
     HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
 
     ir = res |> Msgpax.unpack!()
-    IO.inspect(ir)
 
     payload = ir["msg"] |> Msgpax.unpack!()
 
