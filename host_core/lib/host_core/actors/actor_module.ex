@@ -3,7 +3,7 @@ defmodule HostCore.Actors.ActorModule do
   use GenServer, restart: :transient
   alias HostCore.CloudEvent
 
-  @op_health_check "HealthRequest"
+  @op_health_check "Actor.HealthRequest"
   @thirty_seconds 30_000
 
   require Logger

@@ -163,7 +163,8 @@ impl Invocation {
 
         let inv_claims = claims.metadata.unwrap();
         if inv_claims.invocation_hash != self.hash() {
-            return Err("Invocation hash does not match signed claims hash".into());
+            let s = format!("Invocation hash does not match signed claims hash ({} / {})", inv_claims.invocation_hash, self.hash());
+            return Err(s.into());
         }
         if claims.subject != self.id {
             return Err("Subject of invocation claims token does not match invocation ID".into());
