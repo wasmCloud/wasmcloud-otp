@@ -27,12 +27,6 @@ build: deps ## Compile host_core
 build-prod: deps wasmcloud-nif wasmex-nif ## Build assets for production
 	MIX_ENV=prod mix compile
 
-build-providers: ## Builds and copies provider archives for testing
-	cd ../capability-providers && \
-	make pars && \
-	cp _build/httpserver.par.gz ../host_core/test/fixtures/providers/ && \
-	cp _build/redis.par.gz ../host_core/test/fixtures/providers/
-
 deps: ## Fetch mix dependencies
 	mix deps.get
 
