@@ -14,7 +14,9 @@ use wascap::prelude::{Claims, KeyPair};
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub(crate) const URL_SCHEME: &str = "wasmbus";
+#[allow(unused)]
 pub(crate) const SYSTEM_ACTOR: &str = "system";
+#[allow(unused)]
 pub(crate) const OP_HALT: &str = "__halt";
 
 /// An immutable representation of an invocation within wasmcloud
@@ -95,6 +97,7 @@ impl Invocation {
     /// has both an origin and a target of SYSTEM_ACTOR. This has a net effect of making this invocation unroutable
     /// across a lattice, and therefore can only be produced internally. In other words, a remote host can't fabricate
     /// a halt invocation and send it to a provider or actor
+    #[allow(unused)]
     pub fn halt(hostkey: &KeyPair) -> Invocation {
         let subject = format!("{}", Uuid::new_v4());
         let issuer = hostkey.public_key();
@@ -210,6 +213,7 @@ impl WasmCloudEntity {
     }
 
     /// The unique (public) key of the entity
+    #[allow(unused)]
     pub fn key(&self) -> String {
         self.public_key.to_string()
     }
@@ -253,6 +257,7 @@ pub enum ReferenceType {
 }
 
 impl LinkDefinition {
+    #[allow(unused)]
     pub fn new(
         actor: &str,
         provider: &str,

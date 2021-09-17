@@ -1,4 +1,3 @@
-use provider_archive::ProviderArchive;
 use std::env::temp_dir;
 use std::io::{Read, Write};
 use std::path::PathBuf;

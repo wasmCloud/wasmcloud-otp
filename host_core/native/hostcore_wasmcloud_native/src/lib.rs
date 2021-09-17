@@ -3,7 +3,7 @@ extern crate rustler;
 
 use nkeys::KeyPair;
 use provider_archive::ProviderArchive;
-use rustler::{Atom, Binary, Error, ResourceArc};
+use rustler::{Atom, Binary, Error};
 use std::collections::HashMap;
 use wascap::prelude::*;
 
@@ -149,6 +149,8 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
         }
     }
 
+    let revision = revision_or_iat(m.rev, c.issued_at);
+
     let out = Claims {
         caps: m.caps,
         public_key: c.subject,
@@ -156,7 +158,7 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
         name: m.name,
         call_alias: m.call_alias,
         version: m.ver,
-        revision: m.rev,
+        revision,
         tags: m.tags,
     };
 
@@ -237,4 +239,13 @@ fn detect_core_host_labels() -> HashMap<String, String> {
 fn load(env: rustler::Env, _: rustler::Term) -> bool {
     par::on_load(env);
     true
+}
+
+// Inspects revision, if missing or zero then replace with iat value
+fn revision_or_iat(rev: Option<i32>, iat: u64) -> Option<i32> {
+    if rev.is_some() && rev.unwrap() > 0 {
+        rev
+    } else {
+        Some(iat as i32)
+    }
 }
