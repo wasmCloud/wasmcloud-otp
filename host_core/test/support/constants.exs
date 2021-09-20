@@ -5,6 +5,7 @@ defmodule HostCoreTest.Constants do
   @echo_ociref_updated "wasmcloud.azurecr.io/echo:0.3.1-liveupdate"
   @echo_path "test/fixtures/actors/echo.wasm"
   @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
+  @kvcounter_ociref "wasmcloud.azurecr.io/kvcounter:0.3.0"
   @kvcounter_path "test/fixtures/actors/kvcounter.wasm"
   @kvcounter_unpriv_key "MBW3UGAIONCX3RIDDUGDCQIRGBQQOWS643CVICQ5EZ7SWNQPZLZTSQKU"
   @kvcounter_unpriv_path "test/fixtures/actors/kvcounter_unpriv_s.wasm"
@@ -31,6 +32,7 @@ defmodule HostCoreTest.Constants do
   def echo_ociref, do: @echo_ociref
   def echo_ociref_updated, do: @echo_ociref_updated
   def kvcounter_key, do: @kvcounter_key
+  def kvcounter_ociref, do: @kvcounter_ociref
   def kvcounter_path, do: @kvcounter_path
   def kvcounter_unpriv_key, do: @kvcounter_unpriv_key
   def kvcounter_unpriv_path, do: @kvcounter_unpriv_path

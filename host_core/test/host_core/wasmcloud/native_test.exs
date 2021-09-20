@@ -1,4 +1,10 @@
 defmodule HostCore.WasmCloud.NativeTest do
+  @kvcounter_oci HostCoreTest.Constants.kvcounter_ociref()
+  @kvcounter_key HostCoreTest.Constants.kvcounter_key()
+  @echo_oci HostCoreTest.Constants.echo_ociref()
+  @echo_key HostCoreTest.Constants.echo_key()
+  @httpserver_zero_revision_oci "wasmcloud.azurecr.io/httpserver:0.14.0"
+
   @httpserver_key HostCoreTest.Constants.httpserver_key()
   @httpserver_link HostCoreTest.Constants.default_link()
   @httpserver_contract HostCoreTest.Constants.httpserver_contract()
@@ -98,5 +104,31 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     assert res ==
              {:error, "Issuer of this invocation is not among the list of valid issuers"}
+  end
+
+  test "missing or zero revision is replaced with iat" do
+    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(@echo_oci, false, [])
+    bytes = bytes |> IO.iodata_to_binary()
+    {:ok, claims} = HostCore.WasmCloud.Native.extract_claims(bytes)
+    assert claims.public_key == @echo_key
+    assert claims.issuer == @official_issuer
+    assert claims.revision == 4
+
+    {:ok, bytes} =
+      HostCore.WasmCloud.Native.get_oci_bytes(@httpserver_zero_revision_oci, false, [])
+
+    bytes = bytes |> IO.iodata_to_binary()
+    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
+
+    assert par.claims.public_key == @httpserver_key
+    assert par.claims.issuer == @official_issuer
+    assert par.claims.revision == 1_631_292_694
+
+    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(@kvcounter_oci, false, [])
+    bytes = bytes |> IO.iodata_to_binary()
+    {:ok, claims} = HostCore.WasmCloud.Native.extract_claims(bytes)
+    assert claims.public_key == @kvcounter_key
+    assert claims.issuer == @official_issuer
+    assert claims.revision == 1_631_625_045
   end
 end
