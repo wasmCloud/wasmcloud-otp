@@ -122,14 +122,10 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
     let extracted = match wasm::extract_claims(&bytes) {
         Ok(Some(c)) => c,
         Ok(None) => {
-            return Err(rustler::Error::Term(Box::new(
-                "No claims found in source module",
-            )));
+            return Err(rustler::Error::Atom("No claims found in source module"));
         }
         Err(_e) => {
-            return Err(rustler::Error::Term(Box::new(
-                "Failed to extract claims from module",
-            )));
+            return Err(rustler::Error::Atom("Failed to extract claims from module"));
         }
     };
     let c: wascap::jwt::Claims<wascap::jwt::Actor> = extracted.claims;
@@ -206,13 +202,13 @@ fn generate_invocation_bytes<'a>(
 }
 
 #[rustler::nif]
-fn validate_antiforgery<'a>(inv: Binary, valid_issuers: Vec<String>) -> Result<(), Error> {
+fn validate_antiforgery<'a>(inv: Binary, valid_issuers: Vec<String>) -> Result<Atom, Error> {
     inv::deserialize::<inv::Invocation>(inv.as_slice())
         .map_err(|_e| rustler::Error::Term(Box::new("Failed to deserialize invocation")))
         .and_then(|i| {
             i.validate_antiforgery(valid_issuers).map_err(|e| {
                 rustler::Error::Term(Box::new(format!(
-                    "Validation of invocation/AF token failed: {}",
+                    "{}",
                     e
                 )))
             })

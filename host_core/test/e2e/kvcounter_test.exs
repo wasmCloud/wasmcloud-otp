@@ -211,9 +211,10 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     HTTPoison.start()
-    {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
-    IO.inspect(resp)
 
+    {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
+
+    IO.inspect(resp)
     assert resp.body == "{\"error\":\"Host send error Invocation not authorized\"}"
     assert resp.status_code == 500
   end

@@ -2,6 +2,7 @@ use data_encoding::HEXUPPER;
 use ring::digest::{Context, Digest, SHA256};
 use rmp_serde::Deserializer;
 use rmp_serde::Serializer;
+use rustler::Atom;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -142,7 +143,7 @@ impl Invocation {
 
     /// Validates the current invocation to ensure that the invocation claims have
     /// not been forged, are not expired, etc
-    pub fn validate_antiforgery(&self, valid_issuers: Vec<String>) -> Result<()> {
+    pub fn validate_antiforgery(&self, valid_issuers: Vec<String>) -> Result<Atom> {
         let vr = wascap::jwt::validate_token::<wascap::prelude::Invocation>(&self.encoded_claims)
             .map_err(|e| format!("{}", e))?;
         let claims = Claims::<wascap::prelude::Invocation>::decode(&self.encoded_claims)
@@ -159,17 +160,15 @@ impl Invocation {
         if claims.metadata.is_none() {
             return Err("No wascap metadata found on claims".into());
         }
-
         let inv_claims = claims.metadata.unwrap();
         if inv_claims.invocation_hash != self.hash() {
-            return Err("Invocation hash does not match signed claims hash".into());
-        }
-        if claims.subject != self.id {
-            return Err("Subject of invocation claims token does not match invocation ID".into());
-        }
-        if claims.issuer != self.host_id {
-            return Err("Invocation claims issuer does not match invocation host".into());
-        }
+            let s = format!("Invocation hash does not match signed claims hash ({} / {})", inv_claims.invocation_hash, self.hash());
+            return Err(s.into());
+        }        
+        if !self.host_id.starts_with("N") && self.host_id.len() != 56 {
+            let s = format!("Invalid host ID on invocation: '{}'", self.host_id);
+            return Err(s.into())
+        }        
         if !valid_issuers.contains(&claims.issuer) {
             return Err("Issuer of this invocation is not among the list of valid issuers".into());
         }
@@ -180,7 +179,7 @@ impl Invocation {
             return Err("Invocation claims and invocation origin URL do not match".into());
         }
 
-        Ok(())
+        Ok(crate::atoms::ok())
     }
 }
 

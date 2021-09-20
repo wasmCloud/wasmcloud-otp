@@ -42,6 +42,17 @@ defmodule HostCore.Host do
     Logger.info("Host #{opts[:host_key]} started.")
     Logger.info("Valid cluster signers #{opts[:cluster_issuers]}")
 
+    if opts[:default_cluster_seed] == opts[:cluster_seed] do
+      Logger.warn("** WARNING. You are using an ad hoc generated cluster seed.")
+
+      Logger.warn(
+        "   For any other host or CLI tool to communicate with this host, you MUST copy the following seed key and"
+      )
+
+      Logger.warn("   use it as the value of the WASMCLOUD_CLUSTER_SEED environment variable:")
+      Logger.warn("   #{opts[:cluster_seed]}")
+    end
+
     # TODO
     # Once we have a JetStream client, the cache should fill automatically
     # by virtue of us creating ephemeral consumers on the stream for claims, linkdefs, and OCI maps.
@@ -118,6 +129,13 @@ defmodule HostCore.Host do
     case :ets.lookup(:config_table, :config) do
       [config: config_map] -> config_map[:rpc_timeout]
       _ -> 2_000
+    end
+  end
+
+  def cluster_issuers() do
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:cluster_issuers] |> String.split(",")
+      _ -> []
     end
   end
 
