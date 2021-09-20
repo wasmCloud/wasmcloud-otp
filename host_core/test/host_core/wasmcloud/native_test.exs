@@ -16,21 +16,9 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
-    assert par.claims.version == "0.14.3"
+    assert par.claims.version == "0.14.4"
 
-    target_bytes =
-      case :os.type() do
-        {:unix, :darwin} ->
-          8_669_464
-
-        {:unix, _linux} ->
-          13_573_440
-
-        {:win32, :nt} ->
-          22_159_629
-      end
-
-    assert byte_size(par.target_bytes |> IO.iodata_to_binary()) == target_bytes
+    assert byte_size(par.target_bytes |> IO.iodata_to_binary()) > 8_000_000
     assert par.contract_id == @httpserver_contract
     assert par.vendor == @httpserver_vendor
   end
@@ -109,7 +97,6 @@ defmodule HostCore.WasmCloud.NativeTest do
       ])
 
     assert res ==
-             {:error,
-              "Validation of invocation/AF token failed: Issuer of this invocation is not among the list of valid issuers"}
+             {:error, "Issuer of this invocation is not among the list of valid issuers"}
   end
 end

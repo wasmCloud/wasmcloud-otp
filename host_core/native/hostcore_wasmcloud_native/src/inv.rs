@@ -160,7 +160,6 @@ impl Invocation {
         if claims.metadata.is_none() {
             return Err("No wascap metadata found on claims".into());
         }
-
         let inv_claims = claims.metadata.unwrap();
         if inv_claims.invocation_hash != self.hash() {
             let s = format!("Invocation hash does not match signed claims hash ({} / {})", inv_claims.invocation_hash, self.hash());
