@@ -148,7 +148,7 @@ defmodule StartActorComponent do
         <label class="col-md-3 col-form-label" for="file-input">OCI reference</label>
         <div class="col-md-9">
           <input class="form-control" id="text-input" type="text" name="actor_ociref"
-            placeholder="wasmcloud.azurecr.io/echo:0.2.1" value="" required>
+            placeholder="wasmcloud.azurecr.io/echo:0.3.2" value="" required>
           <span class="help-block">Enter an OCI reference</span>
         </div>
       </div>
