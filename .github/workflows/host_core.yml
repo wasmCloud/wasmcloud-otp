@@ -69,7 +69,7 @@ jobs:
         working-directory: ${{env.working-directory}}
         run: |
           WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
-          mix test
+          mix test --timeout 120000
 
       - name: Retrieve PLT Cache
         uses: actions/cache@v2

@@ -1,9 +1,8 @@
 use crate::{Claims, ProviderArchiveResource};
 
 use provider_archive::ProviderArchive;
-use rustler::{Binary, Env, Error, ResourceArc};
+use rustler::{Env, Error};
 use std::env::temp_dir;
-use wascap::jwt::CapabilityProvider;
 
 pub fn on_load(env: Env) -> bool {
     rustler::resource!(ProviderArchiveResource, env);
@@ -28,10 +27,11 @@ pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {
     match par.claims() {
         Some(c) => {
             let metadata = c.metadata.unwrap_or_default();
+            let revision = crate::revision_or_iat(metadata.rev, c.issued_at);
             Ok(crate::Claims {
                 issuer: c.issuer,
                 public_key: c.subject,
-                revision: metadata.rev,
+                revision,
                 tags: None,
                 version: metadata.ver,
                 name: metadata.name,

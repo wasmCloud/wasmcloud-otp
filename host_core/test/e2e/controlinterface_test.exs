@@ -1,18 +1,17 @@
 defmodule HostCore.E2E.ControlInterfaceTest do
   use ExUnit.Case, async: false
 
-  @echo_key "MADQAFWOOOCZFDKYEYHC7AUQKDJTP32XUC5TDSMN4JLTDTU2WXBVPG4G"
-
-  @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
-  @redis_key "VAZVC4RX54J2NVCMCW7BPCAHGGG5XZXDBXFUMDUXGESTMQEJLC3YVZWB"
-  @redis_link "default"
-  @redis_contract "wasmcloud:keyvalue"
+  @echo_key HostCoreTest.Constants.echo_key()
+  @echo_path HostCoreTest.Constants.echo_path()
+  @kvcounter_key HostCoreTest.Constants.kvcounter_key()
+  @redis_key HostCoreTest.Constants.redis_key()
+  @redis_link HostCoreTest.Constants.default_link()
+  @redis_contract HostCoreTest.Constants.keyvalue_contract()
 
   test "can get claims" do
-    {:ok, bytes} = File.read("test/fixtures/actors/echo_s.wasm")
+    on_exit(fn -> HostCore.Host.purge() end)
+    {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-
-    on_exit(fn -> HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1) end)
 
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.ctl.#{prefix}.get.claims"

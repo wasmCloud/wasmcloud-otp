@@ -2,7 +2,7 @@ defmodule HostCore.Providers.Builtin.Logging do
   @moduledoc false
   require Logger
 
-  def invoke(actor, method, payload) when method in ["Logging.WriteLog", "WriteLog"] do
+  def invoke(actor, "Logging.WriteLog", payload) do
     msg = Msgpax.unpack!(payload)
     text = "[#{actor}] #{msg["text"]}"
 

@@ -3,7 +3,7 @@ extern crate rustler;
 
 use nkeys::KeyPair;
 use provider_archive::ProviderArchive;
-use rustler::{Atom, Binary, Error, ResourceArc};
+use rustler::{Atom, Binary, Error};
 use std::collections::HashMap;
 use wascap::prelude::*;
 
@@ -122,14 +122,10 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
     let extracted = match wasm::extract_claims(&bytes) {
         Ok(Some(c)) => c,
         Ok(None) => {
-            return Err(rustler::Error::Term(Box::new(
-                "No claims found in source module",
-            )));
+            return Err(rustler::Error::Atom("No claims found in source module"));
         }
         Err(_e) => {
-            return Err(rustler::Error::Term(Box::new(
-                "Failed to extract claims from module",
-            )));
+            return Err(rustler::Error::Atom("Failed to extract claims from module"));
         }
     };
     let c: wascap::jwt::Claims<wascap::jwt::Actor> = extracted.claims;
@@ -149,6 +145,8 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
         }
     }
 
+    let revision = revision_or_iat(m.rev, c.issued_at);
+
     let out = Claims {
         caps: m.caps,
         public_key: c.subject,
@@ -156,7 +154,7 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
         name: m.name,
         call_alias: m.call_alias,
         version: m.ver,
-        revision: m.rev,
+        revision,
         tags: m.tags,
     };
 
@@ -206,13 +204,13 @@ fn generate_invocation_bytes<'a>(
 }
 
 #[rustler::nif]
-fn validate_antiforgery<'a>(inv: Binary, valid_issuers: Vec<String>) -> Result<(), Error> {
+fn validate_antiforgery<'a>(inv: Binary, valid_issuers: Vec<String>) -> Result<Atom, Error> {
     inv::deserialize::<inv::Invocation>(inv.as_slice())
         .map_err(|_e| rustler::Error::Term(Box::new("Failed to deserialize invocation")))
         .and_then(|i| {
             i.validate_antiforgery(valid_issuers).map_err(|e| {
                 rustler::Error::Term(Box::new(format!(
-                    "Validation of invocation/AF token failed: {}",
+                    "{}",
                     e
                 )))
             })
@@ -237,4 +235,13 @@ fn detect_core_host_labels() -> HashMap<String, String> {
 fn load(env: rustler::Env, _: rustler::Term) -> bool {
     par::on_load(env);
     true
+}
+
+// Inspects revision, if missing or zero then replace with iat value
+fn revision_or_iat(rev: Option<i32>, iat: u64) -> Option<i32> {
+    if rev.is_some() && rev.unwrap() > 0 {
+        rev
+    } else {
+        Some(iat as i32)
+    }
 }

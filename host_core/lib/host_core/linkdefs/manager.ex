@@ -66,8 +66,8 @@ defmodule HostCore.Linkdefs.Manager do
     cache_topic = "lc.#{prefix}.linkdefs.#{ld.id}"
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
 
-    ldres = Gnat.pub(:control_nats, cache_topic, Jason.encode!(ld))
-    lattice_res = Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
+    Gnat.pub(:control_nats, cache_topic, Jason.encode!(ld))
+    Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
   end
 
   # Publishes the removal of a link definition to the stream and tells the provider via RPC
