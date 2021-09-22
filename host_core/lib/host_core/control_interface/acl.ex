@@ -1,4 +1,6 @@
 defmodule HostCore.ControlInterface.ACL do
+  @moduledoc false
+
   def all_actors() do
     HostCore.Actors.ActorSupervisor.all_actors()
     |> Enum.flat_map(fn {id, pids} ->

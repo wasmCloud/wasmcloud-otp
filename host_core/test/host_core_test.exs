@@ -16,10 +16,6 @@ defmodule HostCoreTest do
   @echo_key HostCoreTest.Constants.echo_key()
   @httpserver_link HostCoreTest.Constants.default_link()
 
-  test "greets the world" do
-    assert HostCore.hello() == :world
-  end
-
   test "Host stores intrinsic values" do
     # should never appear
     System.put_env("hostcore.osfamily", "fakeroo")

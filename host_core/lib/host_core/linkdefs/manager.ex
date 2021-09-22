@@ -1,4 +1,5 @@
 defmodule HostCore.Linkdefs.Manager do
+  @moduledoc false
   require Logger
 
   @spec lookup_link_definition(String.t(), String.t(), String.t()) :: :error | {:ok, map()}

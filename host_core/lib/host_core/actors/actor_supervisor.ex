@@ -1,4 +1,5 @@
 defmodule HostCore.Actors.ActorSupervisor do
+  @moduledoc false
   use DynamicSupervisor
   alias HostCore.Actors.ActorModule
   require Logger

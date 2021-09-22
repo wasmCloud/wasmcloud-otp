@@ -1,5 +1,7 @@
 defmodule HostCore.Jetstream.Client do
+  @moduledoc false
   use GenServer
+
   require Logger
 
   def start_link(config) do
@@ -78,7 +80,7 @@ defmodule HostCore.Jetstream.Client do
           filter_subject: ">",
           deliver_policy: "last_per_subject",
           deliver_subject: state.deliver_subject,
-          max_ack_pending: 20000,
+          max_ack_pending: 20_000,
           max_deliver: -1,
           replay_policy: "instant"
         }

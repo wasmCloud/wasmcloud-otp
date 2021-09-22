@@ -1,4 +1,5 @@
 defmodule HostCore.Actors.ActorModule do
+  @moduledoc false
   # Do not automatically restart this process
   use GenServer, restart: :transient
   alias HostCore.CloudEvent
@@ -10,6 +11,8 @@ defmodule HostCore.Actors.ActorModule do
   alias HostCore.WebAssembly.Imports
 
   defmodule State do
+    @moduledoc false
+
     defstruct [
       :guest_request,
       :guest_response,
@@ -27,6 +30,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defmodule Invocation do
+    @moduledoc false
     defstruct [:operation, :payload]
   end
 

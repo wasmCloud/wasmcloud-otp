@@ -1,4 +1,5 @@
 defmodule HostCore.Providers.Builtin.Logging do
+  @moduledoc false
   require Logger
 
   def invoke(actor, "Logging.WriteLog", payload) do

@@ -1,4 +1,5 @@
 defmodule HostCore.HeartbeatEmitter do
+  @moduledoc false
   use GenServer, restart: :transient
   require Logger
 

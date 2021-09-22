@@ -1,4 +1,5 @@
 defmodule HostCore.ControlInterface.Server do
+  @moduledoc false
   require Logger
   use Gnat.Server
 

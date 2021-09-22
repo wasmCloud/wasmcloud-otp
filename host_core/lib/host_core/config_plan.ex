@@ -1,4 +1,7 @@
 defmodule HostCore.ConfigPlan do
+  @moduledoc """
+  `ConfigPlan` provide configuration options.
+  """
   @behaviour Vapor.Plan
 
   alias Vapor.Provider.{Dotenv, Env}

@@ -1,4 +1,5 @@
 defmodule HostCore.Providers.ProviderSupervisor do
+  @moduledoc false
   use DynamicSupervisor
   require Logger
   alias HostCore.Providers.ProviderModule
