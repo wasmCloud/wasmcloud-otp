@@ -39,7 +39,7 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
              httpserver_key
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
@@ -71,7 +71,7 @@ defmodule HostCore.ProvidersTest do
         @httpserver_key
       )
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
              @httpserver_key
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
@@ -108,7 +108,7 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
              httpserver_key
 
     {:error, reason} =
@@ -128,7 +128,7 @@ defmodule HostCore.ProvidersTest do
 
     assert provider_started_evts == 1
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
              httpserver_key
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)

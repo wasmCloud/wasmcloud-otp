@@ -47,7 +47,7 @@ defmodule HostCore.E2E.EchoTest do
 
     assert actor_count == 1
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 0) ==
+    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
              httpserver_key
 
     :ok =

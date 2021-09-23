@@ -75,8 +75,8 @@ defmodule HostCore.E2E.KVCounterTest do
     assert actor_count == 1
 
     ap = HostCore.Providers.ProviderSupervisor.all_providers()
-    assert elem(Enum.at(ap, 0), 0) == httpserver_key
-    assert elem(Enum.at(ap, 1), 0) == redis_key
+    assert elem(Enum.at(ap, 0), 1) == httpserver_key
+    assert elem(Enum.at(ap, 1), 1) == redis_key
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
@@ -173,8 +173,8 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     ap = HostCore.Providers.ProviderSupervisor.all_providers()
-    assert elem(Enum.at(ap, 0), 0) == httpserver_key
-    assert elem(Enum.at(ap, 1), 0) == redis_key
+    assert elem(Enum.at(ap, 0), 1) == httpserver_key
+    assert elem(Enum.at(ap, 1), 1) == redis_key
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
