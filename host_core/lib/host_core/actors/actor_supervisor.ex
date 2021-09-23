@@ -25,7 +25,7 @@ defmodule HostCore.Actors.ActorSupervisor do
         {:error, err}
 
       {:ok, claims} ->
-        if check_oci_dupes(oci, claims.public_key) == :error do
+        if is_oci_duplicate?(oci, claims.public_key) do
           {:error,
            "Cannot start #{claims.public_key} - the OCI reference '#{oci}' does not match a pre-existing cache. To upgrade an actor, use live update."}
         else
@@ -37,18 +37,14 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
-  defp check_oci_dupes("", _pk) do
-    :ok
+  defp is_oci_duplicate?("", _pk) do
+    false
   end
 
-  defp check_oci_dupes(oci, pk) do
-    if HostCore.Refmaps.Manager.ocis_for_key(pk)
-       |> Enum.reject(fn toci -> oci == toci end)
-       |> length() == 0 do
-      :ok
-    else
-      :error
-    end
+  defp is_oci_duplicate?(oci, pk) do
+    HostCore.Refmaps.Manager.ocis_for_key(pk)
+    |> Enum.reject(fn toci -> oci == toci end)
+    |> length() > 0
   end
 
   def start_actor_from_oci(oci) do
