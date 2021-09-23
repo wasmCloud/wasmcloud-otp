@@ -156,6 +156,9 @@ defmodule HostCore.Actors.ActorSupervisor do
                  {:stop, err} ->
                    {:halt, "Error: #{err}"}
 
+                 {:error, err} ->
+                   {:halt, "Error: #{err}"}
+
                  _any ->
                    {:cont, ""}
                end
