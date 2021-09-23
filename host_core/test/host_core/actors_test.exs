@@ -125,6 +125,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke the echo actor" do
+    on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
     :ets.delete(:refmap_table, @echo_old_oci_reference)
     {:ok, bytes} = File.read(@echo_path)
@@ -178,6 +179,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke echo via OCI reference" do
+    on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
     :ets.delete(:refmap_table, @echo_old_oci_reference)
     {:ok, pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
@@ -291,6 +293,7 @@ defmodule HostCore.ActorsTest do
   end
 
   test "Prevents an attempt to start an actor with a conflicing OCI reference" do
+    on_exit(fn -> HostCore.Host.purge() end)
     # NOTE the reason we block this is because the only supported path to change
     # an actor's OCI reference should be through the live update process, which includes
     # the "is a valid upgrade path" check
