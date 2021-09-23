@@ -15,7 +15,7 @@ defmodule WasmcloudHostWeb.PageLive do
        ocirefs: WasmcloudHost.Lattice.StateMonitor.get_ocirefs(),
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
        open_modal: nil,
-       selected_host: nil
+       selected_host: HostCore.Host.host_key()
      )}
   end
 
