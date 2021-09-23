@@ -28,6 +28,8 @@ defmodule HostCore.ActorsTest do
 
   test "live update same revision fails" do
     on_exit(fn -> HostCore.Host.purge() end)
+    :ets.delete(:refmap_table, @echo_oci_reference)
+    :ets.delete(:refmap_table, @echo_old_oci_reference)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
 
     assert {:error, :error} == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
@@ -35,6 +37,8 @@ defmodule HostCore.ActorsTest do
 
   test "live update with new revision succeeds" do
     on_exit(fn -> HostCore.Host.purge() end)
+    :ets.delete(:refmap_table, @echo_oci_reference)
+    :ets.delete(:refmap_table, @echo_old_oci_reference)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_old_oci_reference)
 
     assert :ok == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
@@ -121,6 +125,8 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke the echo actor" do
+    :ets.delete(:refmap_table, @echo_oci_reference)
+    :ets.delete(:refmap_table, @echo_old_oci_reference)
     {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
@@ -172,6 +178,8 @@ defmodule HostCore.ActorsTest do
   end
 
   test "can invoke echo via OCI reference" do
+    :ets.delete(:refmap_table, @echo_oci_reference)
+    :ets.delete(:refmap_table, @echo_old_oci_reference)
     {:ok, pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
     assert Process.alive?(pid)
 
@@ -280,5 +288,23 @@ defmodule HostCore.ActorsTest do
 
     assert payload["body"] ==
              "{\"value\":53}"
+  end
+
+  test "Prevents an attempt to start an actor with a conflicing OCI reference" do
+    # NOTE the reason we block this is because the only supported path to change
+    # an actor's OCI reference should be through the live update process, which includes
+    # the "is a valid upgrade path" check
+
+    :ets.delete(:refmap_table, @echo_oci_reference)
+    :ets.delete(:refmap_table, @echo_old_oci_reference)
+
+    {:ok, pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
+    assert Process.alive?(pid)
+
+    res = HostCore.Actors.ActorSupervisor.start_actor_from_oci("wasmcloud.azurecr.io/echo:0.3.0")
+
+    assert res ==
+             {:error,
+              "Cannot start MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5 - the OCI reference 'wasmcloud.azurecr.io/echo:0.3.0' does not match a pre-existing cache. To upgrade an actor, use live update."}
   end
 end
