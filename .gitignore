@@ -41,6 +41,8 @@ npm-debug.log
 /priv/static/
 
 *.so
+*.dylib
+*.dll
 
 .elixir_ls/
 
