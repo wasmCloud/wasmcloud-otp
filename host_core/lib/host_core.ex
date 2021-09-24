@@ -81,7 +81,6 @@ defmodule HostCore do
   end
 
   defp post_process_config(config) do
-    # Check for missing seed (use ad hoc key)
     config = Map.put(config, :cluster_adhoc, false)
     config = Map.put(config, :cluster_key, "")
 
