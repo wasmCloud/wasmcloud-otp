@@ -17,7 +17,8 @@ defmodule HostCore.Providers.ProviderModule do
       :public_key,
       :lattice_prefix,
       :instance_id,
-      :executable_path
+      :executable_path,
+      :ociref
     ]
   end
 
@@ -34,6 +35,10 @@ defmodule HostCore.Providers.ProviderModule do
 
   def instance_id(pid) do
     GenServer.call(pid, :get_instance_id)
+  end
+
+  def ociref(pid) do
+    GenServer.call(pid, :get_ociref)
   end
 
   def path(pid) do
@@ -90,7 +95,8 @@ defmodule HostCore.Providers.ProviderModule do
        contract_id: contract_id,
        instance_id: instance_id,
        lattice_prefix: HostCore.Host.lattice_prefix(),
-       executable_path: path
+       executable_path: path,
+       ociref: oci
      }}
   end
 
@@ -119,6 +125,11 @@ defmodule HostCore.Providers.ProviderModule do
   @impl true
   def handle_call(:get_path, _from, state) do
     {:reply, state.executable_path, state}
+  end
+
+  @impl true
+  def handle_call(:get_ociref, _from, state) do
+    {:reply, state.ociref, state}
   end
 
   @impl true

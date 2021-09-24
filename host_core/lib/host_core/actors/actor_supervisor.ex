@@ -22,14 +22,29 @@ defmodule HostCore.Actors.ActorSupervisor do
     case HostCore.WasmCloud.Native.extract_claims(bytes) do
       {:error, err} ->
         Logger.error("Failed to extract claims from WebAssembly module")
-        {:stop, err}
+        {:error, err}
 
       {:ok, claims} ->
-        DynamicSupervisor.start_child(
-          __MODULE__,
-          {HostCore.Actors.ActorModule, {claims, bytes, oci}}
-        )
+        if is_oci_duplicate?(oci, claims.public_key) do
+          {:error,
+           "Cannot start #{claims.public_key} - the OCI reference '#{oci}' does not match a pre-existing cache. To upgrade an actor, use live update."}
+        else
+          DynamicSupervisor.start_child(
+            __MODULE__,
+            {HostCore.Actors.ActorModule, {claims, bytes, oci}}
+          )
+        end
     end
+  end
+
+  defp is_oci_duplicate?("", _pk) do
+    false
+  end
+
+  defp is_oci_duplicate?(oci, pk) do
+    HostCore.Refmaps.Manager.ocis_for_key(pk)
+    |> Enum.reject(fn toci -> oci == toci end)
+    |> length() > 0
   end
 
   def start_actor_from_oci(oci) do
@@ -139,6 +154,9 @@ defmodule HostCore.Actors.ActorSupervisor do
              |> Enum.reduce_while("", fn _, _ ->
                case start_actor_from_oci(ociref) do
                  {:stop, err} ->
+                   {:halt, "Error: #{err}"}
+
+                 {:error, err} ->
                    {:halt, "Error: #{err}"}
 
                  _any ->

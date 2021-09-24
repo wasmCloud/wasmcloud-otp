@@ -19,6 +19,12 @@ defmodule HostCore.Refmaps.Manager do
     publish_refmap(oci_url, public_key)
   end
 
+  def ocis_for_key(public_key) when is_binary(public_key) do
+    :ets.tab2list(:refmap_table)
+    |> Enum.filter(fn {_ociref, pk} -> pk == public_key end)
+    |> Enum.map(fn {ociref, _pk} -> ociref end)
+  end
+
   def publish_refmap(oci_url, public_key) do
     Logger.debug("Publishing ref map")
     prefix = HostCore.Host.lattice_prefix()
