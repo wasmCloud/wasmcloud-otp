@@ -7,6 +7,7 @@ defmodule HostCore do
 
   def start(_type, _args) do
     config = Vapor.load!(HostCore.ConfigPlan)
+    config = post_process_config(config)
 
     children = mount_supervisor_tree(config)
 
@@ -77,5 +78,70 @@ defmodule HostCore do
       {HostCore.Host, config},
       {HostCore.Jetstream.Client, config}
     ]
+  end
+
+  defp post_process_config(config) do
+    config = Map.put(config, :cluster_adhoc, false)
+    config = Map.put(config, :cluster_key, "")
+
+    s =
+      Hashids.new(
+        salt: "lc_deliver_inbox",
+        min_len: 2
+      )
+
+    hid = Hashids.encode(s, Enum.random(1..4_294_967_295))
+    config = Map.put(config, :cache_deliver_inbox, "_INBOX.#{hid}")
+
+    {def_cluster_key, def_cluster_seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
+    # we're generating the key, so we know this is going to work
+    {:ok, issuer_key} = HostCore.WasmCloud.Native.pk_from_seed(def_cluster_seed)
+
+    config =
+      if config.cluster_seed == "" do
+        %{
+          config
+          | cluster_seed: def_cluster_seed,
+            cluster_key: def_cluster_key,
+            cluster_issuers: [issuer_key],
+            cluster_adhoc: true
+        }
+      else
+        case HostCore.WasmCloud.Native.pk_from_seed(config.cluster_seed) do
+          {:ok, pk} ->
+            issuers = ensure_contains(config.cluster_issuers, pk)
+
+            %{
+              config
+              | cluster_seed: config.cluster_seed,
+                cluster_key: config.cluster_key,
+                cluster_issuers: issuers,
+                cluster_adhoc: false
+            }
+
+          {:error, err} ->
+            Logger.error(
+              "Invalid cluster seed '#{config.cluster_seed}': #{err}, falling back to ad hoc cluster key"
+            )
+
+            %{
+              config
+              | cluster_seed: def_cluster_seed,
+                cluster_key: def_cluster_key,
+                cluster_issuers: [issuer_key],
+                cluster_adhoc: true
+            }
+        end
+      end
+
+    config
+  end
+
+  defp ensure_contains(list, item) do
+    if Enum.member?(list, item) do
+      list
+    else
+      [item | list]
+    end
   end
 end

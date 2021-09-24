@@ -14,21 +14,11 @@ defmodule HostCore.ConfigPlan do
   @impl Vapor.Plan
   def config_plan do
     {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
-    {def_cluster_key, def_cluster_seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
-
-    s =
-      Hashids.new(
-        salt: "lc_deliver_inbox",
-        min_len: 2
-      )
-
-    hid = Hashids.encode(s, Enum.random(1..4_294_967_295))
 
     [
       %Dotenv{},
       %Env{
         bindings: [
-          {:cache_deliver_inbox, "_DI", default: "_INBOX.#{hid}"},
           {:host_key, @hostkey_var, default: host_key},
           {:host_seed, @hostseed_var, default: host_seed},
           {:lattice_prefix, @prefix_var, default: @default_prefix},
@@ -45,9 +35,9 @@ defmodule HostCore.ConfigPlan do
           {:ctl_port, "WASMCLOUD_CTL_PORT", default: 4222, map: &String.to_integer/1},
           {:ctl_seed, "WASMCLOUD_CTL_SEED", default: ""},
           {:ctl_jwt, "WASMCLOUD_CTL_JWT", default: ""},
-          {:default_cluster_seed, "_dwcs", default: def_cluster_seed},
-          {:cluster_seed, "WASMCLOUD_CLUSTER_SEED", default: def_cluster_seed},
-          {:cluster_issuers, "WASMCLOUD_CLUSTER_ISSUERS", default: def_cluster_key},
+          {:cluster_seed, "WASMCLOUD_CLUSTER_SEED", default: ""},
+          {:cluster_issuers, "WASMCLOUD_CLUSTER_ISSUERS",
+           default: [], map: &String.split(&1, ",")},
           {:provider_delay, "WASMCLOUD_PROV_SHUTDOWN_DELAY_MS",
            default: 300, map: &String.to_integer/1},
           {:allow_latest, "WASMCLOUD_OCI_ALLOW_LATEST", default: false, map: &String.to_atom/1},

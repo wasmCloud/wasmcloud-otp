@@ -67,6 +67,7 @@ rustler::init!(
         par_from_bytes,
         par_cache_path,
         detect_core_host_labels,
+        pk_from_seed,
     ],
     load = load
 );
@@ -83,6 +84,18 @@ fn get_oci_bytes(
             Err(e) => Err(rustler::Error::Term(Box::new(format!("{}", e)))),
         }
     })
+}
+
+#[rustler::nif]
+fn pk_from_seed(seed: String) -> Result<(Atom, String), Error> {
+    let key = KeyPair::from_seed(&seed).map_err(|e| {
+        rustler::Error::Term(Box::new(format!(
+            "Failed to determine public key from seed: {}",
+            e
+        )))
+    })?;
+
+    Ok((atoms::ok(), key.public_key()))
 }
 
 #[rustler::nif]
@@ -208,12 +221,8 @@ fn validate_antiforgery<'a>(inv: Binary, valid_issuers: Vec<String>) -> Result<A
     inv::deserialize::<inv::Invocation>(inv.as_slice())
         .map_err(|_e| rustler::Error::Term(Box::new("Failed to deserialize invocation")))
         .and_then(|i| {
-            i.validate_antiforgery(valid_issuers).map_err(|e| {
-                rustler::Error::Term(Box::new(format!(
-                    "{}",
-                    e
-                )))
-            })
+            i.validate_antiforgery(valid_issuers)
+                .map_err(|e| rustler::Error::Term(Box::new(format!("{}", e))))
         })
 }
 
