@@ -41,28 +41,32 @@ defmodule HostCore.Host do
 
     :ets.insert(:config_table, {:config, opts})
 
-    Logger.info("Host #{opts[:host_key]} started.")
-    Logger.info("Valid cluster signers #{opts[:cluster_issuers]}")
+    Logger.info("Host #{opts.host_key} started.")
+    Logger.info("Valid cluster signers: #{opts.cluster_issuers}")
 
-    if opts[:default_cluster_seed] == opts[:cluster_seed] do
-      Logger.warn("** WARNING. You are using an ad hoc generated cluster seed.")
+    if opts.cluster_adhoc do
+      warning = """
+      WARNING. You are using an ad hoc generated cluster seed.
+      For any other host or CLI tool to communicate with this host,
+      you MUST copy the following seed key and use it as the value
+      of the WASMCLOUD_CLUSTER_SEED environment variable:
 
-      Logger.warn(
-        "   For any other host or CLI tool to communicate with this host, you MUST copy the following seed key and"
-      )
+      #{opts.cluster_seed}
 
-      Logger.warn("   use it as the value of the WASMCLOUD_CLUSTER_SEED environment variable:")
-      Logger.warn("   #{opts[:cluster_seed]}")
+      You must also ensure the following cluster signer is in the list of valid
+      signers for any new host you start:
+
+      #{opts.cluster_issuers |> Enum.at(0)}
+
+      """
+
+      Logger.warn(warning)
     end
-
-    # TODO
-    # Once we have a JetStream client, the cache should fill automatically
-    # by virtue of us creating ephemeral consumers on the stream for claims, linkdefs, and OCI maps.
 
     {:ok,
      %State{
-       host_key: opts[:host_key],
-       lattice_prefix: opts[:lattice_prefix]
+       host_key: opts.host_key,
+       lattice_prefix: opts.lattice_prefix
      }}
   end
 
@@ -136,7 +140,7 @@ defmodule HostCore.Host do
 
   def cluster_issuers() do
     case :ets.lookup(:config_table, :config) do
-      [config: config_map] -> config_map[:cluster_issuers] |> String.split(",")
+      [config: config_map] -> config_map[:cluster_issuers]
       _ -> []
     end
   end
