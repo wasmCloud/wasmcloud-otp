@@ -184,6 +184,7 @@ defmodule HostCore.Host do
       link_definitions: lds,
       # TODO
       env_values: %{},
+      cluster_issuers: cluster_issuers(),
       invocation_seed: cluster_seed()
     }
     |> Jason.encode!()
