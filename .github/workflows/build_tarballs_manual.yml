@@ -298,7 +298,9 @@ jobs:
 
       - name: Compile Phoenix Assets
         working-directory: ${{env.working-directory}}/assets
-        run: npm install
+        run: |
+          npm install
+          npm run deploy
 
       - name: Create digest
         working-directory: ${{env.working-directory}}
@@ -378,7 +380,9 @@ jobs:
 
       - name: Compile Phoenix Assets
         working-directory: ${{env.working-directory}}/assets
-        run: npm install
+        run: |
+          npm install
+          npm run deploy
 
       - name: Create digest
         working-directory: ${{env.working-directory}}
