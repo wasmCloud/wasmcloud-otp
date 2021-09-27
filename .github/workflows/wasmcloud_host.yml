@@ -87,11 +87,10 @@ jobs:
         continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
         run: mix dialyzer --no-check
 
-  # When event type is release published, also run release workflow
-  release-linux:
+  release-docker:
     needs: build
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    name: Release Linux Tarball and Docker Image
+    name: Release Linux Docker Image
     runs-on: ubuntu-18.04
     env:
       MIX_ENV: prod
@@ -118,8 +117,8 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_PUSH_USER }}
+          password: ${{ secrets.DOCKERHUB_PUSH_PASSWORD }}
 
       - name: Determine version
         run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
@@ -162,19 +161,6 @@ jobs:
             wasmcloud.azurecr.io/wasmcloud_host:latest
             wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
             wasmcloud/wasmcloud_host:latest
-
-      # This make step retrieves the tarball from the build image
-      - name: Retrieve Artifact
-        working-directory: ${{env.working-directory}}
-        run: |
-          make tarball-x86_64-linux-gnu
-
-      # Currently just attached to the action output, should be in the Release assets
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: x86_64-linux-gnu
-          path: ${{env.working-directory}}/rel/artifacts/wasmcloud_host/${{ env.wasmcloud_host_version }}/x86_64-linux-gnu.tar.gz
 
   release-macos:
     name: Release MacOS Tarball
@@ -274,21 +260,186 @@ jobs:
           name: x86_64-macos
           path: ${{env.working-directory}}/_build/x86_64-macos.tar.gz
 
+  release-windows:
+    name: Release Windows Tarball
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    needs: build
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: powershell
+    env:
+      MIX_ENV: prod
+      ERLANG_VERSION: 24.0.3
+      ELIXIR_VERSION: 1.12.2
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # Setup Rust for NIF dependencies
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+          override: true
+
+      # Setup node for phoenix deps
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Install erlang and elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "=24"
+          elixir-version: "1.12"
+          install-hex: true
+          install-rebar: true
+
+      - name: Determine version
+        shell: bash
+        run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+
+      - name: Retrieve Mix Dependencies Cache
+        uses: actions/cache@v2
+        id: mix-cache #id to use in retrieve action
+        with:
+          path: |
+            wasmcloud_host/deps
+          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix local.rebar --force 
+          mix local.hex --force
+          mix deps.get
+
+      - name: Compile Elixir
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix compile
+
+      - name: Compile Phoenix Assets
+        working-directory: ${{env.working-directory}}/assets
+        run: npm install
+
+      - name: Create digest
+        working-directory: ${{env.working-directory}}
+        run: mix phx.digest
+
+      - name: Create Distillery Release
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix distillery.release --verbose
+
+      # It's currently output as `wasmcloud_host.tar.gz`, but we want it to be indicative of the ARCH-OS pair
+      - name: Rename release for Upload
+        run: |
+          mv ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/x86_64-windows.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: x86_64-windows
+          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/x86_64-windows.tar.gz
+
+  release-linux:
+    name: Release Linux Tarball
+    needs: build
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: prod
+      ERLANG_VERSION: 24.0.3
+      ELIXIR_VERSION: 1.12.2
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # Setup Rust for NIF dependencies
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+          override: true
+
+      # Setup node for phoenix deps
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Install erlang and elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "=24"
+          elixir-version: "1.12"
+          install-hex: true
+          install-rebar: true
+
+      - name: Determine version
+        run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+
+      - name: Retrieve Mix Dependencies Cache
+        uses: actions/cache@v2
+        id: mix-cache #id to use in retrieve action
+        with:
+          path: |
+            wasmcloud_host/deps
+          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix local.rebar --force 
+          mix local.hex --force
+          mix deps.get
+
+      - name: Compile Elixir
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix compile
+
+      - name: Compile Phoenix Assets
+        working-directory: ${{env.working-directory}}/assets
+        run: npm install
+
+      - name: Create digest
+        working-directory: ${{env.working-directory}}
+        run: mix phx.digest
+
+      - name: Create Distillery Release
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix distillery.release --verbose
+
+      # It's currently output as `wasmcloud_host.tar.gz`, but we want it to be indicative of the ARCH-OS pair
+      - name: Rename release for Upload
+        run: |
+          mv ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/x86_64-linux.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: x86_64-linux
+          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/x86_64-linux.tar.gz
+
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    needs: [release-linux, release-macos]
+    needs: [release-linux, release-macos, release-windows]
     runs-on: ubuntu-latest
     steps:
-    - name: Download Release Tarballs
-      uses: actions/download-artifact@v2
-      with:
-        path: ${{ env.working-directory }}/release
+      - name: Download Release Tarballs
+        uses: actions/download-artifact@v2
+        with:
+          path: ${{ env.working-directory }}/release
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: ${{ env.working-directory }}/release/**/*.tar.gz
-        token: ${{ secrets.GITHUB_TOKEN }}
-        prerelease: false
-        draft: false
-
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ env.working-directory }}/release/**/*.tar.gz
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: false
+          draft: false

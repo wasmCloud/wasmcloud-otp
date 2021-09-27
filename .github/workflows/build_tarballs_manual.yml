@@ -106,9 +106,9 @@ jobs:
       - name: Login to AzureCR
         uses: azure/docker-login@v1
         with:
-           login-server: ${{ secrets.AZURECR_PUSH_URL }}
-           username: ${{ secrets.AZURECR_PUSH_USER }}
-           password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
+          login-server: ${{ secrets.AZURECR_PUSH_URL }}
+          username: ${{ secrets.AZURECR_PUSH_USER }}
+          password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
 
       - name: Login to DockerHub
         uses: docker/login-action@v1
@@ -283,7 +283,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "14"
-      
+
       - name: Install erlang and elixir
         uses: erlef/setup-beam@v1
         with:
@@ -357,14 +357,14 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: x86_64-unknown-linux-gnu 
+          target: x86_64-unknown-linux-gnu
           override: true
 
       # Setup node for phoenix deps
       - uses: actions/setup-node@v2
         with:
           node-version: "14"
-      
+
       - name: Install erlang and elixir
         uses: erlef/setup-beam@v1
         with:
