@@ -1,7 +1,6 @@
 # NOTE: This docker image must be built from the root of this repository in order to copy `host_core`.
-# Use the Makefile for best results.
+# Use the Makefile target `build-image` for best results.
 
-ARG NIF_IMAGE
 ARG BUILDER_IMAGE
 ARG RELEASE_IMAGE
 
@@ -30,38 +29,7 @@ WORKDIR /opt/app/wasmcloud_host
 RUN mix deps.get
 
 ##
-# STEP 2: Build NIFs for target architecture
-##
-
-# NIFs are built using an image with a proper Rust installation
-FROM ${NIF_IMAGE} AS nif-builder
-# Install dependencies needed for NIF install
-ARG NIF_INSTALL
-ARG RUSTFLAGS
-ARG RUST_ARCH
-ARG RUST_TARGET
-ENV RUSTFLAGS="${RUSTFLAGS}" \
-  RUST_ARCH="${RUST_ARCH}" \
-  RUST_TARGET="${RUST_TARGET}"
-COPY ./wasmcloud_host/rel/scripts/${NIF_INSTALL} ./${NIF_INSTALL}
-RUN chmod +x ${NIF_INSTALL} && \
-  ./${NIF_INSTALL} && \
-  rm ${NIF_INSTALL}
-
-# Copy resources from deps-builder image
-COPY --from=deps-builder /opt/app /opt/app
-
-# Build wasmcloud native NIF and wasmex native NIF
-WORKDIR /opt/app/wasmcloud_host
-# If RUSTFLAGS are not provided, don't leave as blank environment variable. This can break cross-compilation
-RUN if [ -z "$RUSTFLAGS" ]; then unset RUSTFLAGS; fi && \
-  make wasmcloud-nif && \
-  make wasmex-nif && \
-  rm -rf ../host_core/native/hostcore_wasmcloud_native/target \
-  ./deps/wasmex/native/wasmex/target
-
-##
-# STEP 3: Build distillery release
+# STEP 2: Build distillery release
 ##
 FROM ${BUILDER_IMAGE} AS builder
 # The name of your application/release (required)
@@ -88,12 +56,17 @@ ENV SKIP_PHOENIX=${SKIP_PHOENIX} \
 WORKDIR /opt/app
 
 # This copies our app source code into the build container (including compiled NIFs)
-COPY --from=nif-builder /opt/app /opt/app
+COPY --from=deps-builder /opt/app /opt/app
 
 # Install dependencies for build container. This may be packages like `curl`, `bash`, 
 # or even elixir and erlang depending on the base container 
 ARG BUILD_INSTALL
 RUN ./wasmcloud_host/rel/scripts/${BUILD_INSTALL}
+
+# Install Rust for NIF compilation
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 # This step installs all the build tools we'll need
 RUN mix local.rebar --force && \
   mix local.hex --force
@@ -118,6 +91,30 @@ RUN mkdir -p /opt/built && \
   mkdir -p /opt/rel && \
   mv ${APP_NAME}.tar.gz /opt/rel
 
-# This Docker image is primarily concerned with building the release tarball and is not designed for running the app
-# While this will run the application, the container size is not optimized and the `Dockerfile.release` should be used instead
-CMD trap 'exit' INT; /opt/built/bin/wasmcloud_host foreground
+##
+# STEP 3: Build optimized final release image
+##
+
+# Release image should be the same as the _base container image_ used for the builder.
+# E.g. `elixir:1.12.2-alpine`'s base container image is `alpine:3.14'
+FROM ${RELEASE_IMAGE}
+
+ARG RELEASE_INSTALL
+ARG APP_NAME
+ENV REPLACE_OS_VARS=true
+
+WORKDIR /opt/app
+COPY --from=builder /opt/built .
+COPY ./wasmcloud_host/rel/scripts/${RELEASE_INSTALL} /tmp/${RELEASE_INSTALL}
+# Install release image dependencies (e.g. `bash` is required to run the script and a `libc` installation is required for the NIFs)
+RUN /tmp/${RELEASE_INSTALL} && \
+  rm /tmp/${RELEASE_INSTALL}
+
+# NATS connection is required and can be overridden
+# Default configuration assumes a NATS container is running named `nats` and available over port 4222
+ARG WASMCLOUD_RPC_HOST=nats
+ARG WASMCLOUD_CTL_HOST=nats
+ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
+    WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST}
+
+CMD trap 'exit' INT; /opt/app/bin/wasmcloud_host foreground

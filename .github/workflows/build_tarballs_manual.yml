@@ -106,9 +106,9 @@ jobs:
       - name: Login to AzureCR
         uses: azure/docker-login@v1
         with:
-           login-server: ${{ secrets.AZURECR_PUSH_URL }}
-           username: ${{ secrets.AZURECR_PUSH_USER }}
-           password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
+          login-server: ${{ secrets.AZURECR_PUSH_URL }}
+          username: ${{ secrets.AZURECR_PUSH_USER }}
+          password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
 
       - name: Login to DockerHub
         uses: docker/login-action@v1
@@ -119,36 +119,16 @@ jobs:
       - name: Determine version
         run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
 
-      - name: Build tarball image
+      - name: Build docker image
         uses: docker/build-push-action@v2
         with:
           context: .
-          load: true
+          push: false # Note here that the image will NOT be pushed to our container registries because this is a testing action
           file: ${{env.working-directory}}/Dockerfile
           build-args: |
-            NIF_IMAGE=rust:1.53-slim-buster 
-            NIF_INSTALL=apt-nif-install.sh 
-            BUILDER_IMAGE=elixir:1.12.2-slim 
-            BUILD_INSTALL=apt-build-install.sh 
-            RUST_ARCH=x86_64 
-            RUST_TARGET=unknown-linux-gnu 
-            APP_NAME=wasmcloud_host
-            APP_VSN=${{ env.wasmcloud_host_version }}
-            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-          tags: |
-            wasmcloud.azurecr.io/build/wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
-            wasmcloud_host:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
-
-      - name: Build and release image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          push: false # Note here that the image will NOT be pushed to our container registries
-          load: true
-          file: ${{env.working-directory}}/Dockerfile.release
-          build-args: |
-            BUILD_IMAGE=wasmcloud.azurecr.io/build/wasmcloud_host_tarball:${{ env.wasmcloud_host_version }}-x86_64-linux-gnu
-            RELEASE_IMAGE=debian:buster-slim 
+            BUILDER_IMAGE=elixir:1.12.2-slim
+            BUILD_INSTALL=apt-build-install.sh
+            RELEASE_IMAGE=debian:buster-slim
             RELEASE_INSTALL=apt-release-install.sh 
             APP_NAME=wasmcloud_host
             APP_VSN=${{ env.wasmcloud_host_version }}
@@ -283,7 +263,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "14"
-      
+
       - name: Install erlang and elixir
         uses: erlef/setup-beam@v1
         with:
@@ -357,14 +337,14 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: x86_64-unknown-linux-gnu 
+          target: x86_64-unknown-linux-gnu
           override: true
 
       # Setup node for phoenix deps
       - uses: actions/setup-node@v2
         with:
           node-version: "14"
-      
+
       - name: Install erlang and elixir
         uses: erlef/setup-beam@v1
         with:
