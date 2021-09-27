@@ -24,9 +24,6 @@ help:  ## Display this help
 build: deps ## Compile host_core
 	mix compile
 
-build-prod: deps wasmcloud-nif wasmex-nif ## Build assets for production
-	MIX_ENV=prod mix compile
-
 deps: ## Fetch mix dependencies
 	mix deps.get
 

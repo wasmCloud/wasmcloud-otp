@@ -16,43 +16,16 @@ BASE_TAGS ?= -t $(NAME):$(VERSION)-$(BUILD) -t $(NAME):$(TAG)
 help:  ## Display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_\-.*]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-build-image: ## Build docker image for distribution
+build-image: ## Build docker image for running, testing, or distribution
 	cd ../ && \
 	docker build $(BASE_ARGS) \
-		--build-arg BUILD_IMAGE=$(NAME):$(VERSION)-x86_64-linux-gnu \
-		--build-arg RELEASE_IMAGE=debian:buster-slim  \
-		--build-arg RELEASE_INSTALL=apt-release-install.sh \
-		-t $(NAME):$(VERSION) \
-		-f $(DOCKERFILE).release \
-		.
-
-build-x86_64-linux-gnu: ## Build package for ARCH x86_64, OS linux with dynamically linked NIFs (gnu libc)
-	cd ../ && \
-	docker build $(BASE_ARGS) \
-		--build-arg NIF_IMAGE=rust:1.53-slim-buster \
-		--build-arg NIF_INSTALL=apt-nif-install.sh \
 		--build-arg BUILDER_IMAGE=elixir:1.12.2-slim \
 		--build-arg BUILD_INSTALL=apt-build-install.sh \
-		--build-arg RUST_ARCH=x86_64 \
-		--build-arg RUST_TARGET=unknown-linux-gnu \
+		--build-arg RELEASE_IMAGE=debian:buster-slim  \
+		--build-arg RELEASE_INSTALL=apt-release-install.sh \
 		$(BASE_TAGS) \
-		-t $(NAME):$(VERSION)-x86_64-linux-gnu \
 		-f $(DOCKERFILE) \
 		.
-
-tarball-x86_64-linux-gnu: ## Retrieve tarball artifact
-	cd ../ && \
-	docker run -v $(shell pwd)/rel:/host/rel \
-		--env TARGET=x86_64-linux-gnu \
-		--env NAME=$(NAME) \
-		--env VERSION=$(VERSION) \
-		--rm $(NAME):$(VERSION)-x86_64-linux-gnu /host/rel/scripts/copy-release.sh
-
-run: ## Run the docker compose with specified image tag
-	cd ../ && \
-	WASMCLOUD_HOST_IMAGE=wasmcloud.azurecr.io/wasmcloud_host:0.20.0-rc0 \
-	docker compose -f ./wasmcloud_host/docker-compose.yml \
-	up
 
 deps: ## Fetch mix dependencies
 	mix deps.get
@@ -74,8 +47,13 @@ wasmex-nif: ## Build wasmex native NIF
 build: deps ## Build wasmcloud_host for development
 	mix compile
 
-build-prod: deps wasmcloud-nif wasmex-nif ## Build wasmcloud_host for production
-	MIX_ENV=prod mix compile
+run: build ## Run development wasmcloud_host
+	mix phx.server
+
+run-image: ## Run the docker compose with specified image tag
+	WASMCLOUD_HOST_IMAGE=wasmcloud_host:latest \
+	docker-compose -f docker-compose.yml \
+	up
 
 run-interactive: build ## Run development wasmcloud_host with iex
 	iex -S mix phx.server
