@@ -93,7 +93,7 @@ defmodule HostCore.E2E.KVCounterTest do
         redis_contract,
         @redis_link,
         redis_key,
-        %{URL: "redis://0.0.0.0:6379"}
+        %{URL: "redis://127.0.0.1:6379"}
       )
 
     :ok =
@@ -191,7 +191,7 @@ defmodule HostCore.E2E.KVCounterTest do
         redis_contract,
         @redis_link,
         redis_key,
-        %{URL: "redis://0.0.0.0:6379"}
+        %{URL: "redis://127.0.0.1:6379"}
       )
 
     :ok =

@@ -163,7 +163,7 @@ defmodule HostCore.Host do
            config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed], config_map[:prov_rpc_tls]}
 
         _ ->
-          {"0.0.0.0:4222", "", ""}
+          {"127.0.0.1:4222", "", ""}
       end
 
     lds =
