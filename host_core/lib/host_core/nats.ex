@@ -10,7 +10,7 @@ defmodule HostCore.Nats do
       backoff_period: 4_000,
       connection_settings: [
         Map.merge(
-          %{host: opts.rpc_host, port: opts.rpc_port},
+          %{host: opts.rpc_host, port: opts.rpc_port, tls: opts.rpc_tls == 1},
           determine_auth_method(opts.rpc_seed, opts.rpc_jwt, "lattice rpc")
         )
       ]
@@ -25,7 +25,7 @@ defmodule HostCore.Nats do
       backoff_period: 4_000,
       connection_settings: [
         Map.merge(
-          %{host: opts.ctl_host, port: opts.ctl_port},
+          %{host: opts.ctl_host, port: opts.ctl_port, tls: opts.ctl_tls == 1},
           determine_auth_method(opts.ctl_seed, opts.ctl_jwt, "control interface")
         )
       ]

@@ -156,11 +156,11 @@ defmodule HostCore.Host do
   end
 
   def generate_hostinfo_for(provider_key, link_name, instance_id) do
-    {url, jwt, seed} =
+    {url, jwt, seed, tls} =
       case :ets.lookup(:config_table, :config) do
         [config: config_map] ->
           {"#{config_map[:prov_rpc_host]}:#{config_map[:prov_rpc_port]}",
-           config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed]}
+           config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed], config_map[:prov_rpc_tls]}
 
         _ ->
           {"127.0.0.1:4222", "", ""}
@@ -179,6 +179,7 @@ defmodule HostCore.Host do
       lattice_rpc_user_jwt: jwt,
       lattice_rpc_user_seed: seed,
       lattice_rpc_url: url,
+      lattice_rpc_tls: tls,
       instance_id: instance_id,
       provider_key: provider_key,
       link_definitions: lds,
