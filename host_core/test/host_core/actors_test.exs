@@ -292,7 +292,7 @@ defmodule HostCore.ActorsTest do
              "{\"value\":53}"
   end
 
-  test "Prevents an attempt to start an actor with a conflicing OCI reference" do
+  test "Prevents an attempt to start an actor with a conflicting OCI reference" do
     on_exit(fn -> HostCore.Host.purge() end)
     # NOTE the reason we block this is because the only supported path to change
     # an actor's OCI reference should be through the live update process, which includes
@@ -308,6 +308,6 @@ defmodule HostCore.ActorsTest do
 
     assert res ==
              {:error,
-              "Cannot start MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5 - the OCI reference 'wasmcloud.azurecr.io/echo:0.3.0' does not match a pre-existing cache. To upgrade an actor, use live update."}
+              "Cannot start new instance of MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5 from OCI 'wasmcloud.azurecr.io/echo:0.3.0', it is already running with different OCI reference. To upgrade an actor, use live update."}
   end
 end

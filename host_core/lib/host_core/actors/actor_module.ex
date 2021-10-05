@@ -53,12 +53,12 @@ defmodule HostCore.Actors.ActorModule do
     GenServer.call(pid, :get_claims)
   end
 
-  def instance_id(pid) do
-    GenServer.call(pid, :get_instance_id)
-  end
-
   def ociref(pid) do
     GenServer.call(pid, :get_ociref)
+  end
+
+  def instance_id(pid) do
+    GenServer.call(pid, :get_instance_id)
   end
 
   def halt(pid) do
@@ -69,8 +69,8 @@ defmodule HostCore.Actors.ActorModule do
     GenServer.call(pid, :health_check)
   end
 
-  def live_update(pid, bytes, claims) do
-    GenServer.call(pid, {:live_update, bytes, claims}, @thirty_seconds)
+  def live_update(pid, bytes, claims, oci) do
+    GenServer.call(pid, {:live_update, bytes, claims, oci}, @thirty_seconds)
   end
 
   @impl true
@@ -78,7 +78,7 @@ defmodule HostCore.Actors.ActorModule do
     start_actor(claims, bytes, oci)
   end
 
-  def handle_call({:live_update, bytes, claims}, _from, agent) do
+  def handle_call({:live_update, bytes, claims, oci}, _from, agent) do
     Logger.debug("Actor #{claims.public_key} performing live update")
 
     imports = %{
@@ -101,7 +101,7 @@ defmodule HostCore.Actors.ActorModule do
       end
 
     Agent.update(agent, fn state ->
-      %State{state | claims: claims, api_version: api_version, instance: instance}
+      %State{state | claims: claims, api_version: api_version, instance: instance, ociref: oci}
     end)
 
     Wasmex.call_function(instance, :start, [])
