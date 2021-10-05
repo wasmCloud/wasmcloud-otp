@@ -92,7 +92,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         {:msg, %{body: body, topic: topic}},
         state
       ) do
-    Logger.info("StateMonitor handle info #{topic}")
+    Logger.debug("StateMonitor handle info #{topic}")
 
     state =
       if String.starts_with?(topic, "wasmbus.evt.") do
@@ -245,7 +245,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: "com.wasmcloud.lattice.host_heartbeat"
          }
        ) do
-    Logger.info("Handling host heartbeat")
+    Logger.debug("Handling host heartbeat")
 
     current_host = Map.get(state.hosts, source_host, %{})
 
@@ -336,7 +336,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
        ) do
     public_key = Map.get(data, "public_key")
     link_name = Map.get(data, "link_name")
-    Logger.info("Handling successful health check for #{public_key}")
+    Logger.debug("Handling successful health check for #{public_key}")
 
     case update_status(public_key, link_name, source_host, state.hosts, "Healthy") do
       {:hosts, hosts} ->
@@ -359,7 +359,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
        ) do
     public_key = Map.get(data, "public_key")
     link_name = Map.get(data, "link_name")
-    Logger.info("Handling failed health check for #{public_key}")
+    Logger.debug("Handling failed health check for #{public_key}")
 
     case update_status(public_key, link_name, source_host, state.hosts, "Unhealthy") do
       {:hosts, hosts} ->
