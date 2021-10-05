@@ -25,9 +25,9 @@ defmodule HostCore.Actors.ActorSupervisor do
         {:error, err}
 
       {:ok, claims} ->
-        if is_oci_duplicate?(oci, claims.public_key) do
+        if other_oci_already_running?(oci, claims.public_key) do
           {:error,
-           "Cannot start #{claims.public_key} - the OCI reference '#{oci}' does not match a pre-existing cache. To upgrade an actor, use live update."}
+           "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
         else
           DynamicSupervisor.start_child(
             __MODULE__,
@@ -37,13 +37,11 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
-  defp is_oci_duplicate?("", _pk) do
-    false
-  end
-
-  defp is_oci_duplicate?(oci, pk) do
-    HostCore.Refmaps.Manager.ocis_for_key(pk)
-    |> Enum.reject(fn toci -> oci == toci end)
+  # Returns whether the given actor's public key has at least one
+  # OCI reference running _other_ than the candidate supplied.
+  defp other_oci_already_running?(coci, pk) do
+    child_ocirefs()
+    |> Enum.filter(fn {_pid, tpk, toci} -> tpk == pk && toci != coci end)
     |> length() > 0
   end
 
@@ -80,7 +78,12 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       targets
       |> Enum.each(fn pid ->
-        HostCore.Actors.ActorModule.live_update(pid, bytes |> IO.iodata_to_binary(), new_claims)
+        HostCore.Actors.ActorModule.live_update(
+          pid,
+          bytes |> IO.iodata_to_binary(),
+          new_claims,
+          oci
+        )
       end)
 
       :ok
@@ -110,6 +113,18 @@ defmodule HostCore.Actors.ActorSupervisor do
       {List.first(Registry.keys(Registry.ActorRegistry, pid)), pid}
     end)
     |> Enum.group_by(fn {k, _p} -> k end, fn {_k, p} -> p end)
+  end
+
+  @doc """
+  Produces a list of tuples containing the pid of the child actor, its public key, and its
+  OCI reference.
+  """
+  def child_ocirefs() do
+    Supervisor.which_children(HostCore.Actors.ActorSupervisor)
+    |> Enum.map(fn {_id, pid, _type, _modules} ->
+      {pid, HostCore.Actors.ActorModule.claims(pid).public_key,
+       HostCore.Actors.ActorModule.ociref(pid)}
+    end)
   end
 
   def find_actor(public_key) do
