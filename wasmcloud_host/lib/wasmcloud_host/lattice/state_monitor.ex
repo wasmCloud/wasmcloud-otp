@@ -245,7 +245,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: "com.wasmcloud.lattice.host_heartbeat"
          }
        ) do
-   Logger.debug("Handling host heartbeat")
+    Logger.debug("Handling host heartbeat")
 
     current_host = Map.get(state.hosts, source_host, %{})
 
