@@ -9,6 +9,8 @@ ARCH ?= x86_64
 TARGET ?= unknown-linux-gnu
 ifeq ($(UNAME_ARCH), aarch64)
 ARCH = aarch64
+else ifeq ($(UNAME_ARCH), arm)
+ARCH = aarch64
 endif
 ifeq ($(UNAME), Darwin)
 TARGET = apple-darwin
