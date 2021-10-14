@@ -2,6 +2,8 @@ defmodule HostCore.Refmaps.Manager do
   @moduledoc false
   require Logger
 
+  alias HostCore.CloudEvent
+
   def lookup_refmap(oci_url) do
     case :ets.lookup(:refmap_table, oci_url) do
       [pk] -> {:ok, pk}
@@ -29,7 +31,16 @@ defmodule HostCore.Refmaps.Manager do
     Logger.debug("Publishing ref map")
     prefix = HostCore.Host.lattice_prefix()
     topic = "lc.#{prefix}.ocimap.#{HostCore.Nats.sanitize_for_topic(oci_url)}"
+    event_topic = "wasmbus.evt.#{prefix}"
+
+    evtmsg =
+      %{
+        oci_url: oci_url,
+        public_key: public_key
+      }
+      |> CloudEvent.new("ocimap_set")
 
     Gnat.pub(:control_nats, topic, Jason.encode!(%{oci_url: oci_url, public_key: public_key}))
+    Gnat.pub(:control_nats, event_topic, evtmsg)
   end
 end

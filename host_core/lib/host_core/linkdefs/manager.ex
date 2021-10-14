@@ -2,6 +2,8 @@ defmodule HostCore.Linkdefs.Manager do
   @moduledoc false
   require Logger
 
+  alias HostCore.CloudEvent
+
   @spec lookup_link_definition(String.t(), String.t(), String.t()) :: :error | {:ok, map()}
   def lookup_link_definition(actor, contract_id, link_name) do
     case :ets.lookup(:linkdef_table, {actor, contract_id, link_name}) do
@@ -65,9 +67,22 @@ defmodule HostCore.Linkdefs.Manager do
     prefix = HostCore.Host.lattice_prefix()
     cache_topic = "lc.#{prefix}.linkdefs.#{ld.id}"
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
+    event_topic = "wasmbus.evt.#{prefix}"
+
+    evtmsg =
+      %{
+        id: ld.id,
+        actor_id: ld.actor_id,
+        provider_id: ld.provider_id,
+        link_name: ld.link_name,
+        contract_id: ld.contract_id,
+        values: ld.values
+      }
+      |> CloudEvent.new("linkdef_set")
 
     Gnat.pub(:control_nats, cache_topic, Jason.encode!(ld))
     Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
+    Gnat.pub(:control_nats, event_topic, evtmsg)
   end
 
   # Publishes the removal of a link definition to the stream and tells the provider via RPC
@@ -79,9 +94,23 @@ defmodule HostCore.Linkdefs.Manager do
     prefix = HostCore.Host.lattice_prefix()
     cache_topic = "lc.#{prefix}.linkdefs.#{ld.id}"
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.del"
+    event_topic = "wasmbus.evt.#{prefix}"
+
+    evtmsg =
+      %{
+        id: ld.id,
+        actor_id: ld.actor_id,
+        provider_id: ld.provider_id,
+        link_name: ld.link_name,
+        contract_id: ld.contract_id,
+        values: ld.values
+      }
+      |> CloudEvent.new("linkdef_deleted")
+
     Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
     ld = Map.put(ld, :deleted, true)
     Gnat.pub(:control_nats, cache_topic, Jason.encode!(ld))
+    Gnat.pub(:control_nats, event_topic, evtmsg)
   end
 
   def get_link_definitions() do
