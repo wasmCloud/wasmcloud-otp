@@ -110,11 +110,16 @@ COPY ./wasmcloud_host/rel/scripts/${RELEASE_INSTALL} /tmp/${RELEASE_INSTALL}
 RUN /tmp/${RELEASE_INSTALL} && \
   rm /tmp/${RELEASE_INSTALL}
 
+# Prevents unnecessary warning messages about language encoding
+ENV LC_ALL=en_US.UTF-8
+
 # NATS connection is required and can be overridden
 # Default configuration assumes a NATS container is running named `nats` and available over port 4222
 ARG WASMCLOUD_RPC_HOST=nats
+ARG WASMCLOUD_PROV_RPC_HOST=nats
 ARG WASMCLOUD_CTL_HOST=nats
 ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
-    WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST}
+    WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
+    WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
 
 CMD trap 'exit' INT; /opt/app/bin/wasmcloud_host foreground

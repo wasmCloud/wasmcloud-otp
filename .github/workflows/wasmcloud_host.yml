@@ -6,6 +6,7 @@ on:
     tags: "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
   pull_request:
     branches: [main]
+  workflow_dispatch: # Allow manual creation of artifacts without a release
 
 env:
   working-directory: wasmcloud_host
@@ -90,6 +91,7 @@ jobs:
   release-docker:
     needs: build
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+
     name: Release Linux Docker Image
     runs-on: ubuntu-18.04
     env:
@@ -146,7 +148,8 @@ jobs:
   release-macos:
     name: Release MacOS Tarball
     needs: build
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     runs-on: macos-10.15
     env:
       MIX_ENV: prod
@@ -243,9 +246,10 @@ jobs:
 
   release-windows:
     name: Release Windows Tarball
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     needs: build
-    runs-on: windows-latest
+    runs-on: windows-2019
     defaults:
       run:
         shell: powershell
@@ -329,8 +333,9 @@ jobs:
   release-linux:
     name: Release Linux Tarball
     needs: build
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    runs-on: ubuntu-latest
+    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-20.04
     env:
       MIX_ENV: prod
       ERLANG_VERSION: 24.0.3
@@ -410,7 +415,7 @@ jobs:
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs: [release-linux, release-macos, release-windows]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Download Release Tarballs
         uses: actions/download-artifact@v2
