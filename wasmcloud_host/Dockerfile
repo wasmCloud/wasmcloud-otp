@@ -77,8 +77,8 @@ RUN mix do deps.compile, compile
 # This step builds assets for the Phoenix app
 RUN if [ ! "$SKIP_PHOENIX" = "true" ]; then \
   cd ./assets && \
-  yarn install && \
-  yarn deploy && \
+  npm install && \
+  npm run deploy && \
   cd - && \
   mix phx.digest; \
 fi

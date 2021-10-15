@@ -10,6 +10,4 @@ apt update && \
   build-essential && \
   # Install node from nodesource (needed for phoenix)
   curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
-  apt install -y --no-install-recommends nodejs && \
-  # Install yarn package manager via npm
-  npm install --global yarn
+  apt install -y --no-install-recommends nodejs
