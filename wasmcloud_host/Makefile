@@ -27,6 +27,18 @@ build-image: ## Build docker image for running, testing, or distribution
 		-f $(DOCKERFILE) \
 		.
 
+build-arm-image: ## Build arm64 docker image for running, testing, or distribution
+	cd ../ && \
+	docker buildx build $(BASE_ARGS) \
+		--build-arg BUILDER_IMAGE=elixir:1.12.2-slim \
+		--build-arg BUILD_INSTALL=apt-build-install.sh \
+		--build-arg RELEASE_IMAGE=debian:buster-slim  \
+		--build-arg RELEASE_INSTALL=apt-release-install.sh \
+		-t wasmcloud_host:arm64 \
+		--platform linux/arm64 \
+		-f $(DOCKERFILE) \
+		.
+
 deps: ## Fetch mix dependencies
 	mix deps.get
 
