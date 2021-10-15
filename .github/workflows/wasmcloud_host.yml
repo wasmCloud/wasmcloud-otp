@@ -90,7 +90,8 @@ jobs:
 
   release-docker:
     needs: build
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
 
     name: Release Linux Docker Image
     runs-on: ubuntu-18.04
@@ -131,6 +132,7 @@ jobs:
           context: .
           push: true
           file: ${{env.working-directory}}/Dockerfile
+          platforms: linux/amd64,linux/arm64
           build-args: |
             BUILDER_IMAGE=elixir:1.12.2-slim
             BUILD_INSTALL=apt-build-install.sh
@@ -140,10 +142,12 @@ jobs:
             APP_VSN=${{ env.wasmcloud_host_version }}
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
           tags: |
-            wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}
-            wasmcloud.azurecr.io/wasmcloud_host:latest
-            wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
-            wasmcloud/wasmcloud_host:latest
+            wasmcloud.azurecr.io/wasmcloud_docker_test:v0.1.0
+
+  # wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}
+  # wasmcloud.azurecr.io/wasmcloud_host:latest
+  # wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
+  # wasmcloud/wasmcloud_host:latest
 
   release-macos:
     name: Release MacOS Tarball
