@@ -205,10 +205,10 @@
                               </button>
                               <%= for {host_id, _host_info} <- @hosts do %>
                               <% button_color = cond do
-                                    host_id == @selected_host -> "btn-ghost-primary active"
-                                    true -> "btn-ghost-primary" end %>
-                              <button class="btn dropdown-item <%= button_color %> id-monospace" type="button"
-                                 phx-click="select_host" phx-value-host="<%= host_id %>"
+                                    host_id == @selected_host -> "btn dropdown-item id-monospace btn-ghost-primary active"
+                                    true -> "btn dropdown-item id-monospace btn-ghost-primary" end %>
+                              <button class={button_color} type="button"
+                                 phx-click="select_host" phx-value-host={host_id}"
                                  style="padding-top: 5px; padding-bottom: 5px">
                                  <svg class="c-icon">
                                     <%= if host_id == HostCore.Host.host_key() do %>
@@ -257,7 +257,7 @@
                               </td>
                               <td>
                                  <button class="btn btn-sm btn-primary id-monospace" type="button"
-                                    onClick="navigator.clipboard.writeText('<%= host_id %>')" data-toggle="popover"
+                                    onClick={"navigator.clipboard.writeText(#{host_id})"} data-toggle="popover"
                                     data-trigger="focus" title="" data-content="Copied!">
                                     <%= String.slice(host_id, 0..4) %>...
                                     <svg class="c-icon">
