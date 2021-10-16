@@ -204,10 +204,10 @@
                                  Show All
                               </button>
                               <%= for {host_id, _host_info} <- @hosts do %>
-                              <% button_color = cond do
-                                    host_id == @selected_host -> "btn dropdown-item id-monospace btn-ghost-primary active"
-                                    true -> "btn dropdown-item id-monospace btn-ghost-primary" end %>
-                              <button class={button_color} type="button"
+                              <% active_button = cond do
+                                    host_id == @selected_host -> "active"
+                                    true -> "" end %>
+                              <button class={"btn dropdown-item id-monospace btn-ghost-primary #{active_button}"} type="button"
                                  phx-click="select_host" phx-value-host={host_id}"
                                  style="padding-top: 5px; padding-bottom: 5px">
                                  <svg class="c-icon">

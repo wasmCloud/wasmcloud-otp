@@ -7,7 +7,7 @@
   <%= if @open_modal != nil do %>
   <% modal_id = String.to_atom(Map.get(@open_modal, "id")) %>
   <div class="phoenix-modal phoenix-modal-open show fade" id={modal_id} tabindex="-1" role="dialog"
-    aria-labelledby="phoenix-modal" aria-hidden="true">
+    aria-labelledby={"#{modal_id}-modal"} aria-hidden="true">
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
