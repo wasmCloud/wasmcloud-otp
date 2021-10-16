@@ -4,7 +4,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   require Logger
 
-  # TODO - reconcile the fact that linkdefs and claims are being stored in th is
+  # TODO - reconcile the fact that linkdefs and claims are being stored in this
   # map AND in ETS storage under their respective manager processes.
 
   defmodule State do
@@ -128,8 +128,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   @impl true
   def handle_cast({:cache_load_event, :linkdef_removed, ld}, state) do
-    key = {ld.actor_id, ld.contract_id, ld.link_name}
-    linkdefs = Map.delete(state.linkdefs, key)
+    linkdefs = delete_linkdef(state.linkdefs, ld.actor_id, ld.contract_id, ld.link_name)
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
     {:noreply, %State{state | linkdefs: linkdefs}}
@@ -137,10 +136,15 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   @impl true
   def handle_cast({:cache_load_event, :linkdef_added, ld}, state) do
-    key = {ld.actor_id, ld.contract_id, ld.link_name}
-    map = %{values: ld.values, provider_key: ld.provider_id}
-
-    linkdefs = Map.put(state.linkdefs, key, map)
+    linkdefs =
+      add_linkdef(
+        state.linkdefs,
+        ld.actor_id,
+        ld.contract_id,
+        ld.link_name,
+        ld.provider_id,
+        ld.values
+      )
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
     {:noreply, %State{state | linkdefs: linkdefs}}
@@ -156,7 +160,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   @impl true
   def handle_cast({:cache_load_event, :ocimap_added, ocimap}, state) do
-    ocirefs = Map.put(state.refmaps, ocimap.oci_url, ocimap.public_key)
+    ocirefs = add_refmap(state.refmaps, ocimap.oci_url, ocimap.public_key)
     {:noreply, %State{state | refmaps: ocirefs}}
   end
 
@@ -372,6 +376,78 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     end
   end
 
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           data: %{"oci_url" => oci_url, "public_key" => public_key},
+           datacontenttype: "application/json",
+           source: _source_host,
+           type: "com.wasmcloud.lattice.ocimap_set"
+         }
+       ) do
+    refmaps = add_refmap(state.refmaps, oci_url, public_key)
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:refmaps, refmaps})
+    %State{state | refmaps: refmaps}
+  end
+
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           data: %{
+             "actor_id" => actor_id,
+             "contract_id" => contract_id,
+             "id" => _id,
+             "link_name" => link_name,
+             "provider_id" => provider_id,
+             "values" => values_map
+           },
+           datacontenttype: "application/json",
+           source: _source_host,
+           type: "com.wasmcloud.lattice.linkdef_set"
+         }
+       ) do
+    linkdefs =
+      add_linkdef(state.linkdefs, actor_id, contract_id, link_name, provider_id, values_map)
+
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
+    %State{state | linkdefs: linkdefs}
+  end
+
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           data: %{
+             "actor_id" => actor_id,
+             "contract_id" => contract_id,
+             "id" => _id,
+             "link_name" => link_name,
+             "provider_id" => _provider_id,
+             "values" => _values_map
+           },
+           datacontenttype: "application/json",
+           source: _source_host,
+           type: "com.wasmcloud.lattice.linkdef_deleted"
+         }
+       ) do
+    linkdefs = delete_linkdef(state.linkdefs, actor_id, contract_id, link_name)
+    PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
+    %State{state | linkdefs: linkdefs}
+  end
+
+  # Fallthrough event handler to prevent errors for new events
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           data: _data,
+           datacontenttype: _content_type,
+           source: _source_host,
+           type: type
+         }
+       ) do
+    Logger.warn("Unsupported event (#{type}) received, not handling")
+    state
+  end
+
   defp update_status(public_key, link_name, source_host, hosts, new_status) do
     host_map = Map.get(hosts, source_host, %{})
     actors = Map.get(host_map, :actors, %{})
@@ -398,6 +474,21 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
       true ->
         {:error, "Public key did not match running provider or actor"}
     end
+  end
+
+  defp add_refmap(prev_refmaps, oci_url, public_key) do
+    Map.put(prev_refmaps, oci_url, public_key)
+  end
+
+  defp add_linkdef(prev_linkdefs, actor_id, contract_id, link_name, provider_id, values) do
+    key = {actor_id, contract_id, link_name}
+    map = %{values: values, provider_key: provider_id}
+    Map.put(prev_linkdefs, key, map)
+  end
+
+  defp delete_linkdef(prev_linkdefs, actor_id, contract_id, link_name) do
+    key = {actor_id, contract_id, link_name}
+    Map.delete(prev_linkdefs, key)
   end
 
   # The `providers_map` is keyed by a tuple in the form of {public key, link_name}
