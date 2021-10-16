@@ -132,9 +132,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             BUILDER_IMAGE=elixir:1.12.2-slim
-            BUILD_INSTALL=apt-build-install.sh
             RELEASE_IMAGE=debian:buster-slim
-            RELEASE_INSTALL=apt-release-install.sh 
             APP_NAME=wasmcloud_host
             APP_VSN=${{ env.wasmcloud_host_version }}
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
@@ -151,7 +149,7 @@ jobs:
     needs: build
     strategy:
       matrix:
-        os: ["ubuntu-18.04", "windows-2019", "macos-10.15"]
+        os: ["ubuntu-20.04", "windows-2019", "macos-10.15"]
     runs-on: ${{ matrix.os }}
     env:
       MIX_ENV: prod
@@ -229,7 +227,7 @@ jobs:
       - name: Compile Phoenix Assets
         working-directory: ${{env.working-directory}}/assets
         run: |
-          npm install
+          npm install --python=python2.7
           npm run deploy
 
       - name: Create digest
