@@ -28,7 +28,7 @@ defmodule HostCore.ConfigPlan do
           {:rpc_timeout, "WASMCLOUD_RPC_TIMEOUT_MS", default: 2000, map: &String.to_integer/1},
           {:rpc_jwt, "WASMCLOUD_RPC_JWT", default: ""},
           {:rpc_tls, "WASMCLOUD_RPC_TLS", default: 0, map: &String.to_integer/1},
-          {:prov_rpc_host, "WASMCLOUD_PROV_RPC_HOST", default: "0.0.0.0"},
+          {:prov_rpc_host, "WASMCLOUD_PROV_RPC_HOST", default: "127.0.0.1"},
           {:prov_rpc_port, "WASMCLOUD_PROV_RPC_PORT", default: 4222, map: &String.to_integer/1},
           {:prov_rpc_seed, "WASMCLOUD_PROV_RPC_SEED", default: ""},
           {:prov_rpc_tls, "WASMCLOUD_PROV_RPC_TLS", default: 0, map: &String.to_integer/1},
