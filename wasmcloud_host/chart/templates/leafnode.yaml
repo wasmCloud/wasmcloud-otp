@@ -10,7 +10,7 @@ data:
     leafnodes {
       remotes = [
         {
-          url: {{ .Values.nats.leafnode.superclusterURL | quote }}
+          url: {{ .Values.nats.leafnode.clusterURL | quote }}
           credentials: "/nats/nats.creds"
         },
       ]

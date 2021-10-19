@@ -58,17 +58,17 @@ is a common deployment practice when connecting with something like [NGS](https:
 To use this method, you'll need to set `nats.leafnode.enabled` to `true`. Additionally, you'll need
 to set the following values on the command line or in a values file:
 
-| Value                           | Purpose                                                                                                             |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `nats.leafnode.superclusterURL` | The URL of the supercluster to connect to                                                                           |
-| `nats.leafnode.credentials`     | The credentials for connecting to the supercluster. If passing on the command line, we recommend using `--set-file` |
+| Value                       | Purpose                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `nats.leafnode.clusterURL`  | The URL of the NATS cluster to connect to                                                                           |
+| `nats.leafnode.credentials` | The credentials for connecting to the NATS cluster. If passing on the command line, we recommend using `--set-file` |
 
 ##### External NATS Server
 
-If you'd like to connect directly to a NATS server instead, you can disable NATS by setting
-`nats.enabled` to `false`. You can then set the various config options available under
-`wasmcloud.config` to use your NATS server with the credentials you have generated for the host.
-Please see the `values.yaml` documentation as well as the [wasmCloud Host
+If you'd like to connect directly to a NATS server instead, you can disable the NATS sidecare
+container by setting `nats.enabled` to `false`. You can then set the various config options
+available under `wasmcloud.config` to use your NATS server with the credentials you have generated
+for the host. Please see the `values.yaml` documentation as well as the [wasmCloud Host
 documentation](https://wasmcloud.dev/reference/host-runtime/host_configure/) for more detailed
 information.
 
