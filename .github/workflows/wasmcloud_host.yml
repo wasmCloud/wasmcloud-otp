@@ -149,7 +149,18 @@ jobs:
     needs: build
     strategy:
       matrix:
-        os: ["ubuntu-20.04", "windows-2019", "macos-10.15"]
+        os: [ubuntu-20.04, windows-2019, macos-10.15]
+        include:
+          - os: ubuntu-20.04
+            rust-target: x86_64-unknown-linux-gnu
+            tarball-filename: x86_64-linux
+          - os: windows-2019
+            rust-target: x86_64-pc-windows-msvc
+            tarball-filename: x86_64-windows
+          - os: macos-10.15
+            rust-target: x86_64-apple-darwin
+            tarball-filename: x86_64-macos
+
     runs-on: ${{ matrix.os }}
     env:
       MIX_ENV: prod
@@ -162,22 +173,9 @@ jobs:
 
       # Setup Rust for NIF dependencies
       - uses: actions-rs/toolchain@v1
-        if: ${{ startswith(matrix.os, 'windows') }}
         with:
           toolchain: stable
-          target: x86_64-pc-windows-msvc
-          override: true
-      - uses: actions-rs/toolchain@v1
-        if: ${{ startswith(matrix.os, 'macos') }}
-        with:
-          toolchain: stable
-          target: x86_64-apple-darwin
-          override: true
-      - uses: actions-rs/toolchain@v1
-        if: ${{ startswith(matrix.os, 'ubuntu') }}
-        with:
-          toolchain: stable
-          target: x86_64-unknown-linux-gnu
+          target: ${{ matrix.rust-target }}
           override: true
 
       # Setup node for phoenix deps
@@ -239,29 +237,17 @@ jobs:
         run: |
           mix distillery.release --verbose
 
-      # Based on the OS, determine the appropriate tarball filename
-      - name: Determine tarball filename
-        if: ${{ startswith(matrix.os, 'macos') }}
-        run: echo "tarball_filename=x86_64-macos" > $GITHUB_ENV
-      - name: Determine tarball filename
-        if: ${{ startswith(matrix.os, 'ubuntu') }}
-        run: echo "tarball_filename=x86_64-linux" > $GITHUB_ENV
-      - name: Determine tarball filename
-        shell: bash
-        if: ${{ startswith(matrix.os, 'windows') }}
-        run: echo "tarball_filename=x86_64-windows" > $GITHUB_ENV
-
       # It's currently output as `wasmcloud_host.tar.gz`, but we want it to be indicative of the ARCH-OS pair
       - name: Rename release for Upload
         shell: bash
         run: |
-          mv ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/${{ env.tarball_filename }}.tar.gz
+          mv ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/wasmcloud_host.tar.gz ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/${{ matrix.tarball-filename }}.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ env.tarball_filename }}
-          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/${{ env.tarball_filename }}.tar.gz
+          name: ${{ matrix.tarball-filename }}
+          path: ${{env.working-directory}}/_build/prod/rel/wasmcloud_host/releases/${{ env.wasmcloud_host_version }}/${{ matrix.tarball-filename }}.tar.gz
 
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
