@@ -46,6 +46,7 @@ wasmex-nif: ## Build wasmex native NIF
 
 build: deps ## Build wasmcloud_host for development
 	mix compile
+	npm --prefix ./assets install ./assets
 
 run: build ## Run development wasmcloud_host
 	mix phx.server
