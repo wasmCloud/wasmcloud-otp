@@ -60,8 +60,18 @@ COPY --from=deps-builder /opt/app /opt/app
 
 # Install dependencies for build container. This may be packages like `curl`, `bash`, 
 # or even elixir and erlang depending on the base container 
-ARG BUILD_INSTALL
-RUN ./wasmcloud_host/rel/scripts/${BUILD_INSTALL}
+RUN apt update && \
+  DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
+  curl \
+  git \
+  ca-certificates \
+  libssl-dev \
+  pkg-config \
+  python2.7 \
+  build-essential && \
+  # Install node from nodesource (needed for phoenix)
+  curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
+  apt install -y --no-install-recommends nodejs
 
 # Install Rust for NIF compilation
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
@@ -77,8 +87,8 @@ RUN mix do deps.compile, compile
 # This step builds assets for the Phoenix app
 RUN if [ ! "$SKIP_PHOENIX" = "true" ]; then \
   cd ./assets && \
-  yarn install && \
-  yarn deploy && \
+  npm install --python=python2.7 && \
+  npm run deploy && \
   cd - && \
   mix phx.digest; \
 fi
@@ -99,22 +109,34 @@ RUN mkdir -p /opt/built && \
 # E.g. `elixir:1.12.2-alpine`'s base container image is `alpine:3.14'
 FROM ${RELEASE_IMAGE}
 
-ARG RELEASE_INSTALL
 ARG APP_NAME
 ENV REPLACE_OS_VARS=true
 
 WORKDIR /opt/app
 COPY --from=builder /opt/built .
-COPY ./wasmcloud_host/rel/scripts/${RELEASE_INSTALL} /tmp/${RELEASE_INSTALL}
+
 # Install release image dependencies (e.g. `bash` is required to run the script and a `libc` installation is required for the NIFs)
-RUN /tmp/${RELEASE_INSTALL} && \
-  rm /tmp/${RELEASE_INSTALL}
+RUN apt update && \
+  DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
+  ca-certificates \
+  curl \
+  locales && \
+  export LANG=en_US.UTF-8 && \
+    echo $LANG UTF-8 > /etc/locale.gen && \
+    locale-gen && \
+    update-locale LANG=$LANG && \
+    rm -rf /var/lib/apt/lists/*
+
+# Prevents unnecessary warning messages about language encoding
+ENV LC_ALL=en_US.UTF-8
 
 # NATS connection is required and can be overridden
 # Default configuration assumes a NATS container is running named `nats` and available over port 4222
 ARG WASMCLOUD_RPC_HOST=nats
+ARG WASMCLOUD_PROV_RPC_HOST=nats
 ARG WASMCLOUD_CTL_HOST=nats
 ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
-    WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST}
+    WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
+    WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
 
 CMD trap 'exit' INT; /opt/app/bin/wasmcloud_host foreground
