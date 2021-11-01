@@ -8,8 +8,6 @@ defmodule HostCore.ConfigPlan do
   alias HostCore.FilesConfigProvider
 
   @prefix_var "WASMCLOUD_LATTICE_PREFIX"
-  @hostkey_var "WASMCLOUD_HOST_KEY"
-  @hostseed_var "WASMCLOUD_HOST_SEED"
   @default_prefix "default"
 
   @impl Vapor.Plan
@@ -26,8 +24,6 @@ defmodule HostCore.ConfigPlan do
       # so we don't specify them here
       %Env{
         bindings: [
-          {:host_key, @hostkey_var, required: false},
-          {:host_seed, @hostseed_var, required: false},
           {:lattice_prefix, @prefix_var, required: false},
           {:rpc_host, "WASMCLOUD_RPC_HOST", required: false},
           {:rpc_port, "WASMCLOUD_RPC_PORT", required: false, map: &String.to_integer/1},
@@ -60,11 +56,7 @@ defmodule HostCore.ConfigPlan do
   end
 
   defp json_bindings() do
-    {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
-
     [
-      {:host_key, "host_key", required: false, default: host_key},
-      {:host_seed, "host_seed", required: false, default: host_seed},
       {:lattice_prefix, "lattice_prefix", required: false, default: @default_prefix},
       {:rpc_host, "rpc_host", required: false, default: "127.0.0.1"},
       {:rpc_port, "rpc_port", required: false, default: 4222},

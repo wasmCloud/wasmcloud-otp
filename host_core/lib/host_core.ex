@@ -81,8 +81,14 @@ defmodule HostCore do
   end
 
   defp post_process_config(config) do
-    config = Map.put(config, :cluster_adhoc, false)
-    config = Map.put(config, :cluster_key, "")
+    {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
+
+    config =
+      config
+      |> Map.put(:cluster_adhoc, false)
+      |> Map.put(:cluster_key, "")
+      |> Map.put(:host_key, host_key)
+      |> Map.put(:host_seed, host_seed)
 
     s =
       Hashids.new(
@@ -161,9 +167,11 @@ defmodule HostCore do
   end
 
   defp remove_extras(config) do
-    config = Map.delete(config, :cluster_adhoc)
-    config = Map.delete(config, :cache_deliver_inbox)
     config
+    |> Map.delete(:cluster_adhoc)
+    |> Map.delete(:cache_deliver_inbox)
+    |> Map.delete(:host_seed)
+    |> Map.delete(:host_key)
   end
 
   defp ensure_contains(list, item) do
