@@ -68,7 +68,7 @@ defmodule HostCore.Jetstream.CacheLoader do
     Logger.error("Jetstream cache loader encountered an unexpected key type: #{keytype}")
   end
 
-  defp atomize(map) do
+  def atomize(map) do
     for {key, val} <- map, into: %{}, do: {String.to_atom(key), val}
   end
 

@@ -134,6 +134,35 @@ defmodule HostCore do
         end
       end
 
+    write_config(config)
+
+    config
+  end
+
+  defp write_config(config) do
+    write_json(config, "./host_config.json")
+
+    case System.user_home() do
+      nil ->
+        Logger.warn("Can't check for ~/.wash host config - no user home available")
+
+      h ->
+        write_json(config, Path.join([h, "/.wash/", "host_config.json"]))
+    end
+  end
+
+  defp write_json(config, file) do
+    if !File.exists?(file) do
+      case File.write(file, Jason.encode!(remove_extras(config))) do
+        {:error, reason} -> Logger.error("Failed to write configuration file #{reason}")
+        :ok -> Logger.info("Wrote #{inspect(file)}")
+      end
+    end
+  end
+
+  defp remove_extras(config) do
+    config = Map.delete(config, :cluster_adhoc)
+    config = Map.delete(config, :cache_deliver_inbox)
     config
   end
 

@@ -52,3 +52,5 @@ npm-debug.log
 # Or release artifacts
 *.tar.gz
 *.tar
+
+host_config.json
