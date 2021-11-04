@@ -202,6 +202,21 @@ defmodule HostCore.ControlInterface.Server do
     {:reply, response}
   end
 
+  # Stop Host
+  defp handle_request({"cmd", _host_id, "stop"}, body, _reply_to) do
+    # TODO: Right now this will contain a parameter for timeout. Obviously how this works currently
+    # only results in the graceful shutdowns built into the system. There may be some inflight work
+    # we want to wait for up to the timeout. We could use this library possibly so we can put in
+    # hooks: https://github.com/botsquad/graceful_stop.
+    _stop_host_command = Jason.decode!(body)
+
+    Logger.info("Received stop request for host")
+
+    HostCore.Host.purge()
+
+    :init.stop()
+  end
+
   ### AUCTIONS
   # All auctions are sent to every host within the lattice
   # so no queue subscription is used.
