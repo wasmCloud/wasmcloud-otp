@@ -81,8 +81,14 @@ defmodule HostCore do
   end
 
   defp post_process_config(config) do
-    config = Map.put(config, :cluster_adhoc, false)
-    config = Map.put(config, :cluster_key, "")
+    {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
+
+    config =
+      config
+      |> Map.put(:cluster_adhoc, false)
+      |> Map.put(:cluster_key, "")
+      |> Map.put(:host_key, host_key)
+      |> Map.put(:host_seed, host_seed)
 
     s =
       Hashids.new(
@@ -134,7 +140,38 @@ defmodule HostCore do
         end
       end
 
+    write_config(config)
+
     config
+  end
+
+  defp write_config(config) do
+    write_json(config, "./host_config.json")
+
+    case System.user_home() do
+      nil ->
+        Logger.warn("Can't check for ~/.wash host config - no user home available")
+
+      h ->
+        write_json(config, Path.join([h, "/.wash/", "host_config.json"]))
+    end
+  end
+
+  defp write_json(config, file) do
+    if !File.exists?(file) do
+      case File.write(file, Jason.encode!(remove_extras(config))) do
+        {:error, reason} -> Logger.error("Failed to write configuration file #{reason}")
+        :ok -> Logger.info("Wrote #{inspect(file)}")
+      end
+    end
+  end
+
+  defp remove_extras(config) do
+    config
+    |> Map.delete(:cluster_adhoc)
+    |> Map.delete(:cache_deliver_inbox)
+    |> Map.delete(:host_seed)
+    |> Map.delete(:host_key)
   end
 
   defp ensure_contains(list, item) do
