@@ -215,7 +215,10 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, resp} = HTTPoison.get("http://localhost:8082/foobar")
 
     IO.inspect(resp)
-    assert resp.body == "{\"error\":\"Host send error Invocation not authorized: missing claim for wasmcloud:keyvalue\"}"
+
+    assert resp.body ==
+             "{\"error\":\"Host send error Invocation not authorized: missing claim for wasmcloud:keyvalue\"}"
+
     assert resp.status_code == 500
   end
 end
