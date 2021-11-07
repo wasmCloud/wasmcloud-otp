@@ -234,8 +234,11 @@ defmodule HostCore.WebAssembly.Imports do
     %{token | authorized: true}
   end
 
-  defp invoke(_token = %{authorized: false, agent: agent}) do
-    Agent.update(agent, fn state -> %State{state | host_error: "Invocation not authorized"} end)
+  defp invoke(_token = %{authorized: false, agent: agent, namespace: namespace}) do
+    Agent.update(agent, fn state ->
+      %State{state | host_error: "Invocation not authorized: missing claim for #{namespace}"}
+    end)
+
     0
   end
 
