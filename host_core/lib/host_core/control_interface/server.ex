@@ -4,6 +4,7 @@ defmodule HostCore.ControlInterface.Server do
   use Gnat.Server
 
   alias HostCore.ControlInterface.ACL
+  alias HostCore.CloudEvent
 
   def request(%{topic: topic, body: body, reply_to: reply_to}) do
     topic
@@ -204,17 +205,24 @@ defmodule HostCore.ControlInterface.Server do
 
   # Stop Host
   defp handle_request({"cmd", _host_id, "stop"}, body, _reply_to) do
-    # TODO: Right now this will contain a parameter for timeout. Obviously how this works currently
-    # only results in the graceful shutdowns built into the system. There may be some inflight work
-    # we want to wait for up to the timeout. We could use this library possibly so we can put in
-    # hooks: https://github.com/botsquad/graceful_stop.
-    _stop_host_command = Jason.decode!(body)
+    case Jason.decode(body) do
+      # TODO: Right now this will contain a parameter for timeout. Obviously how this works currently
+      # only results in the graceful shutdowns built into the system. There may be some inflight work
+      # we want to wait for up to the timeout. We could use this library possibly so we can put in
+      # hooks: https://github.com/botsquad/graceful_stop.
+      {:ok, _stop_host_command} ->
+        Logger.info("Received stop request for host")
+        HostCore.Host.purge()
+        publish_host_stopped()
+        # Give a little bit of time for the event to get sent before shutting down
+        :timer.sleep(100)
 
-    Logger.info("Received stop request for host")
+        :init.stop()
 
-    HostCore.Host.purge()
-
-    :init.stop()
+      {:error, e} ->
+        Logger.error("Unable to parse incoming stop request: #{e}")
+        failure_ack("Unable to perform stop host command: #{e}")
+    end
   end
 
   ### AUCTIONS
@@ -283,5 +291,17 @@ defmodule HostCore.ControlInterface.Server do
       accepted: false,
       error: error
     })
+  end
+
+  defp publish_host_stopped() do
+    prefix = HostCore.Host.lattice_prefix()
+
+    msg =
+      %{}
+      |> CloudEvent.new("host_stopped")
+
+    topic = "wasmbus.evt.#{prefix}"
+
+    Gnat.pub(:control_nats, topic, msg)
   end
 end
