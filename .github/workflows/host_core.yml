@@ -16,22 +16,12 @@ jobs:
       matrix:
         elixir: [1.12.1]
         otp: [22.0, 23.0, 23.3.4.1, 24.0]
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
 
     name: Build and test
     runs-on: ubuntu-18.04
 
     steps:
-      - uses: actions/checkout@v2      
-      
-      - id: run-nats
-        uses: wasmcloud/common-actions/run-nats@main
-        with:
-          options: '-js'
+      - uses: actions/checkout@v2
 
       - name: Setup elixir
         uses: actions/setup-elixir@v1
@@ -67,9 +57,11 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{env.working-directory}}
+        env:
+          EXTRA_TEST_ARGS: "--timeout 120000"
         run: |
           WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
-          mix test --timeout 120000
+          make test
 
       - name: Retrieve PLT Cache
         uses: actions/cache@v2
