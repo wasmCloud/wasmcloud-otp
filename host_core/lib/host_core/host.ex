@@ -1,6 +1,7 @@
 defmodule HostCore.Host do
   @moduledoc false
   use GenServer, restart: :transient
+  alias HostCore.CloudEvent
   require Logger
 
   # To set this value in a release, edit the `env.sh` file that is generated
@@ -85,6 +86,32 @@ defmodule HostCore.Host do
     labels = Map.merge(labels, HostCore.WasmCloud.Native.detect_core_host_labels())
 
     {:reply, labels, state}
+  end
+
+  @impl true
+  def handle_info({:do_stop, _timeout_ms}, state) do
+    # TODO: incorporate timeout into graceful shutdown
+
+    purge()
+    publish_host_stopped()
+
+    # Give a little bit of time for the event to get sent before shutting down
+    :timer.sleep(300)
+
+    :init.stop()
+    {:noreply, state}
+  end
+
+  defp publish_host_stopped() do
+    prefix = HostCore.Host.lattice_prefix()
+
+    msg =
+      %{}
+      |> CloudEvent.new("host_stopped")
+
+    topic = "wasmbus.evt.#{prefix}"
+
+    Gnat.pub(:control_nats, topic, msg)
   end
 
   defp configure_ets() do

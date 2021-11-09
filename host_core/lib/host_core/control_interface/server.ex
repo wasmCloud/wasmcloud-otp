@@ -210,18 +210,14 @@ defmodule HostCore.ControlInterface.Server do
       # only results in the graceful shutdowns built into the system. There may be some inflight work
       # we want to wait for up to the timeout. We could use this library possibly so we can put in
       # hooks: https://github.com/botsquad/graceful_stop.
-      {:ok, _stop_host_command} ->
+      {:ok, stop_host_command} ->
         Logger.info("Received stop request for host")
-        HostCore.Host.purge()
-        publish_host_stopped()
-        # Give a little bit of time for the event to get sent before shutting down
-        :timer.sleep(100)
-
-        :init.stop()
+        Process.send_after(HostCore.Host, {:do_stop, stop_host_command.timeout}, 100)
+        {:reply, success_ack()}
 
       {:error, e} ->
         Logger.error("Unable to parse incoming stop request: #{e}")
-        failure_ack("Unable to perform stop host command: #{e}")
+        {:reply, failure_ack("Unable to parse stop host command: #{e}")}
     end
   end
 
@@ -291,17 +287,5 @@ defmodule HostCore.ControlInterface.Server do
       accepted: false,
       error: error
     })
-  end
-
-  defp publish_host_stopped() do
-    prefix = HostCore.Host.lattice_prefix()
-
-    msg =
-      %{}
-      |> CloudEvent.new("host_stopped")
-
-    topic = "wasmbus.evt.#{prefix}"
-
-    Gnat.pub(:control_nats, topic, msg)
   end
 end
