@@ -212,7 +212,7 @@ defmodule HostCore.ControlInterface.Server do
       # hooks: https://github.com/botsquad/graceful_stop.
       {:ok, stop_host_command} ->
         Logger.info("Received stop request for host")
-        Process.send_after(HostCore.Host, {:do_stop, stop_host_command.timeout}, 100)
+        Process.send_after(HostCore.Host, {:do_stop, stop_host_command["timeout"]}, 100)
         {:reply, success_ack()}
 
       {:error, e} ->
