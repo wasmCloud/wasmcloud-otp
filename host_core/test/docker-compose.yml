@@ -1,9 +1,13 @@
 version: "3"
 services:
   nats:
-    image: nats:2.3.4
+    image: nats:2
     command: "-js"
     ports:
       - "4222:4222"
       - "6222:6222"
       - "8222:8222"
+  redis:
+    image: redis:6.2.4
+    ports:
+      - "6379:6379"
