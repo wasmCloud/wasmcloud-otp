@@ -158,11 +158,9 @@ defmodule HostCore do
   end
 
   defp write_json(config, file) do
-    if !File.exists?(file) do
-      case File.write(file, Jason.encode!(remove_extras(config))) do
-        {:error, reason} -> Logger.error("Failed to write configuration file #{reason}")
-        :ok -> Logger.info("Wrote #{inspect(file)}")
-      end
+    case File.write(file, Jason.encode!(remove_extras(config))) do
+      {:error, reason} -> Logger.error("Failed to write configuration file #{reason}")
+      :ok -> Logger.info("Wrote #{inspect(file)}")
     end
   end
 
