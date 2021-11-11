@@ -12,7 +12,8 @@ defmodule HostCore.Jetstream.Client do
   def init(config) do
     state = %{
       lattice_prefix: config.lattice_prefix,
-      deliver_subject: config.cache_deliver_inbox
+      deliver_subject: config.cache_deliver_inbox,
+      domain: config.js_domain
     }
 
     {:ok, state, {:continue, :ensure_stream}}
@@ -22,7 +23,14 @@ defmodule HostCore.Jetstream.Client do
   def handle_continue(:ensure_stream, state) do
     # TODO get rid of this
     Process.sleep(100)
-    create_topic = "$JS.API.STREAM.CREATE.LATTICECACHE_#{state.lattice_prefix}"
+
+    create_topic =
+      if state.domain == nil do
+        "$JS.API.STREAM.CREATE.LATTICECACHE_#{state.lattice_prefix}"
+      else
+        "$JS.#{state.domain}.API.STREAM.CREATE.LATTICECACHE_#{state.lattice_prefix}"
+      end
+
     stream_topic = "lc.#{state.lattice_prefix}.>"
 
     payload_json =
@@ -68,7 +76,13 @@ defmodule HostCore.Jetstream.Client do
     Logger.info("Attempting to create ephemeral consumer (cache loader)")
     stream_name = "LATTICECACHE_#{state.lattice_prefix}"
     consumer_name = String.replace(state.deliver_subject, "_INBOX.", "")
-    create_topic = "$JS.API.CONSUMER.CREATE.#{stream_name}"
+
+    create_topic =
+      if state.domain == nil do
+        "$JS.API.CONSUMER.CREATE.#{stream_name}"
+      else
+        "$JS.#{state.domain}.API.CONSUMER.CREATE.#{stream_name}"
+      end
 
     payload_json =
       %{
@@ -119,9 +133,12 @@ defmodule HostCore.Jetstream.Client do
   def handle_stream_create_response(%{
         "type" => "io.nats.jetstream.api.v1.stream_create_response",
         "config" => _config,
-        "state" => _state
+        "state" => state
       }) do
-    Logger.info("Default lattice cache stream created or verified as existing")
+    Logger.info(
+      "Lattice cache stream created or verified as existing (#{state["consumer_count"]} consumers)."
+    )
+
     true
   end
 

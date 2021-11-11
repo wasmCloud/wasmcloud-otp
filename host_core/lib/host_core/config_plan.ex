@@ -12,12 +12,10 @@ defmodule HostCore.ConfigPlan do
 
   @impl Vapor.Plan
   def config_plan do
-    wash_config = Path.join(System.user_home(), "/.wash/host_config.json")
-
     [
       %Dotenv{},
       %FilesConfigProvider{
-        paths: [wash_config, "host_config.json"],
+        paths: ["host_config.json"],
         bindings: json_bindings()
       },
       # Default values will be in the merged accumulator at this point,
@@ -25,6 +23,7 @@ defmodule HostCore.ConfigPlan do
       %Env{
         bindings: [
           {:lattice_prefix, @prefix_var, required: false},
+          {:host_seed, "WASMCLOUD_HOST_SEED", required: false},
           {:rpc_host, "WASMCLOUD_RPC_HOST", required: false},
           {:rpc_port, "WASMCLOUD_RPC_PORT", required: false, map: &String.to_integer/1},
           {:rpc_seed, "WASMCLOUD_RPC_SEED", required: false},
@@ -49,7 +48,8 @@ defmodule HostCore.ConfigPlan do
            required: false, map: &String.to_integer/1},
           {:allow_latest, "WASMCLOUD_OCI_ALLOW_LATEST", required: false, map: &String.to_atom/1},
           {:allowed_insecure, "WASMCLOUD_OCI_ALLOWED_INSECURE",
-           required: false, map: &String.split(&1, ",")}
+           required: false, map: &String.split(&1, ",")},
+          {:js_domain, "WASMCLOUD_JS_DOMAIN", required: false}
         ]
       }
     ]
@@ -58,6 +58,7 @@ defmodule HostCore.ConfigPlan do
   defp json_bindings() do
     [
       {:lattice_prefix, "lattice_prefix", required: false, default: @default_prefix},
+      {:host_seed, "host_seed", required: false, default: nil},
       {:rpc_host, "rpc_host", required: false, default: "127.0.0.1"},
       {:rpc_port, "rpc_port", required: false, default: 4222},
       {:rpc_seed, "rpc_seed", required: false, default: ""},
@@ -78,7 +79,8 @@ defmodule HostCore.ConfigPlan do
       {:cluster_issuers, "cluster_issuers", required: false, default: []},
       {:provider_delay, "provider_delay", required: false, default: 300},
       {:allow_latest, "allow_latest", required: false, default: false},
-      {:allowed_insecure, "allowed_insecure", required: false, default: []}
+      {:allowed_insecure, "allowed_insecure", required: false, default: []},
+      {:js_domain, "js_domain", required: false, default: nil}
     ]
   end
 end
