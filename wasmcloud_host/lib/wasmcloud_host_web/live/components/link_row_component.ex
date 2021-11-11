@@ -38,11 +38,10 @@ defmodule LinkRowComponent do
         </button>
       </td>
       <td>
-
-    <button class="btn btn-sm btn-danger" id="delete_linkdef_<%= @actor_id %>_<%= @link_name %>_<%= @contract_id %>"
-    data-toggle="tooltip" data-placement="top" title data-original-title="Delete Linkdef" phx-target="<%= @myself %>"
-    phx-click="delete_linkdef" phx-value-contract_id="<%= @contract_id %>" phx-value-link_name="<%= @link_name %>"
-    phx-value-actor_id="<%= @actor_id %>">
+        <button class="btn btn-sm btn-danger" id="delete_linkdef_<%= @actor_id %>_<%= @link_name %>_<%= @contract_id %>"
+          data-toggle="tooltip" data-placement="top" title data-original-title="Delete Linkdef" phx-target="<%= @myself %>"
+          phx-click="delete_linkdef" phx-value-contract_id="<%= @contract_id %>" phx-value-link_name="<%= @link_name %>"
+          phx-value-actor_id="<%= @actor_id %>">
           <svg class="c-icon" style="color: white">
             <use xlink:href="/coreui/free.svg#cil-trash"></use>
           </svg>

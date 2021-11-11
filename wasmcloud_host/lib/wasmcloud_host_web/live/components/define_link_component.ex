@@ -47,7 +47,7 @@ defmodule DefineLinkComponent do
           "Please select a Provider ID to link"
 
         true ->
-          case HostCore.Linkdefs.Manager.put_link_definition(
+          case WasmcloudHost.Lattice.ControlInterface.put_linkdef(
                  actor_id,
                  contract_id,
                  link_name,
