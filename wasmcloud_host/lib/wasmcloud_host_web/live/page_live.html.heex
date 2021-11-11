@@ -124,7 +124,7 @@
                            <%# One row per-provider instance, which is a public key, contract id and link name combination %>
                            <%= for {host_id, host_map} <- display_hosts do %>
                            <%= for {{provider, link_name}, info_map} <- Map.get(host_map, :providers, %{}) do %>
-                           <% provider_name = @claims |> Enum.find(fn {k, _v} -> k == provider end) |> elem(1) |> Map.get(:name, "N/A") %>
+                           <% provider_name = @claims |> Enum.find({"", %{}}, fn {k, _v} -> k == provider end) |> elem(1) |> Map.get(:name, "N/A") %>
                            <%= live_component ProviderRowComponent,
                               id: "#{provider} (#{link_name}) (#{host_id})",
                               provider: provider,

@@ -28,7 +28,7 @@ defmodule WasmcloudHostWeb.PageLive do
     {:noreply, assign(socket, claims: claims)}
   end
 
-  def handle_info({:ocirefs, ocirefs}, socket) do
+  def handle_info({:refmaps, ocirefs}, socket) do
     {:noreply, assign(socket, ocirefs: ocirefs)}
   end
 
