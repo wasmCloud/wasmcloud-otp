@@ -1,16 +1,34 @@
 defmodule StartActorComponent do
   use Phoenix.LiveComponent
 
+  @max_actor_size 16_000_000
+
   def mount(socket) do
     {:ok,
      socket
      |> assign(:uploads, %{})
      |> assign(:error_msg, nil)
-     |> allow_upload(:actor, accept: ~w(.wasm), max_entries: 1)}
+     |> allow_upload(:actor, accept: ~w(.wasm), max_entries: 1, max_file_size: @max_actor_size)}
   end
 
   def handle_event("validate", _params, socket) do
-    {:noreply, socket}
+    case socket.assigns
+         |> Map.get(:uploads, %{})
+         |> Map.get(:actor, %{})
+         |> Map.get(:entries, [])
+         |> List.first(nil) do
+      nil ->
+        {:noreply, socket}
+
+      item when item.client_size > @max_actor_size ->
+        {:noreply,
+         assign(socket,
+           error_msg: "Uploaded actor was too large, must be under #{@max_actor_size} bytes"
+         )}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event(
