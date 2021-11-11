@@ -125,6 +125,31 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
     end
   end
 
+  def delete_linkdef(actor_id, contract_id, link_name) do
+    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.linkdefs.del"
+
+    payload =
+      Jason.encode!(%{
+        "actor_id" => actor_id,
+        "contract_id" => contract_id,
+        "link_name" => link_name
+      })
+
+    case ctl_request(topic, payload, 2_000) do
+      {:ok, %{body: body}} ->
+        resp = Jason.decode!(body)
+
+        if Map.get(resp, "accepted", false) do
+          :ok
+        else
+          {:error, Map.get(resp, "error", "")}
+        end
+
+      {:error, :timeout} ->
+        {:error, "Request to stop provider timed out"}
+    end
+  end
+
   defp ctl_request(topic, payload, timeout) do
     Gnat.request(:control_nats, topic, payload, request_timeout: timeout)
   end
