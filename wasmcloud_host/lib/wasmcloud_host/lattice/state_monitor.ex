@@ -159,8 +159,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :ocimap_added, ocimap}, state) do
-    ocirefs = add_refmap(state.refmaps, ocimap.oci_url, ocimap.public_key)
+  def handle_cast({:cache_load_event, :refmap_added, refmap}, state) do
+    ocirefs = add_refmap(state.refmaps, refmap.oci_url, refmap.public_key)
     {:noreply, %State{state | refmaps: ocirefs}}
   end
 
@@ -382,7 +382,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            data: %{"oci_url" => oci_url, "public_key" => public_key},
            datacontenttype: "application/json",
            source: _source_host,
-           type: "com.wasmcloud.lattice.ocimap_set"
+           type: "com.wasmcloud.lattice.refmap_set"
          }
        ) do
     refmaps = add_refmap(state.refmaps, oci_url, public_key)

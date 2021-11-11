@@ -56,12 +56,12 @@ defmodule HostCore.Jetstream.CacheLoader do
     broadcast_event(:claims_added, claims)
   end
 
-  def handle_request({"ocimap", _key}, body) do
+  def handle_request({"refmap", _key}, body) do
     refmap = body |> Jason.decode!() |> atomize
     HostCore.Refmaps.Manager.cache_refmap(refmap.oci_url, refmap.public_key)
 
     Logger.debug("Cached OCI map reference from #{refmap.oci_url} to #{refmap.public_key}")
-    broadcast_event(:ocimap_added, refmap)
+    broadcast_event(:refmap_added, refmap)
   end
 
   def handle_request({keytype, _key}, _body) do

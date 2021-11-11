@@ -78,8 +78,8 @@ defmodule HostCoreTest.EventWatcher do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :ocimap_added, ocimap}, state) do
-    ocirefs = Map.put(state.ocirefs, ocimap.oci_url, ocimap.public_key)
+  def handle_cast({:cache_load_event, :refmap_added, refmap}, state) do
+    ocirefs = Map.put(state.ocirefs, refmap.oci_url, refmap.public_key)
     {:noreply, %State{state | ocirefs: ocirefs}}
   end
 
