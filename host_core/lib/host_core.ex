@@ -81,7 +81,22 @@ defmodule HostCore do
   end
 
   defp post_process_config(config) do
-    {host_key, host_seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    {host_key, host_seed} =
+      if config.host_seed == nil do
+        HostCore.WasmCloud.Native.generate_key(:server)
+      else
+        case HostCore.WasmCloud.Native.pk_from_seed(config.host_seed) do
+          {:ok, pk} ->
+            {pk, config.host_seed}
+
+          {:error, _err} ->
+            Logger.error(
+              "Failed to obtain host public key from seed: #{config.host_seed}. Using new host key."
+            )
+
+            HostCore.WasmCloud.Native.generate_key(:server)
+        end
+      end
 
     config =
       config
@@ -98,6 +113,11 @@ defmodule HostCore do
 
     hid = Hashids.encode(s, Enum.random(1..4_294_967_295))
     config = Map.put(config, :cache_deliver_inbox, "_INBOX.#{hid}")
+
+    if config.js_domain != nil && String.valid?(config.js_domain) &&
+         String.length(config.js_domain) > 1 do
+      Logger.info("Using JetStream domain: #{config.js_domain}")
+    end
 
     {def_cluster_key, def_cluster_seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
     # we're generating the key, so we know this is going to work
