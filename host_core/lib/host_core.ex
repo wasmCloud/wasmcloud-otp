@@ -167,6 +167,14 @@ defmodule HostCore do
 
   defp write_config(config) do
     write_json(config, "./host_config.json")
+
+    case System.user_home() do
+      nil ->
+        Logger.warn("Can't check for ~/.wash host config - no user home available")
+
+      h ->
+        write_json(config, Path.join([h, "/.wash/", "host_config.json"]))
+    end
   end
 
   defp write_json(config, file) do
