@@ -23,7 +23,9 @@ COPY ./wasmcloud_host ./wasmcloud_host
 # Install necessary system dependencies
 RUN apt update && \
   DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
-  git
+  git \
+  ca-certificates && \
+  update-ca-certificates
 
 # This step installs all the build tools we'll need
 RUN mix local.rebar --force && \
