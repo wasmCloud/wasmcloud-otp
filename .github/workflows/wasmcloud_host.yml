@@ -132,7 +132,7 @@ jobs:
           builder: ${{ steps.buildx-builder.outputs.name }}
           push: false # TODO: remove after test 
           file: ${{env.working-directory}}/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64 # TODO: Troubleshoot missing `git` executable, add this back ,linux/arm64
           build-args: |
             BUILDER_IMAGE=elixir:1.12.2-slim
             RELEASE_IMAGE=debian:buster-slim
