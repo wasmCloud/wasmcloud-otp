@@ -4,7 +4,7 @@ defmodule HostCore.MixProject do
   def project do
     [
       app: :host_core,
-      version: "0.50.1",
+      version: "0.50.2",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
