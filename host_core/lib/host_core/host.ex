@@ -64,6 +64,8 @@ defmodule HostCore.Host do
       Logger.warn(warning)
     end
 
+    publish_host_started()
+
     {:ok,
      %State{
        host_key: opts.host_key,
@@ -108,6 +110,18 @@ defmodule HostCore.Host do
     msg =
       %{}
       |> CloudEvent.new("host_stopped")
+
+    topic = "wasmbus.evt.#{prefix}"
+
+    Gnat.pub(:control_nats, topic, msg)
+  end
+
+  defp publish_host_started() do
+    prefix = HostCore.Host.lattice_prefix()
+
+    msg =
+      %{}
+      |> CloudEvent.new("host_started")
 
     topic = "wasmbus.evt.#{prefix}"
 
