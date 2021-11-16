@@ -19,6 +19,14 @@ WORKDIR /opt/app
 # This copies our app source code into the build container
 COPY ./host_core ./host_core
 COPY ./wasmcloud_host ./wasmcloud_host
+
+# Install necessary system dependencies
+RUN apt update && \
+  DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
+  git \
+  ca-certificates && \
+  update-ca-certificates
+
 # This step installs all the build tools we'll need
 RUN mix local.rebar --force && \
   mix local.hex --force
