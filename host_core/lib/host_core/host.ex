@@ -221,6 +221,8 @@ defmodule HostCore.Host do
       lattice_rpc_user_seed: seed,
       lattice_rpc_url: url,
       lattice_rpc_tls: tls,
+      # for backwards compatibility
+      env_values: %{},
       instance_id: instance_id,
       provider_key: provider_key,
       link_definitions: lds,
