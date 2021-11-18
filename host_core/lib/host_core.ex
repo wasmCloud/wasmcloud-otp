@@ -13,7 +13,10 @@ defmodule HostCore do
 
     opts = [strategy: :one_for_one, name: HostCore.Supervisor]
 
-    Logger.info("Starting Host Core")
+    Logger.info(
+      "Starting wasmCloud OTP Host Runtime v#{Application.spec(:host_core, :vsn) |> to_string()}"
+    )
+
     Supervisor.start_link(children, opts)
   end
 
