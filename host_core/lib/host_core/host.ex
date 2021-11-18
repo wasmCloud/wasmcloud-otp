@@ -9,7 +9,7 @@ defmodule HostCore.Host do
 
   defmodule State do
     @moduledoc false
-    defstruct [:host_key, :lattice_prefix]
+    defstruct [:host_key, :lattice_prefix, :labels]
   end
 
   @doc """
@@ -64,12 +64,17 @@ defmodule HostCore.Host do
       Logger.warn(warning)
     end
 
-    publish_host_started()
+    labels =
+      get_env_host_labels()
+      |> Map.merge(HostCore.WasmCloud.Native.detect_core_host_labels())
+
+    publish_host_started(labels)
 
     {:ok,
      %State{
        host_key: opts.host_key,
-       lattice_prefix: opts.lattice_prefix
+       lattice_prefix: opts.lattice_prefix,
+       labels: labels
      }}
   end
 
@@ -84,10 +89,7 @@ defmodule HostCore.Host do
 
   @impl true
   def handle_call(:get_labels, _from, state) do
-    labels = get_env_host_labels()
-    labels = Map.merge(labels, HostCore.WasmCloud.Native.detect_core_host_labels())
-
-    {:reply, labels, state}
+    {:reply, state.labels, state}
   end
 
   @impl true
@@ -95,7 +97,7 @@ defmodule HostCore.Host do
     # TODO: incorporate timeout into graceful shutdown
 
     purge()
-    publish_host_stopped()
+    publish_host_stopped(state.labels)
 
     # Give a little bit of time for the event to get sent before shutting down
     :timer.sleep(300)
@@ -104,11 +106,13 @@ defmodule HostCore.Host do
     {:noreply, state}
   end
 
-  defp publish_host_stopped() do
+  defp publish_host_stopped(labels) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
-      %{}
+      %{
+        labels: labels
+      }
       |> CloudEvent.new("host_stopped")
 
     topic = "wasmbus.evt.#{prefix}"
@@ -116,11 +120,13 @@ defmodule HostCore.Host do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  defp publish_host_started() do
+  defp publish_host_started(labels) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
-      %{}
+      %{
+        labels: labels
+      }
       |> CloudEvent.new("host_started")
 
     topic = "wasmbus.evt.#{prefix}"

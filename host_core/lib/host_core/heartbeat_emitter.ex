@@ -48,7 +48,8 @@ defmodule HostCore.HeartbeatEmitter do
 
     %{
       actors: actors,
-      providers: providers
+      providers: providers,
+      labels: HostCore.Host.host_labels()
     }
     |> CloudEvent.new("host_heartbeat", state[:host_key])
   end

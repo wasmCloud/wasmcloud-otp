@@ -16,24 +16,6 @@ defmodule HostCoreTest do
   @echo_key HostCoreTest.Constants.echo_key()
   @httpserver_link HostCoreTest.Constants.default_link()
 
-  test "Host stores intrinsic values" do
-    # should never appear
-    System.put_env("hostcore.osfamily", "fakeroo")
-    System.put_env("HOST_TESTING", "42")
-    labels = HostCore.Host.host_labels()
-
-    family_target =
-      case :os.type() do
-        {:unix, :darwin} -> "unix"
-        {:unix, _linux} -> "unix"
-        {:win32, :nt} -> "windows"
-      end
-
-    assert family_target == labels["hostcore.osfamily"]
-    # HOST_ prefix removed.
-    assert "42" == labels["testing"]
-  end
-
   test "Host purges actors and providers", %{:evt_watcher => evt_watcher} do
     {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
