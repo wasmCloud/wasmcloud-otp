@@ -165,7 +165,8 @@ defmodule HostCore.ControlInterface.Server do
     ack =
       case HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
              start_provider_command["provider_ref"],
-             start_provider_command["link_name"]
+             start_provider_command["link_name"],
+             Map.get(start_provider_command, "config_json", "")
            ) do
         {:ok, _pid} ->
           success_ack()

@@ -50,7 +50,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   @impl true
-  def init({:executable, path, claims, link_name, contract_id, oci}) do
+  def init({:executable, path, claims, link_name, contract_id, oci, config_json}) do
     Logger.info("Starting executable capability provider at  '#{path}'")
 
     instance_id = UUID.uuid4()
@@ -63,7 +63,12 @@ defmodule HostCore.Providers.ProviderModule do
     HostCore.Providers.register_provider(claims.public_key, link_name, contract_id)
 
     host_info =
-      HostCore.Host.generate_hostinfo_for(claims.public_key, link_name, instance_id)
+      HostCore.Host.generate_hostinfo_for(
+        claims.public_key,
+        link_name,
+        instance_id,
+        config_json
+      )
       |> Base.encode64()
       |> to_charlist()
 

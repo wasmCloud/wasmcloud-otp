@@ -13,12 +13,19 @@ defmodule HostCore.Providers.ProviderSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  defp start_executable_provider(path, claims, link_name, contract_id, oci \\ "") do
+  defp start_executable_provider(
+         path,
+         claims,
+         link_name,
+         contract_id,
+         oci \\ "",
+         config_json \\ ""
+       ) do
     case Registry.count_match(Registry.ProviderRegistry, {claims.public_key, link_name}, :_) do
       0 ->
         DynamicSupervisor.start_child(
           __MODULE__,
-          {ProviderModule, {:executable, path, claims, link_name, contract_id, oci}}
+          {ProviderModule, {:executable, path, claims, link_name, contract_id, oci, config_json}}
         )
 
       _ ->
@@ -52,7 +59,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  def start_provider_from_oci(oci, link_name) do
+  def start_provider_from_oci(oci, link_name, config_json \\ "") do
     with {:ok, bytes} <-
            HostCore.WasmCloud.Native.get_oci_bytes(
              oci,
@@ -61,7 +68,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
            ),
          {:ok, par} <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
          {:ok, path} <- extract_executable_to_tmp(par, link_name) do
-      start_executable_provider(path, par.claims, link_name, par.contract_id, oci)
+      start_executable_provider(path, par.claims, link_name, par.contract_id, oci, config_json)
     else
       {:error, err} -> Logger.error("Error starting provider from OCI: #{err}")
       _err -> Logger.error("Error starting provider from OCI")

@@ -202,7 +202,7 @@ defmodule HostCore.Host do
     HostCore.Providers.ProviderSupervisor.terminate_all()
   end
 
-  def generate_hostinfo_for(provider_key, link_name, instance_id) do
+  def generate_hostinfo_for(provider_key, link_name, instance_id, config_json) do
     {url, jwt, seed, tls} =
       case :ets.lookup(:config_table, :config) do
         [config: config_map] ->
@@ -227,11 +227,12 @@ defmodule HostCore.Host do
       lattice_rpc_user_seed: seed,
       lattice_rpc_url: url,
       lattice_rpc_tls: tls,
+      # for backwards compatibility
+      env_values: %{},
       instance_id: instance_id,
       provider_key: provider_key,
       link_definitions: lds,
-      # TODO
-      env_values: %{},
+      config_json: config_json,
       cluster_issuers: cluster_issuers(),
       invocation_seed: cluster_seed()
     }
