@@ -320,7 +320,7 @@ defmodule HostCore.Actors.ActorModule do
       %State{content | api_version: api_version, instance: instance}
     end)
 
-    publish_actor_started(claims.public_key, api_version, instance_id)
+    publish_actor_started(claims, api_version, instance_id)
     {:ok, agent}
   end
 
@@ -336,14 +336,22 @@ defmodule HostCore.Actors.ActorModule do
     HostCore.Refmaps.Manager.put_refmap(oci, pk)
   end
 
-  def publish_actor_started(actor_pk, api_version, instance_id) do
+  def publish_actor_started(claims, api_version, instance_id) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
-        public_key: actor_pk,
+        public_key: claims.public_key,
         api_version: api_version,
-        instance_id: instance_id
+        instance_id: instance_id,
+        claims: %{
+          call_alias: claims.call_alias,
+          caps: claims.caps,
+          issuer: claims.issuer,
+          tags: claims.tags,
+          name: claims.name,
+          version: claims.version
+        }
       }
       |> CloudEvent.new("actor_started")
 
