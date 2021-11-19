@@ -83,7 +83,7 @@ defmodule HostCore.Providers.ProviderModule do
     # when it starts.
 
     HostCore.Claims.Manager.put_claims(claims)
-    publish_provider_started(claims.public_key, link_name, contract_id, instance_id)
+    publish_provider_started(claims, link_name, contract_id, instance_id)
 
     if oci != nil && oci != "" do
       publish_provider_oci_map(claims.public_key, link_name, oci)
@@ -235,15 +235,21 @@ defmodule HostCore.Providers.ProviderModule do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  defp publish_provider_started(pk, link_name, contract_id, instance_id) do
+  defp publish_provider_started(claims, link_name, contract_id, instance_id) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
-        public_key: pk,
+        public_key: claims.public_key,
         link_name: link_name,
         contract_id: contract_id,
-        instance_id: instance_id
+        instance_id: instance_id,
+        claims: %{
+          issuer: claims.issuer,
+          tags: claims.tags,
+          name: claims.name,
+          version: claims.version
+        }
       }
       |> CloudEvent.new("provider_started")
 
