@@ -15,7 +15,9 @@ defmodule WasmcloudHost.Application do
       WasmcloudHostWeb.Endpoint,
       # Start a worker by calling: WasmcloudHost.Worker.start_link(arg)
       # {WasmcloudHost.Worker, arg}
-      WasmcloudHost.Lattice.StateMonitor
+      WasmcloudHost.Lattice.StateMonitor,
+      # Start the actor "hot watcher" Server
+      WasmcloudHost.ActorWatcher,
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

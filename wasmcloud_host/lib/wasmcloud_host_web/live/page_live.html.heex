@@ -33,6 +33,11 @@
                                     phx-value-id="start_actor_file_modal">
                                     From File
                                  </button>
+                                 <button class="dropdown-item" phx-click="show_modal"
+                                    phx-value-title="Start Actor from File" phx-value-component="StartActorComponent"
+                                    phx-value-id="start_actor_file_hotreload_modal">
+                                    From File (Hot Reload)
+                                 </button>
                                  <% end %>
                                  <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Actor from OCI Registry"

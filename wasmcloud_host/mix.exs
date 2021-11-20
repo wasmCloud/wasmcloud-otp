@@ -37,7 +37,7 @@ defmodule WasmcloudHost.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.6.0"},
-      {:phoenix_html, "~> 3.0"},
+      {:phoenix_html, "~> 3.0.4"},
       {:phoenix_live_view, "~> 0.16.4"},
       {:phoenix_live_dashboard, "~> 0.5"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
@@ -48,6 +48,7 @@ defmodule WasmcloudHost.MixProject do
       {:plug_cowboy, "~> 2.0"},
       {:host_core, path: "../host_core"},
       {:distillery, "~> 2.0"},
+      {:file_system, "~> 0.2"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false}
     ]

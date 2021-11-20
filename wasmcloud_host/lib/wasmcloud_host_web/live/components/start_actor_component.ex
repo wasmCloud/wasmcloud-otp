@@ -73,6 +73,24 @@ defmodule StartActorComponent do
   end
 
   def handle_event(
+        "start_actor_file_hotreload",
+        %{"path" => path},
+        socket
+      ) do
+    case WasmcloudHost.ActorWatcher.hotwatch_actor(:actor_watcher, path) do
+      :ok ->
+        Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
+        {:noreply, assign(socket, error_msg: nil)}
+
+      {:error, msg} ->
+        {:noreply, assign(socket, error_msg: msg)}
+
+      msg ->
+        {:noreply, assign(socket, error_msg: msg)}
+    end
+  end
+
+  def handle_event(
         "start_actor_ociref",
         %{"replicas" => replicas, "actor_ociref" => actor_ociref, "host_id" => host_id},
         socket
@@ -115,15 +133,26 @@ defmodule StartActorComponent do
 
   def render(assigns) do
     modal_id =
-      if assigns.id == :start_actor_file_modal do
-        "start_actor_file"
-      else
-        "start_actor_ociref"
+      case assigns.id do
+        :start_actor_file_modal -> "start_actor_file"
+        :start_actor_ociref_modal -> "start_actor_ociref"
+        :start_actor_file_hotreload_modal -> "start_actor_file_hotreload"
       end
 
     ~L"""
     <form class="form-horizontal" phx-submit="<%= modal_id %>" phx-change="validate" phx-target="<%= @myself %>">
       <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
+      <%= if assigns.id == :start_actor_file_hotreload_modal do %>
+      <div class="form-group row" phx-drop-target="<%= @uploads.actor.ref %>">
+        <label class="col-md-3 col-form-label" for="file-input">Path</label>
+        <div class="col-md-9">
+          <input class="form-control" id="text-input" type="text" name="path"
+            placeholder="/path/to/signed_actor.wasm" value="" required>
+          <span class="help-block">Enter the absolute path to your signed Actor</span>
+        </div>
+        </div>
+      </div>
+      <% end %>
       <%= if assigns.id == :start_actor_file_modal do %>
       <div class="form-group row" phx-drop-target="<%= @uploads.actor.ref %>">
         <label class="col-md-3 col-form-label" for="file-input">File</label>
@@ -131,7 +160,8 @@ defmodule StartActorComponent do
           <%= live_file_input @uploads.actor %>
         </div>
       </div>
-      <% else %>
+      <% end %>
+      <%= if assigns.id == :start_actor_ociref_modal do %>
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Desired Host</label>
         <div class="col-md-9">
@@ -171,6 +201,7 @@ defmodule StartActorComponent do
         </div>
       </div>
       <% end %>
+      <%= if assigns.id != :start_actor_file_hotreload_modal do %>
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Replicas</label>
         <div class="col-md-9">
@@ -178,6 +209,7 @@ defmodule StartActorComponent do
           <span class="help-block">Enter how many instances of this actor you want</span>
         </div>
       </div>
+      <% end %>
       <div class="modal-footer">
         <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
         <button class="btn btn-primary" type="submit">Submit</button>
