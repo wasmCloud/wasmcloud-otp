@@ -220,7 +220,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp start_actor(claims, bytes, oci) do
-    Logger.info("Actor module starting")
+    Logger.info("Starting actor #{claims.public_key}")
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.Claims.Manager.put_claims(claims)
 
