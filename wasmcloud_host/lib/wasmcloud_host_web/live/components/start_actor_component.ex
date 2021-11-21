@@ -77,8 +77,11 @@ defmodule StartActorComponent do
         %{"path" => path, "replicas" => replicas},
         socket
       ) do
-    replicas = 1..String.to_integer(replicas)
-    case WasmcloudHost.ActorWatcher.hotwatch_actor(:actor_watcher, path, replicas) do
+    case WasmcloudHost.ActorWatcher.hotwatch_actor(
+           :actor_watcher,
+           path,
+           String.to_integer(replicas)
+         ) do
       :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
         {:noreply, assign(socket, error_msg: nil)}

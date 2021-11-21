@@ -9,7 +9,16 @@ defmodule WasmcloudHost.ActorWatcher do
   end
 
   def hotwatch_actor(pid, path, replicas) do
-    GenServer.call(pid, {:hotwatch_actor, path, replicas})
+    GenServer.call(pid, {:hotwatch_actor, path, replicas}, 60_000)
+  end
+
+  def stop_hotwatch(pid, actor_id) do
+    GenServer.call(pid, {:stop_hotwatch, actor_id})
+  end
+
+  # Determines if an actor is currently being hotwatched for changes
+  def is_hotwatched?(pid, actor_id) do
+    GenServer.call(pid, {:is_hotwatched, actor_id})
   end
 
   def init(_args) do
@@ -29,17 +38,17 @@ defmodule WasmcloudHost.ActorWatcher do
 
         # Actor was deleted, stop handling events for that actor
         existing_actors == [] ->
-          # TODO: consider if I need to stop the file event watcher
           {:noreply, Map.delete(state, path)}
 
         true ->
           replicas = existing_actors |> Enum.count()
+
           HostCore.Actors.ActorSupervisor.terminate_actor(
             actor_id,
             replicas
           )
 
-          start_actor(bytes, 1..replicas)
+          start_actor(bytes, replicas)
           {:noreply, state}
       end
     end
@@ -72,19 +81,37 @@ defmodule WasmcloudHost.ActorWatcher do
     end
   end
 
-  def start_actor(bytes, replicas) do
-    case replicas
-            |> Enum.reduce_while("", fn _, _ ->
-              case HostCore.Actors.ActorSupervisor.start_actor(bytes) do
-                {:stop, err} ->
-                  {:halt, "Error: #{err}"}
+  def handle_call({:stop_hotwatch, actor_id}, _from, state) do
+    new_state =
+      case state |> Enum.find(fn {_k, v} -> v == actor_id end) do
+        {path, _actor_id} -> Map.delete(state, path)
+        nil -> state
+      end
 
-                _any ->
-                  {:cont, ""}
-              end
-            end) do
-              "" -> :ok
-              msg -> {:error, msg}
-            end
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:is_hotwatched, actor_id}, _from, state) do
+    case state
+         |> Enum.find(fn {_k, v} -> v == actor_id end) do
+      nil -> {:reply, false, state}
+      _actor -> {:reply, true, state}
+    end
+  end
+
+  def start_actor(bytes, replicas) do
+    case 1..replicas
+         |> Enum.reduce_while("", fn _, _ ->
+           case HostCore.Actors.ActorSupervisor.start_actor(bytes) do
+             {:stop, err} ->
+               {:halt, "Error: #{err}"}
+
+             _any ->
+               {:cont, ""}
+           end
+         end) do
+      "" -> :ok
+      msg -> {:error, msg}
+    end
   end
 end

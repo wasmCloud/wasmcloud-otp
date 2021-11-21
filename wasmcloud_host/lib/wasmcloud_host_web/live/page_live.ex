@@ -15,8 +15,7 @@ defmodule WasmcloudHostWeb.PageLive do
        ocirefs: WasmcloudHost.Lattice.StateMonitor.get_ocirefs(),
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
        open_modal: nil,
-       selected_host: HostCore.Host.host_key(),
-       hot_watchers: %{}
+       selected_host: HostCore.Host.host_key()
      )}
   end
 
@@ -71,15 +70,5 @@ defmodule WasmcloudHostWeb.PageLive do
   @impl true
   def handle_event("hide_modal", _value, socket) do
     {:noreply, assign(socket, :open_modal, nil)}
-  end
-
-  @impl true
-  def handle_event("add_hot_watcher", value, socket) do
-    {:noreply, assign(socket, :hot_watchers, %{})}
-  end
-
-  @impl true
-  def handle_event("remove_hot_watcher", value, socket) do
-    {:noreply, assign(socket, :hot_watchers, %{})}
   end
 end
