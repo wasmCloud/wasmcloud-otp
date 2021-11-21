@@ -1,6 +1,3 @@
-# idea, actor watcher genserver that monitors a path for changes
-# when a file is modified and closed, stop that actor and start the new one
-# A new subscription can be created with a handle_info call, map from path to actor ID in state
 defmodule WasmcloudHost.ActorWatcher do
   use GenServer
 
