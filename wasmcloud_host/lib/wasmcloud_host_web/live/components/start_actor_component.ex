@@ -74,10 +74,11 @@ defmodule StartActorComponent do
 
   def handle_event(
         "start_actor_file_hotreload",
-        %{"path" => path},
+        %{"path" => path, "replicas" => replicas},
         socket
       ) do
-    case WasmcloudHost.ActorWatcher.hotwatch_actor(:actor_watcher, path) do
+    replicas = 1..String.to_integer(replicas)
+    case WasmcloudHost.ActorWatcher.hotwatch_actor(:actor_watcher, path, replicas) do
       :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
         {:noreply, assign(socket, error_msg: nil)}
@@ -201,7 +202,6 @@ defmodule StartActorComponent do
         </div>
       </div>
       <% end %>
-      <%= if assigns.id != :start_actor_file_hotreload_modal do %>
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Replicas</label>
         <div class="col-md-9">
@@ -209,7 +209,6 @@ defmodule StartActorComponent do
           <span class="help-block">Enter how many instances of this actor you want</span>
         </div>
       </div>
-      <% end %>
       <div class="modal-footer">
         <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
         <button class="btn btn-primary" type="submit">Submit</button>

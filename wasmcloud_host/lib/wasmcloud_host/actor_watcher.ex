@@ -8,8 +8,8 @@ defmodule WasmcloudHost.ActorWatcher do
     GenServer.start_link(__MODULE__, args, name: :actor_watcher)
   end
 
-  def hotwatch_actor(pid, path) do
-    GenServer.call(pid, {:hotwatch_actor, path})
+  def hotwatch_actor(pid, path, replicas) do
+    GenServer.call(pid, {:hotwatch_actor, path, replicas})
   end
 
   def init(_args) do
@@ -20,6 +20,7 @@ defmodule WasmcloudHost.ActorWatcher do
     if :modified in events and :closed in events do
       {:ok, bytes} = File.read(path)
       actor_id = Map.get(state, path, "")
+      existing_actors = HostCore.Actors.ActorSupervisor.find_actor(actor_id)
 
       cond do
         # noop, no actor is registered under that path
@@ -27,14 +28,18 @@ defmodule WasmcloudHost.ActorWatcher do
           {:noreply, state}
 
         # Actor was deleted, stop handling events for that actor
-        HostCore.Actors.ActorSupervisor.find_actor(actor_id) == [] ->
-          #TODO: consider if I need to stop the file event watcher
+        existing_actors == [] ->
+          # TODO: consider if I need to stop the file event watcher
           {:noreply, Map.delete(state, path)}
 
         true ->
-          #TODO: Scale shouldn't be available
-          HostCore.Actors.ActorSupervisor.terminate_actor(actor_id, 1)
-          HostCore.Actors.ActorSupervisor.start_actor(bytes)
+          replicas = existing_actors |> Enum.count()
+          HostCore.Actors.ActorSupervisor.terminate_actor(
+            actor_id,
+            replicas
+          )
+
+          start_actor(bytes, 1..replicas)
           {:noreply, state}
       end
     end
@@ -46,13 +51,18 @@ defmodule WasmcloudHost.ActorWatcher do
     {:noreply, state}
   end
 
-  def handle_call({:hotwatch_actor, path}, _from, state) do
+  def handle_call({:hotwatch_actor, path, replicas}, _from, state) do
     with {:ok, bytes} <- File.read(path),
-         {:ok, _pid} <- HostCore.Actors.ActorSupervisor.start_actor(bytes),
-         {:ok, claims} <- HostCore.WasmCloud.Native.extract_claims(bytes),
-         {:ok, watcher_pid} <- FileSystem.start_link(dirs: [path]),
-         :ok <- FileSystem.subscribe(watcher_pid) do
-      {:reply, :ok, Map.put(state, path, claims.public_key)}
+         :ok <- start_actor(bytes, replicas),
+         {:ok, claims} <- HostCore.WasmCloud.Native.extract_claims(bytes) do
+      if Map.get(state, path) != nil do
+        # Already watching this actor, don't re-subscribe
+        {:reply, :ok, state}
+      else
+        {:ok, watcher_pid} = FileSystem.start_link(dirs: [path])
+        FileSystem.subscribe(watcher_pid)
+        {:reply, :ok, Map.put(state, path, claims.public_key)}
+      end
     else
       {:error, err} ->
         {:reply, {:error, "Unable to start actor, #{err}"}, state}
@@ -60,5 +70,21 @@ defmodule WasmcloudHost.ActorWatcher do
       _ ->
         {:reply, {:error, "Unable to start actor"}, state}
     end
+  end
+
+  def start_actor(bytes, replicas) do
+    case replicas
+            |> Enum.reduce_while("", fn _, _ ->
+              case HostCore.Actors.ActorSupervisor.start_actor(bytes) do
+                {:stop, err} ->
+                  {:halt, "Error: #{err}"}
+
+                _any ->
+                  {:cont, ""}
+              end
+            end) do
+              "" -> :ok
+              msg -> {:error, msg}
+            end
   end
 end

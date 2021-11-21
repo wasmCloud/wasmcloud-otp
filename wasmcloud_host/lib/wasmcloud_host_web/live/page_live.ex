@@ -16,7 +16,7 @@ defmodule WasmcloudHostWeb.PageLive do
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
        open_modal: nil,
        selected_host: HostCore.Host.host_key(),
-       hot_watchers: %{},
+       hot_watchers: %{}
      )}
   end
 

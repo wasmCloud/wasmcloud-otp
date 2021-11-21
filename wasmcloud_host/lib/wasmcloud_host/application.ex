@@ -17,7 +17,7 @@ defmodule WasmcloudHost.Application do
       # {WasmcloudHost.Worker, arg}
       WasmcloudHost.Lattice.StateMonitor,
       # Start the actor "hot watcher" Server
-      WasmcloudHost.ActorWatcher,
+      WasmcloudHost.ActorWatcher
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
