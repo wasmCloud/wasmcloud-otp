@@ -444,7 +444,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
            type: type
          }
        ) do
-    Logger.warn("Unsupported event (#{type}) received, not handling")
+    Logger.debug("Event (#{type}) received but was ignored: No handler defined")
     state
   end
 
