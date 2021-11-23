@@ -132,7 +132,12 @@ defmodule HostCore.ControlInterface.Server do
   # Stop Actor
   defp handle_request({"cmd", _host_id, "sa"}, body, _reply_to) do
     stop_actor_command = Jason.decode!(body)
-    HostCore.Actors.ActorSupervisor.terminate_actor(stop_actor_command["actor_ref"], 1)
+
+    HostCore.Actors.ActorSupervisor.terminate_actor(
+      stop_actor_command["actor_ref"],
+      stop_actor_command["count"]
+    )
+
     {:reply, success_ack()}
   end
 
