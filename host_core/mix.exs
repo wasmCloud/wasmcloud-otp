@@ -1,10 +1,12 @@
 defmodule HostCore.MixProject do
   use Mix.Project
 
+  @app_vsn "0.50.3"
+
   def project do
     [
       app: :host_core,
-      version: "0.50.3",
+      version: @app_vsn,
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -38,7 +40,8 @@ defmodule HostCore.MixProject do
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:httpoison, "~> 1.8", only: [:test]},
-      {:json, "~> 1.4", only: [:test]}
+      {:json, "~> 1.4", only: [:test]},
+      {:distillery, "~> 2.0"}
     ]
   end
 end
