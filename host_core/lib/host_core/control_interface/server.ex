@@ -218,7 +218,7 @@ defmodule HostCore.ControlInterface.Server do
         end
       end)
 
-      success_ack()
+      {:reply, success_ack()}
     else
       _ ->
         {:reply, failure_ack("Improperly formed start provider command JSON")}
