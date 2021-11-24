@@ -137,10 +137,13 @@ defmodule HostCore.ControlInterface.Server do
                start_actor_command["actor_ref"]
              ) do
           {:ok, _pid} ->
-            Logger.debug("Completed request to start actor")
+            Logger.debug("Completed request to start actor #{start_actor_command["actor_ref"]}")
 
           {:error, e} ->
-            Logger.error("Failed to start actor per remote call")
+            Logger.error(
+              "Failed to start actor #{start_actor_command["actor_ref"]} per remote call"
+            )
+
             publish_actor_start_failed(start_actor_command["actor_ref"], inspect(e))
         end
       end)
@@ -269,7 +272,7 @@ defmodule HostCore.ControlInterface.Server do
       # we want to wait for up to the timeout. We could use this library possibly so we can put in
       # hooks: https://github.com/botsquad/graceful_stop.
       {:ok, stop_host_command} ->
-        if host_id != HostCore.Host.host_key() do
+        if host_id == HostCore.Host.host_key() do
           Logger.info("Received stop request for host")
           Process.send_after(HostCore.Host, {:do_stop, stop_host_command["timeout"]}, 100)
           {:reply, success_ack()}
@@ -330,7 +333,7 @@ defmodule HostCore.ControlInterface.Server do
       if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) do
         ack = %{
           provider_ref: auction_request["provider_ref"],
-          link_name: auction_request["link_name"],
+          link_name: Map.get(auction_request, "link_name", "default"),
           constraints: auction_request["constraints"],
           host_id: HostCore.Host.host_key()
         }
