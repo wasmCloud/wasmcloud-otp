@@ -115,7 +115,7 @@ jobs:
 
       # Setup node for phoenix deps
       - uses: actions/setup-node@v2
-        if: ${{ env.working-director == 'wasmcloud_host' }}
+        if: ${{ env.working-directory == 'wasmcloud_host' }}
         with:
           node-version: "14"
 
@@ -159,14 +159,14 @@ jobs:
           mix compile
 
       - name: Compile Phoenix Assets
-        if: ${{ env.working-director == 'wasmcloud_host' }}
+        if: ${{ env.working-directory == 'wasmcloud_host' }}
         working-directory: ${{env.working-directory}}/assets
         run: |
           npm install --python=python2.7
           npm run deploy
 
       - name: Create digest
-        if: ${{ env.working-director == 'wasmcloud_host' }}
+        if: ${{ env.working-directory == 'wasmcloud_host' }}
         working-directory: ${{env.working-directory}}
         run: mix phx.digest
 
