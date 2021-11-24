@@ -33,6 +33,11 @@
                                     phx-value-id="start_actor_file_modal">
                                     From File
                                  </button>
+                                 <button class="dropdown-item" phx-click="show_modal"
+                                    phx-value-title="Start Actor from File" phx-value-component="StartActorComponent"
+                                    phx-value-id="start_actor_file_hotreload_modal">
+                                    From File (Hot Reload)
+                                 </button>
                                  <% end %>
                                  <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Actor from OCI Registry"
@@ -61,13 +66,16 @@
                            <% oci_ref = @ocirefs |> Enum.find({"", actor}, fn {_oci, id} -> id == actor end) |> elem(0) %>
                            <% count = Map.get(info_map, :count) %>
                            <% status = Map.get(info_map, :status) %>
+                           <% is_hotwatched = WasmcloudHost.ActorWatcher.is_hotwatched?(:actor_watcher, actor) %>
                            <%= live_component ActorRowComponent,
+                              id: "#{actor} (#{host_id})",
                               actor: actor,
                               host_id: host_id,
                               status: status,
                               count: count,
                               name: actor_name,
-                              oci_ref: oci_ref %>
+                              oci_ref: oci_ref,
+                              is_hotwatched: is_hotwatched %>
                            <% end %>
                            <% end %>
                         </tbody>

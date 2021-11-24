@@ -17,7 +17,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   @spec start_actor(binary) ::
           :ignore | {:error, any} | {:ok, pid} | {:stop, any} | {:ok, pid, any}
   def start_actor(bytes, oci \\ "") when is_binary(bytes) do
-    Logger.info("Starting actor")
+    Logger.debug("Start actor request received")
 
     case HostCore.WasmCloud.Native.extract_claims(bytes) do
       {:error, err} ->
