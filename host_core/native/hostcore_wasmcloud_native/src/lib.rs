@@ -37,6 +37,8 @@ pub struct Claims {
     revision: Option<i32>,
     tags: Option<Vec<String>>,
     caps: Option<Vec<String>>,
+    expires_human: String,
+    not_before_human: String,
 }
 
 #[derive(NifUnitEnum)]
@@ -135,28 +137,41 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
     let extracted = match wasm::extract_claims(&bytes) {
         Ok(Some(c)) => c,
         Ok(None) => {
-            return Err(rustler::Error::Atom("No claims found in source module"));
+            return Err(rustler::Error::Term(Box::new(
+                "No claims found in source module",
+            )));
         }
         Err(_e) => {
-            return Err(rustler::Error::Atom("Failed to extract claims from module"));
+            return Err(rustler::Error::Term(Box::new(
+                "Failed to extract claims from module",
+            )));
         }
     };
     let c: wascap::jwt::Claims<wascap::jwt::Actor> = extracted.claims;
     let m: wascap::jwt::Actor = c.metadata.unwrap();
-    match validate_token::<wascap::jwt::Actor>(&extracted.jwt) {
+    let v = validate_token::<wascap::jwt::Actor>(&extracted.jwt);
+    match &v {
         Ok(v) => {
             if v.expired {
-                return Err(rustler::Error::Atom("Claims token expired"));
+                return Err(rustler::Error::Term(Box::new("Claims token expired")));
             } else if v.cannot_use_yet {
-                return Err(rustler::Error::Atom("Claims token cannot be used yet"));
+                return Err(rustler::Error::Term(Box::new(
+                    "Claims token cannot be used yet",
+                )));
             } else if !v.signature_valid {
-                return Err(rustler::Error::Atom("Invalid signature on module token"));
+                return Err(rustler::Error::Term(Box::new(
+                    "Invalid signature on module token",
+                )));
             }
         }
-        Err(_e) => {
-            return Err(rustler::Error::Atom("Failed to validate claims token"));
+        Err(e) => {
+            return Err(rustler::Error::Term(Box::new(format!(
+                "Failed to validate claims token: {}",
+                e
+            ))));
         }
     }
+    let v = v.unwrap();
 
     let revision = revision_or_iat(m.rev, c.issued_at);
 
@@ -169,6 +184,8 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
         version: m.ver,
         revision,
         tags: m.tags,
+        expires_human: v.expires_human,
+        not_before_human: v.not_before_human,
     };
 
     Ok((atoms::ok(), out))

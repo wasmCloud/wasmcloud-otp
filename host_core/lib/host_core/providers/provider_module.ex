@@ -248,7 +248,9 @@ defmodule HostCore.Providers.ProviderModule do
           issuer: claims.issuer,
           tags: claims.tags,
           name: claims.name,
-          version: claims.version
+          version: claims.version,
+          not_before_human: claims.not_before_human,
+          expires_human: claims.expires_human
         }
       }
       |> CloudEvent.new("provider_started")
