@@ -1,8 +1,10 @@
 use crate::{Claims, ProviderArchiveResource};
+use chrono::NaiveDateTime;
 
 use provider_archive::ProviderArchive;
 use rustler::{Env, Error};
 use std::env::temp_dir;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub fn on_load(env: Env) -> bool {
     rustler::resource!(ProviderArchiveResource, env);
@@ -35,6 +37,8 @@ pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {
                 tags: None,
                 version: metadata.ver,
                 name: metadata.name,
+                expires_human: stamp_to_human(c.expires).unwrap_or("never".to_string()),
+                not_before_human: stamp_to_human(c.not_before).unwrap_or("immediately".to_string()),
                 ..Default::default()
             })
         }
@@ -88,4 +92,23 @@ fn normalize_for_filename(input: &str) -> String {
 
 fn native_target() -> String {
     format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS)
+}
+
+fn stamp_to_human(stamp: Option<u64>) -> Option<String> {
+    stamp.map(|s| {
+        let now = NaiveDateTime::from_timestamp(since_the_epoch().as_secs() as i64, 0);
+        let then = NaiveDateTime::from_timestamp(s as i64, 0);
+
+        let diff = then - now;
+
+        let ht = chrono_humanize::HumanTime::from(diff);
+        format!("{}", ht)
+    })
+}
+
+fn since_the_epoch() -> Duration {
+    let start = SystemTime::now();
+    start
+        .duration_since(UNIX_EPOCH)
+        .expect("A timey wimey problem has occurred!")
 }
