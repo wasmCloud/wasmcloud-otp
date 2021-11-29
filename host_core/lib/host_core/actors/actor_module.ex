@@ -187,7 +187,7 @@ defmodule HostCore.Actors.ActorModule do
             }
 
           _ ->
-            api_version = Map.get(inv, "api_version", 0)
+            api_version = Map.get(inv, :api_version, 0)
 
             case perform_invocation(agent, inv["operation"], inv["msg"], api_version) do
               {:ok, response} ->
