@@ -58,7 +58,8 @@ defmodule HostCore.WasmCloud.NativeTest do
         @httpserver_contract,
         @httpserver_link,
         "HandleRequest",
-        req
+        req,
+        0
       )
 
     res = HostCore.WasmCloud.Native.validate_antiforgery(inv |> IO.iodata_to_binary(), [pub])
@@ -94,7 +95,8 @@ defmodule HostCore.WasmCloud.NativeTest do
         @httpserver_contract,
         @httpserver_link,
         "HandleRequest",
-        req
+        req,
+        0
       )
 
     res =
