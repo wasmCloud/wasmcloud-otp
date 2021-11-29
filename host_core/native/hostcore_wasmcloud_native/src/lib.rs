@@ -218,6 +218,7 @@ fn generate_invocation_bytes<'a>(
     target_link_name: String,
     operation: String,
     msg: Binary,
+    api_version: u32,
 ) -> Result<Vec<u8>, Error> {
     let inv = inv::Invocation::new(
         &KeyPair::from_seed(&host_seed).unwrap(),
@@ -229,6 +230,7 @@ fn generate_invocation_bytes<'a>(
         },
         &operation,
         msg.as_slice().to_vec(),
+        api_version,
     );
     Ok(inv::serialize(&inv).unwrap())
 }

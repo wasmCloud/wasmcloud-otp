@@ -1,14 +1,14 @@
 use data_encoding::HEXUPPER;
 use ring::digest::{Context, Digest, SHA256};
-use rmp_serde::Deserializer;
-use rmp_serde::Serializer;
+use rmp_serde::{Deserializer, Serializer};
 use rustler::Atom;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt::Display;
-use std::io::Cursor;
-use std::io::Read;
-use std::string::ToString;
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    io::{Cursor, Read},
+    string::ToString,
+};
 use uuid::Uuid;
 use wascap::prelude::{Claims, KeyPair};
 
@@ -19,6 +19,8 @@ pub(crate) const URL_SCHEME: &str = "wasmbus";
 pub(crate) const SYSTEM_ACTOR: &str = "system";
 #[allow(unused)]
 pub(crate) const OP_HALT: &str = "__halt";
+
+const WASMBUS_API_VERSION: u32 = 0;
 
 /// An immutable representation of an invocation within wasmcloud
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -32,6 +34,8 @@ pub struct Invocation {
     pub id: String,
     pub encoded_claims: String,
     pub host_id: String,
+    #[serde(default)]
+    pub api_version: u32,
 }
 
 /// Represents an entity within the host runtime that can be the source
@@ -72,6 +76,7 @@ impl Invocation {
         target: WasmCloudEntity,
         op: &str,
         msg: Vec<u8>,
+        api_version: u32,
     ) -> Invocation {
         let subject = format!("{}", Uuid::new_v4());
         let issuer = hostkey.public_key();
@@ -91,6 +96,7 @@ impl Invocation {
             id: subject,
             encoded_claims: claims.encode(&hostkey).unwrap(),
             host_id: issuer,
+            api_version,
         }
     }
 
@@ -121,6 +127,7 @@ impl Invocation {
             id: subject,
             encoded_claims: claims.encode(&hostkey).unwrap(),
             host_id: issuer,
+            api_version: WASMBUS_API_VERSION,
         }
     }
 
@@ -342,6 +349,7 @@ mod test {
             WasmCloudEntity::capability("Vxxx", "wasmcloud:messaging", "default"),
             "OP_TESTING",
             vec![1, 2, 3, 4],
+            0,
         );
 
         // Obviously an invocation we just created should pass anti-forgery check
