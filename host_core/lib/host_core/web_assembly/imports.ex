@@ -247,10 +247,11 @@ defmodule HostCore.WebAssembly.Imports do
            namespace: @wasmcloud_logging,
            operation: operation,
            payload: payload,
+           state: state,
            source_actor: actor
          }
        ) do
-    HostCore.Providers.Builtin.Logging.invoke(actor, operation, payload)
+    HostCore.Providers.Builtin.Logging.invoke(actor, operation, payload, state.api_version)
     1
   end
 
@@ -259,10 +260,11 @@ defmodule HostCore.WebAssembly.Imports do
            namespace: @wasmcloud_numbergen,
            operation: operation,
            payload: payload,
+           state: state,
            agent: agent
          }
        ) do
-    res = HostCore.Providers.Builtin.Numbergen.invoke(operation, payload)
+    res = HostCore.Providers.Builtin.Numbergen.invoke(operation, payload, state.api_version)
     Agent.update(agent, fn state -> %State{state | host_response: res} end)
     1
   end
@@ -283,9 +285,12 @@ defmodule HostCore.WebAssembly.Imports do
            binding: binding,
            operation: operation,
            payload: payload,
+           state: state,
            target: {target_type, target_key, target_subject}
          }
        ) do
+    api_version = state.api_version
+    # Logger.debug("Invoking op #{operation} src-api #{api_version}")
     invocation_res =
       HostCore.WasmCloud.Native.generate_invocation_bytes(
         seed,
@@ -295,7 +300,8 @@ defmodule HostCore.WebAssembly.Imports do
         namespace,
         binding,
         operation,
-        payload
+        payload,
+        api_version
       )
       |> perform_rpc_invoke(target_subject)
 

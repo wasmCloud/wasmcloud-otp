@@ -6,6 +6,7 @@ defmodule HostCore.Actors.ActorModule do
 
   @op_health_check "Actor.HealthRequest"
   @thirty_seconds 30_000
+  @health_check_api_version 0
 
   require Logger
   alias HostCore.WebAssembly.Imports
@@ -186,7 +187,9 @@ defmodule HostCore.Actors.ActorModule do
             }
 
           _ ->
-            case perform_invocation(agent, inv["operation"], inv["msg"]) do
+            api_version = Map.get(inv, "api_version", 0)
+
+            case perform_invocation(agent, inv["operation"], inv["msg"], api_version) do
               {:ok, response} ->
                 %{
                   msg: response,
@@ -246,9 +249,16 @@ defmodule HostCore.Actors.ActorModule do
     |> prepare_module(agent)
   end
 
-  defp perform_invocation(agent, operation, payload) do
-    Logger.debug("performing invocation #{operation}")
+  defp perform_invocation(agent, operation, payload, api_version) do
     raw_state = Agent.get(agent, fn content -> content end)
+    receiver_api_version = Map.get(raw_state, :api_version, 0)
+
+    if receiver_api_version == 0 && api_version > 0 do
+      # This incompatibility can be avoided, but keep this warning message until a work-around has been implemented
+      Logger.warn(
+        "Warning: Possible API incompatibility: operation #{operation} caller v#{api_version} receiver v#{receiver_api_version} - Actor should be recompiled"
+      )
+    end
 
     raw_state = %State{
       raw_state
@@ -265,12 +275,21 @@ defmodule HostCore.Actors.ActorModule do
 
     # invoke __guest_call
     # if it fails, set guest_error, return 1
-    # if it succeeeds, set guest_response, return 0
-    Wasmex.call_function(raw_state.instance, :__guest_call, [
-      byte_size(operation),
-      byte_size(payload)
-    ])
-    |> to_guest_call_result(agent)
+    # if it succeeds, set guest_response, return 0
+    if api_version >= 1 do
+      Wasmex.call_function(raw_state.instance, :__guest_call_v, [
+        byte_size(operation),
+        byte_size(payload),
+        api_version
+      ])
+      |> to_guest_call_result(agent)
+    else
+      Wasmex.call_function(raw_state.instance, :__guest_call, [
+        byte_size(operation),
+        byte_size(payload)
+      ])
+      |> to_guest_call_result(agent)
+    end
   end
 
   defp to_guest_call_result({:ok, [res]}, agent) do
@@ -291,7 +310,7 @@ defmodule HostCore.Actors.ActorModule do
 
     res =
       try do
-        perform_invocation(agent, @op_health_check, payload)
+        perform_invocation(agent, @op_health_check, payload, @health_check_api_version)
       rescue
         _e -> {:error, "Failed to invoke actor module"}
       end
