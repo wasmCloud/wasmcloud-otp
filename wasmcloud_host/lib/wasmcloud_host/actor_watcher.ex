@@ -1,7 +1,7 @@
 defmodule WasmcloudHost.ActorWatcher do
   use GenServer
 
-  @reload_delay 1_000
+  @reload_delay_ms 1_000
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: :actor_watcher)
@@ -48,7 +48,7 @@ defmodule WasmcloudHost.ActorWatcher do
 
         true ->
           # Sending after a delay enables ignoring rapid-fire filesystem events
-          Process.send_after(self(), {:reload_actor, path}, @reload_delay)
+          Process.send_after(self(), {:reload_actor, path}, @reload_delay_ms)
           new_actor = Map.put(actor_map, :is_reloading, true)
           {:noreply, Map.put(state, path, new_actor)}
       end
@@ -73,6 +73,7 @@ defmodule WasmcloudHost.ActorWatcher do
       actor_id,
       replicas
     )
+
     start_actor(bytes, replicas)
 
     new_actor = %{actor_id: actor_id, is_reloading: false}
