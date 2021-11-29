@@ -1,6 +1,8 @@
 defmodule WasmcloudHost.ActorWatcher do
   use GenServer
 
+  @reload_delay 1_000
+
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: :actor_watcher)
   end
@@ -23,9 +25,12 @@ defmodule WasmcloudHost.ActorWatcher do
   end
 
   def handle_info({:file_event, _watcher_pid, {path, events}}, state) do
-    if :modified in events and :closed in events do
-      {:ok, bytes} = File.read(path)
-      actor_id = Map.get(state, path, "")
+    # Modified is emitted on Mac, Windows, and Linux when a file is changed
+    if :modified in events do
+      {:ok, _bytes} = File.read(path)
+      actor_map = Map.get(state, path, %{})
+      actor_id = Map.get(actor_map, :actor_id, "")
+      is_reloading = Map.get(actor_map, :is_reloading, false)
       existing_actors = HostCore.Actors.ActorSupervisor.find_actor(actor_id)
 
       cond do
@@ -37,16 +42,15 @@ defmodule WasmcloudHost.ActorWatcher do
         existing_actors == [] ->
           {:noreply, Map.delete(state, path)}
 
-        true ->
-          replicas = existing_actors |> Enum.count()
-
-          HostCore.Actors.ActorSupervisor.terminate_actor(
-            actor_id,
-            replicas
-          )
-
-          start_actor(bytes, replicas)
+        # File modified events already received, don't request another reload
+        is_reloading ->
           {:noreply, state}
+
+        true ->
+          # Sending after a delay enables ignoring rapid-fire filesystem events
+          Process.send_after(self(), {:reload_actor, path}, @reload_delay)
+          new_actor = Map.put(actor_map, :is_reloading, true)
+          {:noreply, Map.put(state, path, new_actor)}
       end
     end
 
@@ -57,17 +61,35 @@ defmodule WasmcloudHost.ActorWatcher do
     {:noreply, state}
   end
 
+  # Reloads all instances of an actor with updated bytes from the specified path
+  def handle_info({:reload_actor, path}, state) do
+    {:ok, bytes} = File.read(path)
+    actor_id = state |> Map.get(path, %{}) |> Map.get(:actor_id, "")
+    existing_actors = HostCore.Actors.ActorSupervisor.find_actor(actor_id)
+
+    replicas = existing_actors |> Enum.count()
+
+    HostCore.Actors.ActorSupervisor.terminate_actor(
+      actor_id,
+      replicas
+    )
+    start_actor(bytes, replicas)
+
+    new_actor = %{actor_id: actor_id, is_reloading: false}
+    {:noreply, Map.put(state, path, new_actor)}
+  end
+
   def handle_call({:hotwatch_actor, path, replicas}, _from, state) do
     with {:ok, bytes} <- File.read(path),
          :ok <- start_actor(bytes, replicas),
          {:ok, claims} <- HostCore.WasmCloud.Native.extract_claims(bytes) do
-      if Map.get(state, path) != nil do
+      if Map.get(state, path, nil) != nil do
         # Already watching this actor, don't re-subscribe
         {:reply, :ok, state}
       else
         {:ok, watcher_pid} = FileSystem.start_link(dirs: [path])
         FileSystem.subscribe(watcher_pid)
-        {:reply, :ok, Map.put(state, path, claims.public_key)}
+        {:reply, :ok, Map.put(state, path, %{actor_id: claims.public_key, is_reloading: false})}
       end
     else
       {:error, err} ->
@@ -90,7 +112,7 @@ defmodule WasmcloudHost.ActorWatcher do
 
   def handle_call({:is_hotwatched, actor_id}, _from, state) do
     case state
-         |> Enum.find(fn {_k, v} -> v == actor_id end) do
+         |> Enum.find(fn {_k, v} -> Map.get(v, :actor_id, nil) == actor_id end) do
       nil -> {:reply, false, state}
       _actor -> {:reply, true, state}
     end
