@@ -1,7 +1,9 @@
-use std::env::temp_dir;
-use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{
+    env::temp_dir,
+    io::{Read, Write},
+    path::PathBuf,
+    str::FromStr,
+};
 
 pub(crate) const OCI_VAR_USER: &str = "OCI_REGISTRY_USER";
 pub(crate) const OCI_VAR_PASSWORD: &str = "OCI_REGISTRY_PASSWORD";

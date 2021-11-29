@@ -3,8 +3,10 @@ use chrono::NaiveDateTime;
 
 use provider_archive::ProviderArchive;
 use rustler::{Env, Error};
-use std::env::temp_dir;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    env::temp_dir,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 pub fn on_load(env: Env) -> bool {
     rustler::resource!(ProviderArchiveResource, env);
