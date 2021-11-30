@@ -27,7 +27,6 @@ defmodule WasmcloudHost.ActorWatcher do
   def handle_info({:file_event, _watcher_pid, {path, events}}, state) do
     # Modified is emitted on Mac, Windows, and Linux when a file is changed
     if :modified in events do
-      {:ok, _bytes} = File.read(path)
       actor_map = Map.get(state, path, %{})
       actor_id = Map.get(actor_map, :actor_id, "")
       is_reloading = Map.get(actor_map, :is_reloading, false)
