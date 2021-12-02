@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MIX_ENV: prod
+      working-directory: wasmcloud_host
 
     steps:
       - name: Checkout
