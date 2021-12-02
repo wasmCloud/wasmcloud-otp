@@ -197,12 +197,12 @@ jobs:
       - name: Download Release Tarballs
         uses: actions/download-artifact@v2
         with:
-          path: ${{ env.working-directory }}/release
+          path: release
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ env.working-directory }}/release/**/*.tar.gz
+          files: release/**/*.tar.gz
           token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: false
           draft: false
