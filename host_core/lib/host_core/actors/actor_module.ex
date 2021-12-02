@@ -243,7 +243,7 @@ defmodule HostCore.Actors.ActorModule do
     publish_oci_map(oci, claims.public_key)
 
     Wasmex.start_link(%{bytes: bytes, imports: imports})
-    |> prepare_module(agent)
+    |> prepare_module(agent, oci)
   end
 
   defp perform_invocation(agent, operation, payload) do
@@ -304,7 +304,7 @@ defmodule HostCore.Actors.ActorModule do
     res
   end
 
-  defp prepare_module({:ok, instance}, agent) do
+  defp prepare_module({:ok, instance}, agent, oci \\ "") do
     api_version =
       case Wasmex.call_function(instance, :__wasmbus_rpc_version, []) do
         {:ok, [v]} -> v
@@ -320,7 +320,7 @@ defmodule HostCore.Actors.ActorModule do
       %State{content | api_version: api_version, instance: instance}
     end)
 
-    publish_actor_started(claims, api_version, instance_id)
+    publish_actor_started(claims, api_version, instance_id, oci)
     {:ok, agent}
   end
 
@@ -336,12 +336,13 @@ defmodule HostCore.Actors.ActorModule do
     HostCore.Refmaps.Manager.put_refmap(oci, pk)
   end
 
-  def publish_actor_started(claims, api_version, instance_id) do
+  def publish_actor_started(claims, api_version, instance_id, oci) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: claims.public_key,
+        image_ref: oci,
         api_version: api_version,
         instance_id: instance_id,
         claims: %{
