@@ -4,30 +4,44 @@ defmodule HostCore.ControlInterface.ACL do
   def all_actors() do
     HostCore.Actors.ActorSupervisor.all_actors()
     |> Enum.flat_map(fn {id, pids} ->
+      name = get_name(id)
       revision = get_revision(id)
+
+      instances =
+        pids
+        |> Enum.map(fn pid ->
+          %{
+            annotations: %{},
+            instance_id: HostCore.Actors.ActorModule.instance_id(pid),
+            revision: revision
+          }
+        end)
 
       pids
       |> Enum.map(fn pid ->
         %{
           id: id,
-          revision: revision,
           image_ref: HostCore.Actors.ActorModule.ociref(pid),
-          instance_id: HostCore.Actors.ActorModule.instance_id(pid)
+          name: name,
+          instances: instances
         }
       end)
     end)
   end
 
   def all_providers() do
-    # TODO: retrieve revision information for provider
     HostCore.Providers.ProviderSupervisor.all_providers()
     |> Enum.map(fn {pid, pk, link, _contract, instance_id} ->
+      name = get_name(pk)
+      revision = get_revision(pk)
+
       %{
         id: pk,
-        link_name: link,
-        revision: 0,
         image_ref: HostCore.Providers.ProviderModule.ociref(pid),
-        instance_id: instance_id
+        link_name: link,
+        name: name,
+        instance_id: instance_id,
+        revision: revision
       }
     end)
   end
@@ -47,6 +61,13 @@ defmodule HostCore.ControlInterface.ACL do
     case find_claims_for_pk(pk) do
       [claims] -> String.to_integer(claims.rev)
       _ -> 0
+    end
+  end
+
+  def get_name(pk) do
+    case find_claims_for_pk(pk) do
+      [claims] -> claims.name
+      _ -> "N/A"
     end
   end
 
