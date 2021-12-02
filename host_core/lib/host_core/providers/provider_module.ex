@@ -83,7 +83,7 @@ defmodule HostCore.Providers.ProviderModule do
     # when it starts.
 
     HostCore.Claims.Manager.put_claims(claims)
-    publish_provider_started(claims, link_name, contract_id, instance_id)
+    publish_provider_started(claims, link_name, contract_id, instance_id, oci)
 
     if oci != nil && oci != "" do
       publish_provider_oci_map(claims.public_key, link_name, oci)
@@ -113,7 +113,14 @@ defmodule HostCore.Providers.ProviderModule do
       System.cmd("kill", ["-9", "#{state.os_pid}"])
     end
 
-    publish_provider_stopped(state.public_key, state.link_name, state.instance_id, "normal")
+    publish_provider_stopped(
+      state.public_key,
+      state.link_name,
+      state.instance_id,
+      state.contract_id,
+      "normal"
+    )
+
     {:stop, :normal, :ok, state}
   end
 
@@ -152,7 +159,15 @@ defmodule HostCore.Providers.ProviderModule do
 
   def handle_info({:DOWN, _ref, :port, _port, reason}, state) do
     Logger.error("Received DOWN message from port (executable stopped) - #{reason}")
-    publish_provider_stopped(state.public_key, state.link_name, state.instance_id, "#{reason}")
+
+    publish_provider_stopped(
+      state.public_key,
+      state.link_name,
+      state.instance_id,
+      state.contract_id,
+      "#{reason}"
+    )
+
     {:stop, reason, state}
   end
 
@@ -217,14 +232,16 @@ defmodule HostCore.Providers.ProviderModule do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  @spec publish_provider_stopped(String.t(), String.t(), String.t(), String.t()) :: :ok
-  def publish_provider_stopped(public_key, link_name, instance_id, reason) do
+  @spec publish_provider_stopped(String.t(), String.t(), String.t(), String.t(), String.t()) ::
+          :ok
+  def publish_provider_stopped(public_key, link_name, instance_id, contract_id, reason) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: public_key,
         link_name: link_name,
+        contract_id: contract_id,
         instance_id: instance_id,
         reason: reason
       }
@@ -235,12 +252,13 @@ defmodule HostCore.Providers.ProviderModule do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  defp publish_provider_started(claims, link_name, contract_id, instance_id) do
+  defp publish_provider_started(claims, link_name, contract_id, instance_id, image_ref) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
         public_key: claims.public_key,
+        image_ref: image_ref,
         link_name: link_name,
         contract_id: contract_id,
         instance_id: instance_id,
