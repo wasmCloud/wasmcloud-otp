@@ -193,7 +193,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   def handle_info({_ref, msg}, state) do
-    Logger.info(msg)
+    Logger.debug(msg)
 
     {:noreply, state}
   end
