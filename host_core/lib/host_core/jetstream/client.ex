@@ -153,6 +153,19 @@ defmodule HostCore.Jetstream.Client do
     true
   end
 
+  # This is almost identical to above, but for some reason when the stream has multiple replicas,
+  # this returns a 400 error code rather than 500
+  def handle_stream_create_response(%{
+        "type" => "io.nats.jetstream.api.v1.stream_create_response",
+        "error" => %{
+          "code" => 400,
+          "description" => "stream name already in use"
+        }
+      }) do
+    Logger.info("Lattice cache stream name already in use, assuming previously-configured stream")
+    true
+  end
+
   def handle_stream_create_response(%{
         "error" => %{
           "code" => 500,
