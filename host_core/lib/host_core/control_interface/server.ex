@@ -211,7 +211,7 @@ defmodule HostCore.ControlInterface.Server do
         case HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
                start_provider_command["provider_ref"],
                start_provider_command["link_name"],
-               Map.get(start_provider_command, "config_json", "")
+               Map.get(start_provider_command, "configuration", "")
              ) do
           {:ok, _pid} ->
             Logger.debug("Completed request to start provider")
