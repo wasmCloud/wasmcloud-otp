@@ -37,8 +37,8 @@ defmodule HostCore.HeartbeatEmitter do
 
   defp generate_heartbeat(state) do
     actors =
-      HostCore.Actors.ActorSupervisor.all_actors()
-      |> Enum.map(fn {k, v} -> %{actor: k, instances: length(v)} end)
+      HostCore.Actors.ActorSupervisor.all_actors_for_hb()
+      |> Enum.map(fn {k, iid} -> %{public_key: k, instance_id: iid} end)
 
     providers =
       HostCore.Providers.ProviderSupervisor.all_providers()
