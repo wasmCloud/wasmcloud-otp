@@ -42,14 +42,14 @@ jobs:
       - name: Determine version
         run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
 
-      - name: Build and release docker image
+      - name: Build and release docker image (amd64)
         uses: docker/build-push-action@v2
         with:
           context: .
           builder: ${{ steps.buildx-builder.outputs.name }}
           push: true
           file: ${{env.working-directory}}/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           build-args: |
             BUILDER_IMAGE=elixir:1.12.2-slim
             RELEASE_IMAGE=debian:buster-slim
@@ -61,6 +61,26 @@ jobs:
             wasmcloud.azurecr.io/wasmcloud_host:latest
             wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
             wasmcloud/wasmcloud_host:latest
+
+      - name: Build and release docker image (arm64)
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          builder: ${{ steps.buildx-builder.outputs.name }}
+          push: true
+          file: ${{env.working-directory}}/Dockerfile
+          platforms: linux/arm64
+          build-args: |
+            BUILDER_IMAGE=elixir:1.12.2-slim
+            RELEASE_IMAGE=debian:buster-slim
+            APP_NAME=wasmcloud_host
+            APP_VSN=${{ env.wasmcloud_host_version }}
+            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+          tags: |
+            wasmcloud.azurecr.io/wasmcloud_host:${{ env.wasmcloud_host_version }}-arm64
+            wasmcloud.azurecr.io/wasmcloud_host:latest-arm64
+            wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}-arm64
+            wasmcloud/wasmcloud_host:latest-arm64
 
   create-tarballs:
     # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
