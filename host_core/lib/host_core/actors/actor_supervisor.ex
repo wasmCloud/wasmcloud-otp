@@ -116,6 +116,20 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   @doc """
+  A slightly different version of the all actors list, formatted for
+  suitability on emitted heartbeats
+  """
+  def all_actors_for_hb() do
+    Supervisor.which_children(HostCore.Actors.ActorSupervisor)
+    |> Enum.map(fn {_id, pid, _type, _modules} ->
+      {
+        HostCore.Actors.ActorModule.claims(pid).public_key,
+        HostCore.Actors.ActorModule.instance_id(pid)
+      }
+    end)
+  end
+
+  @doc """
   Produces a list of tuples containing the pid of the child actor, its public key, and its
   OCI reference.
   """
