@@ -201,18 +201,22 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
+  # Terminate `count` instances of an actor
   def terminate_actor(public_key, count) when count > 0 do
-    children =
-      Registry.lookup(Registry.ActorRegistry, public_key)
-      |> Enum.take(count)
-      |> Enum.map(fn {pid, _v} -> pid end)
-
-    children |> Enum.each(fn pid -> ActorModule.halt(pid) end)
+    Registry.lookup(Registry.ActorRegistry, public_key)
+    |> Enum.take(count)
+    |> Enum.map(fn {pid, _v} -> pid end)
+    |> Enum.each(fn pid -> ActorModule.halt(pid) end)
 
     :ok
   end
 
-  def terminate_actor(_public_key, 0) do
+  # Terminate all instances of an actor
+  def terminate_actor(public_key, 0) do
+    Registry.lookup(Registry.ActorRegistry, public_key)
+    |> Enum.map(fn {pid, _v} -> pid end)
+    |> Enum.each(fn pid -> ActorModule.halt(pid) end)
+
     :ok
   end
 

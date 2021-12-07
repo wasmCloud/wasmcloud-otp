@@ -310,4 +310,39 @@ defmodule HostCore.ActorsTest do
              {:error,
               "Cannot start new instance of MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5 from OCI 'wasmcloud.azurecr.io/echo:0.3.0', it is already running with different OCI reference. To upgrade an actor, use live update."}
   end
+
+  test "stop with zero count terminates all", %{:evt_watcher => evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
+    {:ok, bytes} = File.read(@kvcounter_path)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_event(
+        evt_watcher,
+        :actor_started,
+        %{"public_key" => @kvcounter_key},
+        5
+      )
+
+    actor_count =
+      Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key)
+      |> length
+
+    assert actor_count == 5
+    HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 0)
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_event(
+        evt_watcher,
+        :actor_stopped,
+        %{"public_key" => @kvcounter_key},
+        5
+      )
+
+    assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key) == nil
+  end
 end
