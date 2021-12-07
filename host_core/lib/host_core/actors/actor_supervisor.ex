@@ -53,7 +53,7 @@ defmodule HostCore.Actors.ActorSupervisor do
          ) do
       {:error, err} ->
         Logger.error("Failed to download OCI bytes for #{oci}")
-        {:stop, err}
+        {:error, err}
 
       {:ok, bytes} ->
         start_actor(bytes |> IO.iodata_to_binary(), oci)
@@ -182,9 +182,6 @@ defmodule HostCore.Actors.ActorSupervisor do
         case 1..abs(diff)
              |> Enum.reduce_while("", fn _, _ ->
                case start_actor_from_oci(ociref) do
-                 {:stop, err} ->
-                   {:halt, "Error: #{err}"}
-
                  {:error, err} ->
                    {:halt, "Error: #{err}"}
 
