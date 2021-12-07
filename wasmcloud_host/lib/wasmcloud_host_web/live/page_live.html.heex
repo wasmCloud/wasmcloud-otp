@@ -62,7 +62,7 @@
                         <tbody>
                            <%= for {host_id, host_map} <- display_hosts do %>
                            <%= for {actor, info_map} <- Map.get(host_map, :actors, %{}) do %>
-                           <% actor_name = @claims |> Enum.find(fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name) %>
+                           <% actor_name = @claims |> Enum.find({"", %{}}, fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name, "N/A") %>
                            <% oci_ref = @ocirefs |> Enum.find({"", actor}, fn {_oci, id} -> id == actor end) |> elem(0) %>
                            <% count = Map.get(info_map, :count) %>
                            <% status = Map.get(info_map, :status) %>
@@ -257,6 +257,7 @@
                                  <%= Map.get(@hosts, host_id, %{})
                                     |> Map.get(:actors, %{})
                                     |> Enum.map(fn {_actor_id, info} -> Map.get(info, :count, 0) end)
+                                    |> Enum.filter(fn count -> count != nil end)
                                     |> Enum.reduce(0, fn count, acc -> count + acc end) %>
                               </td>
                               <td>

@@ -257,17 +257,18 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     actor_map =
       actors
       |> Enum.reduce(%{}, fn actor, actor_map ->
-        actor_id = Map.get(actor, "actor")
-        existing_actor = current_host |> Map.get(:actors, %{}) |> Map.get(actor_id)
+        actor_id = Map.get(actor, "public_key")
 
-        if existing_actor != nil && Map.get(existing_actor, :count) == Map.get(actor, "instances") do
-          Map.put(actor_map, actor_id, existing_actor)
-        else
-          Map.put(actor_map, actor_id, %{
-            count: Map.get(actor, "instances"),
-            status: "Awaiting"
-          })
-        end
+        actor_info = Map.get(actor_map, actor_id, %{})
+        count = Map.get(actor_info, :count, 0) + 1
+
+        status =
+          current_host
+          |> Map.get(:actors, %{})
+          |> Map.get(actor_id, %{})
+          |> Map.get(:status, "Awaiting")
+
+        Map.put(actor_map, actor_id, %{count: count, status: status})
       end)
 
     # TODO: Also ensure that providers don't exist in the dashboard that aren't in the health check
