@@ -70,8 +70,13 @@ defmodule HostCore.Providers.ProviderSupervisor do
          {:ok, path} <- extract_executable_to_tmp(par, link_name) do
       start_executable_provider(path, par.claims, link_name, par.contract_id, oci, config_json)
     else
-      {:error, err} -> Logger.error("Error starting provider from OCI: #{err}")
-      _err -> Logger.error("Error starting provider from OCI")
+      {:error, err} ->
+        Logger.error("Error starting provider from OCI: #{err}")
+        {:error, err}
+
+      _err ->
+        Logger.error("Error starting provider from OCI")
+        {:error, "Error starting provider from OCI"}
     end
   end
 
@@ -92,7 +97,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
       err ->
         Logger.error("Error starting provider from file")
-        err
+        {:error, err}
     end
   end
 
