@@ -49,4 +49,14 @@ defmodule WasmcloudHostWeb.Endpoint do
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
   plug(WasmcloudHostWeb.Router)
+
+  def init(_key, config) do
+    host = System.get_env("DASHBOARD_HOST")
+
+    if host != nil do
+      {:ok, Keyword.put(config, :url, host: host)}
+    else
+      {:ok, config}
+    end
+  end
 end
