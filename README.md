@@ -1,4 +1,5 @@
 ![wasmCloud logo](https://raw.githubusercontent.com/wasmCloud/branding/main/02.Horizontal%20Version/Pixel/PNG/Wasmcloud.Logo-Hrztl_Color.png)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FwasmCloud%2Fwasmcloud-otp.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FwasmCloud%2Fwasmcloud-otp?ref=badge_shield)
 
 [![wasmcloud_host build status](https://img.shields.io/github/workflow/status/wasmcloud/wasmcloud-otp/WasmcloudHost%20Elixir%20CI)](https://github.com/wasmCloud/wasmcloud-otp/actions/workflows/wasmcloud_host.yml)
 [![latest release](https://img.shields.io/github/v/release/wasmcloud/wasmcloud-otp?include_prereleases)](https://github.com/wasmCloud/wasmcloud-otp/releases)
@@ -33,3 +34,7 @@ You can find the [dashboard UI](./wasmcloud_host/README.md) in this github repos
 ### NATS
 
 All of wasmCloud's _lattice_ functionality requires the use of [NATS](https://nats.io). To learn more, check out the [lattice](https://wasmcloud.dev/reference/lattice/) section of our documentation.
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FwasmCloud%2Fwasmcloud-otp.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FwasmCloud%2Fwasmcloud-otp?ref=badge_large)
