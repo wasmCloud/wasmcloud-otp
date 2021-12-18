@@ -181,9 +181,14 @@ defmodule HostCore do
   end
 
   defp write_json(config, file) do
-    case File.write(file, Jason.encode!(remove_extras(config))) do
-      {:error, reason} -> Logger.error("Failed to write configuration file #{reason}")
-      :ok -> Logger.info("Wrote #{inspect(file)}")
+    with :ok <- File.mkdir_p(Path.dirname(file)) do
+      case File.write(file, Jason.encode!(remove_extras(config))) do
+        {:error, reason} -> Logger.error("Failed to write configuration file #{file}: #{reason}")
+        :ok -> Logger.info("Wrote #{inspect(file)}")
+      end
+    else
+      {:error, posix} ->
+        Logger.error("Failed to create path to config file #{file}: #{posix}")
     end
   end
 
