@@ -9,7 +9,7 @@ defmodule HostCore.Host do
 
   defmodule State do
     @moduledoc false
-    defstruct [:host_key, :lattice_prefix, :labels]
+    defstruct [:host_key, :lattice_prefix, :labels, :friendly_name]
   end
 
   @doc """
@@ -42,7 +42,9 @@ defmodule HostCore.Host do
 
     :ets.insert(:config_table, {:config, opts})
 
-    Logger.info("Host #{opts.host_key} started.")
+    friendly_name = HostCore.Namegen.generate()
+
+    Logger.info("Host #{opts.host_key} (#{friendly_name}) started.")
     Logger.info("Valid cluster signers: #{opts.cluster_issuers}")
 
     if opts.cluster_adhoc do
@@ -68,12 +70,13 @@ defmodule HostCore.Host do
       get_env_host_labels()
       |> Map.merge(HostCore.WasmCloud.Native.detect_core_host_labels())
 
-    publish_host_started(labels)
+    publish_host_started(labels, friendly_name)
 
     {:ok,
      %State{
        host_key: opts.host_key,
        lattice_prefix: opts.lattice_prefix,
+       friendly_name: friendly_name,
        labels: labels
      }}
   end
@@ -90,6 +93,11 @@ defmodule HostCore.Host do
   @impl true
   def handle_call(:get_labels, _from, state) do
     {:reply, state.labels, state}
+  end
+
+  @impl true
+  def handle_call(:get_friendly, _from, state) do
+    {:reply, state.friendly_name, state}
   end
 
   @impl true
@@ -120,12 +128,13 @@ defmodule HostCore.Host do
     Gnat.pub(:control_nats, topic, msg)
   end
 
-  defp publish_host_started(labels) do
+  defp publish_host_started(labels, friendly_name) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
       %{
-        labels: labels
+        labels: labels,
+        friendly_name: friendly_name
       }
       |> CloudEvent.new("host_started")
 
@@ -155,6 +164,10 @@ defmodule HostCore.Host do
       [config: config_map] -> config_map[:host_key]
       _ -> ""
     end
+  end
+
+  def friendly_name() do
+    GenServer.call(__MODULE__, :get_friendly)
   end
 
   def seed() do
