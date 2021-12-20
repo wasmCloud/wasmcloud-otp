@@ -172,50 +172,55 @@ defmodule HostCore.Actors.ActorModule do
     Logger.debug("Received invocation on #{topic}")
     iid = Agent.get(agent, fn content -> content.instance_id end)
 
-    ir =
+    {ir, inv} =
       with {:ok, inv} <- Msgpax.unpack(body) do
         case HostCore.WasmCloud.Native.validate_antiforgery(body, HostCore.Host.cluster_issuers()) do
           {:error, msg} ->
             Logger.error("Invocation failed anti-forgery validation check: #{msg}")
 
-            %{
-              msg: nil,
-              invocation_id: inv["id"],
-              error: msg,
-              instance_id: iid
-            }
+            {%{
+               msg: nil,
+               invocation_id: inv["id"],
+               error: msg,
+               instance_id: iid
+             }, inv}
 
           _ ->
             case perform_invocation(agent, inv["operation"], inv["msg"]) do
               {:ok, response} ->
-                %{
-                  msg: response,
-                  invocation_id: inv["id"],
-                  instance_id: iid
-                }
+                {%{
+                   msg: response,
+                   invocation_id: inv["id"],
+                   instance_id: iid
+                 }, inv}
 
               {:error, error} ->
                 Logger.error("Invocation failure: #{error}")
 
-                %{
-                  msg: nil,
-                  error: error,
-                  invocation_id: inv["id"],
-                  instance_id: iid
-                }
+                {%{
+                   msg: nil,
+                   error: error,
+                   invocation_id: inv["id"],
+                   instance_id: iid
+                 }, inv}
             end
         end
       else
         _ ->
-          %{
-            msg: nil,
-            invocation_id: "",
-            error: "Failed to deserialize msgpack invocation",
-            instance_id: iid
-          }
+          {%{
+             msg: nil,
+             invocation_id: "",
+             error: "Failed to deserialize msgpack invocation",
+             instance_id: iid
+           }, nil}
       end
 
     Gnat.pub(:lattice_nats, reply_to, ir |> Msgpax.pack!() |> IO.iodata_to_binary())
+
+    Task.start(fn ->
+      publish_invocation_result(inv, ir)
+    end)
+
     {:noreply, agent}
   end
 
@@ -334,6 +339,40 @@ defmodule HostCore.Actors.ActorModule do
 
   def publish_oci_map(oci, pk) do
     HostCore.Refmaps.Manager.put_refmap(oci, pk)
+  end
+
+  defp publish_invocation_result(inv, inv_r) do
+    prefix = HostCore.Host.lattice_prefix()
+
+    origin = inv["origin"]
+    target = inv["target"]
+
+    evt_type =
+      if Map.get(inv_r, "error") == nil do
+        "invocation_succeeded"
+      else
+        "invocation_failed"
+      end
+
+    msg =
+      %{
+        source: %{
+          public_key: origin["public_key"],
+          contract_id: Map.get(origin, "contract_id"),
+          link_name: Map.get(origin, "link_name")
+        },
+        dest: %{
+          public_key: target["public_key"],
+          contract_id: Map.get(target, "contract_id"),
+          link_name: Map.get(target, "link_name")
+        },
+        operation: inv["operation"],
+        bytes: byte_size(inv["msg"])
+      }
+      |> CloudEvent.new(evt_type)
+
+    topic = "wasmbus.evt.#{prefix}"
+    Gnat.pub(:control_nats, topic, msg)
   end
 
   def publish_actor_started(claims, api_version, instance_id, oci) do
