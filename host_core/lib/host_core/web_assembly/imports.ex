@@ -2,6 +2,7 @@ defmodule HostCore.WebAssembly.Imports do
   @moduledoc false
   require Logger
   alias HostCore.Actors.ActorModule.State
+  alias HostCore.CloudEvent
 
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
@@ -299,15 +300,81 @@ defmodule HostCore.WebAssembly.Imports do
       )
       |> perform_rpc_invoke(target_subject)
 
-    case unpack_invocation_response(invocation_res) do
-      {1, :host_response, msg} ->
-        Agent.update(agent, fn state -> %State{state | host_response: msg} end)
-        1
+    res =
+      case unpack_invocation_response(invocation_res) do
+        {1, :host_response, msg} ->
+          Agent.update(agent, fn state -> %State{state | host_response: msg} end)
+          1
 
-      {0, :host_error, error} ->
-        Agent.update(agent, fn state -> %State{state | host_error: error} end)
-        0
-    end
+        {0, :host_error, error} ->
+          Agent.update(agent, fn state -> %State{state | host_error: error} end)
+          0
+      end
+
+    Task.start(fn ->
+      publish_invocation_result(
+        actor,
+        namespace,
+        binding,
+        operation,
+        byte_size(payload),
+        target_type,
+        target_key,
+        res
+      )
+    end)
+
+    res
+  end
+
+  defp publish_invocation_result(
+         actor,
+         namespace,
+         binding,
+         operation,
+         payload_bytes,
+         target_type,
+         target_key,
+         res
+       ) do
+    evt_type =
+      if res == 1 do
+        "invocation_succeeded"
+      else
+        "invocation_failed"
+      end
+
+    prefix = HostCore.Host.lattice_prefix()
+
+    msg =
+      %{
+        source: %{
+          public_key: actor,
+          contract_id: nil,
+          link_name: nil
+        },
+        dest: %{
+          public_key: target_key,
+          contract_id:
+            if target_type == :provider do
+              namespace
+            else
+              nil
+            end,
+          link_name:
+            if target_type == :provider do
+              binding
+            else
+              nil
+            end
+        },
+        operation: operation,
+        bytes: payload_bytes
+      }
+      |> CloudEvent.new(evt_type)
+
+    topic = "wasmbus.evt.#{prefix}"
+    Gnat.pub(:control_nats, topic, msg)
   end
 
   defp lookup_call_alias(call_alias) do
