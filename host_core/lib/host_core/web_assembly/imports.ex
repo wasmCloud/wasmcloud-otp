@@ -300,10 +300,8 @@ defmodule HostCore.WebAssembly.Imports do
       )
       |> perform_rpc_invoke(target_subject)
 
-    unpacked = unpack_invocation_response(invocation_res)
-
     res =
-      case unpacked do
+      case unpack_invocation_response(invocation_res) do
         {1, :host_response, msg} ->
           Agent.update(agent, fn state -> %State{state | host_response: msg} end)
           1

@@ -367,7 +367,7 @@ defmodule HostCore.Actors.ActorModule do
           link_name: Map.get(target, "link_name")
         },
         operation: inv["operation"],
-        bytes: byte_size(inv["msg"])
+        bytes: byte_size(Map.get(inv, "msg", ""))
       }
       |> CloudEvent.new(evt_type)
 
