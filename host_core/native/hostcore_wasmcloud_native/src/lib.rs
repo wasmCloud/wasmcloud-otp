@@ -1,13 +1,17 @@
 #[macro_use]
 extern crate rustler;
 
+use bindle::{filters::BindleFilter, provider::Provider};
 use nkeys::KeyPair;
+pub use par::convert_provider_claims;
 use provider_archive::ProviderArchive;
 use rustler::{Atom, Binary, Error};
 use std::collections::HashMap;
+use tokio_stream::StreamExt;
 use wascap::prelude::*;
 
 mod atoms;
+mod client;
 mod inv;
 mod oci;
 mod par;
@@ -16,14 +20,15 @@ mod task;
 pub(crate) const CORELABEL_ARCH: &str = "hostcore.arch";
 pub(crate) const CORELABEL_OS: &str = "hostcore.os";
 pub(crate) const CORELABEL_OSFAMILY: &str = "hostcore.osfamily";
+const CLAIMS_NAME: &str = "claims.jwt";
 
 #[derive(NifStruct)]
 #[module = "HostCore.WasmCloud.Native.ProviderArchive"]
 pub struct ProviderArchiveResource {
-    claims: Claims,
-    target_bytes: Vec<u8>,
-    contract_id: String,
-    vendor: String,
+    pub claims: Claims,
+    pub target_bytes: Vec<u8>,
+    pub contract_id: String,
+    pub vendor: String,
 }
 
 #[derive(NifStruct, Default)]
@@ -70,9 +75,122 @@ rustler::init!(
         par_cache_path,
         detect_core_host_labels,
         pk_from_seed,
+        get_provider_bindle,
+        get_actor_bindle,
     ],
     load = load
 );
+
+#[rustler::nif]
+fn get_provider_bindle(bindle_id: String) -> Result<(Atom, ProviderArchiveResource), Error> {
+    task::TOKIO.block_on(async {
+        let bindle_client = client::get_client().await.map_err(to_rustler_err)?;
+        // Get the invoice first
+        let inv = bindle_client.get_invoice(bindle_id).await.map_err(|e| {
+            println!("{:?}", e);
+            to_rustler_err(e)
+        })?;
+        // Now filter to figure out which parcels to get (should only get the claims and the provider based on arch)
+        let mut filter = BindleFilter::new(&inv);
+        filter
+            .activate_feature("wasmcloud", "arch", std::env::consts::ARCH)
+            .activate_feature("wasmcloud", "os", std::env::consts::OS);
+        let filtered = filter.filter();
+        if filtered.len() != 2 {
+            return Err(to_rustler_err(
+                "Found more than a single provider, this is likely a problem with your bindle",
+            ));
+        }
+
+        let mut claims = wascap::jwt::Claims::<wascap::jwt::CapabilityProvider>::default();
+        let mut found_claims = false;
+        let mut target_bytes = Vec::new();
+        for parcel in filtered.into_iter() {
+            let mut stream = bindle_client
+                .get_parcel(&inv.bindle.id, &parcel.label.sha256)
+                .await
+                .expect("Unable to get parcel");
+            let mut data = Vec::new();
+            while let Some(res) = stream.next().await {
+                let bytes = res.map_err(to_rustler_err)?;
+                data.extend(bytes);
+            }
+            if parcel.label.name == CLAIMS_NAME {
+                claims = wascap::jwt::Claims::decode(
+                    std::str::from_utf8(&data)
+                        .map_err(|_| to_rustler_err("Invalid UTF-8 data found in claims"))?,
+                )
+                .map_err(to_rustler_err)?;
+                found_claims = true;
+            } else {
+                target_bytes = data;
+            }
+        }
+        if target_bytes.is_empty() {
+            return Err(to_rustler_err("No provider parcel found (or was empty)"));
+        }
+        if !found_claims {
+            return Err(to_rustler_err("No claims were found in parcel"));
+        }
+        let contract_id = claims
+            .metadata
+            .as_ref()
+            .map(|m| m.capid.clone())
+            .unwrap_or_default();
+        let vendor = claims
+            .metadata
+            .as_ref()
+            .map(|m| m.vendor.clone())
+            .unwrap_or_default();
+        Ok((
+            atoms::ok(),
+            ProviderArchiveResource {
+                claims: convert_provider_claims(claims),
+                target_bytes,
+                contract_id,
+                vendor,
+            },
+        ))
+    })
+}
+
+#[rustler::nif]
+fn get_actor_bindle(bindle_id: String) -> Result<(Atom, Vec<u8>), Error> {
+    task::TOKIO.block_on(async {
+        // Get the invoice, validate this bindle contains an actor, fetch the actor and return
+        let bindle_client = client::get_client().await.map_err(to_rustler_err)?;
+        let inv = bindle_client
+            .get_invoice(bindle_id)
+            .await
+            .map_err(to_rustler_err)?;
+
+        // TODO: We may want to allow more than one down the line, or include the JWT separately as
+        // part of the bindle. For now we just expect the single parcel
+        let parcels = inv.parcel.unwrap();
+        if parcels.len() != 1 {
+            return Err(to_rustler_err(
+                "Actor bindle should only contain a single parcel",
+            ));
+        }
+
+        // SAFETY: We validated a length of 1 just above
+        let mut stream = bindle_client
+            .get_parcel(&inv.bindle.id, &parcels[0].label.sha256)
+            .await
+            .expect("Unable to get parcel");
+        let mut data = Vec::new();
+        while let Some(res) = stream.next().await {
+            let bytes = res.map_err(to_rustler_err)?;
+            data.extend(bytes);
+        }
+        Ok((atoms::ok(), data))
+    })
+}
+
+fn to_rustler_err(e: impl std::fmt::Debug) -> Error {
+    // NOTE: Debug is better here otherwise the nested errors don't get printed
+    Error::Term(Box::new(format!("{:?}", e)))
+}
 
 #[rustler::nif(schedule = "DirtyIo")]
 fn get_oci_bytes(
@@ -103,17 +221,15 @@ fn pk_from_seed(seed: String) -> Result<(Atom, String), Error> {
 #[rustler::nif]
 fn par_from_bytes(binary: Binary) -> Result<(Atom, ProviderArchiveResource), Error> {
     match ProviderArchive::try_load(binary.as_slice()) {
-        Ok(par) => {
-            return Ok((
-                atoms::ok(),
-                ProviderArchiveResource {
-                    claims: par::extract_claims(&par)?,
-                    target_bytes: par::extract_target_bytes(&par)?,
-                    contract_id: par::get_capid(&par)?,
-                    vendor: par::get_vendor(&par)?,
-                },
-            ))
-        }
+        Ok(par) => Ok((
+            atoms::ok(),
+            ProviderArchiveResource {
+                claims: par::extract_claims(&par)?,
+                target_bytes: par::extract_target_bytes(&par)?,
+                contract_id: par::get_capid(&par)?,
+                vendor: par::get_vendor(&par)?,
+            },
+        )),
         Err(_) => Err(Error::BadArg),
     }
 }
@@ -192,7 +308,7 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
 }
 
 #[rustler::nif]
-fn generate_key<'a>(key_type: KeyType) -> Result<(String, String), Error> {
+fn generate_key(key_type: KeyType) -> Result<(String, String), Error> {
     let kp = match key_type {
         KeyType::Server => KeyPair::new_server(),
         KeyType::Cluster => KeyPair::new_cluster(),
@@ -208,8 +324,9 @@ fn generate_key<'a>(key_type: KeyType) -> Result<(String, String), Error> {
     Ok((pk, seed))
 }
 
+#[allow(clippy::too_many_arguments)]
 #[rustler::nif]
-fn generate_invocation_bytes<'a>(
+fn generate_invocation_bytes(
     host_seed: String,
     origin: String, // always comes from actor
     target_type: TargetType,
@@ -234,7 +351,7 @@ fn generate_invocation_bytes<'a>(
 }
 
 #[rustler::nif]
-fn validate_antiforgery<'a>(inv: Binary, valid_issuers: Vec<String>) -> Result<Atom, Error> {
+fn validate_antiforgery(inv: Binary, valid_issuers: Vec<String>) -> Result<Atom, Error> {
     inv::deserialize::<inv::Invocation>(inv.as_slice())
         .map_err(|_e| rustler::Error::Term(Box::new("Failed to deserialize invocation")))
         .and_then(|i| {

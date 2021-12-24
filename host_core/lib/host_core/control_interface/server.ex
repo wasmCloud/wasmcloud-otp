@@ -130,14 +130,22 @@ defmodule HostCore.ControlInterface.Server do
 
   # Launch Actor
   # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx"}
+  # %{"actor_ref" => "bindle://example.com/echo/0.12.0", "host_id" => "Nxxxx"}
   defp handle_request({"cmd", _host_id, "la"}, body, _reply_to) do
     with {:ok, start_actor_command} <- Jason.decode(body),
          true <-
            Map.has_key?(start_actor_command, "actor_ref") do
       Task.start(fn ->
-        case HostCore.Actors.ActorSupervisor.start_actor_from_oci(
-               start_actor_command["actor_ref"]
-             ) do
+        res =
+          if String.starts_with?(start_actor_command["actor_ref"], "bindle://") do
+            HostCore.Actors.ActorSupervisor.start_actor_from_bindle(
+              start_actor_command["actor_ref"]
+            )
+          else
+            HostCore.Actors.ActorSupervisor.start_actor_from_oci(start_actor_command["actor_ref"])
+          end
+
+        case res do
           {:ok, _pid} ->
             Logger.debug("Completed request to start actor #{start_actor_command["actor_ref"]}")
 
@@ -210,11 +218,22 @@ defmodule HostCore.ControlInterface.Server do
            ["provider_ref", "link_name"]
            |> Enum.all?(&Map.has_key?(start_provider_command, &1)) do
       Task.start(fn ->
-        case HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
-               start_provider_command["provider_ref"],
-               start_provider_command["link_name"],
-               Map.get(start_provider_command, "configuration", "")
-             ) do
+        res =
+          if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
+            HostCore.Providers.ProviderSupervisor.start_provider_from_bindle(
+              start_provider_command["provider_ref"],
+              start_provider_command["link_name"],
+              Map.get(start_provider_command, "configuration", "")
+            )
+          else
+            HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+              start_provider_command["provider_ref"],
+              start_provider_command["link_name"],
+              Map.get(start_provider_command, "configuration", "")
+            )
+          end
+
+        case res do
           {:ok, _pid} ->
             Logger.debug("Completed request to start provider")
 

@@ -80,6 +80,31 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
+  def start_provider_from_bindle(bindle_id, link_name, config_json \\ "") do
+    with {:ok, par} <-
+           HostCore.WasmCloud.Native.get_provider_bindle(
+             String.trim_leading(bindle_id, "bindle://")
+           ),
+         {:ok, path} <- extract_executable_to_tmp(par, link_name) do
+      start_executable_provider(
+        path,
+        par.claims,
+        link_name,
+        par.contract_id,
+        bindle_id,
+        config_json
+      )
+    else
+      {:error, err} ->
+        Logger.error("Error starting provider from Bindle: #{err}")
+        {:error, err}
+
+      _err ->
+        Logger.error("Error starting provider from Bindle")
+        {:error, "Error starting provider from OCI"}
+    end
+  end
+
   def start_provider_from_file(path, link_name) do
     with {:ok, bytes} <- File.read(path),
          {:ok, par} <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),

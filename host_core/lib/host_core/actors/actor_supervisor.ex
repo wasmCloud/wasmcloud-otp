@@ -60,6 +60,17 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
+  def start_actor_from_bindle(bindle_id) do
+    case HostCore.WasmCloud.Native.get_actor_bindle(String.trim_leading(bindle_id, "bindle://")) do
+      {:error, err} ->
+        Logger.error("Failed to download bytes from bindle server for #{bindle_id}")
+        {:error, err}
+
+      {:ok, bytes} ->
+        start_actor(bytes |> IO.iodata_to_binary(), bindle_id)
+    end
+  end
+
   def live_update(oci) do
     with {:ok, bytes} <-
            HostCore.WasmCloud.Native.get_oci_bytes(
@@ -181,7 +192,14 @@ defmodule HostCore.Actors.ActorSupervisor do
       diff < 0 && ociref != "" ->
         case 1..abs(diff)
              |> Enum.reduce_while("", fn _, _ ->
-               case start_actor_from_oci(ociref) do
+               res =
+                 if String.starts_with?(ociref, "bindle://") do
+                   start_actor_from_bindle(ociref)
+                 else
+                   start_actor_from_oci(ociref)
+                 end
+
+               case res do
                  {:error, err} ->
                    {:halt, "Error: #{err}"}
 

@@ -27,22 +27,27 @@ pub(crate) fn get_vendor(par: &ProviderArchive) -> Result<String, Error> {
 
 pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {
     match par.claims() {
-        Some(c) => {
-            let metadata = c.metadata.unwrap_or_default();
-            let revision = crate::revision_or_iat(metadata.rev, c.issued_at);
-            Ok(crate::Claims {
-                issuer: c.issuer,
-                public_key: c.subject,
-                revision,
-                tags: None,
-                version: metadata.ver,
-                name: metadata.name,
-                expires_human: stamp_to_human(c.expires).unwrap_or("never".to_string()),
-                not_before_human: stamp_to_human(c.not_before).unwrap_or("immediately".to_string()),
-                ..Default::default()
-            })
-        }
+        Some(c) => Ok(convert_provider_claims(c)),
         None => Err(Error::Term(Box::new("No claims found in provider archive"))),
+    }
+}
+
+/// Convert provider claims to our crate claims type
+pub fn convert_provider_claims(
+    c: wascap::jwt::Claims<wascap::jwt::CapabilityProvider>,
+) -> crate::Claims {
+    let metadata = c.metadata.unwrap_or_default();
+    let revision = crate::revision_or_iat(metadata.rev, c.issued_at);
+    crate::Claims {
+        issuer: c.issuer,
+        public_key: c.subject,
+        revision,
+        tags: None,
+        version: metadata.ver,
+        name: metadata.name,
+        expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
+        not_before_human: stamp_to_human(c.not_before).unwrap_or_else(|| "immediately".to_string()),
+        ..Default::default()
     }
 }
 
