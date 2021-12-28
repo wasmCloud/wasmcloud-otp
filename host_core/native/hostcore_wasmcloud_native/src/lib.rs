@@ -1,12 +1,14 @@
 #[macro_use]
 extern crate rustler;
 
+use std::collections::HashMap;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use bindle::{filters::BindleFilter, provider::Provider};
+use chrono::NaiveDateTime;
 use nkeys::KeyPair;
-pub use par::convert_provider_claims;
 use provider_archive::ProviderArchive;
 use rustler::{Atom, Binary, Error};
-use std::collections::HashMap;
 use tokio_stream::StreamExt;
 use wascap::prelude::*;
 
@@ -25,10 +27,10 @@ const CLAIMS_NAME: &str = "claims.jwt";
 #[derive(NifStruct)]
 #[module = "HostCore.WasmCloud.Native.ProviderArchive"]
 pub struct ProviderArchiveResource {
-    pub claims: Claims,
-    pub target_bytes: Vec<u8>,
-    pub contract_id: String,
-    pub vendor: String,
+    claims: Claims,
+    target_bytes: Vec<u8>,
+    contract_id: String,
+    vendor: String,
 }
 
 #[derive(NifStruct, Default)]
@@ -44,6 +46,25 @@ pub struct Claims {
     caps: Option<Vec<String>>,
     expires_human: String,
     not_before_human: String,
+}
+
+impl From<wascap::jwt::Claims<wascap::jwt::CapabilityProvider>> for Claims {
+    fn from(c: wascap::jwt::Claims<wascap::jwt::CapabilityProvider>) -> Self {
+        let metadata = c.metadata.unwrap_or_default();
+        let revision = revision_or_iat(metadata.rev, c.issued_at);
+        Claims {
+            issuer: c.issuer,
+            public_key: c.subject,
+            revision,
+            tags: None,
+            version: metadata.ver,
+            name: metadata.name,
+            expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
+            not_before_human: stamp_to_human(c.not_before)
+                .unwrap_or_else(|| "immediately".to_string()),
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(NifUnitEnum)]
@@ -81,7 +102,7 @@ rustler::init!(
     load = load
 );
 
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyIo")]
 fn get_provider_bindle(bindle_id: String) -> Result<(Atom, ProviderArchiveResource), Error> {
     task::TOKIO.block_on(async {
         let bindle_client = client::get_client().await.map_err(to_rustler_err)?;
@@ -145,7 +166,7 @@ fn get_provider_bindle(bindle_id: String) -> Result<(Atom, ProviderArchiveResour
         Ok((
             atoms::ok(),
             ProviderArchiveResource {
-                claims: convert_provider_claims(claims),
+                claims: claims.into(),
                 target_bytes,
                 contract_id,
                 vendor,
@@ -154,7 +175,7 @@ fn get_provider_bindle(bindle_id: String) -> Result<(Atom, ProviderArchiveResour
     })
 }
 
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyIo")]
 fn get_actor_bindle(bindle_id: String) -> Result<(Atom, Vec<u8>), Error> {
     task::TOKIO.block_on(async {
         // Get the invoice, validate this bindle contains an actor, fetch the actor and return
@@ -387,4 +408,23 @@ fn revision_or_iat(rev: Option<i32>, iat: u64) -> Option<i32> {
     } else {
         Some(iat as i32)
     }
+}
+
+fn stamp_to_human(stamp: Option<u64>) -> Option<String> {
+    stamp.map(|s| {
+        let now = NaiveDateTime::from_timestamp(since_the_epoch().as_secs() as i64, 0);
+        let then = NaiveDateTime::from_timestamp(s as i64, 0);
+
+        let diff = then - now;
+
+        let ht = chrono_humanize::HumanTime::from(diff);
+        format!("{}", ht)
+    })
+}
+
+fn since_the_epoch() -> Duration {
+    let start = SystemTime::now();
+    start
+        .duration_since(UNIX_EPOCH)
+        .expect("A timey wimey problem has occurred!")
 }

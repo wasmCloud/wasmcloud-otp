@@ -6,6 +6,12 @@ defmodule HostCore.ControlInterface.Server do
   alias HostCore.ControlInterface.ACL
   alias HostCore.CloudEvent
 
+  import HostCore.Actors.ActorSupervisor,
+    only: [start_actor_from_bindle: 1, start_actor_from_oci: 1]
+
+  import HostCore.Providers.ProviderSupervisor,
+    only: [start_provider_from_bindle: 3, start_provider_from_oci: 3]
+
   def request(%{topic: topic, body: body, reply_to: reply_to}) do
     topic
     |> String.split(".")
@@ -138,11 +144,9 @@ defmodule HostCore.ControlInterface.Server do
       Task.start(fn ->
         res =
           if String.starts_with?(start_actor_command["actor_ref"], "bindle://") do
-            HostCore.Actors.ActorSupervisor.start_actor_from_bindle(
-              start_actor_command["actor_ref"]
-            )
+            start_actor_from_bindle(start_actor_command["actor_ref"])
           else
-            HostCore.Actors.ActorSupervisor.start_actor_from_oci(start_actor_command["actor_ref"])
+            start_actor_from_oci(start_actor_command["actor_ref"])
           end
 
         case res do
@@ -220,13 +224,13 @@ defmodule HostCore.ControlInterface.Server do
       Task.start(fn ->
         res =
           if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
-            HostCore.Providers.ProviderSupervisor.start_provider_from_bindle(
+            start_provider_from_bindle(
               start_provider_command["provider_ref"],
               start_provider_command["link_name"],
               Map.get(start_provider_command, "configuration", "")
             )
           else
-            HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+            start_provider_from_oci(
               start_provider_command["provider_ref"],
               start_provider_command["link_name"],
               Map.get(start_provider_command, "configuration", "")
