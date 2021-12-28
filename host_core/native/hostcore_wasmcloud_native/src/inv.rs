@@ -89,7 +89,7 @@ impl Invocation {
             operation: op.to_string(),
             msg,
             id: subject,
-            encoded_claims: claims.encode(&hostkey).unwrap(),
+            encoded_claims: claims.encode(hostkey).unwrap(),
             host_id: issuer,
         }
     }
@@ -119,7 +119,7 @@ impl Invocation {
             operation: op,
             msg: vec![],
             id: subject,
-            encoded_claims: claims.encode(&hostkey).unwrap(),
+            encoded_claims: claims.encode(hostkey).unwrap(),
             host_id: issuer,
         }
     }
@@ -172,7 +172,7 @@ impl Invocation {
             );
             return Err(s.into());
         }
-        if !self.host_id.starts_with("N") && self.host_id.len() != 56 {
+        if !self.host_id.starts_with('N') && self.host_id.len() != 56 {
             let s = format!("Invalid host ID on invocation: '{}'", self.host_id);
             return Err(s.into());
         }
@@ -199,7 +199,7 @@ impl Display for WasmCloudEntity {
 impl WasmCloudEntity {
     /// The URL of the entity
     pub fn url(&self) -> String {
-        if self.public_key.to_uppercase().starts_with("M") {
+        if self.public_key.to_uppercase().starts_with('M') {
             format!("{}://{}", URL_SCHEME, self.public_key)
         } else {
             format!(
@@ -255,7 +255,7 @@ pub struct ReferenceMap {
 /// Indicates the type of reference map (alias)
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub enum ReferenceType {
-    OCI(String),
+    Oci(String),
     CallAlias(String),
 }
 

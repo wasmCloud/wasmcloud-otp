@@ -34,7 +34,7 @@ pub(crate) async fn fetch_oci_bytes(
         let protocol =
             oci_distribution::client::ClientProtocol::HttpsExcept(allowed_insecure.to_vec());
         let config = oci_distribution::client::ClientConfig {
-            protocol: protocol,
+            protocol,
             ..Default::default()
         };
         let mut c = oci_distribution::Client::new(config);
@@ -87,8 +87,8 @@ async fn pull(
 > {
     client
         .pull(
-            &img,
-            &auth,
+            img,
+            auth,
             vec![PROVIDER_ARCHIVE_MEDIA_TYPE, WASM_MEDIA_TYPE, OCI_MEDIA_TYPE],
         )
         .await

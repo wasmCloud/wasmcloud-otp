@@ -54,3 +54,4 @@ npm-debug.log
 *.tar
 
 host_config.json
+.vscode/
