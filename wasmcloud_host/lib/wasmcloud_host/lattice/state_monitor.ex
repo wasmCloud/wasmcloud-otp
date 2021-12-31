@@ -88,6 +88,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
+  def handle_call(:complete_state, _from, state) do
+    {:reply, state, state}
+  end
+
+  @impl true
   def handle_info(
         {:msg, %{body: body, topic: topic}},
         state
@@ -124,6 +129,10 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   def get_ocirefs() do
     GenServer.call(:state_monitor, :refmaps_query)
+  end
+
+  def get_complete_state() do
+    GenServer.call(:state_monitor, :complete_state)
   end
 
   @impl true
