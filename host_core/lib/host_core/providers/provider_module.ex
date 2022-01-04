@@ -89,7 +89,8 @@ defmodule HostCore.Providers.ProviderModule do
       publish_provider_oci_map(claims.public_key, link_name, oci)
     end
 
-    Process.send_after(self(), :do_health, @thirty_seconds)
+    Process.send(self(), :do_health, [:noconnect, :nosuspend])
+    :timer.send_interval(@thirty_seconds, self(), :do_health)
 
     {:ok,
      %State{
@@ -188,7 +189,6 @@ defmodule HostCore.Providers.ProviderModule do
       {:error, _} -> publish_health_failed(state)
     end
 
-    Process.send_after(self(), :do_health, @thirty_seconds)
     {:noreply, state}
   end
 

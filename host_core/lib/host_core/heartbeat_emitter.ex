@@ -16,7 +16,8 @@ defmodule HostCore.HeartbeatEmitter do
 
   @impl true
   def init(opts) do
-    Process.send_after(self(), :publish_heartbeat, @thirty_seconds)
+    :timer.send_interval(@thirty_seconds, self(), :publish_heartbeat)
+    Process.send(self(), :publish_heartbeat, [:noconnect, :nosuspend])
 
     {:ok, opts}
   end
@@ -24,7 +25,6 @@ defmodule HostCore.HeartbeatEmitter do
   @impl true
   def handle_info(:publish_heartbeat, state) do
     publish_heartbeat(state)
-    Process.send_after(self(), :publish_heartbeat, @thirty_seconds)
     {:noreply, state}
   end
 
