@@ -1,7 +1,7 @@
 defmodule HostCore.MixProject do
   use Mix.Project
 
-  @app_vsn "0.51.4"
+  @app_vsn "0.52.0"
 
   def project do
     [
