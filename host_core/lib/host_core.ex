@@ -36,7 +36,6 @@ defmodule HostCore do
         {Gnat.ConnectionSupervisor, HostCore.Nats.rpc_connection_settings(config)},
         id: :rpc_connection_supervisor
       ),
-      {HostCore.HeartbeatEmitter, config},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor,
        strategy: :one_for_one,
@@ -79,6 +78,7 @@ defmodule HostCore do
         id: :cacheloader_consumer_supervisor
       ),
       {HostCore.Host, config},
+      {HostCore.HeartbeatEmitter, config},
       {HostCore.Jetstream.Client, config}
     ]
   end

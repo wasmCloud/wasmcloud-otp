@@ -75,7 +75,10 @@ defmodule HostCore.Actors.ActorModule do
 
   @impl true
   def init({claims, bytes, oci}) do
-    start_actor(claims, bytes, oci)
+    {:ok, agent} = start_actor(claims, bytes, oci)
+    Process.send(self(), :do_health, [:noconnect, :nosuspend])
+    :timer.send_interval(@thirty_seconds, self(), :do_health)
+    {:ok, agent}
   end
 
   def handle_call({:live_update, bytes, claims, oci}, _from, agent) do
@@ -155,7 +158,6 @@ defmodule HostCore.Actors.ActorModule do
   @impl true
   def handle_info(:do_health, agent) do
     perform_health_check(agent)
-    Process.send_after(self(), :do_health, @thirty_seconds)
     {:noreply, agent}
   end
 
@@ -238,8 +240,6 @@ defmodule HostCore.Actors.ActorModule do
     {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
     Agent.update(agent, fn state -> %State{state | subscription: subscription, ociref: oci} end)
 
-    Process.send_after(self(), :do_health, @thirty_seconds)
-
     imports = %{
       wapc: Imports.wapc_imports(agent),
       wasmbus: Imports.wasmbus_imports(agent)
@@ -309,7 +309,7 @@ defmodule HostCore.Actors.ActorModule do
     res
   end
 
-  defp prepare_module({:ok, instance}, agent, oci \\ "") do
+  defp prepare_module({:ok, instance}, agent, oci) do
     api_version =
       case Wasmex.call_function(instance, :__wasmbus_rpc_version, []) do
         {:ok, [v]} -> v
