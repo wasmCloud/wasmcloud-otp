@@ -38,6 +38,7 @@ defmodule HostCore.Host do
   """
   @impl true
   def init(opts) do
+    Process.flag(:trap_exit, true)
     configure_ets()
 
     :ets.insert(:config_table, {:config, opts})
@@ -79,6 +80,13 @@ defmodule HostCore.Host do
        friendly_name: friendly_name,
        labels: labels
      }}
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    Logger.debug("Host termination requested: #{inspect(reason)}")
+    publish_host_stopped(state.labels)
+    :timer.sleep(300)
   end
 
   defp get_env_host_labels() do
