@@ -47,7 +47,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   def halt(pid) do
-    GenServer.call(pid, :halt_cleanup)
+    if Process.alive?(pid), do: GenServer.call(pid, :halt_cleanup)
   end
 
   @impl true

@@ -63,7 +63,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def halt(pid) do
-    GenServer.call(pid, :halt_and_cleanup)
+    if Process.alive?(pid), do: GenServer.call(pid, :halt_and_cleanup)
   end
 
   def health_check(pid) do
