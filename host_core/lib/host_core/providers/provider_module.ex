@@ -190,13 +190,12 @@ defmodule HostCore.Providers.ProviderModule do
     # Only publish health check pass/fail when state changes
     state =
       case res do
+        {:ok, _body} when not state.healthy ->
+          publish_health_passed(state)
+          %State{state | healthy: true}
+
         {:ok, _body} ->
-          if !state.healthy do
-            publish_health_passed(state)
-            %State{state | healthy: true}
-          else
-            state
-          end
+          state
 
         {:error, _} ->
           if state.healthy do
