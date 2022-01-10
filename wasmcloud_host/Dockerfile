@@ -76,6 +76,7 @@ RUN apt update && \
   libssl-dev \
   pkg-config \
   python2.7 \
+  inotify-tools \
   build-essential && \
   # Install node from nodesource (needed for phoenix)
   curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
