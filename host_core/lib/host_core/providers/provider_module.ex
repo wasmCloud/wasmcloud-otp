@@ -18,7 +18,8 @@ defmodule HostCore.Providers.ProviderModule do
       :lattice_prefix,
       :instance_id,
       :executable_path,
-      :ociref
+      :ociref,
+      :healthy
     ]
   end
 
@@ -46,7 +47,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   def halt(pid) do
-    GenServer.call(pid, :halt_cleanup)
+    if Process.alive?(pid), do: GenServer.call(pid, :halt_cleanup)
   end
 
   @impl true
@@ -102,6 +103,8 @@ defmodule HostCore.Providers.ProviderModule do
        instance_id: instance_id,
        lattice_prefix: HostCore.Host.lattice_prefix(),
        executable_path: path,
+       # until we prove otherwise
+       healthy: false,
        ociref: oci
      }}
   end
@@ -184,10 +187,24 @@ defmodule HostCore.Providers.ProviderModule do
         _e -> {:error, "Received no response on health check topic from provider"}
       end
 
-    case res do
-      {:ok, _body} -> publish_health_passed(state)
-      {:error, _} -> publish_health_failed(state)
-    end
+    # Only publish health check pass/fail when state changes
+    state =
+      case res do
+        {:ok, _body} when not state.healthy ->
+          publish_health_passed(state)
+          %State{state | healthy: true}
+
+        {:ok, _body} ->
+          state
+
+        {:error, _} ->
+          if state.healthy do
+            publish_health_failed(state)
+            %State{state | healthy: false}
+          else
+            state
+          end
+      end
 
     {:noreply, state}
   end

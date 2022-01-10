@@ -25,7 +25,8 @@ defmodule HostCore.Actors.ActorModule do
       :invocation,
       :claims,
       :subscription,
-      :ociref
+      :ociref,
+      :healthy
     ]
   end
 
@@ -62,7 +63,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def halt(pid) do
-    GenServer.call(pid, :halt_and_cleanup)
+    if Process.alive?(pid), do: GenServer.call(pid, :halt_and_cleanup)
   end
 
   def health_check(pid) do
@@ -231,7 +232,8 @@ defmodule HostCore.Actors.ActorModule do
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.Claims.Manager.put_claims(claims)
 
-    {:ok, agent} = Agent.start_link(fn -> %State{claims: claims, instance_id: UUID.uuid4()} end)
+    {:ok, agent} =
+      Agent.start_link(fn -> %State{claims: claims, instance_id: UUID.uuid4(), healthy: false} end)
 
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
@@ -302,8 +304,17 @@ defmodule HostCore.Actors.ActorModule do
       end
 
     case res do
-      {:ok, _payload} -> publish_check_passed(agent)
-      {:error, reason} -> publish_check_failed(agent, reason)
+      {:ok, _payload} ->
+        if !Agent.get(agent, fn contents -> contents.healthy end) do
+          publish_check_passed(agent)
+          Agent.update(agent, fn contents -> %State{contents | healthy: true} end)
+        end
+
+      {:error, reason} ->
+        if Agent.get(agent, fn contents -> contents.healthy end) do
+          publish_check_failed(agent, reason)
+          Agent.update(agent, fn contents -> %State{contents | healthy: false} end)
+        end
     end
 
     res

@@ -28,7 +28,17 @@ defmodule HostCore.HeartbeatEmitter do
     {:noreply, state}
   end
 
-  def publish_heartbeat(state) do
+  @impl true
+  def handle_cast(:publish_heartbeat, state) do
+    publish_heartbeat(state)
+    {:noreply, state}
+  end
+
+  def emit_heartbeat() do
+    GenServer.cast(__MODULE__, :publish_heartbeat)
+  end
+
+  defp publish_heartbeat(state) do
     Logger.debug("Publishing heartbeat")
     topic = "wasmbus.evt.#{state[:lattice_prefix]}"
     msg = generate_heartbeat(state)

@@ -36,6 +36,8 @@ defmodule HostCore.ControlInterface.Server do
       uptime_seconds: div(total, 1000)
     }
 
+    HostCore.HeartbeatEmitter.emit_heartbeat()
+
     {:reply, Jason.encode!(res)}
   end
 
