@@ -4,6 +4,7 @@
 [![latest release](https://img.shields.io/github/v/release/wasmcloud/wasmcloud-otp?include_prereleases)](https://github.com/wasmCloud/wasmcloud-otp/releases)
 [![homepage](https://img.shields.io/website?label=homepage&url=https%3A%2F%2Fwasmcloud.com)](https://wasmcloud.com)
 [![documentation site](https://img.shields.io/website?label=documentation&url=https%3A%2F%2Fwasmcloud.dev)](https://wasmcloud.dev)
+![Powered by WebAssembly](https://img.shields.io/badge/powered%20by-WebAssembly-orange.svg)
 
 # wasmCloud Host Runtime (OTP)
 
