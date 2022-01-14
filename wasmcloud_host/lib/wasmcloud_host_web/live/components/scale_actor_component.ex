@@ -24,7 +24,7 @@ defmodule ScaleActorComponent do
     case WasmcloudHost.Lattice.ControlInterface.scale_actor(
            actor_id,
            actor_ref,
-           count,
+           String.to_integer(count),
            host_id
          ) do
       :ok ->

@@ -33,7 +33,7 @@ defmodule StartActorComponent do
 
   def handle_event(
         "start_actor_file",
-        evt = %{"count" => count},
+        %{"count" => count},
         socket
       ) do
     error_msg =
@@ -112,7 +112,7 @@ defmodule StartActorComponent do
     case WasmcloudHost.Lattice.ControlInterface.scale_actor(
            actor_id,
            actor_ociref,
-           count,
+           String.to_integer(count),
            host_id
          ) do
       :ok ->
