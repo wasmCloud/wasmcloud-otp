@@ -92,11 +92,7 @@ defmodule HostCore.ActorsTest do
   test "can load actors", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@kvcounter_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", 5)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_event(
@@ -182,8 +178,8 @@ defmodule HostCore.ActorsTest do
     on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
     :ets.delete(:refmap_table, @echo_old_oci_reference)
-    {:ok, pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
-    assert Process.alive?(pid)
+    {:ok, pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference, 1)
+    assert Process.alive?(pid |> List.first())
 
     actor_count =
       Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @echo_key)
@@ -301,8 +297,8 @@ defmodule HostCore.ActorsTest do
     :ets.delete(:refmap_table, @echo_oci_reference)
     :ets.delete(:refmap_table, @echo_old_oci_reference)
 
-    {:ok, pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference)
-    assert Process.alive?(pid)
+    {:ok, pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_oci_reference, 1)
+    assert Process.alive?(pid |> List.first())
 
     res = HostCore.Actors.ActorSupervisor.start_actor_from_oci("wasmcloud.azurecr.io/echo:0.3.0")
 
@@ -314,11 +310,7 @@ defmodule HostCore.ActorsTest do
   test "stop with zero count terminates all", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@kvcounter_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", 5)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_event(

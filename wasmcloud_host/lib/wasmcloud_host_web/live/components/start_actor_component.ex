@@ -33,28 +33,17 @@ defmodule StartActorComponent do
 
   def handle_event(
         "start_actor_file",
-        %{"count" => count},
+        evt = %{"count" => count},
         socket
       ) do
     error_msg =
       Phoenix.LiveView.consume_uploaded_entries(socket, :actor, fn %{path: path}, _entry ->
-        count = 1..String.to_integer(count)
-
         case File.read(path) do
           {:ok, bytes} ->
-            count
-            |> Enum.reduce_while("", fn _, _ ->
-              case HostCore.Actors.ActorSupervisor.start_actor(bytes) do
-                {:stop, err} ->
-                  {:halt, "Error: #{err}"}
-
-                _any ->
-                  {:cont, ""}
-              end
-            end)
+            HostCore.Actors.ActorSupervisor.start_actor(bytes, "", String.to_integer(count))
 
           {:error, reason} ->
-            "Error #{reason}"
+            {:error, "Error #{reason}"}
         end
       end)
       |> List.first()
@@ -63,11 +52,11 @@ defmodule StartActorComponent do
       nil ->
         {:noreply, assign(socket, error_msg: "Please select a file")}
 
-      "" ->
+      {:ok, _pids} ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
         {:noreply, assign(socket, error_msg: nil)}
 
-      msg ->
+      {:error, msg} ->
         {:noreply, assign(socket, error_msg: msg)}
     end
   end
