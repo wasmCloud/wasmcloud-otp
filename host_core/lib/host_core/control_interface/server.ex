@@ -203,8 +203,7 @@ defmodule HostCore.ControlInterface.Server do
         actor_ref = scale_request["actor_ref"]
         count = String.to_integer(scale_request["count"])
 
-        case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref)
-             |> IO.inspect() do
+        case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
           :ok ->
             {:reply, success_ack()}
 
