@@ -201,7 +201,14 @@ defmodule HostCore.ControlInterface.Server do
       if host_id == HostCore.Host.host_key() do
         actor_id = scale_request["actor_id"]
         actor_ref = scale_request["actor_ref"]
-        count = String.to_integer(scale_request["count"])
+
+        # Handle either integer or string count arg
+        count =
+          if is_integer(scale_request["count"]) do
+            scale_request["count"]
+          else
+            String.to_integer(scale_request["count"])
+          end
 
         case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
           :ok ->
