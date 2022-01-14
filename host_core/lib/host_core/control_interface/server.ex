@@ -192,7 +192,7 @@ defmodule HostCore.ControlInterface.Server do
   end
 
   # Scale Actor
-  # input: #{"actor_id" => "...", "actor_ref" => "...", "count" => "..."}
+  # input: #{"actor_id" => "...", "actor_ref" => "...", "count" => 5}
   defp handle_request({"cmd", host_id, "scale"}, body, _reply_to) do
     with {:ok, scale_request} <- Jason.decode(body),
          true <-
@@ -201,25 +201,19 @@ defmodule HostCore.ControlInterface.Server do
       if host_id == HostCore.Host.host_key() do
         actor_id = scale_request["actor_id"]
         actor_ref = scale_request["actor_ref"]
+        count = scale_request["count"]
 
-        # Handle either integer or string count arg
-        count =
-          if is_integer(scale_request["count"]) do
-            scale_request["count"]
-          else
-            String.to_integer(scale_request["count"])
+        Task.start(fn ->
+          case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
+            {:error, err} ->
+              Logger.error("Error scaling actor: #{err}")
+
+            _ ->
+              :ok
           end
+        end)
 
-        case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
-          :ok ->
-            {:reply, success_ack()}
-
-          {:ok, _pids} ->
-            {:reply, success_ack()}
-
-          {:error, err} ->
-            {:reply, failure_ack("Error scaling actor: #{err}")}
-        end
+        {:reply, success_ack()}
       else
         {:reply, failure_ack("Command received by incorrect host and could not be processed")}
       end
