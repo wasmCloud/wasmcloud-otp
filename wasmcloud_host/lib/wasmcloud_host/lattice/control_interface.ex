@@ -1,14 +1,14 @@
 defmodule WasmcloudHost.Lattice.ControlInterface do
   @wasmbus_prefix "wasmbus.ctl."
 
-  def scale_actor(actor_id, actor_ref, desired_replicas, host_id) do
+  def scale_actor(actor_id, actor_ref, desired_count, host_id) do
     topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.cmd.#{host_id}.scale"
 
     payload =
       Jason.encode!(%{
         "actor_id" => actor_id,
         "actor_ref" => actor_ref,
-        "replicas" => desired_replicas
+        "count" => desired_count
       })
 
     case ctl_request(topic, payload, 2_000) do

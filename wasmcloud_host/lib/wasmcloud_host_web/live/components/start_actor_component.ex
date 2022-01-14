@@ -33,16 +33,16 @@ defmodule StartActorComponent do
 
   def handle_event(
         "start_actor_file",
-        %{"replicas" => replicas},
+        %{"count" => count},
         socket
       ) do
     error_msg =
       Phoenix.LiveView.consume_uploaded_entries(socket, :actor, fn %{path: path}, _entry ->
-        replicas = 1..String.to_integer(replicas)
+        count = 1..String.to_integer(count)
 
         case File.read(path) do
           {:ok, bytes} ->
-            replicas
+            count
             |> Enum.reduce_while("", fn _, _ ->
               case HostCore.Actors.ActorSupervisor.start_actor(bytes) do
                 {:stop, err} ->
@@ -74,13 +74,13 @@ defmodule StartActorComponent do
 
   def handle_event(
         "start_actor_file_hotreload",
-        %{"path" => path, "replicas" => replicas},
+        %{"path" => path, "count" => count},
         socket
       ) do
     case WasmcloudHost.ActorWatcher.hotwatch_actor(
            :actor_watcher,
            path,
-           String.to_integer(replicas)
+           String.to_integer(count)
          ) do
       :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
@@ -96,25 +96,25 @@ defmodule StartActorComponent do
 
   def handle_event(
         "start_actor_ociref",
-        %{"replicas" => replicas, "actor_ociref" => actor_ociref, "host_id" => host_id},
+        %{"count" => count, "actor_ociref" => actor_ociref, "host_id" => host_id},
         socket
       ) do
     case host_id do
       "" ->
         case WasmcloudHost.Lattice.ControlInterface.auction_actor(actor_ociref, %{}) do
           {:ok, auction_host_id} ->
-            start_actor(actor_ociref, replicas, auction_host_id, socket)
+            start_actor(actor_ociref, count, auction_host_id, socket)
 
           {:error, error} ->
             {:noreply, assign(socket, error_msg: error)}
         end
 
       host_id ->
-        start_actor(actor_ociref, replicas, host_id, socket)
+        start_actor(actor_ociref, count, host_id, socket)
     end
   end
 
-  defp start_actor(actor_ociref, replicas, host_id, socket) do
+  defp start_actor(actor_ociref, count, host_id, socket) do
     actor_id =
       WasmcloudHost.Lattice.StateMonitor.get_ocirefs()
       |> Enum.find({actor_ociref, ""}, fn {oci, _id} -> oci == actor_ociref end)
@@ -123,7 +123,7 @@ defmodule StartActorComponent do
     case WasmcloudHost.Lattice.ControlInterface.scale_actor(
            actor_id,
            actor_ociref,
-           replicas,
+           count,
            host_id
          ) do
       :ok ->
@@ -208,7 +208,7 @@ defmodule StartActorComponent do
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Replicas</label>
         <div class="col-md-9">
-          <input class="form-control" id="number-input" type="number" name="replicas" placeholder="1" value="1" min="1">
+          <input class="form-control" id="number-input" type="number" name="count" placeholder="1" value="1" min="1">
           <span class="help-block">Enter how many instances of this actor you want</span>
         </div>
       </div>

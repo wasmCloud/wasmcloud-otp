@@ -190,18 +190,18 @@ defmodule HostCore.ControlInterface.Server do
   end
 
   # Scale Actor
-  # input: #{"actor_id" => "...", "actor_ref" => "...", "replicas" => "..."}
+  # input: #{"actor_id" => "...", "actor_ref" => "...", "count" => "..."}
   defp handle_request({"cmd", host_id, "scale"}, body, _reply_to) do
     with {:ok, scale_request} <- Jason.decode(body),
          true <-
-           ["actor_id", "actor_ref", "replicas"]
+           ["actor_id", "actor_ref", "count"]
            |> Enum.all?(&Map.has_key?(scale_request, &1)) do
       if host_id == HostCore.Host.host_key() do
         actor_id = scale_request["actor_id"]
         actor_ref = scale_request["actor_ref"]
-        replicas = String.to_integer(scale_request["replicas"])
+        count = String.to_integer(scale_request["count"])
 
-        case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, replicas, actor_ref) do
+        case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
           :ok ->
             {:reply, success_ack()}
 
