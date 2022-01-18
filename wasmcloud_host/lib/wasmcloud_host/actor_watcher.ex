@@ -119,18 +119,9 @@ defmodule WasmcloudHost.ActorWatcher do
   end
 
   def start_actor(bytes, replicas) do
-    case 1..replicas
-         |> Enum.reduce_while("", fn _, _ ->
-           case HostCore.Actors.ActorSupervisor.start_actor(bytes) do
-             {:stop, err} ->
-               {:halt, "Error: #{err}"}
-
-             _any ->
-               {:cont, ""}
-           end
-         end) do
-      "" -> :ok
-      msg -> {:error, msg}
+    case HostCore.Actors.ActorSupervisor.start_actor(bytes, "", replicas) do
+      {:ok, _pids} -> :ok
+      {:error, e} -> {:error, e}
     end
   end
 end

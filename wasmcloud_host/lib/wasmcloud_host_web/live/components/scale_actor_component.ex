@@ -14,7 +14,7 @@ defmodule ScaleActorComponent do
   def handle_event(
         "scale_actor",
         %{
-          "desired_replicas" => replicas,
+          "desired_count" => count,
           "actor_id" => actor_id,
           "actor_ociref" => actor_ref,
           "host_id" => host_id
@@ -24,7 +24,7 @@ defmodule ScaleActorComponent do
     case WasmcloudHost.Lattice.ControlInterface.scale_actor(
            actor_id,
            actor_ref,
-           replicas,
+           String.to_integer(count),
            host_id
          ) do
       :ok ->
@@ -46,8 +46,8 @@ defmodule ScaleActorComponent do
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Replicas</label>
         <div class="col-md-9">
-          <input class="form-control" id="number-input" type="number" name="desired_replicas"
-            value='<%= Map.get(@modal, "replicas") %>' min="0">
+          <input class="form-control" id="number-input" type="number" name="desired_count"
+            value='<%= Map.get(@modal, "count") %>' min="0">
           <span class="help-block">Enter how many instances of this actor you want</span>
         </div>
       </div>

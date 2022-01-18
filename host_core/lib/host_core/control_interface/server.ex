@@ -7,7 +7,7 @@ defmodule HostCore.ControlInterface.Server do
   alias HostCore.CloudEvent
 
   import HostCore.Actors.ActorSupervisor,
-    only: [start_actor_from_bindle: 1, start_actor_from_oci: 1]
+    only: [start_actor_from_bindle: 2, start_actor_from_oci: 2]
 
   import HostCore.Providers.ProviderSupervisor,
     only: [start_provider_from_bindle: 3, start_provider_from_oci: 3]
@@ -137,18 +137,20 @@ defmodule HostCore.ControlInterface.Server do
   # a queue group
 
   # Launch Actor
-  # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx"}
-  # %{"actor_ref" => "bindle://example.com/echo/0.12.0", "host_id" => "Nxxxx"}
+  # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx", "count" => 3}
+  # %{"actor_ref" => "bindle://example.com/echo/0.12.0", "host_id" => "Nxxxx", "count" => 4}
   defp handle_request({"cmd", _host_id, "la"}, body, _reply_to) do
     with {:ok, start_actor_command} <- Jason.decode(body),
          true <-
            Map.has_key?(start_actor_command, "actor_ref") do
       Task.start(fn ->
+        count = Map.get(start_actor_command, "count", 1)
+
         res =
           if String.starts_with?(start_actor_command["actor_ref"], "bindle://") do
-            start_actor_from_bindle(start_actor_command["actor_ref"])
+            start_actor_from_bindle(start_actor_command["actor_ref"], count)
           else
-            start_actor_from_oci(start_actor_command["actor_ref"])
+            start_actor_from_oci(start_actor_command["actor_ref"], count)
           end
 
         case res do
@@ -190,24 +192,28 @@ defmodule HostCore.ControlInterface.Server do
   end
 
   # Scale Actor
-  # input: #{"actor_id" => "...", "actor_ref" => "...", "replicas" => "..."}
+  # input: #{"actor_id" => "...", "actor_ref" => "...", "count" => 5}
   defp handle_request({"cmd", host_id, "scale"}, body, _reply_to) do
     with {:ok, scale_request} <- Jason.decode(body),
          true <-
-           ["actor_id", "actor_ref", "replicas"]
+           ["actor_id", "actor_ref", "count"]
            |> Enum.all?(&Map.has_key?(scale_request, &1)) do
       if host_id == HostCore.Host.host_key() do
         actor_id = scale_request["actor_id"]
         actor_ref = scale_request["actor_ref"]
-        replicas = String.to_integer(scale_request["replicas"])
+        count = scale_request["count"]
 
-        case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, replicas, actor_ref) do
-          :ok ->
-            {:reply, success_ack()}
+        Task.start(fn ->
+          case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
+            {:error, err} ->
+              Logger.error("Error scaling actor: #{err}")
 
-          {:error, err} ->
-            {:reply, failure_ack("Error scaling actor: #{err}")}
-        end
+            _ ->
+              :ok
+          end
+        end)
+
+        {:reply, success_ack()}
       else
         {:reply, failure_ack("Command received by incorrect host and could not be processed")}
       end

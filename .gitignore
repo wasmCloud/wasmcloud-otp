@@ -55,3 +55,4 @@ npm-debug.log
 
 host_config.json
 .vscode/
+.DS_STORE

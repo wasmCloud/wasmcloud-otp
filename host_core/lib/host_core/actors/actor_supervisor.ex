@@ -14,9 +14,9 @@ defmodule HostCore.Actors.ActorSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  @spec start_actor(binary) ::
-          :ignore | {:error, any} | {:ok, pid} | {:stop, any} | {:ok, pid, any}
-  def start_actor(bytes, oci \\ "") when is_binary(bytes) do
+  @spec start_actor(bytes :: binary(), oci :: String.t(), count :: Integer.t()) ::
+          {:error, any} | {:ok, [pid()]}
+  def start_actor(bytes, oci \\ "", count \\ 1) when is_binary(bytes) do
     Logger.debug("Start actor request received")
 
     case HostCore.WasmCloud.Native.extract_claims(bytes) do
@@ -29,10 +29,29 @@ defmodule HostCore.Actors.ActorSupervisor do
           {:error,
            "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
         else
-          DynamicSupervisor.start_child(
-            __MODULE__,
-            {HostCore.Actors.ActorModule, {claims, bytes, oci}}
-          )
+          # Start `count` instances of this actor
+          case 1..count
+               |> Enum.reduce_while([], fn _count, pids ->
+                 case DynamicSupervisor.start_child(
+                        __MODULE__,
+                        {HostCore.Actors.ActorModule, {claims, bytes, oci}}
+                      ) do
+                   {:error, err} ->
+                     {:halt, {:error, "Error: #{err}"}}
+
+                   {:ok, pid} ->
+                     {:cont, [pid | pids]}
+
+                   {:ok, pid, _info} ->
+                     {:cont, [pid | pids]}
+
+                   :ignore ->
+                     {:cont, pids}
+                 end
+               end) do
+            {:error, err} -> {:error, err}
+            pids -> {:ok, pids}
+          end
         end
     end
   end
@@ -45,7 +64,7 @@ defmodule HostCore.Actors.ActorSupervisor do
     |> length() > 0
   end
 
-  def start_actor_from_oci(oci) do
+  def start_actor_from_oci(oci, count \\ 1) do
     case HostCore.WasmCloud.Native.get_oci_bytes(
            oci,
            HostCore.Oci.allow_latest(),
@@ -56,18 +75,18 @@ defmodule HostCore.Actors.ActorSupervisor do
         {:error, err}
 
       {:ok, bytes} ->
-        start_actor(bytes |> IO.iodata_to_binary(), oci)
+        start_actor(bytes |> IO.iodata_to_binary(), oci, count)
     end
   end
 
-  def start_actor_from_bindle(bindle_id) do
+  def start_actor_from_bindle(bindle_id, count \\ 1) do
     case HostCore.WasmCloud.Native.get_actor_bindle(String.trim_leading(bindle_id, "bindle://")) do
       {:error, err} ->
         Logger.error("Failed to download bytes from bindle server for #{bindle_id}")
         {:error, err}
 
       {:ok, bytes} ->
-        start_actor(bytes |> IO.iodata_to_binary(), bindle_id)
+        start_actor(bytes |> IO.iodata_to_binary(), bindle_id, count)
     end
   end
 
@@ -190,25 +209,10 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       # Current count is less than desired count, start more instances
       diff < 0 && ociref != "" ->
-        case 1..abs(diff)
-             |> Enum.reduce_while("", fn _, _ ->
-               res =
-                 if String.starts_with?(ociref, "bindle://") do
-                   start_actor_from_bindle(ociref)
-                 else
-                   start_actor_from_oci(ociref)
-                 end
-
-               case res do
-                 {:error, err} ->
-                   {:halt, "Error: #{err}"}
-
-                 _any ->
-                   {:cont, ""}
-               end
-             end) do
-          "" -> :ok
-          err -> {:error, err}
+        if String.starts_with?(ociref, "bindle://") do
+          start_actor_from_bindle(ociref, abs(diff))
+        else
+          start_actor_from_oci(ociref, abs(diff))
         end
 
       diff < 0 ->

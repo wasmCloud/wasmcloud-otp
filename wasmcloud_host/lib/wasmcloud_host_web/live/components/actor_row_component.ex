@@ -50,7 +50,7 @@ defmodule ActorRowComponent do
         <button id="scale_actor_button_<%= @actor %>_<%= @host_id %>" class="btn btn-sm btn-warning" data-toggle="tooltip"
           data-placement="top" title data-original-title="Scale Actor" phx-click="show_modal"
           phx-value-title='Scale "<%= @name %>"' phx-value-component="ScaleActorComponent" phx-value-id="scale_actor_modal"
-          phx-value-actor="<%= @actor %>" phx-value-host="<%= @host_id %>" phx-value-replicas="<%= @count %>"
+          phx-value-actor="<%= @actor %>" phx-value-host="<%= @host_id %>" phx-value-count="<%= @count %>"
           phx-value-oci="<%= @oci_ref %>">
           <svg class="c-icon" style="color: white">
             <use xlink:href="/coreui/free.svg#cil-equalizer"></use>
