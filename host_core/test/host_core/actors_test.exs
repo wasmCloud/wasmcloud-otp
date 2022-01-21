@@ -26,6 +26,8 @@ defmodule HostCore.ActorsTest do
   @httpserver_contract HostCoreTest.Constants.httpserver_contract()
   @httpserver_link HostCoreTest.Constants.default_link()
 
+  @pinger_key HostCoreTest.Constants.pinger_key()
+
   test "live update same revision fails" do
     on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
@@ -204,7 +206,7 @@ defmodule HostCore.ActorsTest do
       HostCore.WasmCloud.Native.generate_invocation_bytes(
         seed,
         "system",
-        :provider,
+        :actor,
         @httpserver_key,
         @httpserver_contract,
         @httpserver_link,
@@ -257,16 +259,15 @@ defmodule HostCore.ActorsTest do
       HostCore.WasmCloud.Native.generate_invocation_bytes(
         seed,
         "system",
-        :provider,
-        @httpserver_key,
+        :actor,
+        @pinger_key,
         @httpserver_contract,
         @httpserver_link,
         "HandleRequest",
         req
       )
 
-    pinger_key = "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN"
-    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{pinger_key}"
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@pinger_key}"
 
     res =
       case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do

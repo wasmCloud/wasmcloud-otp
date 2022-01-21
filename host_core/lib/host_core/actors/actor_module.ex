@@ -189,7 +189,12 @@ defmodule HostCore.Actors.ActorModule do
              }, inv}
 
           _ ->
-            case perform_invocation(agent, inv["operation"], inv["msg"]) do
+            case validate_invocation(
+                   agent,
+                   inv["origin"]["link_name"],
+                   inv["origin"]["contract_id"]
+                 )
+                 |> perform_invocation(inv["operation"], inv["msg"]) do
               {:ok, response} ->
                 {%{
                    msg: response,
@@ -253,7 +258,22 @@ defmodule HostCore.Actors.ActorModule do
     |> prepare_module(agent, oci)
   end
 
-  defp perform_invocation(agent, operation, payload) do
+  # Actor-to-actor calls are always allowed
+  defp validate_invocation(agent, "", "") do
+    {agent, true}
+  end
+
+  # Actor-to-actor calls are always allowed
+  defp validate_invocation(agent, nil, nil) do
+    {agent, true}
+  end
+
+  defp validate_invocation(agent, _link_name, contract_id) do
+    caps = Agent.get(agent, fn contents -> contents.claims.caps end)
+    {agent, Enum.member?(caps, contract_id)}
+  end
+
+  defp perform_invocation({agent, true}, operation, payload) do
     Logger.debug("performing invocation #{operation}")
     raw_state = Agent.get(agent, fn content -> content end)
 
@@ -280,6 +300,11 @@ defmodule HostCore.Actors.ActorModule do
     |> to_guest_call_result(agent)
   end
 
+  defp perform_invocation({_agent, false}, _operation, _payload) do
+    Logger.error("Actor does not have proper capabilities to receive this invocation")
+    {:error, "actor is missing capability claims"}
+  end
+
   defp to_guest_call_result({:ok, [res]}, agent) do
     state = Agent.get(agent, fn content -> content end)
 
@@ -298,7 +323,7 @@ defmodule HostCore.Actors.ActorModule do
 
     res =
       try do
-        perform_invocation(agent, @op_health_check, payload)
+        perform_invocation({agent, true}, @op_health_check, payload)
       rescue
         _e -> {:error, "Failed to invoke actor module"}
       end
@@ -359,7 +384,7 @@ defmodule HostCore.Actors.ActorModule do
     target = inv["target"]
 
     evt_type =
-      if Map.get(inv_r, "error") == nil do
+      if Map.get(inv_r, :error) == nil do
         "invocation_succeeded"
       else
         "invocation_failed"

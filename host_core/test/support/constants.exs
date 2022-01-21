@@ -4,13 +4,17 @@ defmodule HostCoreTest.Constants do
   @echo_ociref "wasmcloud.azurecr.io/echo:0.3.1"
   @echo_ociref_updated "wasmcloud.azurecr.io/echo:0.3.1-liveupdate"
   @echo_path "test/fixtures/actors/echo.wasm"
+  @echo_unpriv_key "MCRACEYKJLCP7NLVMUTO2SCQ26JFL3Z4TBIXPXDE7KPBI2GEH5DA57L5"
+  @echo_unpriv_path "test/fixtures/actors/echo_unpriv_s.wasm"
+
   @kvcounter_key "MCFMFDWFHGKELOXPCNCDXKK5OFLHBVEWRAOXR5JSQUD2TOFRE3DFPM7E"
   @kvcounter_ociref "wasmcloud.azurecr.io/kvcounter:0.3.0"
   @kvcounter_path "test/fixtures/actors/kvcounter.wasm"
   @kvcounter_unpriv_key "MBW3UGAIONCX3RIDDUGDCQIRGBQQOWS643CVICQ5EZ7SWNQPZLZTSQKU"
   @kvcounter_unpriv_path "test/fixtures/actors/kvcounter_unpriv_s.wasm"
+
   @pinger_path "test/fixtures/actors/pinger_s.wasm"
-  @pinger_key "MDCX6E7RPUXSX5TJUD34CALXJJKV46MWJ2BUJQGWDDR3IYRJIWNUQ5PN"
+  @pinger_key "MDVMDDZP7QZH2T2447DZWX2GJ4563VTTKHQ26R6GNMDYMOUBR2EP3JFL"
 
   # Provider related constants
   @httpserver_contract "wasmcloud:httpserver"
@@ -31,6 +35,8 @@ defmodule HostCoreTest.Constants do
   def echo_path, do: @echo_path
   def echo_ociref, do: @echo_ociref
   def echo_ociref_updated, do: @echo_ociref_updated
+  def echo_unpriv_key, do: @echo_unpriv_key
+  def echo_unpriv_path, do: @echo_unpriv_path
   def kvcounter_key, do: @kvcounter_key
   def kvcounter_ociref, do: @kvcounter_ociref
   def kvcounter_path, do: @kvcounter_path
