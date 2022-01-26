@@ -66,8 +66,8 @@ WORKDIR /opt/app
 # This copies our app source code into the build container (including compiled NIFs)
 COPY --from=deps-builder /opt/app /opt/app
 
-# Install dependencies for build container. This may be packages like `curl`, `bash`, 
-# or even elixir and erlang depending on the base container 
+# Install dependencies for build container. This may be packages like `curl`, `bash`,
+# or even elixir and erlang depending on the base container
 RUN apt update && \
   DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
   curl \
@@ -129,7 +129,8 @@ RUN apt update && \
   DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
   ca-certificates \
   curl \
-  locales && \
+  locales \
+  libssl-dev && \
   export LANG=en_US.UTF-8 && \
     echo $LANG UTF-8 > /etc/locale.gen && \
     locale-gen && \
