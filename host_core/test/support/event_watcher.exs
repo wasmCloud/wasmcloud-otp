@@ -29,6 +29,12 @@ defmodule HostCoreTest.EventWatcher do
         Logger.error("Failed to purge NATS stream for events watcher")
     end
 
+    # Purge all resources from ETS to avoid leftover information
+    :ets.delete_all_objects(:linkdef_table)
+    :ets.delete_all_objects(:claims_table)
+    :ets.delete_all_objects(:refmap_table)
+    :ets.delete_all_objects(:callalias_table)
+
     Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
 
     # Subscribe to lattice events stream
