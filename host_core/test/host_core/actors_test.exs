@@ -28,7 +28,7 @@ defmodule HostCore.ActorsTest do
 
   @pinger_key HostCoreTest.Constants.pinger_key()
 
-  test "live update same revision fails" do
+  test "live update same revision fails", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
     :ets.delete(:refmap_table, @echo_old_oci_reference)
@@ -37,7 +37,7 @@ defmodule HostCore.ActorsTest do
     assert {:error, :error} == HostCore.Actors.ActorSupervisor.live_update(@echo_oci_reference)
   end
 
-  test "live update with new revision succeeds" do
+  test "live update with new revision succeeds", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
     :ets.delete(:refmap_table, @echo_old_oci_reference)
@@ -122,7 +122,7 @@ defmodule HostCore.ActorsTest do
     assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key) == nil
   end
 
-  test "can invoke the echo actor" do
+  test "can invoke the echo actor", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
     :ets.delete(:refmap_table, @echo_old_oci_reference)
@@ -176,7 +176,7 @@ defmodule HostCore.ActorsTest do
              "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
-  test "can invoke echo via OCI reference" do
+  test "can invoke echo via OCI reference", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
     :ets.delete(:refmap_table, @echo_old_oci_reference)
@@ -236,7 +236,7 @@ defmodule HostCore.ActorsTest do
              "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
-  test "can invoke via call alias" do
+  test "can invoke via call alias", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read("test/fixtures/actors/ponger_s.wasm")
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
@@ -289,7 +289,9 @@ defmodule HostCore.ActorsTest do
              "{\"value\":53}"
   end
 
-  test "Prevents an attempt to start an actor with a conflicting OCI reference" do
+  test "Prevents an attempt to start an actor with a conflicting OCI reference", %{
+    :evt_watcher => evt_watcher
+  } do
     on_exit(fn -> HostCore.Host.purge() end)
     # NOTE the reason we block this is because the only supported path to change
     # an actor's OCI reference should be through the live update process, which includes
