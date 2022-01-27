@@ -10,6 +10,11 @@ defmodule HostCore.MixProject do
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+			rustler_crates: [
+				hostcore_wasmcloud_native: [
+					mode: (if Mix.env() == :dev, do: :debug, else: :release)
+				]
+			],
       dialyzer: [plt_add_deps: :apps_direct]
     ]
   end
