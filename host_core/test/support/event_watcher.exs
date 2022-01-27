@@ -20,7 +20,6 @@ defmodule HostCoreTest.EventWatcher do
   @impl true
   def init(prefix) do
     purge_topic = "$JS.API.STREAM.PURGE.LATTICECACHE_#{prefix}"
-    _stream_topic = "lc.#{prefix}.>"
 
     case Gnat.request(:control_nats, purge_topic, []) do
       {:ok, %{body: _body}} ->
