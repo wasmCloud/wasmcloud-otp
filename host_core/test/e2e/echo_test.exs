@@ -97,7 +97,7 @@ defmodule HostCore.E2E.EchoTest do
              httpserver_contract,
              @httpserver_link,
              httpserver_key,
-             %{PORT: "8083"}
+             %{PORT: "8084"}
            ) == :ok
 
     {:ok, _pid} =
