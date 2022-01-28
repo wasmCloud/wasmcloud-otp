@@ -93,7 +93,7 @@ defmodule HostCore.E2E.EchoTest do
 
     # OK to put link definition with no claims information
     assert HostCore.Linkdefs.Manager.put_link_definition(
-             @echo_key,
+             @echo_unpriv_key,
              httpserver_contract,
              @httpserver_link,
              httpserver_key,
