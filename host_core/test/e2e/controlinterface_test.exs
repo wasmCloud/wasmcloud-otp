@@ -1,6 +1,15 @@
 defmodule HostCore.E2E.ControlInterfaceTest do
   use ExUnit.Case, async: false
 
+  setup do
+    {:ok, evt_watcher} =
+      GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
+
+    [
+      evt_watcher: evt_watcher
+    ]
+  end
+
   @echo_key HostCoreTest.Constants.echo_key()
   @echo_path HostCoreTest.Constants.echo_path()
   @kvcounter_key HostCoreTest.Constants.kvcounter_key()
@@ -8,7 +17,7 @@ defmodule HostCore.E2E.ControlInterfaceTest do
   @redis_link HostCoreTest.Constants.default_link()
   @redis_contract HostCoreTest.Constants.keyvalue_contract()
 
-  test "can get claims" do
+  test "can get claims", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
@@ -27,7 +36,7 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     assert Map.get(echo_claims, "sub") == @echo_key
   end
 
-  test "can get linkdefs" do
+  test "can get linkdefs", %{:evt_watcher => evt_watcher} do
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
         @kvcounter_key,

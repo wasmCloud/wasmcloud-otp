@@ -20,7 +20,6 @@ defmodule HostCoreTest.EventWatcher do
   @impl true
   def init(prefix) do
     purge_topic = "$JS.API.STREAM.PURGE.LATTICECACHE_#{prefix}"
-    _stream_topic = "lc.#{prefix}.>"
 
     case Gnat.request(:control_nats, purge_topic, []) do
       {:ok, %{body: _body}} ->
@@ -29,6 +28,12 @@ defmodule HostCoreTest.EventWatcher do
       {:error, :timeout} ->
         Logger.error("Failed to purge NATS stream for events watcher")
     end
+
+    # Purge all resources from ETS to avoid leftover information
+    :ets.delete_all_objects(:linkdef_table)
+    :ets.delete_all_objects(:claims_table)
+    :ets.delete_all_objects(:refmap_table)
+    :ets.delete_all_objects(:callalias_table)
 
     Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
 

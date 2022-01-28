@@ -90,7 +90,7 @@ defmodule HostCore.Providers.ProviderModule do
       publish_provider_oci_map(claims.public_key, link_name, oci)
     end
 
-    Process.send(self(), :do_health, [:noconnect, :nosuspend])
+    Process.send_after(self(), :do_health, 5_000)
     :timer.send_interval(@thirty_seconds, self(), :do_health)
 
     {:ok,
