@@ -34,13 +34,7 @@ defmodule ProviderRowComponent do
         <button id="copy_provider_id_<%= @provider %>_<%= @link_name %>_<%= @host_id %>" class="btn btn-sm btn-primary"
           data-toggle="tooltip" data-placement="top" title data-original-title="Copy Provider ID"
           onClick="navigator.clipboard.writeText('<%= @provider %>')">
-          <svg class="c-icon" style="color: white">
-            <use xlink:href="/coreui/free.svg#cil-copy"></use>
-          </svg>
-        </button>
-        <button id="copy_host_id_<%= @provider %>_<%= @link_name %>_<%= @host_id %>" class="btn btn-sm btn-info"
-          data-toggle="tooltip" data-placement="top" onClick="navigator.clipboard.writeText('<%= @host_id %>')" title
-          data-original-title="Copy Host ID">
+          <%= String.slice(@provider, 0..4) %>&#46;&#46;&#46;
           <svg class="c-icon" style="color: white">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
           </svg>
