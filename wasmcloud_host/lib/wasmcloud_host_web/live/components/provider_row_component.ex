@@ -31,10 +31,10 @@ defmodule ProviderRowComponent do
           <%= @status %></span>
       </td>
       <td>
-        <button id="copy_provider_id_<%= @provider %>_<%= @link_name %>_<%= @host_id %>" class="btn btn-sm btn-primary"
+        <button id="copy_provider_id_<%= @provider %>_<%= @link_name %>_<%= @host_id %>" class="btn btn-sm btn-primary id-monospace"
           data-toggle="tooltip" data-placement="top" title data-original-title="Copy Provider ID"
           onClick="navigator.clipboard.writeText('<%= @provider %>')">
-          <%= String.slice(@provider, 0..4) %>&#46;&#46;&#46;
+          <%= String.slice(@provider, 0..4) %>&#8230;
           <svg class="c-icon" style="color: white">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
           </svg>
