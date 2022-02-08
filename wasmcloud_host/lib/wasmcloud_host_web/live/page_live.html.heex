@@ -267,7 +267,7 @@
                               </td>
                               <td>
                                  <button class="btn btn-sm btn-primary id-monospace" type="button"
-                                    onClick={"navigator.clipboard.writeText(#{host_id})"} data-toggle="popover"
+                                    onClick={"navigator.clipboard.writeText('#{host_id}')"} data-toggle="popover"
                                     data-trigger="focus" title="" data-content="Copied!">
                                     <%= String.slice(host_id, 0..4) %>...
                                     <svg class="c-icon">
