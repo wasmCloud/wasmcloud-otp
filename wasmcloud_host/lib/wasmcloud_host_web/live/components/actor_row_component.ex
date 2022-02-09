@@ -33,16 +33,10 @@ defmodule ActorRowComponent do
         <% end %>
       </td>
       <td>
-        <button id="copy_actor_id_<%= @actor %>_<%= @host_id %>" class="btn btn-sm btn-primary" data-toggle="tooltip"
+        <button id="copy_actor_id_<%= @actor %>_<%= @host_id %>" class="btn btn-sm btn-primary id-monospace" data-toggle="tooltip"
           data-placement="top" title data-original-title="Copy Actor ID"
           onClick="navigator.clipboard.writeText('<%= @actor %>')">
-          <svg class="c-icon" style="color: white">
-            <use xlink:href="/coreui/free.svg#cil-copy"></use>
-          </svg>
-        </button>
-        <button id="copy_host_id_<%= @actor%>_<%= @host_id %>" class="btn btn-sm btn-info" data-toggle="tooltip"
-          data-placement="top" onClick="navigator.clipboard.writeText('<%= @host_id %>')" title
-          data-original-title="Copy Host ID">
+          <%= String.slice(@actor, 0..4) %>&#8230;
           <svg class="c-icon" style="color: white">
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
           </svg>
