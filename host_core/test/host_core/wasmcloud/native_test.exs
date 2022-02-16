@@ -15,10 +15,9 @@ defmodule HostCore.WasmCloud.NativeTest do
   use ExUnit.Case, async: false
 
   test "retrieves provider archive from OCI image" do
-    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(nil, @httpserver_oci, false, [])
-    bytes = bytes |> IO.iodata_to_binary()
+    {:ok, path} = HostCore.WasmCloud.Native.get_oci_path(nil, @httpserver_oci, false, [])
 
-    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
+    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_path(path)
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
@@ -114,11 +113,10 @@ defmodule HostCore.WasmCloud.NativeTest do
     assert claims.issuer == @official_issuer
     assert claims.revision == 4
 
-    {:ok, bytes} =
-      HostCore.WasmCloud.Native.get_oci_bytes(nil, @httpserver_zero_revision_oci, false, [])
+    {:ok, path} =
+      HostCore.WasmCloud.Native.get_oci_path(nil, @httpserver_zero_revision_oci, false, [])
 
-    bytes = bytes |> IO.iodata_to_binary()
-    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
+    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_path(path)
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer

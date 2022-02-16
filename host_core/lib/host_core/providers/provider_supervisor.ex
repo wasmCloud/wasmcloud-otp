@@ -63,13 +63,13 @@ defmodule HostCore.Providers.ProviderSupervisor do
     creds = HostCore.Host.get_creds(oci)
 
     with {:ok, bytes} <-
-           HostCore.WasmCloud.Native.get_oci_bytes(
+           HostCore.WasmCloud.Native.get_oci_path(
              creds,
              oci,
              HostCore.Oci.allow_latest(),
              HostCore.Oci.allowed_insecure()
            ),
-         {:ok, par} <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
+         {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path),
          {:ok, path} <- extract_executable_to_tmp(par, link_name) do
       start_executable_provider(path, par.claims, link_name, par.contract_id, oci, config_json)
     else
@@ -112,8 +112,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def start_provider_from_file(path, link_name) do
-    with {:ok, bytes} <- File.read(path),
-         {:ok, par} <- HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary()),
+    with {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path),
          {:ok, tmp_path} <- extract_executable_to_tmp(par, link_name) do
       start_executable_provider(
         tmp_path,

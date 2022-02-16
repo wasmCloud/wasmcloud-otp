@@ -2,7 +2,7 @@
 name = "hostcore_wasmcloud_native"
 version = "0.1.0"
 authors = []
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "hostcore_wasmcloud_native"
@@ -14,21 +14,21 @@ rustler = "0.22.0"
 lazy_static = "1.0"
 serde = {version = "1.0.126", features = ["derive"] }
 serde_bytes = "0.11.5"
-nkeys = "0.1.0"
-wascap = "0.6.0"
+nkeys = "0.2.0"
+wascap = "0.8.0"
 ring = "0.16.20"
 uuid = {version = "0.8.2", features = ["v4"]}
 data-encoding = "2.3.2"
 rmp = "0.8.10"
 rmp-serde = "0.15.4"
 oci-distribution = "0.7.0"
-provider-archive = "0.4.0"
+# provider-archive = "0.4.0"
+provider-archive = { path = "../../../../provider-archive" }
 tokio = {version = "1.7.1", features = ["rt", "rt-multi-thread"] }
 once_cell = "1.2.0"
 chrono-humanize = "0.2.1"
 chrono = "0.4.19"
 tokio-stream = "0.1"
-# Using from git until we cut 0.7
-bindle = { version = "0.6", git = "https://github.com/deislabs/bindle.git", branch = "main", default-features = false, features = ["client", "caching"] }
+bindle = { version = "0.8", default-features = false, features = ["client", "caching"] }
 async-trait = "0.1"
 reqwest = "0.11"

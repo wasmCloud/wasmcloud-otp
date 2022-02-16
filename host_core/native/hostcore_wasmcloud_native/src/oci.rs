@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::env::{temp_dir, var};
-use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
+use tokio::io::AsyncWriteExt;
 
 use oci_distribution::secrets::RegistryAuth;
 
@@ -28,18 +28,18 @@ fn determine_auth(creds_override: Option<HashMap<String, String>>) -> RegistryAu
     }
 }
 
-pub(crate) async fn fetch_oci_bytes(
+pub(crate) async fn fetch_oci_path(
     img: &str,
     allow_latest: bool,
     allowed_insecure: Vec<String>,
     creds_override: Option<HashMap<String, String>>,
-) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
+) -> Result<PathBuf, Box<dyn std::error::Error + Sync + Send>> {
     if !allow_latest && img.ends_with(":latest") {
         return Err(
             "Fetching images tagged 'latest' is currently prohibited in this host. This option can be overridden".into());
     }
-    let cf = cached_file(img);
-    if !cf.exists() {
+    let cf = cached_file(img).await?;
+    if !tokio::fs::metadata(&cf).await.is_ok() {
         let img = oci_distribution::Reference::from_str(img)?;
         let auth = determine_auth(creds_override);
 
@@ -54,31 +54,27 @@ pub(crate) async fn fetch_oci_bytes(
 
         match imgdata {
             Ok(imgdata) => {
-                let mut f = std::fs::File::create(cf)?;
+                let mut f = tokio::fs::File::create(&cf).await?;
                 let content = imgdata
                     .layers
-                    .iter()
-                    .map(|l| l.data.clone())
+                    .into_iter()
+                    .map(|l| l.data)
                     .flatten()
                     .collect::<Vec<_>>();
-                f.write_all(&content)?;
-                f.flush()?;
-                Ok(content)
+                f.write_all(&content).await?;
+                f.flush().await?;
             }
-            Err(e) => Err(format!("Failed to fetch OCI bytes: {}", e).into()),
+            Err(e) => return Err(format!("Failed to fetch OCI bytes: {}", e).into()),
         }
-    } else {
-        let mut buf = vec![];
-        let mut f = std::fs::File::open(cached_file(img))?;
-        f.read_to_end(&mut buf)?;
-        Ok(buf)
     }
+
+    Ok(cf)
 }
 
-fn cached_file(img: &str) -> PathBuf {
+async fn cached_file(img: &str) -> std::io::Result<PathBuf> {
     let path = temp_dir();
     let path = path.join("wasmcloud_ocicache");
-    let _ = ::std::fs::create_dir_all(&path);
+    ::tokio::fs::create_dir_all(&path).await?;
     // should produce a file like wasmcloud_azurecr_io_kvcounter_v1.bin
     let img = img.replace(":", "_");
     let img = img.replace("/", "_");
@@ -86,7 +82,7 @@ fn cached_file(img: &str) -> PathBuf {
     let mut path = path.join(img);
     path.set_extension("bin");
 
-    path
+    Ok(path)
 }
 
 async fn pull(

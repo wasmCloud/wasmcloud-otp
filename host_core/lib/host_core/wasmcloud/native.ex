@@ -21,7 +21,8 @@ defmodule HostCore.WasmCloud.Native do
       do: error()
 
   def get_oci_bytes(_creds, _oci_ref, _allow_latest, _allowed_insecure), do: error()
-  def par_from_bytes(_bytes), do: error()
+  def get_oci_path(__creds, _path, _allow_latest, _allowed_insecure), do: error()
+  def par_from_path(_path), do: error()
   def par_cache_path(_subject, _rev, _contract_id, _link_name), do: error()
   def detect_core_host_labels(), do: error()
   def get_actor_bindle(_creds, _bindle_id), do: error()
@@ -33,6 +34,6 @@ defmodule HostCore.WasmCloud.Native do
 
   defmodule ProviderArchive do
     @moduledoc false
-    def from_bytes(bytes), do: HostCore.WasmCloud.Native.par_from_bytes(bytes)
+    def from_path(path), do: HostCore.WasmCloud.Native.par_from_path(path)
   end
 end

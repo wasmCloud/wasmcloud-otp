@@ -30,8 +30,7 @@ defmodule HostCore.E2E.EchoTest do
         @httpserver_link
       )
 
-    {:ok, bytes} = File.read(@httpserver_path)
-    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_path(@httpserver_path)
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
@@ -87,7 +86,7 @@ defmodule HostCore.E2E.EchoTest do
     assert actor_count == 1
 
     {:ok, bytes} = File.read(@httpserver_path)
-    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_path(@httpserver_path)
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 

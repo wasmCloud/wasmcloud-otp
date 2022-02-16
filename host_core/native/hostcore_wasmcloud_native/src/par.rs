@@ -73,6 +73,6 @@ fn normalize_for_filename(input: &str) -> String {
         .replace(|c: char| !c.is_ascii_alphanumeric(), "_")
 }
 
-fn native_target() -> String {
+pub(crate) fn native_target() -> String {
     format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS)
 }

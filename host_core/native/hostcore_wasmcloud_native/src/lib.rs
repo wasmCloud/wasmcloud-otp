@@ -9,6 +9,7 @@ use chrono::NaiveDateTime;
 use nkeys::KeyPair;
 use provider_archive::ProviderArchive;
 use rustler::{Atom, Binary, Error};
+use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
 use wascap::prelude::*;
 
@@ -91,8 +92,9 @@ rustler::init!(
         generate_key,
         generate_invocation_bytes,
         validate_antiforgery,
+        get_oci_path,
         get_oci_bytes,
-        par_from_bytes,
+        par_from_path,
         par_cache_path,
         detect_core_host_labels,
         pk_from_seed,
@@ -233,8 +235,35 @@ fn get_oci_bytes(
     allowed_insecure: Vec<String>,
 ) -> Result<(Atom, Vec<u8>), Error> {
     task::TOKIO.block_on(async {
-        match oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure, creds_override).await {
-            Ok(b) => Ok((atoms::ok(), b)),
+        let path =
+            match oci::fetch_oci_path(&oci_ref, allow_latest, allowed_insecure, creds_override)
+                .await
+            {
+                Ok(p) => p,
+                Err(e) => return Err(rustler::Error::Term(Box::new(format!("{}", e)))),
+            };
+        let mut output = Vec::new();
+        let mut file = tokio::fs::File::open(path).await.map_err(to_rustler_err)?;
+        file.read_to_end(&mut output)
+            .await
+            .map_err(to_rustler_err)?;
+        return Ok((atoms::ok(), output));
+    })
+}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn get_oci_path(
+    creds_override: Option<HashMap<String, String>>,
+    oci_ref: String,
+    allow_latest: bool,
+    allowed_insecure: Vec<String>,
+) -> Result<(Atom, String), Error> {
+    task::TOKIO.block_on(async {
+        match oci::fetch_oci_path(&oci_ref, allow_latest, allowed_insecure, creds_override).await {
+            Ok(p) => Ok((
+                atoms::ok(),
+                p.to_str().map(|s| s.to_owned()).unwrap_or_default(),
+            )),
             Err(e) => Err(rustler::Error::Term(Box::new(format!("{}", e)))),
         }
     })
@@ -253,19 +282,21 @@ fn pk_from_seed(seed: String) -> Result<(Atom, String), Error> {
 }
 
 #[rustler::nif]
-fn par_from_bytes(binary: Binary) -> Result<(Atom, ProviderArchiveResource), Error> {
-    match ProviderArchive::try_load(binary.as_slice()) {
-        Ok(par) => Ok((
-            atoms::ok(),
-            ProviderArchiveResource {
-                claims: par::extract_claims(&par)?,
-                target_bytes: par::extract_target_bytes(&par)?,
-                contract_id: par::get_capid(&par)?,
-                vendor: par::get_vendor(&par)?,
-            },
-        )),
-        Err(_) => Err(Error::BadArg),
-    }
+fn par_from_path(path: String) -> Result<(Atom, ProviderArchiveResource), Error> {
+    task::TOKIO.block_on(async {
+        match ProviderArchive::try_load_file_one(path, &par::native_target()).await {
+            Ok(par) => Ok((
+                atoms::ok(),
+                ProviderArchiveResource {
+                    claims: par::extract_claims(&par)?,
+                    target_bytes: par::extract_target_bytes(&par)?,
+                    contract_id: par::get_capid(&par)?,
+                    vendor: par::get_vendor(&par)?,
+                },
+            )),
+            Err(_) => Err(Error::BadArg),
+        }
+    })
 }
 
 #[rustler::nif]
