@@ -144,7 +144,7 @@ defmodule HostCore.Host do
         if !Map.has_key?(prov, "imageReference") || !Map.has_key?(prov, "linkName") do
           Logger.error("Not enough information on auto-start provider configuration. Bypassing.")
         else
-          if String.starts_with?(prov["imageReference"], "bindle") do
+          if String.starts_with?(prov["imageReference"], "bindle://") do
             HostCore.Providers.ProviderSupervisor.start_provider_from_bindle(
               prov["imageReference"],
               prov["linkName"]
@@ -160,7 +160,7 @@ defmodule HostCore.Host do
 
       as
       |> Enum.each(fn actor ->
-        if String.starts_with?(actor, "bindle") do
+        if String.starts_with?(actor, "bindle://") do
           HostCore.Actors.ActorSupervisor.start_actor_from_bindle(actor)
         else
           HostCore.Actors.ActorSupervisor.start_actor_from_oci(actor)
