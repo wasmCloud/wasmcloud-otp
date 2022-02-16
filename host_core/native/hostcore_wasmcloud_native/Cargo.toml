@@ -23,7 +23,7 @@ rmp = "0.8.10"
 rmp-serde = "0.15.4"
 oci-distribution = "0.7.0"
 # provider-archive = "0.4.0"
-provider-archive = { path = "../../../../provider-archive" }
+provider-archive = { git = "https://github.com/wasmCloud/provider-archive", branch = "async-compression" }
 tokio = {version = "1.7.1", features = ["rt", "rt-multi-thread"] }
 once_cell = "1.2.0"
 chrono-humanize = "0.2.1"
