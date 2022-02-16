@@ -1386,6 +1386,7 @@ dependencies = [
 [[package]]
 name = "provider-archive"
 version = "0.6.0"
+source = "git+https://github.com/wasmCloud/provider-archive?branch=async-compression#9cfc2ba66b0084d3b69f779bc67354e846b05d68"
 dependencies = [
  "async-compression",
  "data-encoding",
