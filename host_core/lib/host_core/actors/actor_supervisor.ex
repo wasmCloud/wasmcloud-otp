@@ -65,7 +65,10 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def start_actor_from_oci(oci, count \\ 1) do
+    creds = HostCore.Host.get_creds(oci)
+
     case HostCore.WasmCloud.Native.get_oci_bytes(
+           creds,
            oci,
            HostCore.Oci.allow_latest(),
            HostCore.Oci.allowed_insecure()
@@ -80,7 +83,12 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def start_actor_from_bindle(bindle_id, count \\ 1) do
-    case HostCore.WasmCloud.Native.get_actor_bindle(String.trim_leading(bindle_id, "bindle://")) do
+    creds = HostCore.Host.get_creds(bindle_id)
+
+    case HostCore.WasmCloud.Native.get_actor_bindle(
+           creds,
+           String.trim_leading(bindle_id, "bindle://")
+         ) do
       {:error, err} ->
         Logger.error("Failed to download bytes from bindle server for #{bindle_id}")
         {:error, err}
@@ -91,8 +99,11 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def live_update(oci) do
+    creds = HostCore.Host.get_creds(oci)
+
     with {:ok, bytes} <-
            HostCore.WasmCloud.Native.get_oci_bytes(
+             creds,
              oci,
              HostCore.Oci.allow_latest(),
              HostCore.Oci.allowed_insecure()

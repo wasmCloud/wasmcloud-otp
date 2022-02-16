@@ -49,7 +49,8 @@ defmodule HostCore.ConfigPlan do
           {:allow_latest, "WASMCLOUD_OCI_ALLOW_LATEST", required: false, map: &String.to_atom/1},
           {:allowed_insecure, "WASMCLOUD_OCI_ALLOWED_INSECURE",
            required: false, map: &String.split(&1, ",")},
-          {:js_domain, "WASMCLOUD_JS_DOMAIN", required: false}
+          {:js_domain, "WASMCLOUD_JS_DOMAIN", required: false},
+          {:config_service_enabled, "WASMCLOUD_CONFIG_SERVICE", required: false}
         ]
       }
     ]
@@ -80,7 +81,8 @@ defmodule HostCore.ConfigPlan do
       {:provider_delay, "provider_delay", required: false, default: 300},
       {:allow_latest, "allow_latest", required: false, default: false},
       {:allowed_insecure, "allowed_insecure", required: false, default: []},
-      {:js_domain, "js_domain", required: false, default: nil}
+      {:js_domain, "js_domain", required: false, default: nil},
+      {:config_service_enabled, "config_service_enabled", required: false, default: ""}
     ]
   end
 end

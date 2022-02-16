@@ -288,7 +288,6 @@ defmodule HostCore.Actors.ActorModule do
     }
 
     Agent.update(agent, fn _content -> raw_state end)
-    Logger.debug("Agent state updated")
 
     # invoke __guest_call
     # if it fails, set guest_error, return 1

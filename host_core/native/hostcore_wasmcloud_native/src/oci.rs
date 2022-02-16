@@ -1,7 +1,10 @@
-use std::env::temp_dir;
+use std::collections::HashMap;
+use std::env::{temp_dir, var};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
+
+use oci_distribution::secrets::RegistryAuth;
 
 pub(crate) const OCI_VAR_USER: &str = "OCI_REGISTRY_USER";
 pub(crate) const OCI_VAR_PASSWORD: &str = "OCI_REGISTRY_PASSWORD";
@@ -9,10 +12,27 @@ const PROVIDER_ARCHIVE_MEDIA_TYPE: &str = "application/vnd.wasmcloud.provider.ar
 const WASM_MEDIA_TYPE: &str = "application/vnd.module.wasm.content.layer.v1+wasm";
 const OCI_MEDIA_TYPE: &str = "application/vnd.oci.image.layer.v1.tar";
 
+fn determine_auth(creds_override: Option<HashMap<String, String>>) -> RegistryAuth {
+    if let Some(hm) = creds_override {
+        match (hm.get("username"), hm.get("password")) {
+            (Some(un), Some(pw)) => {
+                oci_distribution::secrets::RegistryAuth::Basic(un.to_string(), pw.to_string())
+            }
+            _ => oci_distribution::secrets::RegistryAuth::Anonymous,
+        }
+    } else {
+        match (var(OCI_VAR_USER), var(OCI_VAR_PASSWORD)) {
+            (Ok(u), Ok(p)) => oci_distribution::secrets::RegistryAuth::Basic(u, p),
+            _ => oci_distribution::secrets::RegistryAuth::Anonymous,
+        }
+    }
+}
+
 pub(crate) async fn fetch_oci_bytes(
     img: &str,
     allow_latest: bool,
     allowed_insecure: Vec<String>,
+    creds_override: Option<HashMap<String, String>>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
     if !allow_latest && img.ends_with(":latest") {
         return Err(
@@ -21,15 +41,7 @@ pub(crate) async fn fetch_oci_bytes(
     let cf = cached_file(img);
     if !cf.exists() {
         let img = oci_distribution::Reference::from_str(img)?;
-        let auth = if let Ok(u) = std::env::var(OCI_VAR_USER) {
-            if let Ok(p) = std::env::var(OCI_VAR_PASSWORD) {
-                oci_distribution::secrets::RegistryAuth::Basic(u, p)
-            } else {
-                oci_distribution::secrets::RegistryAuth::Anonymous
-            }
-        } else {
-            oci_distribution::secrets::RegistryAuth::Anonymous
-        };
+        let auth = determine_auth(creds_override);
 
         let protocol =
             oci_distribution::client::ClientProtocol::HttpsExcept(allowed_insecure.to_vec());

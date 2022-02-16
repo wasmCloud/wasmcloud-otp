@@ -15,7 +15,7 @@ defmodule HostCore.WasmCloud.NativeTest do
   use ExUnit.Case, async: false
 
   test "retrieves provider archive from OCI image" do
-    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(@httpserver_oci, false, [])
+    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(nil, @httpserver_oci, false, [])
     bytes = bytes |> IO.iodata_to_binary()
 
     {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
@@ -107,7 +107,7 @@ defmodule HostCore.WasmCloud.NativeTest do
   end
 
   test "missing or zero revision is replaced with iat" do
-    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(@echo_oci, false, [])
+    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(nil, @echo_oci, false, [])
     bytes = bytes |> IO.iodata_to_binary()
     {:ok, claims} = HostCore.WasmCloud.Native.extract_claims(bytes)
     assert claims.public_key == @echo_key
@@ -115,7 +115,7 @@ defmodule HostCore.WasmCloud.NativeTest do
     assert claims.revision == 4
 
     {:ok, bytes} =
-      HostCore.WasmCloud.Native.get_oci_bytes(@httpserver_zero_revision_oci, false, [])
+      HostCore.WasmCloud.Native.get_oci_bytes(nil, @httpserver_zero_revision_oci, false, [])
 
     bytes = bytes |> IO.iodata_to_binary()
     {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_bytes(bytes)
@@ -124,7 +124,7 @@ defmodule HostCore.WasmCloud.NativeTest do
     assert par.claims.issuer == @official_issuer
     assert par.claims.revision == 1_631_292_694
 
-    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(@kvcounter_oci, false, [])
+    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(nil, @kvcounter_oci, false, [])
     bytes = bytes |> IO.iodata_to_binary()
     {:ok, claims} = HostCore.WasmCloud.Native.extract_claims(bytes)
     assert claims.public_key == @kvcounter_key

@@ -20,12 +20,12 @@ defmodule HostCore.WasmCloud.Native do
       ),
       do: error()
 
-  def get_oci_bytes(_oci_ref, _allow_latest, _allowed_insecure), do: error()
+  def get_oci_bytes(_creds, _oci_ref, _allow_latest, _allowed_insecure), do: error()
   def par_from_bytes(_bytes), do: error()
   def par_cache_path(_subject, _rev, _contract_id, _link_name), do: error()
   def detect_core_host_labels(), do: error()
-  def get_actor_bindle(_bindle_id), do: error()
-  def get_provider_bindle(_bindle_id), do: error()
+  def get_actor_bindle(_creds, _bindle_id), do: error()
+  def get_provider_bindle(_creds, _bindle_id), do: error()
 
   # When the NIF is loaded, it will override functions in this module.
   # Calling error is handles the case when the nif could not be loaded.
