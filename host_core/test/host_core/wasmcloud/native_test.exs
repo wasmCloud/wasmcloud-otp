@@ -21,7 +21,7 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
-    assert par.claims.version == "0.14.5"
+    assert par.claims.version == "0.14.10"
 
     assert byte_size(par.target_bytes |> IO.iodata_to_binary()) > 1_000
     assert par.contract_id == @httpserver_contract

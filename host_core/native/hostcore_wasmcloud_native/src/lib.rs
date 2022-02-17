@@ -284,7 +284,7 @@ fn pk_from_seed(seed: String) -> Result<(Atom, String), Error> {
 #[rustler::nif]
 fn par_from_path(path: String) -> Result<(Atom, ProviderArchiveResource), Error> {
     task::TOKIO.block_on(async {
-        match ProviderArchive::try_load_file_one(path, &par::native_target()).await {
+        match ProviderArchive::try_load_target_from_file(path, &par::native_target()).await {
             Ok(par) => Ok((
                 atoms::ok(),
                 ProviderArchiveResource {
