@@ -179,27 +179,29 @@ fn get_provider_bindle(
 
         let claims: Claims = claims.into();
 
-        // Now get the parcel
-        let mut written = 0usize;
-        let mut file = get_provider_file(&par::cache_path(
+        // Now get the parcel (if it doesn't already exist on disk)
+        if let Some(mut file) = get_provider_file(&par::cache_path(
             &claims.public_key,
             claims.revision.unwrap_or_default(),
             &contract_id,
             &link_name,
         )?)
-        .await?;
-        let mut stream = bindle_client
-            .get_parcel(&inv.bindle.id, &provider_parcel.label.sha256)
-            .await
-            .expect("Unable to get parcel");
-        while let Some(res) = stream.next().await {
-            let bytes = res.map_err(to_rustler_err)?;
-            written += bytes.len();
-            file.write_all(&bytes).await.map_err(to_rustler_err)?;
-        }
-        file.flush().await.map_err(to_rustler_err)?;
-        if written == 0 {
-            return Err(to_rustler_err("No provider parcel found (or was empty)"));
+        .await?
+        {
+            let mut written = 0usize;
+            let mut stream = bindle_client
+                .get_parcel(&inv.bindle.id, &provider_parcel.label.sha256)
+                .await
+                .expect("Unable to get parcel");
+            while let Some(res) = stream.next().await {
+                let bytes = res.map_err(to_rustler_err)?;
+                written += bytes.len();
+                file.write_all(&bytes).await.map_err(to_rustler_err)?;
+            }
+            file.flush().await.map_err(to_rustler_err)?;
+            if written == 0 {
+                return Err(to_rustler_err("No provider parcel found (or was empty)"));
+            }
         }
 
         Ok((
@@ -322,17 +324,20 @@ fn par_from_path(
                 let claims = par::extract_claims(&par)?;
                 let contract_id = par::get_capid(&par)?;
 
-                let mut file = get_provider_file(&par::cache_path(
+                // Only write the file if it doesn't exist
+                if let Some(mut file) = get_provider_file(&par::cache_path(
                     &claims.public_key,
                     claims.revision.unwrap_or_default(),
                     &contract_id,
                     &link_name,
                 )?)
-                .await?;
-                file.write_all(&par::extract_target_bytes(&par)?)
-                    .await
-                    .map_err(to_rustler_err)?;
-                file.flush().await.map_err(to_rustler_err)?;
+                .await?
+                {
+                    file.write_all(&par::extract_target_bytes(&par)?)
+                        .await
+                        .map_err(to_rustler_err)?;
+                    file.flush().await.map_err(to_rustler_err)?;
+                }
                 Ok((
                     atoms::ok(),
                     ProviderArchiveResource {
@@ -488,8 +493,12 @@ fn detect_core_host_labels() -> HashMap<String, String> {
     hm
 }
 
-async fn get_provider_file(path: &str) -> Result<tokio::fs::File, Error> {
+async fn get_provider_file(path: &str) -> Result<Option<tokio::fs::File>, Error> {
     let p = PathBuf::from(path);
+    // Check if the file exists and return
+    if tokio::fs::metadata(&p).await.is_ok() {
+        return Ok(None);
+    }
     tokio::fs::create_dir_all(p.parent().ok_or(Error::BadArg)?)
         .await
         .map_err(to_rustler_err)?;
@@ -498,7 +507,7 @@ async fn get_provider_file(path: &str) -> Result<tokio::fs::File, Error> {
     open_opts.create(true).truncate(true).write(true);
     #[cfg(target_family = "unix")]
     open_opts.mode(0o755);
-    open_opts.open(p).await.map_err(to_rustler_err)
+    open_opts.open(p).await.map_err(to_rustler_err).map(Some)
 }
 
 fn load(env: rustler::Env, _: rustler::Term) -> bool {
