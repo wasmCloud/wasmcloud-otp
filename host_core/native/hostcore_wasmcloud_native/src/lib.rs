@@ -2,6 +2,7 @@
 extern crate rustler;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bindle::{filters::BindleFilter, provider::Provider};
@@ -9,6 +10,7 @@ use chrono::NaiveDateTime;
 use nkeys::KeyPair;
 use provider_archive::ProviderArchive;
 use rustler::{Atom, Binary, Error};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_stream::StreamExt;
 use wascap::prelude::*;
 
@@ -28,7 +30,6 @@ const CLAIMS_NAME: &str = "claims.jwt";
 #[module = "HostCore.WasmCloud.Native.ProviderArchive"]
 pub struct ProviderArchiveResource {
     claims: Claims,
-    target_bytes: Vec<u8>,
     contract_id: String,
     vendor: String,
 }
@@ -91,8 +92,9 @@ rustler::init!(
         generate_key,
         generate_invocation_bytes,
         validate_antiforgery,
+        get_oci_path,
         get_oci_bytes,
-        par_from_bytes,
+        par_from_path,
         par_cache_path,
         detect_core_host_labels,
         pk_from_seed,
@@ -106,6 +108,7 @@ rustler::init!(
 fn get_provider_bindle(
     creds_override: Option<HashMap<String, String>>,
     bindle_id: String,
+    link_name: String,
 ) -> Result<(Atom, ProviderArchiveResource), Error> {
     task::TOKIO.block_on(async {
         let bindle_client = client::get_client(creds_override, &bindle_id)
@@ -129,12 +132,25 @@ fn get_provider_bindle(
             ));
         }
 
-        let mut claims = wascap::jwt::Claims::<wascap::jwt::CapabilityProvider>::default();
-        let mut found_claims = false;
-        let mut target_bytes = Vec::new();
-        for parcel in filtered.into_iter() {
+        let (claims_parcel, provider_parcel) = {
+            let (mut c, mut p) = filtered
+                .into_iter()
+                .partition::<Vec<bindle::Parcel>, _>(|p| p.label.name == CLAIMS_NAME);
+            if c.len() != 1 {
+                return Err(to_rustler_err("No claims were found in parcel"));
+            }
+            if p.len() != 1 {
+                return Err(to_rustler_err(
+                    "No providers (or multiple) were found in parcel",
+                ));
+            }
+            // Safety: Can unwrap because of checked length
+            (c.pop().unwrap(), p.pop().unwrap())
+        };
+
+        let claims: wascap::jwt::Claims<wascap::jwt::CapabilityProvider> = {
             let mut stream = bindle_client
-                .get_parcel(&inv.bindle.id, &parcel.label.sha256)
+                .get_parcel(&inv.bindle.id, &claims_parcel.label.sha256)
                 .await
                 .expect("Unable to get parcel");
             let mut data = Vec::new();
@@ -142,38 +158,56 @@ fn get_provider_bindle(
                 let bytes = res.map_err(to_rustler_err)?;
                 data.extend(bytes);
             }
-            if parcel.label.name == CLAIMS_NAME {
-                claims = wascap::jwt::Claims::decode(
-                    std::str::from_utf8(&data)
-                        .map_err(|_| to_rustler_err("Invalid UTF-8 data found in claims"))?,
-                )
-                .map_err(to_rustler_err)?;
-                found_claims = true;
-            } else {
-                target_bytes = data;
-            }
-        }
-        if target_bytes.is_empty() {
-            return Err(to_rustler_err("No provider parcel found (or was empty)"));
-        }
-        if !found_claims {
-            return Err(to_rustler_err("No claims were found in parcel"));
-        }
+            wascap::jwt::Claims::decode(
+                std::str::from_utf8(&data)
+                    .map_err(|_| to_rustler_err("Invalid UTF-8 data found in claims"))?,
+            )
+            .map_err(to_rustler_err)?
+        };
+
         let contract_id = claims
             .metadata
             .as_ref()
             .map(|m| m.capid.clone())
             .unwrap_or_default();
+
         let vendor = claims
             .metadata
             .as_ref()
             .map(|m| m.vendor.clone())
             .unwrap_or_default();
+
+        let claims: Claims = claims.into();
+
+        // Now get the parcel (if it doesn't already exist on disk)
+        if let Some(mut file) = get_provider_file(&par::cache_path(
+            &claims.public_key,
+            claims.revision.unwrap_or_default(),
+            &contract_id,
+            &link_name,
+        )?)
+        .await?
+        {
+            let mut written = 0usize;
+            let mut stream = bindle_client
+                .get_parcel(&inv.bindle.id, &provider_parcel.label.sha256)
+                .await
+                .expect("Unable to get parcel");
+            while let Some(res) = stream.next().await {
+                let bytes = res.map_err(to_rustler_err)?;
+                written += bytes.len();
+                file.write_all(&bytes).await.map_err(to_rustler_err)?;
+            }
+            file.flush().await.map_err(to_rustler_err)?;
+            if written == 0 {
+                return Err(to_rustler_err("No provider parcel found (or was empty)"));
+            }
+        }
+
         Ok((
             atoms::ok(),
             ProviderArchiveResource {
-                claims: claims.into(),
-                target_bytes,
+                claims,
                 contract_id,
                 vendor,
             },
@@ -233,8 +267,35 @@ fn get_oci_bytes(
     allowed_insecure: Vec<String>,
 ) -> Result<(Atom, Vec<u8>), Error> {
     task::TOKIO.block_on(async {
-        match oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure, creds_override).await {
-            Ok(b) => Ok((atoms::ok(), b)),
+        let path =
+            match oci::fetch_oci_path(&oci_ref, allow_latest, allowed_insecure, creds_override)
+                .await
+            {
+                Ok(p) => p,
+                Err(e) => return Err(rustler::Error::Term(Box::new(format!("{}", e)))),
+            };
+        let mut output = Vec::new();
+        let mut file = tokio::fs::File::open(path).await.map_err(to_rustler_err)?;
+        file.read_to_end(&mut output)
+            .await
+            .map_err(to_rustler_err)?;
+        Ok((atoms::ok(), output))
+    })
+}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn get_oci_path(
+    creds_override: Option<HashMap<String, String>>,
+    oci_ref: String,
+    allow_latest: bool,
+    allowed_insecure: Vec<String>,
+) -> Result<(Atom, String), Error> {
+    task::TOKIO.block_on(async {
+        match oci::fetch_oci_path(&oci_ref, allow_latest, allowed_insecure, creds_override).await {
+            Ok(p) => Ok((
+                atoms::ok(),
+                p.to_str().map(|s| s.to_owned()).unwrap_or_default(),
+            )),
             Err(e) => Err(rustler::Error::Term(Box::new(format!("{}", e)))),
         }
     })
@@ -253,29 +314,52 @@ fn pk_from_seed(seed: String) -> Result<(Atom, String), Error> {
 }
 
 #[rustler::nif]
-fn par_from_bytes(binary: Binary) -> Result<(Atom, ProviderArchiveResource), Error> {
-    match ProviderArchive::try_load(binary.as_slice()) {
-        Ok(par) => Ok((
-            atoms::ok(),
-            ProviderArchiveResource {
-                claims: par::extract_claims(&par)?,
-                target_bytes: par::extract_target_bytes(&par)?,
-                contract_id: par::get_capid(&par)?,
-                vendor: par::get_vendor(&par)?,
-            },
-        )),
-        Err(_) => Err(Error::BadArg),
-    }
+fn par_from_path(
+    path: String,
+    link_name: String,
+) -> Result<(Atom, ProviderArchiveResource), Error> {
+    task::TOKIO.block_on(async {
+        match ProviderArchive::try_load_target_from_file(path, &par::native_target()).await {
+            Ok(par) => {
+                let claims = par::extract_claims(&par)?;
+                let contract_id = par::get_capid(&par)?;
+
+                // Only write the file if it doesn't exist
+                if let Some(mut file) = get_provider_file(&par::cache_path(
+                    &claims.public_key,
+                    claims.revision.unwrap_or_default(),
+                    &contract_id,
+                    &link_name,
+                )?)
+                .await?
+                {
+                    file.write_all(&par::extract_target_bytes(&par)?)
+                        .await
+                        .map_err(to_rustler_err)?;
+                    file.flush().await.map_err(to_rustler_err)?;
+                }
+                Ok((
+                    atoms::ok(),
+                    ProviderArchiveResource {
+                        claims,
+                        contract_id,
+                        vendor: par::get_vendor(&par)?,
+                    },
+                ))
+            }
+            Err(_) => Err(Error::BadArg),
+        }
+    })
 }
 
 #[rustler::nif]
 fn par_cache_path(
     subject: String,
-    rev: u32,
+    rev: i32,
     contract_id: String,
     link_name: String,
 ) -> Result<String, Error> {
-    par::cache_path(subject, rev, contract_id, link_name)
+    par::cache_path(&subject, rev, &contract_id, &link_name)
 }
 
 /// Extracts the claims from the raw bytes of a _signed_ WebAssembly module/actor and returns them
@@ -407,6 +491,23 @@ fn detect_core_host_labels() -> HashMap<String, String> {
         std::env::consts::FAMILY.to_string(),
     );
     hm
+}
+
+async fn get_provider_file(path: &str) -> Result<Option<tokio::fs::File>, Error> {
+    let p = PathBuf::from(path);
+    // Check if the file exists and return
+    if tokio::fs::metadata(&p).await.is_ok() {
+        return Ok(None);
+    }
+    tokio::fs::create_dir_all(p.parent().ok_or(Error::BadArg)?)
+        .await
+        .map_err(to_rustler_err)?;
+
+    let mut open_opts = tokio::fs::OpenOptions::new();
+    open_opts.create(true).truncate(true).write(true);
+    #[cfg(target_family = "unix")]
+    open_opts.mode(0o755);
+    open_opts.open(p).await.map_err(to_rustler_err).map(Some)
 }
 
 fn load(env: rustler::Env, _: rustler::Term) -> bool {

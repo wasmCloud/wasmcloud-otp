@@ -1,5 +1,6 @@
 defmodule HostCore.E2E.EchoTest do
   use ExUnit.Case, async: false
+  import HostCoreTest.Common, only: [request_http: 2]
 
   setup do
     {:ok, evt_watcher} =
@@ -16,6 +17,8 @@ defmodule HostCore.E2E.EchoTest do
   @echo_unpriv_path HostCoreTest.Constants.echo_unpriv_path()
   @httpserver_link HostCoreTest.Constants.default_link()
   @httpserver_path HostCoreTest.Constants.httpserver_path()
+  @httpserver_key HostCoreTest.Constants.httpserver_key()
+  @httpserver_contract HostCoreTest.Constants.httpserver_contract()
 
   test "echo roundtrip", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
@@ -24,23 +27,39 @@ defmodule HostCore.E2E.EchoTest do
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_key)
 
+    # NOTE: Link definitions are put _before_ providers are started so that they receive
+    # the linkdef on startup. There is a race condition between provider starting and
+    # creating linkdef subscriptions that make this a desirable order for consistent tests.
+
+    :ok =
+      HostCore.Linkdefs.Manager.put_link_definition(
+        @echo_key,
+        @httpserver_contract,
+        @httpserver_link,
+        @httpserver_key,
+        %{PORT: "8080"}
+      )
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_linkdef(
+        evt_watcher,
+        @echo_key,
+        @httpserver_contract,
+        @httpserver_link
+      )
+
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @httpserver_path,
         @httpserver_link
       )
 
-    {:ok, bytes} = File.read(@httpserver_path)
-    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
-    httpserver_key = par.claims.public_key
-    httpserver_contract = par.contract_id
-
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_start(
         evt_watcher,
-        httpserver_contract,
+        @httpserver_contract,
         @httpserver_link,
-        httpserver_key
+        @httpserver_key
       )
 
     actor_count =
@@ -50,27 +69,10 @@ defmodule HostCore.E2E.EchoTest do
     assert actor_count == 1
 
     assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
-             httpserver_key
+             @httpserver_key
 
-    :ok =
-      HostCore.Linkdefs.Manager.put_link_definition(
-        @echo_key,
-        httpserver_contract,
-        @httpserver_link,
-        httpserver_key,
-        %{PORT: "8080"}
-      )
-
-    :ok =
-      HostCoreTest.EventWatcher.wait_for_linkdef(
-        evt_watcher,
-        @echo_key,
-        httpserver_contract,
-        @httpserver_link
-      )
-
-    HTTPoison.start()
-    {:ok, _resp} = HTTPoison.get("http://localhost:8080/foo/bar")
+    {:ok, _okay} = HTTPoison.start()
+    {:ok, _resp} = request_http("http://localhost:8080/foo/bar", 5)
   end
 
   test "unprivileged actor cannot receive undeclared invocations", %{:evt_watcher => evt_watcher} do
@@ -86,17 +88,12 @@ defmodule HostCore.E2E.EchoTest do
 
     assert actor_count == 1
 
-    {:ok, bytes} = File.read(@httpserver_path)
-    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
-    httpserver_key = par.claims.public_key
-    httpserver_contract = par.contract_id
-
     # OK to put link definition with no claims information
     assert HostCore.Linkdefs.Manager.put_link_definition(
              @echo_unpriv_key,
-             httpserver_contract,
+             @httpserver_contract,
              @httpserver_link,
-             httpserver_key,
+             @httpserver_key,
              %{PORT: "8084"}
            ) == :ok
 
@@ -109,22 +106,22 @@ defmodule HostCore.E2E.EchoTest do
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_start(
         evt_watcher,
-        httpserver_contract,
+        @httpserver_contract,
         @httpserver_link,
-        httpserver_key
+        @httpserver_key
       )
 
     # For now, okay to put a link definition without proper claims
     assert HostCore.Linkdefs.Manager.put_link_definition(
              @echo_unpriv_key,
-             httpserver_contract,
+             @httpserver_contract,
              @httpserver_link,
-             httpserver_key,
+             @httpserver_key,
              %{PORT: "8084"}
            ) == :ok
 
-    HTTPoison.start()
-    {:ok, resp} = HTTPoison.get("http://localhost:8084/foobar")
+    {:ok, _okay} = HTTPoison.start()
+    {:ok, resp} = request_http("http://localhost:8084/foobar", 10)
 
     assert resp.body == ""
     assert resp.status_code == 500

@@ -17,7 +17,7 @@ defmodule HostCore.E2E.ControlInterfaceTest do
   @redis_link HostCoreTest.Constants.default_link()
   @redis_contract HostCoreTest.Constants.keyvalue_contract()
 
-  test "can get claims", %{:evt_watcher => evt_watcher} do
+  test "can get claims", %{:evt_watcher => _evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
@@ -36,7 +36,7 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     assert Map.get(echo_claims, "sub") == @echo_key
   end
 
-  test "can get linkdefs", %{:evt_watcher => evt_watcher} do
+  test "can get linkdefs", %{:evt_watcher => _evt_watcher} do
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
         @kvcounter_key,

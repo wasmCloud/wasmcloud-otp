@@ -32,8 +32,7 @@ defmodule HostCoreTest do
         @httpserver_link
       )
 
-    {:ok, bytes} = File.read(@httpserver_path)
-    {:ok, par} = HostCore.WasmCloud.Native.par_from_bytes(bytes |> IO.iodata_to_binary())
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_path(@httpserver_path, @httpserver_link)
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 

@@ -40,18 +40,18 @@ pub(crate) fn extract_target_bytes(par: &ProviderArchive) -> Result<Vec<u8>, Err
 }
 
 pub(crate) fn cache_path(
-    subject: String,
-    rev: u32,
-    contract_id: String,
-    link_name: String,
+    subject: &str,
+    rev: i32,
+    contract_id: &str,
+    link_name: &str,
 ) -> Result<String, Error> {
     let mut path = temp_dir();
     path.push("wasmcloudcache");
-    path.push(&subject);
+    path.push(subject);
     path.push(format!("{}", rev));
 
-    let contract = normalize_for_filename(&contract_id);
-    let link_name = normalize_for_filename(&link_name);
+    let contract = normalize_for_filename(contract_id);
+    let link_name = normalize_for_filename(link_name);
     let filename = if cfg!(windows) {
         format!("{}_{}.exe", contract, link_name)
     } else {
@@ -73,6 +73,6 @@ fn normalize_for_filename(input: &str) -> String {
         .replace(|c: char| !c.is_ascii_alphanumeric(), "_")
 }
 
-fn native_target() -> String {
+pub(crate) fn native_target() -> String {
     format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS)
 }
