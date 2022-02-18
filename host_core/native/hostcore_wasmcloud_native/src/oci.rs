@@ -39,7 +39,7 @@ pub(crate) async fn fetch_oci_path(
             "Fetching images tagged 'latest' is currently prohibited in this host. This option can be overridden".into());
     }
     let cf = cached_file(img).await?;
-    if !tokio::fs::metadata(&cf).await.is_ok() {
+    if tokio::fs::metadata(&cf).await.is_err() {
         let img = oci_distribution::Reference::from_str(img)?;
         let auth = determine_auth(creds_override);
 

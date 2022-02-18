@@ -1386,7 +1386,8 @@ dependencies = [
 [[package]]
 name = "provider-archive"
 version = "0.6.0"
-source = "git+https://github.com/wasmCloud/provider-archive#6a64252a786cf369168073eebdde029b66e2c3c6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e91058846d2bdeaea55ce059f375e1af0e57f9cfad83fd6702d539c45e8d26d7"
 dependencies = [
  "async-compression",
  "data-encoding",

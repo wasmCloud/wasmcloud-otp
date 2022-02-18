@@ -33,32 +33,6 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  defp extract_executable_to_tmp(par, link_name) do
-    cache_path =
-      HostCore.WasmCloud.Native.par_cache_path(
-        par.claims.public_key,
-        par.claims.revision,
-        par.contract_id,
-        link_name
-      )
-
-    # Write provider executable to cache if it does not yet exist
-    if !File.exists?(cache_path) do
-      p = Path.split(cache_path)
-      tmpdir = p |> Enum.slice(0, length(p) - 1) |> Path.join()
-
-      with :ok <- File.mkdir_p(tmpdir),
-           :ok <- File.write(cache_path, par.target_bytes |> IO.iodata_to_binary()),
-           :ok <- File.chmod(cache_path, 0o755) do
-        {:ok, cache_path}
-      else
-        {:error, reason} -> {:error, reason}
-      end
-    else
-      {:ok, cache_path}
-    end
-  end
-
   def start_provider_from_oci(oci, link_name, config_json \\ "") do
     creds = HostCore.Host.get_creds(oci)
 
@@ -69,9 +43,24 @@ defmodule HostCore.Providers.ProviderSupervisor do
              HostCore.Oci.allow_latest(),
              HostCore.Oci.allowed_insecure()
            ),
-         {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path),
-         {:ok, path} <- extract_executable_to_tmp(par, link_name) do
-      start_executable_provider(path, par.claims, link_name, par.contract_id, oci, config_json)
+         {:ok, par} <-
+           HostCore.WasmCloud.Native.par_from_path(
+             path,
+             link_name
+           ) do
+      start_executable_provider(
+        HostCore.WasmCloud.Native.par_cache_path(
+          par.claims.public_key,
+          par.claims.revision,
+          par.contract_id,
+          link_name
+        ),
+        par.claims,
+        link_name,
+        par.contract_id,
+        oci,
+        config_json
+      )
     else
       {:error, err} ->
         Logger.error("Error starting provider from OCI: #{err}")
@@ -89,11 +78,16 @@ defmodule HostCore.Providers.ProviderSupervisor do
     with {:ok, par} <-
            HostCore.WasmCloud.Native.get_provider_bindle(
              creds,
-             String.trim_leading(bindle_id, "bindle://")
-           ),
-         {:ok, path} <- extract_executable_to_tmp(par, link_name) do
+             String.trim_leading(bindle_id, "bindle://"),
+             link_name
+           ) do
       start_executable_provider(
-        path,
+        HostCore.WasmCloud.Native.par_cache_path(
+          par.claims.public_key,
+          par.claims.revision,
+          par.contract_id,
+          link_name
+        ),
         par.claims,
         link_name,
         par.contract_id,
@@ -112,10 +106,14 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def start_provider_from_file(path, link_name) do
-    with {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path),
-         {:ok, tmp_path} <- extract_executable_to_tmp(par, link_name) do
+    with {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path, link_name) do
       start_executable_provider(
-        tmp_path,
+        HostCore.WasmCloud.Native.par_cache_path(
+          par.claims.public_key,
+          par.claims.revision,
+          par.contract_id,
+          link_name
+        ),
         par.claims,
         link_name,
         par.contract_id
