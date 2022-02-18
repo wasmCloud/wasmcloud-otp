@@ -131,15 +131,15 @@ defmodule HostCore.Host do
   # supp config's prestarts
   @impl true
   def handle_continue(:process_supp_config, %State{supplemental_config: sc} = state) do
-    aps = Map.get(sc, "autoStartProviders", [])
-    as = Map.get(sc, "autoStartActors", [])
+    autostart_providers = Map.get(sc, "autoStartProviders", [])
+    autostart_actors = Map.get(sc, "autoStartActors", [])
 
     Logger.info(
-      "Processing supplemental configuration: #{length(aps)} providers, #{length(as)} actors"
+      "Processing supplemental configuration: #{length(autostart_providers)} providers, #{length(autostart_actors)} actors"
     )
 
     Task.start(fn ->
-      aps
+      autostart_providers
       |> Enum.each(fn prov ->
         if !Map.has_key?(prov, "imageReference") || !Map.has_key?(prov, "linkName") do
           Logger.error("Not enough information on auto-start provider configuration. Bypassing.")
@@ -158,7 +158,7 @@ defmodule HostCore.Host do
         end
       end)
 
-      as
+      autostart_actors
       |> Enum.each(fn actor ->
         if String.starts_with?(actor, "bindle://") do
           HostCore.Actors.ActorSupervisor.start_actor_from_bindle(actor)
