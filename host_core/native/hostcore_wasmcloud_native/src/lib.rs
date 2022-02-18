@@ -103,9 +103,15 @@ rustler::init!(
 );
 
 #[rustler::nif(schedule = "DirtyIo")]
-fn get_provider_bindle(bindle_id: String) -> Result<(Atom, ProviderArchiveResource), Error> {
+fn get_provider_bindle(
+    creds_override: Option<HashMap<String, String>>,
+    bindle_id: String,
+) -> Result<(Atom, ProviderArchiveResource), Error> {
     task::TOKIO.block_on(async {
-        let bindle_client = client::get_client().await.map_err(to_rustler_err)?;
+        let bindle_client = client::get_client(creds_override, &bindle_id)
+            .await
+            .map_err(to_rustler_err)?;
+        let bindle_id = crate::client::normalize_bindle_id(&bindle_id);
         // Get the invoice first
         let inv = bindle_client.get_invoice(bindle_id).await.map_err(|e| {
             println!("{:?}", e);
@@ -176,10 +182,16 @@ fn get_provider_bindle(bindle_id: String) -> Result<(Atom, ProviderArchiveResour
 }
 
 #[rustler::nif(schedule = "DirtyIo")]
-fn get_actor_bindle(bindle_id: String) -> Result<(Atom, Vec<u8>), Error> {
+fn get_actor_bindle(
+    creds_override: Option<HashMap<String, String>>,
+    bindle_id: String,
+) -> Result<(Atom, Vec<u8>), Error> {
     task::TOKIO.block_on(async {
         // Get the invoice, validate this bindle contains an actor, fetch the actor and return
-        let bindle_client = client::get_client().await.map_err(to_rustler_err)?;
+        let bindle_client = client::get_client(creds_override, &bindle_id)
+            .await
+            .map_err(to_rustler_err)?;
+        let bindle_id = crate::client::normalize_bindle_id(&bindle_id);
         let inv = bindle_client
             .get_invoice(bindle_id)
             .await
@@ -215,12 +227,13 @@ fn to_rustler_err(e: impl std::fmt::Debug) -> Error {
 
 #[rustler::nif(schedule = "DirtyIo")]
 fn get_oci_bytes(
+    creds_override: Option<HashMap<String, String>>,
     oci_ref: String,
     allow_latest: bool,
     allowed_insecure: Vec<String>,
 ) -> Result<(Atom, Vec<u8>), Error> {
     task::TOKIO.block_on(async {
-        match oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure).await {
+        match oci::fetch_oci_bytes(&oci_ref, allow_latest, allowed_insecure, creds_override).await {
             Ok(b) => Ok((atoms::ok(), b)),
             Err(e) => Err(rustler::Error::Term(Box::new(format!("{}", e)))),
         }

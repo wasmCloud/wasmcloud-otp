@@ -60,8 +60,11 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def start_provider_from_oci(oci, link_name, config_json \\ "") do
+    creds = HostCore.Host.get_creds(oci)
+
     with {:ok, bytes} <-
            HostCore.WasmCloud.Native.get_oci_bytes(
+             creds,
              oci,
              HostCore.Oci.allow_latest(),
              HostCore.Oci.allowed_insecure()
@@ -81,8 +84,11 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def start_provider_from_bindle(bindle_id, link_name, config_json \\ "") do
+    creds = HostCore.Host.get_creds(bindle_id)
+
     with {:ok, par} <-
            HostCore.WasmCloud.Native.get_provider_bindle(
+             creds,
              String.trim_leading(bindle_id, "bindle://")
            ),
          {:ok, path} <- extract_executable_to_tmp(par, link_name) do

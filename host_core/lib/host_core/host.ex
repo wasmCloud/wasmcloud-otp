@@ -9,7 +9,7 @@ defmodule HostCore.Host do
 
   defmodule State do
     @moduledoc false
-    defstruct [:host_key, :lattice_prefix, :labels, :friendly_name]
+    defstruct [:host_key, :lattice_prefix, :labels, :friendly_name, :supplemental_config]
   end
 
   @doc """
@@ -73,13 +73,102 @@ defmodule HostCore.Host do
 
     publish_host_started(labels, friendly_name)
 
-    {:ok,
-     %State{
-       host_key: opts.host_key,
-       lattice_prefix: opts.lattice_prefix,
-       friendly_name: friendly_name,
-       labels: labels
-     }}
+    state = %State{
+      host_key: opts.host_key,
+      lattice_prefix: opts.lattice_prefix,
+      friendly_name: friendly_name,
+      labels: labels
+    }
+
+    if config_service_enabled?(opts) do
+      {:ok, state, {:continue, :load_supp_config}}
+    else
+      {:ok, state}
+    end
+  end
+
+  # truthy
+  defp config_service_enabled?(opts) do
+    String.upcase(opts.config_service_enabled) in [
+      "TRUE",
+      "YES",
+      "Y",
+      "YOU BETCHA",
+      "YUPPERS",
+      "TOTES",
+      "ENABLED"
+    ]
+  end
+
+  @impl true
+  def handle_continue(:load_supp_config, state) do
+    topic = "wasmbus.cfg.#{state.lattice_prefix}"
+    Logger.debug("Requesting supplemental host configuration via topic '#{topic}'")
+
+    state =
+      with {:ok, supp_config} <-
+             HostCore.ConfigServiceClient.request_configuration(
+               state.labels,
+               topic
+             ) do
+        %State{state | supplemental_config: supp_config}
+      else
+        {:error, e} ->
+          Logger.error("Failed to obtain supplemental configuration: #{inspect(e)}")
+          state
+      end
+
+    {:noreply, state, {:continue, :process_supp_config}}
+  end
+
+  @impl true
+  def handle_continue(:process_supp_config, %State{supplemental_config: nil} = state) do
+    {:noreply, state}
+  end
+
+  # NOTE - we do this work in a handle continue because we need the registry credentials
+  # to be a part of this process's state prior to attempting to start the components in the
+  # supp config's prestarts
+  @impl true
+  def handle_continue(:process_supp_config, %State{supplemental_config: sc} = state) do
+    autostart_providers = Map.get(sc, "autoStartProviders", [])
+    autostart_actors = Map.get(sc, "autoStartActors", [])
+
+    Logger.info(
+      "Processing supplemental configuration: #{length(autostart_providers)} providers, #{length(autostart_actors)} actors"
+    )
+
+    Task.start(fn ->
+      autostart_providers
+      |> Enum.each(fn prov ->
+        if !Map.has_key?(prov, "imageReference") || !Map.has_key?(prov, "linkName") do
+          Logger.error("Not enough information on auto-start provider configuration. Bypassing.")
+        else
+          if String.starts_with?(prov["imageReference"], "bindle://") do
+            HostCore.Providers.ProviderSupervisor.start_provider_from_bindle(
+              prov["imageReference"],
+              prov["linkName"]
+            )
+          else
+            HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+              prov["imageReference"],
+              prov["linkName"]
+            )
+          end
+        end
+      end)
+
+      autostart_actors
+      |> Enum.each(fn actor ->
+        if String.starts_with?(actor, "bindle://") do
+          HostCore.Actors.ActorSupervisor.start_actor_from_bindle(actor)
+        else
+          HostCore.Actors.ActorSupervisor.start_actor_from_oci(actor)
+        end
+      end)
+    end)
+
+    {:noreply, state}
   end
 
   @impl true
@@ -96,6 +185,43 @@ defmodule HostCore.Host do
     Map.new(keys, fn k ->
       {String.slice(k, 5..999) |> String.downcase(), System.get_env(k, "")}
     end)
+  end
+
+  @impl true
+  def handle_call({:get_creds, ref}, _from, state) do
+    nref = ref |> normalize_prefix()
+
+    if state.supplemental_config == nil do
+      {:reply, nil, state}
+    else
+      res =
+        if String.contains?(nref, "@") do
+          # extract server from bindle://invoice@server, look for
+          # credentials in map equal to bindle://server
+          server = nref |> extract_bindle_server()
+
+          if server != nil do
+            Map.get(state.supplemental_config, "registryCredentials", %{})
+            |> Enum.find(fn {k, _v} ->
+              k == "bindle://#{server}"
+            end)
+          else
+            nil
+          end
+        else
+          Map.get(state.supplemental_config, "registryCredentials", %{})
+          |> Enum.find(fn {k, _v} ->
+            String.starts_with?(nref, k)
+          end)
+        end
+
+      {:reply,
+       if res != nil do
+         elem(res, 1)
+       else
+         nil
+       end, state}
+    end
   end
 
   @impl true
@@ -172,6 +298,10 @@ defmodule HostCore.Host do
       [config: config_map] -> config_map[:host_key]
       _ -> ""
     end
+  end
+
+  def get_creds(ref) do
+    GenServer.call(__MODULE__, {:get_creds, ref})
   end
 
   def friendly_name() do
@@ -259,4 +389,22 @@ defmodule HostCore.Host do
     }
     |> Jason.encode!()
   end
+
+  defp normalize_prefix("bindle://" <> _str = s) do
+    s
+  end
+
+  defp normalize_prefix("oci://" <> _str = s) do
+    s
+  end
+
+  defp normalize_prefix(str) do
+    "oci://#{str}"
+  end
+
+  defp extract_bindle_server("bindle://" <> trailing) do
+    trailing |> String.split("@", trim: true) |> Enum.at(-1)
+  end
+
+  defp extract_bindle_server(other), do: other
 end

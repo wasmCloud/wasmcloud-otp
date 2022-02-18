@@ -1,4 +1,4 @@
-use std::env::var;
+use std::{collections::HashMap, env::var};
 
 use bindle::{
     cache::DumbCache,
@@ -43,30 +43,67 @@ impl TokenManager for PickYourAuth {
     }
 }
 
-/// Returns a bindle client configured to cache to disk
-pub async fn get_client() -> Result<CachedClient, Box<dyn std::error::Error + Sync + Send>> {
-    let auth = if let Ok(pw) = var(BINDLE_PASSWORD_ENV) {
-        if let Ok(username) = var(BINDLE_USER_NAME_ENV) {
-            PickYourAuth::Http(HttpBasic::new(&username, &pw))
-        } else {
-            return Err(
-                "Bindle password was set, but no username was given. Unable to configure client"
-                    .into(),
-            );
+fn get_bindle_auth(creds_override: Option<HashMap<String, String>>) -> PickYourAuth {
+    if let Some(co) = creds_override {
+        match (co.get("username"), co.get("password"), co.get("token")) {
+            (Some(u), Some(p), _) => PickYourAuth::Http(HttpBasic::new(u, p)),
+            (_, _, Some(t)) => PickYourAuth::LongLived(LongLivedToken::new(t)),
+            _ => PickYourAuth::None(NoToken),
         }
-    } else if let Ok(token) = var(BINDLE_TOKEN_ENV) {
-        PickYourAuth::LongLived(LongLivedToken::new(&token))
     } else {
-        PickYourAuth::None(NoToken)
-    };
+        match (
+            var(BINDLE_PASSWORD_ENV),
+            var(BINDLE_USER_NAME_ENV),
+            var(BINDLE_TOKEN_ENV),
+        ) {
+            (Ok(pw), Ok(username), _) => PickYourAuth::Http(HttpBasic::new(&username, &pw)),
+            (_, _, Ok(token)) => PickYourAuth::LongLived(LongLivedToken::new(&token)),
+            _ => {
+                // used to return an error here. Instead, default to anonymous and hope
+                // for the best. If insufficient creds were provided, the fetch call will
+                // fail anyway
+                PickYourAuth::None(NoToken)
+            }
+        }
+    }
+}
+
+/// Returns a bindle client configured to cache to disk
+pub async fn get_client(
+    creds_override: Option<HashMap<String, String>>,
+    bindle_id: &str,
+) -> Result<CachedClient, Box<dyn std::error::Error + Sync + Send>> {
+    let auth = get_bindle_auth(creds_override.clone());
 
     // Make sure the cache dir exists
     let bindle_dir = std::env::temp_dir().join(CACHE_DIR);
     tokio::fs::create_dir_all(&bindle_dir).await?;
-    let client = Client::new(
-        &var(BINDLE_URL_ENV).unwrap_or_else(|_| DEFAULT_BINDLE_URL.to_owned()),
-        auth,
-    )?;
+    let bindle_url = if creds_override.is_some() {
+        extract_server(bindle_id)
+    } else {
+        var(BINDLE_URL_ENV).unwrap_or_else(|_| DEFAULT_BINDLE_URL.to_owned())
+    };
+    let client = Client::new(&bindle_url, auth)?;
     let local = FileProvider::new(bindle_dir, NoopEngine::default()).await;
     Ok(DumbCache::new(client, local))
+}
+
+// By the time the bindle ID gets here, if it's in "secure registry" form (invoice@server)
+fn extract_server(bindle_id: &str) -> String {
+    let parts: Vec<_> = bindle_id.split('@').collect();
+    if parts.len() == 2 {
+        parts[1].to_owned()
+    } else {
+        var(BINDLE_URL_ENV).unwrap_or_else(|_| DEFAULT_BINDLE_URL.to_owned())
+    }
+}
+
+// If the bindle ID is in "secure registry" form, just take the invoice portion of invoice@server
+pub(crate) fn normalize_bindle_id(bindle_id: &str) -> String {
+    let parts: Vec<_> = bindle_id.split('@').collect();
+    if parts.len() == 2 {
+        parts[0].to_owned()
+    } else {
+        bindle_id.to_owned()
+    }
 }
