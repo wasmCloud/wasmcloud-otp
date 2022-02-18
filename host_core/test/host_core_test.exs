@@ -32,7 +32,7 @@ defmodule HostCoreTest do
         @httpserver_link
       )
 
-    {:ok, par} = HostCore.WasmCloud.Native.par_from_path(@httpserver_path)
+    {:ok, par} = HostCore.WasmCloud.Native.par_from_path(@httpserver_path, @httpserver_link)
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 

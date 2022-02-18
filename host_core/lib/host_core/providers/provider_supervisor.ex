@@ -36,7 +36,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   def start_provider_from_oci(oci, link_name, config_json \\ "") do
     creds = HostCore.Host.get_creds(oci)
 
-    with {:ok, bytes} <-
+    with {:ok, path} <-
            HostCore.WasmCloud.Native.get_oci_path(
              creds,
              oci,

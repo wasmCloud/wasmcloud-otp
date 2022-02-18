@@ -17,13 +17,23 @@ defmodule HostCore.WasmCloud.NativeTest do
   test "retrieves provider archive from OCI image" do
     {:ok, path} = HostCore.WasmCloud.Native.get_oci_path(nil, @httpserver_oci, false, [])
 
-    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_path(path)
+    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_path(path, "default")
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
     assert par.claims.version == "0.14.10"
 
-    assert byte_size(par.target_bytes |> IO.iodata_to_binary()) > 1_000
+    stat =
+      File.stat!(
+        HostCore.WasmCloud.Native.par_cache_path(
+          par.claims.public_key,
+          par.claims.revision,
+          par.contract_id,
+          "default"
+        )
+      )
+
+    assert stat.size > 1_000
     assert par.contract_id == @httpserver_contract
     assert par.vendor == @httpserver_vendor
   end
@@ -116,7 +126,7 @@ defmodule HostCore.WasmCloud.NativeTest do
     {:ok, path} =
       HostCore.WasmCloud.Native.get_oci_path(nil, @httpserver_zero_revision_oci, false, [])
 
-    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_path(path)
+    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_path(path, "default")
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
