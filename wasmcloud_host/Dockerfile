@@ -75,12 +75,8 @@ RUN apt update && \
   ca-certificates \
   libssl-dev \
   pkg-config \
-  python2.7 \
   inotify-tools \
-  build-essential && \
-  # Install node from nodesource (needed for phoenix)
-  curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
-  apt install -y --no-install-recommends nodejs
+  build-essential
 
 # Install Rust for NIF compilation
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
@@ -95,11 +91,7 @@ RUN mix do deps.compile, compile
 
 # This step builds assets for the Phoenix app
 RUN if [ ! "$SKIP_PHOENIX" = "true" ]; then \
-  cd ./assets && \
-  npm install --python=python2.7 && \
-  npm run deploy && \
-  cd - && \
-  mix phx.digest; \
+  MIX_ENV=dev make esbuild; \
 fi
 
 RUN mkdir -p /opt/built && \

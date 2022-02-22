@@ -25,7 +25,7 @@ defmodule WasmcloudHostWeb.Endpoint do
     at: "/",
     from: :wasmcloud_host,
     gzip: false,
-    only: ~w(css fonts images js coreui favicon.ico robots.txt)
+    only: ~w(assets css fonts images js coreui favicon.ico robots.txt)
   )
 
   # Code reloading can be explicitly enabled under the

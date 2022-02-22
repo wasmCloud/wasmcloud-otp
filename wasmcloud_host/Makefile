@@ -30,9 +30,10 @@ build-arm-image: ## Build arm64 docker image for running, testing, or distributi
 	cd ../ && \
 	docker buildx build $(BASE_ARGS) \
 		--build-arg BUILDER_IMAGE=elixir:1.12.2-slim \
-		--build-arg RELEASE_IMAGE=debian:buster-slim  \
+		--build-arg RELEASE_IMAGE=debian:buster-slim \
 		-t wasmcloud_host:arm64 \
 		--platform linux/arm64 \
+		--load \
 		-f $(DOCKERFILE) \
 		.
 
@@ -53,9 +54,14 @@ wasmex-nif: ## Build wasmex native NIF
 	cd target/$(RUST_ARCH)-$(RUST_TARGET)/release/ && \
 	ls | egrep ".*(dylib|so|dll)$$" | xargs -I % cp % ../../../../../priv/native/libwasmex.so
 
+esbuild:
+	mix sass default assets/css/app.scss priv/static/assets/app.css
+	mix assets.deploy
+	cp -r assets/static/* priv/static/
+	cp -r assets/css/coreui priv/static/assets/coreui
+
 build: deps ## Build wasmcloud_host for development
 	mix compile
-	npm --prefix ./assets install ./assets
 
 run: build ## Run development wasmcloud_host
 	mix phx.server

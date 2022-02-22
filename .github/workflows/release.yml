@@ -114,12 +114,6 @@ jobs:
           target: ${{ matrix.rust-target }}
           override: true
 
-      # Setup node for phoenix deps
-      - uses: actions/setup-node@v2
-        if: ${{ env.working-directory == 'wasmcloud_host' }}
-        with:
-          node-version: "14"
-
       # Install erlang/OTP and elixir
       - name: Install erlang and elixir
         if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
@@ -161,15 +155,12 @@ jobs:
 
       - name: Compile Phoenix Assets
         if: ${{ env.working-directory == 'wasmcloud_host' }}
-        working-directory: ${{env.working-directory}}/assets
-        run: |
-          npm install --python=python2.7
-          npm run deploy
-
-      - name: Create digest
-        if: ${{ env.working-directory == 'wasmcloud_host' }}
         working-directory: ${{env.working-directory}}
-        run: mix phx.digest
+        # esbuild + dart sass are only included in the dev runtime environment
+        env:
+          MIX_ENV: dev
+        run: |
+          make esbuild
 
       - name: Create Distillery Release
         working-directory: ${{env.working-directory}}

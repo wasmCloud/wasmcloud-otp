@@ -56,6 +56,10 @@ jobs:
         working-directory: ${{env.working-directory}}
         run: mix format --check-formatted
 
+      - name: Ensure static files build properly
+        working-directory: ${{env.working-directory}}
+        run: make esbuild
+
       - name: Run Credo
         working-directory: ${{env.working-directory}}
         continue-on-error: true # Don't fail entire action with refactoring opportunities for now
