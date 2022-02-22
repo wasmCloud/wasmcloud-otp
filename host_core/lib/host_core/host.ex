@@ -188,6 +188,19 @@ defmodule HostCore.Host do
   end
 
   @impl true
+  def handle_cast({:put_credsmap, credsmap}, state) do
+    # sanitize the incoming map
+    credsmap =
+      credsmap
+      |> Enum.filter(fn {_k, v} ->
+        Map.has_key?(v, "userName") || Map.has_key?(v, "password") || Map.has_key?(v, "token")
+      end)
+      |> Enum.into(%{})
+
+    {:noreply, Map.put(state, "registryCredentials", credsmap)}
+  end
+
+  @impl true
   def handle_call({:get_creds, ref}, _from, state) do
     nref = ref |> normalize_prefix()
 
@@ -284,6 +297,10 @@ defmodule HostCore.Host do
     :ets.new(:refmap_table, [:named_table, :set, :public])
     :ets.new(:callalias_table, [:named_table, :set, :public])
     :ets.new(:config_table, [:named_table, :set, :public])
+  end
+
+  def set_credsmap(credsmap) do
+    GenServer.cast(__MODULE__, {:put_credsmap, credsmap})
   end
 
   def lattice_prefix() do
