@@ -319,6 +319,22 @@ defmodule HostCore.ControlInterface.Server do
     end
   end
 
+  ### REGISTRY CREDENTIALS (via Config Service)
+  defp handle_request({"registries", "put"}, body, _reply_to) do
+    with {:ok, credsmap} <- Jason.decode(body) do
+      HostCore.Host.set_credsmap(credsmap)
+
+      Logger.debug(
+        "Replaced registry credential map, new registry count: #{length(Map.keys(credsmap))}"
+      )
+    else
+      _ ->
+        Logger.error("failed to update registry credential map")
+    end
+
+    :ok
+  end
+
   ### AUCTIONS
   # All auctions are sent to every host within the lattice
   # so no queue subscription is used.

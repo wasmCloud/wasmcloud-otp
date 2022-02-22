@@ -48,6 +48,7 @@ defmodule HostCore do
            connection_name: :control_nats,
            module: HostCore.ControlInterface.Server,
            subscription_topics: [
+             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.registries.put"},
              %{topic: "wasmbus.ctl.#{config.lattice_prefix}.cmd.#{config.host_key}.*"},
              %{topic: "wasmbus.ctl.#{config.lattice_prefix}.ping.hosts"},
              %{
