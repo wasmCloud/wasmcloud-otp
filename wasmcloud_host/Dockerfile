@@ -130,7 +130,8 @@ RUN apt update && \
   ca-certificates \
   curl \
   locales \
-  libssl-dev && \
+  libssl-dev \
+  procps && \
   export LANG=en_US.UTF-8 && \
     echo $LANG UTF-8 > /etc/locale.gen && \
     locale-gen && \
