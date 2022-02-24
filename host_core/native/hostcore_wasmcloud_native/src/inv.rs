@@ -32,6 +32,8 @@ pub struct Invocation {
     pub id: String,
     pub encoded_claims: String,
     pub host_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_length: Option<u64>,
 }
 
 /// Represents an entity within the host runtime that can be the source
@@ -83,7 +85,9 @@ impl Invocation {
             &origin.url(),
             &invocation_hash(&target_url, &origin.url(), &msg, op),
         );
+
         Invocation {
+            content_length: Some(msg.len() as _),
             origin,
             target,
             operation: op.to_string(),
@@ -114,6 +118,7 @@ impl Invocation {
             &invocation_hash(&target_url, &target.url(), &[], &op),
         );
         Invocation {
+            content_length: Some(0),
             origin: target.clone(),
             target,
             operation: op,

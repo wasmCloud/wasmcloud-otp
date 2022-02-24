@@ -10,7 +10,7 @@ path = "src/lib.rs"
 crate-type = ["dylib"]
 
 [dependencies]
-rustler = "0.22.0"
+rustler = "0.23.0"
 lazy_static = "1.0"
 serde = {version = "1.0.126", features = ["derive"] }
 serde_bytes = "0.11.5"
@@ -20,8 +20,8 @@ ring = "0.16.20"
 uuid = {version = "0.8.2", features = ["v4"]}
 data-encoding = "2.3.2"
 rmp = "0.8.10"
-rmp-serde = "0.15.4"
-oci-distribution = "0.7.0"
+rmp-serde = "1.0.0"
+oci-distribution = "0.8.1"
 # provider-archive = "0.4.0"
 provider-archive = "0.6.0"
 tokio = {version = "1.7.1", features = ["rt", "rt-multi-thread"] }
@@ -32,3 +32,4 @@ tokio-stream = "0.1"
 bindle = { version = "0.8", default-features = false, features = ["client", "caching"] }
 async-trait = "0.1"
 reqwest = "0.11"
+nats = "0.18.1"

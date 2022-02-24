@@ -194,13 +194,17 @@ defmodule HostCore.Actors.ActorModule do
                    inv["origin"]["link_name"],
                    inv["origin"]["contract_id"]
                  )
-                 |> perform_invocation(inv["operation"], inv["msg"]) do
+                 |> perform_invocation(
+                   inv["operation"],
+                   check_dechunk_inv(inv["id"], inv["content_length"], Map.get(inv, "msg", <<>>))
+                 ) do
               {:ok, response} ->
                 {%{
                    msg: response,
                    invocation_id: inv["id"],
                    instance_id: iid
-                 }, inv}
+                 }
+                 |> chunk_inv_response(), inv}
 
               {:error, error} ->
                 Logger.error("Invocation failure: #{error}")
@@ -230,6 +234,39 @@ defmodule HostCore.Actors.ActorModule do
     end)
 
     {:noreply, agent}
+  end
+
+  # Invocation responses are stored in the chunked object store with a `-r` appended
+  # to the end of the invocation ID
+  defp chunk_inv_response(
+         %{
+           msg: response,
+           invocation_id: invid,
+           instance_id: _iid
+         } = map
+       )
+       when byte_size(response) > 700 * 1024 do
+    with :ok <- HostCore.WasmCloud.Native.chunk_inv("#{invid}-r", response) do
+      Map.put(map, :content_length, byte_size(response))
+    else
+      _ ->
+        map
+    end
+  end
+
+  defp chunk_inv_response(map), do: map
+
+  defp check_dechunk_inv(_, nil, bytes), do: bytes
+
+  # Check if we need to download an artifact from the object store
+  # which will be when the content-length of an invocation is > 0 and
+  # the size of the `msg` binary is 0
+  defp check_dechunk_inv(inv_id, content_length, bytes) do
+    if content_length > byte_size(bytes) do
+      HostCore.WasmCloud.Native.dechunk_inv(inv_id)
+    else
+      bytes
+    end
   end
 
   defp start_actor(claims, bytes, oci) do

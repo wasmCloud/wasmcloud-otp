@@ -114,7 +114,7 @@ defmodule HostCore.Host do
         %State{state | supplemental_config: supp_config}
       else
         {:error, e} ->
-          Logger.error("Failed to obtain supplemental configuration: #{inspect(e)}")
+          Logger.warn("Failed to obtain supplemental configuration: #{inspect(e)}")
           state
       end
 

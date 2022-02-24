@@ -124,6 +124,30 @@ defmodule HostCore do
     end
 
     {def_cluster_key, def_cluster_seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
+
+    chunk_config = %{
+      "host" => config.rpc_host,
+      "port" => "#{config.rpc_port}",
+      "seed" => config.rpc_seed,
+      "lattice" => config.lattice_prefix,
+      "jwt" => config.rpc_jwt
+    }
+
+    chunk_config =
+      if config.js_domain != nil do
+        Map.put(config, "js_domain", config.js_domain)
+      else
+        chunk_config
+      end
+
+    case HostCore.WasmCloud.Native.set_chunking_connection_config(chunk_config) do
+      :ok ->
+        Logger.debug("Configured invocation chunking object store (NATS)")
+
+      {:error, e} ->
+        Logger.error("Failed to configure invocation chunking object store (NATS): #{inspect(e)}")
+    end
+
     # we're generating the key, so we know this is going to work
     {:ok, issuer_key} = HostCore.WasmCloud.Native.pk_from_seed(def_cluster_seed)
 

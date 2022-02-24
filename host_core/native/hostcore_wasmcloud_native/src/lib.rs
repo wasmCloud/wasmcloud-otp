@@ -1,8 +1,12 @@
 #[macro_use]
 extern crate rustler;
 
+use lazy_static::lazy_static;
+use nats::object_store::ObjectStore;
+use nats::{Connection, JetStreamOptions};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::RwLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bindle::{filters::BindleFilter, provider::Provider};
@@ -17,9 +21,16 @@ use wascap::prelude::*;
 mod atoms;
 mod client;
 mod inv;
+mod objstore;
 mod oci;
 mod par;
 mod task;
+
+lazy_static! {
+    static ref CHUNKING_STORE: RwLock<Option<ObjectStore>> = RwLock::new(None);
+}
+
+const CHONKY_THRESHOLD_BYTES: usize = 1024 * 700; // 500KB
 
 pub(crate) const CORELABEL_ARCH: &str = "hostcore.arch";
 pub(crate) const CORELABEL_OS: &str = "hostcore.os";
@@ -88,6 +99,9 @@ pub enum KeyType {
 rustler::init!(
     "Elixir.HostCore.WasmCloud.Native",
     [
+        set_chunking_connection_config,
+        dechunk_inv,
+        chunk_inv,
         extract_claims,
         generate_key,
         generate_invocation_bytes,
@@ -103,6 +117,29 @@ rustler::init!(
     ],
     load = load
 );
+
+/// Create and store the NATS connection to be used for chunking
+/// invocations
+#[rustler::nif]
+fn set_chunking_connection_config(config: HashMap<String, String>) -> Result<Atom, Error> {
+    let nc = get_nats_connection(&config)?;
+    // TODO: add JS domain
+    let jsoptions = if let Some(d) = config.get("js_domain").cloned() {
+        JetStreamOptions::new().domain(&d)
+    } else {
+        JetStreamOptions::new()
+    };
+    let js = nats::jetstream::JetStream::new(nc, jsoptions);
+    let lattice = config
+        .get("lattice")
+        .cloned()
+        .unwrap_or("default".to_string());
+    let store = objstore::create_or_reuse_store(&js, &lattice).map_err(to_rustler_err)?;
+
+    *CHUNKING_STORE.write().unwrap() = Some(store);
+
+    Ok(atoms::ok())
+}
 
 #[rustler::nif(schedule = "DirtyIo")]
 fn get_provider_bindle(
@@ -442,8 +479,20 @@ fn generate_key(key_type: KeyType) -> Result<(String, String), Error> {
     Ok((pk, seed))
 }
 
+#[rustler::nif(schedule = "DirtyIo")]
+fn dechunk_inv(inv_id: String) -> Result<Vec<u8>, Error> {
+    objstore::unchonk_from_object_store(&inv_id)
+}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn chunk_inv(inv_id: String, data: Binary) -> Result<Atom, Error> {
+    let _ = objstore::chonk_to_object_store(&inv_id, &mut data.as_slice())?;
+
+    Ok(atoms::ok())
+}
+
 #[allow(clippy::too_many_arguments)]
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyIo")]
 fn generate_invocation_bytes(
     host_seed: String,
     origin: String, // always comes from actor
@@ -454,7 +503,7 @@ fn generate_invocation_bytes(
     operation: String,
     msg: Binary,
 ) -> Result<Vec<u8>, Error> {
-    let inv = inv::Invocation::new(
+    let mut inv = inv::Invocation::new(
         &KeyPair::from_seed(&host_seed).unwrap(),
         inv::WasmCloudEntity::actor(&origin),
         if let TargetType::Actor = target_type {
@@ -465,6 +514,10 @@ fn generate_invocation_bytes(
         &operation,
         msg.as_slice().to_vec(),
     );
+    if msg.len() > CHONKY_THRESHOLD_BYTES {
+        inv.msg = vec![];
+        objstore::chonk_to_object_store(&inv.id, &mut msg.as_slice())?;
+    }
     Ok(inv::serialize(&inv).unwrap())
 }
 
@@ -541,4 +594,28 @@ fn since_the_epoch() -> Duration {
     start
         .duration_since(UNIX_EPOCH)
         .expect("A timey wimey problem has occurred!")
+}
+
+fn get_nats_connection(config: &HashMap<String, String>) -> Result<Connection, Error> {
+    let host = config
+        .get("host")
+        .cloned()
+        .unwrap_or("127.0.0.1".to_string());
+    let port = config.get("port").cloned().unwrap_or("4222".to_string());
+    let nats_url = format!("{}:{}", host, port);
+
+    let nc = match (config.get("jwt").cloned(), config.get("seed").cloned()) {
+        (Some(jwt), Some(seed)) if jwt.len() > 0 && seed.len() > 0 => {
+            let kp = KeyPair::from_seed(&seed).map_err(to_rustler_err)?;
+            nats::Options::with_jwt(
+                move || Ok(jwt.clone()),
+                move |nonce| kp.sign(nonce).unwrap(),
+            )
+            .connect(&nats_url)
+        }
+        _ => nats::connect(&nats_url),
+    }
+    .map_err(to_rustler_err)?;
+
+    Ok(nc)
 }
