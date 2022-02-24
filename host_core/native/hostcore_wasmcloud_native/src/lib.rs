@@ -30,7 +30,7 @@ lazy_static! {
     static ref CHUNKING_STORE: RwLock<Option<ObjectStore>> = RwLock::new(None);
 }
 
-const CHONKY_THRESHOLD_BYTES: usize = 1024 * 700; // 500KB
+const CHONKY_THRESHOLD_BYTES: usize = 1024 * 700; // 700KB
 
 pub(crate) const CORELABEL_ARCH: &str = "hostcore.arch";
 pub(crate) const CORELABEL_OS: &str = "hostcore.os";
