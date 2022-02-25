@@ -371,14 +371,15 @@ defmodule HostCore.Host do
   end
 
   def generate_hostinfo_for(provider_key, link_name, instance_id, config_json) do
-    {url, jwt, seed, tls} =
+    {url, jwt, seed, tls, timeout} =
       case :ets.lookup(:config_table, :config) do
         [config: config_map] ->
           {"#{config_map[:prov_rpc_host]}:#{config_map[:prov_rpc_port]}",
-           config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed], config_map[:prov_rpc_tls]}
+           config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed], config_map[:prov_rpc_tls],
+           config_map[:rpc_timeout]}
 
         _ ->
-          {"127.0.0.1:4222", "", ""}
+          {"127.0.0.1:4222", "", "", 2000}
       end
 
     lds =
@@ -401,6 +402,7 @@ defmodule HostCore.Host do
       provider_key: provider_key,
       link_definitions: lds,
       config_json: config_json,
+      default_rpc_timeout_ms: timeout,
       cluster_issuers: cluster_issuers(),
       invocation_seed: cluster_seed()
     }
