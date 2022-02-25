@@ -347,7 +347,7 @@ fn par_from_path(
                     },
                 ))
             }
-            Err(_) => Err(Error::BadArg),
+            Err(e) => Err(Error::Term(Box::new(format!("{}", e)))),
         }
     })
 }
