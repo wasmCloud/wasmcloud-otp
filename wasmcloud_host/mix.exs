@@ -1,7 +1,7 @@
 defmodule WasmcloudHost.MixProject do
   use Mix.Project
 
-  @app_vsn "0.52.4"
+  @app_vsn "0.52.5"
 
   def project do
     [
