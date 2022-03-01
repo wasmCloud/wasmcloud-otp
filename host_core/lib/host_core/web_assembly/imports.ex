@@ -437,15 +437,12 @@ defmodule HostCore.WebAssembly.Imports do
 
     # if declared content size is greater than the actual (e.g. empty payload) then
     # we know we need to de-chunk
-    if Map.get(ir, "content_length", bsize) > bsize do
-      with {:ok, bytes} <- HostCore.WasmCloud.Native.dechunk_inv(invid) do
-        bytes
-      else
-        _ ->
-          ir["msg"]
-      end
+    with true <- Map.get(ir, "content_length", bsize) > bsize,
+         {:ok, bytes} <- HostCore.WasmCloud.Native.dechunk_inv(invid) do
+      bytes
     else
-      ir["msg"]
+      _ ->
+        ir["msg"]
     end
   end
 
