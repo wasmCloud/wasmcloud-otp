@@ -3,8 +3,7 @@
 PROJECT  = echo_unpriv
 VERSION  = $(shell cargo metadata --no-deps --format-version 1 | jq -r '.packages[] .version' | head -1)
 REVISION = 4
-# list of all contract claims for actor signing (space-separated)
-CLAIMS   = "wasmcloud:httpserver"
+CLAIMS   = ""  # claim omitted intentionally to test handling of missing claims
 # registry url for our actor
 REG_URL  = localhost:5000/v2/$(PROJECT):$(VERSION)
 # command to upload to registry (without last wasm parameter)
