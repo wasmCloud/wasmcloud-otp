@@ -169,7 +169,11 @@ impl Invocation {
             return Err("No wascap metadata found on claims".into());
         }
         let inv_claims = claims.metadata.unwrap();
-        if inv_claims.invocation_hash != self.hash() {
+        // Don't perform the hash validity test when the body has been externalized
+        // via object store. This is an optimization that helps us not have to run
+        // through the same set of bytes twice. The object store internals have their
+        // own hash mechanisms so we'll know the chunked bytes haven't been manipulated
+        if self.msg.len() > 0 && inv_claims.invocation_hash != self.hash() {
             let s = format!(
                 "Invocation hash does not match signed claims hash ({} / {})",
                 inv_claims.invocation_hash,

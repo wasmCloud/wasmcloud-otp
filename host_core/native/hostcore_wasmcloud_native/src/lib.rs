@@ -515,7 +515,7 @@ fn generate_invocation_bytes(
         msg.as_slice().to_vec(),
     );
     if msg.len() > CHONKY_THRESHOLD_BYTES {
-        inv.msg = vec![];
+        inv.msg = vec![];        
         objstore::chonk_to_object_store(&inv.id, &mut msg.as_slice())?;
     }
     Ok(inv::serialize(&inv).unwrap())

@@ -197,12 +197,14 @@ defmodule HostCore.Actors.ActorModule do
                  |> perform_invocation(
                    inv["operation"],
                    check_dechunk_inv(inv["id"], inv["content_length"], Map.get(inv, "msg", <<>>))
+                   |> IO.iodata_to_binary()
                  ) do
               {:ok, response} ->
                 {%{
                    msg: response,
                    invocation_id: inv["id"],
-                   instance_id: iid
+                   instance_id: iid,
+                   content_length: byte_size(response)
                  }
                  |> chunk_inv_response(), inv}
 
@@ -247,7 +249,7 @@ defmodule HostCore.Actors.ActorModule do
        )
        when byte_size(response) > 700 * 1024 do
     with :ok <- HostCore.WasmCloud.Native.chunk_inv("#{invid}-r", response) do
-      Map.put(map, :content_length, byte_size(response))
+      %{map | msg: nil}
     else
       _ ->
         map
@@ -263,6 +265,7 @@ defmodule HostCore.Actors.ActorModule do
   # the size of the `msg` binary is 0
   defp check_dechunk_inv(inv_id, content_length, bytes) do
     if content_length > byte_size(bytes) do
+      Logger.debug("Dechunking #{content_length} from object store for #{inv_id}")
       HostCore.WasmCloud.Native.dechunk_inv(inv_id)
     else
       bytes
