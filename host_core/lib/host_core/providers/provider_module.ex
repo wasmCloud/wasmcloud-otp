@@ -158,7 +158,15 @@ defmodule HostCore.Providers.ProviderModule do
   def handle_info({:DOWN, _ref, :port, _port, :normal}, state) do
     Logger.debug("Received DOWN message from port (executable stopped normally)")
 
-    {:noreply, state}
+    publish_provider_stopped(
+      state.public_key,
+      state.link_name,
+      state.instance_id,
+      state.contract_id,
+      "normal"
+    )
+
+    {:stop, :normal, state}
   end
 
   def handle_info({:DOWN, _ref, :port, _port, reason}, state) do
