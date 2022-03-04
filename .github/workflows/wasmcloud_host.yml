@@ -52,36 +52,36 @@ jobs:
           mix local.hex --force
           mix do deps.get, deps.compile
 
-      - name: Check Formatting
-        working-directory: ${{env.working-directory}}
-        run: mix format --check-formatted
+      # - name: Check Formatting
+      #   working-directory: ${{env.working-directory}}
+      #   run: mix format --check-formatted
 
-      - name: Run Credo
-        working-directory: ${{env.working-directory}}
-        continue-on-error: true # Don't fail entire action with refactoring opportunities for now
-        run: mix credo --strict
+      # - name: Run Credo
+      #   working-directory: ${{env.working-directory}}
+      #   continue-on-error: true # Don't fail entire action with refactoring opportunities for now
+      #   run: mix credo --strict
 
-      - name: Run Tests
-        working-directory: ${{env.working-directory}}
-        run: |
-          WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
-          mix test
+      # - name: Run Tests
+      #   working-directory: ${{env.working-directory}}
+      #   run: |
+      #     WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
+      #     mix test
 
-      - name: Retrieve PLT Cache
-        uses: actions/cache@v2
-        id: plt-cache
-        with:
-          path: wasmcloud_host/priv/plts
-          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+      # - name: Retrieve PLT Cache
+      #   uses: actions/cache@v2
+      #   id: plt-cache
+      #   with:
+      #     path: wasmcloud_host/priv/plts
+      #     key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
 
-      - name: Create PLTs
-        working-directory: ${{env.working-directory}}
-        if: steps.plt-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p priv/plts
-          mix dialyzer --plt
+      # - name: Create PLTs
+      #   working-directory: ${{env.working-directory}}
+      #   if: steps.plt-cache.outputs.cache-hit != 'true'
+      #   run: |
+      #     mkdir -p priv/plts
+      #     mix dialyzer --plt
 
-      - name: Run dialyzer
-        working-directory: ${{env.working-directory}}
-        continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
-        run: mix dialyzer --no-check
+      # - name: Run dialyzer
+      #   working-directory: ${{env.working-directory}}
+      #   continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
+      #   run: mix dialyzer --no-check
