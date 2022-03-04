@@ -391,7 +391,7 @@ defmodule HostCore.WebAssembly.Imports do
       |> CloudEvent.new(evt_type)
 
     topic = "wasmbus.evt.#{prefix}"
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp lookup_call_alias(call_alias) do
@@ -406,7 +406,7 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp perform_rpc_invoke(inv_bytes, target_subject, timeout) do
     # Perform RPC invocation over lattice
-    case Gnat.request(:lattice_nats, target_subject, inv_bytes, receive_timeout: timeout) do
+    case HostCore.Nats.safe_req(:lattice_nats, target_subject, inv_bytes, receive_timeout: timeout) do
       {:ok, %{body: body}} -> body
       {:error, :timeout} -> :fail
     end

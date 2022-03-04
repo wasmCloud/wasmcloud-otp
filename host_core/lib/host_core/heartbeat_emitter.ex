@@ -42,7 +42,7 @@ defmodule HostCore.HeartbeatEmitter do
     Logger.debug("Publishing heartbeat")
     topic = "wasmbus.evt.#{state[:lattice_prefix]}"
     msg = generate_heartbeat(state)
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp generate_heartbeat(state) do

@@ -25,7 +25,8 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.ctl.#{prefix}.get.claims"
 
-    {:ok, %{body: body}} = Gnat.request(:control_nats, topic, [], receive_timeout: 2_000)
+    {:ok, %{body: body}} =
+      HostCore.Nats.safe_req(:control_nats, topic, [], receive_timeout: 2_000)
 
     echo_claims =
       body
@@ -49,7 +50,8 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.ctl.#{prefix}.get.links"
 
-    {:ok, %{body: body}} = Gnat.request(:control_nats, topic, [], receive_timeout: 2_000)
+    {:ok, %{body: body}} =
+      HostCore.Nats.safe_req(:control_nats, topic, [], receive_timeout: 2_000)
 
     kvcounter_redis_link =
       body

@@ -40,7 +40,12 @@ defmodule HostCore.Refmaps.Manager do
       }
       |> CloudEvent.new("refmap_set")
 
-    Gnat.pub(:control_nats, topic, Jason.encode!(%{oci_url: oci_url, public_key: public_key}))
-    Gnat.pub(:control_nats, event_topic, evtmsg)
+    HostCore.Nats.safe_pub(
+      :control_nats,
+      topic,
+      Jason.encode!(%{oci_url: oci_url, public_key: public_key})
+    )
+
+    HostCore.Nats.safe_pub(:control_nats, event_topic, evtmsg)
   end
 end

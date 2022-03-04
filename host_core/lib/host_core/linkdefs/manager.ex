@@ -80,9 +80,9 @@ defmodule HostCore.Linkdefs.Manager do
       }
       |> CloudEvent.new("linkdef_set")
 
-    Gnat.pub(:control_nats, cache_topic, Jason.encode!(ld))
-    Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
-    Gnat.pub(:control_nats, event_topic, evtmsg)
+    HostCore.Nats.safe_pub(:control_nats, cache_topic, Jason.encode!(ld))
+    HostCore.Nats.safe_pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
+    HostCore.Nats.safe_pub(:control_nats, event_topic, evtmsg)
   end
 
   # Publishes the removal of a link definition to the stream and tells the provider via RPC
@@ -107,10 +107,10 @@ defmodule HostCore.Linkdefs.Manager do
       }
       |> CloudEvent.new("linkdef_deleted")
 
-    Gnat.pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
+    HostCore.Nats.safe_pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
     ld = Map.put(ld, :deleted, true)
-    Gnat.pub(:control_nats, cache_topic, Jason.encode!(ld))
-    Gnat.pub(:control_nats, event_topic, evtmsg)
+    HostCore.Nats.safe_pub(:control_nats, cache_topic, Jason.encode!(ld))
+    HostCore.Nats.safe_pub(:control_nats, event_topic, evtmsg)
   end
 
   def get_link_definitions() do

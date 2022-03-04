@@ -141,7 +141,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
         prefix = HostCore.Host.lattice_prefix()
 
         # Allow provider 2 seconds to respond/acknowledge termination request (give time to clean up resources)
-        case Gnat.request(
+        case HostCore.Nats.safe_req(
                :lattice_nats,
                "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
                "",
