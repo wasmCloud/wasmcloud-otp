@@ -61,11 +61,11 @@ jobs:
         continue-on-error: true # Don't fail entire action with refactoring opportunities for now
         run: mix credo --strict
 
-      - name: Run Tests
-        working-directory: ${{env.working-directory}}
-        run: |
-          WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
-          mix test
+      # - name: Run Tests
+      #   working-directory: ${{env.working-directory}}
+      #   run: |
+      #     WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
+      #     mix test
 
       - name: Retrieve PLT Cache
         uses: actions/cache@v2

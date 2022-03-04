@@ -122,6 +122,61 @@ defmodule HostCore.ActorsTest do
     assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key) == nil
   end
 
+  test "can invoke the echo actor with huge payload", %{:evt_watcher => _evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
+    :ets.delete(:refmap_table, @echo_oci_reference)
+    :ets.delete(:refmap_table, @echo_old_oci_reference)
+    {:ok, bytes} = File.read(@echo_path)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    req =
+      %{
+        body:
+          Stream.repeatedly(fn -> Enum.random(["hello", "world", "foo", "bar"]) end)
+          |> Enum.take(300_000)
+          |> Enum.join(" "),
+        header: %{},
+        path: "/",
+        queryString: "",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    seed = HostCore.Host.cluster_seed()
+
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HttpServer.HandleRequest",
+        req
+      )
+
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
+
+    res =
+      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 12_000) do
+        {:ok, %{body: body}} -> body
+        {:error, :timeout} -> :fail
+      end
+
+    assert res != :fail
+    ir = res |> Msgpax.unpack!()
+    ir = Map.put(ir, "msg", HostCore.WasmCloud.Native.dechunk_inv("#{ir["invocation_id"]}-r"))
+
+    # NOTE: this is using "magic knowledge" that the HTTP server provider is using
+    # msgpack to communicate with actors
+    payload = ir["msg"] |> Msgpax.unpack!()
+
+    assert payload["header"] == %{}
+    assert payload["statusCode"] == 200
+  end
+
   test "can invoke the echo actor", %{:evt_watcher => _evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     :ets.delete(:refmap_table, @echo_oci_reference)
