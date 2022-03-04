@@ -33,15 +33,16 @@ defmodule HostCore.MixProject do
       {:wasmex, "~> 0.5.0"},
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.22.0"},
+      {:jason, "~> 1.2.2"},
       {:gnat, "~> 1.2"},
       {:cloudevents, "~> 0.4.0"},
       {:uuid, "~> 1.1"},
-      {:jason, "~> 1.2.2"},
+
       # {:vapor, "~> 0.10.0"},
       # TODO: switch to new version of vapor once PR is merged
       {:vapor, git: "https://github.com/autodidaddict/vapor"},
-      {:parallel_task, "~> 0.1.1"},
       {:hashids, "~> 2.0"},
+      {:parallel_task, "~> 0.1.1"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:httpoison, "~> 1.8", only: [:test]},
