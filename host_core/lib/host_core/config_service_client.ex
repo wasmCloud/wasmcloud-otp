@@ -21,7 +21,7 @@ defmodule HostCore.ConfigServiceClient do
   end
 
   defp api_request(topic, payload, timeout \\ 2_000) do
-    Gnat.request(
+    HostCore.Nats.safe_req(
       :control_nats,
       topic,
       payload,

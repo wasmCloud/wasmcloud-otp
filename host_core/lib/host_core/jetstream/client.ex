@@ -52,7 +52,7 @@ defmodule HostCore.Jetstream.Client do
       |> Jason.encode!()
 
     cont =
-      case Gnat.request(:control_nats, create_topic, payload_json) do
+      case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
         {:ok, %{body: body}} ->
           handle_stream_create_response(body |> Jason.decode!())
 
@@ -101,7 +101,7 @@ defmodule HostCore.Jetstream.Client do
       }
       |> Jason.encode!()
 
-    case Gnat.request(:control_nats, create_topic, payload_json) do
+    case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
       {:ok, %{body: body}} ->
         handle_consumer_create_response(body |> Jason.decode!())
 

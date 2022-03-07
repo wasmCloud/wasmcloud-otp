@@ -272,7 +272,7 @@ defmodule HostCore.Host do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp publish_host_started(labels, friendly_name) do
@@ -287,7 +287,7 @@ defmodule HostCore.Host do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp configure_ets() do

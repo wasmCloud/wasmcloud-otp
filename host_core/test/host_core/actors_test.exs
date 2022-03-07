@@ -73,7 +73,7 @@ defmodule HostCore.ActorsTest do
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
 
     res =
-      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+      case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 2_000) do
         {:ok, %{body: body}} -> body
         {:error, :timeout} -> :fail
       end
@@ -160,7 +160,7 @@ defmodule HostCore.ActorsTest do
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
 
     res =
-      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 12_000) do
+      case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 12_000) do
         {:ok, %{body: body}} -> body
         {:error, :timeout} -> :fail
       end
@@ -212,7 +212,7 @@ defmodule HostCore.ActorsTest do
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
 
     res =
-      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+      case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 2_000) do
         {:ok, %{body: body}} -> body
         {:error, :timeout} -> :fail
       end
@@ -272,7 +272,7 @@ defmodule HostCore.ActorsTest do
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
 
     res =
-      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+      case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 2_000) do
         {:ok, %{body: body}} -> body
         {:error, :timeout} -> :fail
       end
@@ -325,7 +325,7 @@ defmodule HostCore.ActorsTest do
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@pinger_key}"
 
     res =
-      case Gnat.request(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+      case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 2_000) do
         {:ok, %{body: body}} -> body
         {:error, :timeout} -> :fail
       end

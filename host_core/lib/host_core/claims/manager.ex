@@ -67,7 +67,7 @@ defmodule HostCore.Claims.Manager do
     prefix = HostCore.Host.lattice_prefix()
     topic = "lc.#{prefix}.claims.#{claims.sub}"
 
-    Gnat.pub(:control_nats, topic, Jason.encode!(claims))
+    HostCore.Nats.safe_pub(:control_nats, topic, Jason.encode!(claims))
   end
 
   def get_claims() do

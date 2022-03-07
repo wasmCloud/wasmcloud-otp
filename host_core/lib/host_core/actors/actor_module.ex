@@ -229,7 +229,7 @@ defmodule HostCore.Actors.ActorModule do
            }, nil}
       end
 
-    Gnat.pub(:lattice_nats, reply_to, ir |> Msgpax.pack!() |> IO.iodata_to_binary())
+    HostCore.Nats.safe_pub(:lattice_nats, reply_to, ir |> Msgpax.pack!() |> IO.iodata_to_binary())
 
     Task.start(fn ->
       publish_invocation_result(inv, ir)
@@ -447,7 +447,7 @@ defmodule HostCore.Actors.ActorModule do
       |> CloudEvent.new(evt_type)
 
     topic = "wasmbus.evt.#{prefix}"
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   def publish_actor_started(claims, api_version, instance_id, oci) do
@@ -475,7 +475,7 @@ defmodule HostCore.Actors.ActorModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   def publish_actor_updated(actor_pk, revision, instance_id) do
@@ -491,7 +491,7 @@ defmodule HostCore.Actors.ActorModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   def publish_actor_stopped(actor_pk, instance_id) do
@@ -506,7 +506,7 @@ defmodule HostCore.Actors.ActorModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp publish_check_passed(agent) do
@@ -522,7 +522,7 @@ defmodule HostCore.Actors.ActorModule do
       |> CloudEvent.new("health_check_passed")
 
     topic = "wasmbus.evt.#{prefix}"
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
 
     nil
   end
@@ -541,7 +541,7 @@ defmodule HostCore.Actors.ActorModule do
       |> CloudEvent.new("health_check_failed")
 
     topic = "wasmbus.evt.#{prefix}"
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
 
     nil
   end

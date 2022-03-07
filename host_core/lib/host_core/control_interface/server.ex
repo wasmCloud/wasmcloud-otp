@@ -415,7 +415,7 @@ defmodule HostCore.ControlInterface.Server do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp publish_provider_start_failed(command, msg) do
@@ -431,7 +431,7 @@ defmodule HostCore.ControlInterface.Server do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp success_ack() do
