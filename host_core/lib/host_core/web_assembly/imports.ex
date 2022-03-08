@@ -414,9 +414,9 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp unpack_invocation_response(res) do
     case res do
-      # Invocation failed
+      # Invocation failed due to timeout
       :fail ->
-        {0, :host_error, "Failed to perform RPC call"}
+        {0, :host_error, "Failed to perform RPC call: request timeout"}
 
       # If invocation was successful but resulted in an error then that goes in `host_error`
       # Otherwise, InvocationResponse.msg goes in `host_response`
