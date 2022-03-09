@@ -7,6 +7,12 @@ defmodule HostCore.WebAssembly.Imports do
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
 
+  # Once a message body reaches 700kb, we will use the object
+  # store to hold it and allow 15 seconds for the RPC call to
+  # finish (giving the other side time to "de-chunk")
+  @chunk_threshold 700 * 1024
+  @chunk_rpc_timeout 15000
+
   def wapc_imports(agent) do
     %{
       __host_call:
@@ -287,6 +293,15 @@ defmodule HostCore.WebAssembly.Imports do
            target: {target_type, target_key, target_subject}
          }
        ) do
+    timeout =
+      if byte_size(payload) > @chunk_threshold do
+        @chunk_rpc_timeout
+      else
+        HostCore.Host.rpc_timeout()
+      end
+
+    # generate_invocation_bytes will optionally chunk out the payload
+    # to the object store
     invocation_res =
       HostCore.WasmCloud.Native.generate_invocation_bytes(
         seed,
@@ -298,8 +313,10 @@ defmodule HostCore.WebAssembly.Imports do
         operation,
         payload
       )
-      |> perform_rpc_invoke(target_subject)
+      |> perform_rpc_invoke(target_subject, timeout)
 
+    # unpack_invocation_response will optionally de-chunk the response payload
+    # from the object store
     res =
       case unpack_invocation_response(invocation_res) do
         {1, :host_response, msg} ->
@@ -374,7 +391,7 @@ defmodule HostCore.WebAssembly.Imports do
       |> CloudEvent.new(evt_type)
 
     topic = "wasmbus.evt.#{prefix}"
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp lookup_call_alias(call_alias) do
@@ -387,11 +404,9 @@ defmodule HostCore.WebAssembly.Imports do
     end
   end
 
-  defp perform_rpc_invoke(inv_bytes, target_subject) do
+  defp perform_rpc_invoke(inv_bytes, target_subject, timeout) do
     # Perform RPC invocation over lattice
-    case Gnat.request(:lattice_nats, target_subject, inv_bytes,
-           receive_timeout: HostCore.Host.rpc_timeout()
-         ) do
+    case HostCore.Nats.safe_req(:lattice_nats, target_subject, inv_bytes, receive_timeout: timeout) do
       {:ok, %{body: body}} -> body
       {:error, :timeout} -> :fail
     end
@@ -399,9 +414,9 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp unpack_invocation_response(res) do
     case res do
-      # Invocation failed
+      # Invocation failed due to timeout
       :fail ->
-        {0, :host_error, "Failed to perform RPC call"}
+        {0, :host_error, "Failed to perform RPC call: request timeout"}
 
       # If invocation was successful but resulted in an error then that goes in `host_error`
       # Otherwise, InvocationResponse.msg goes in `host_response`
@@ -409,10 +424,25 @@ defmodule HostCore.WebAssembly.Imports do
         ir = res |> Msgpax.unpack!()
 
         if ir["error"] == nil do
-          {1, :host_response, ir["msg"]}
+          {1, :host_response, check_dechunk(ir)}
         else
           {0, :host_error, ir["error"]}
         end
+    end
+  end
+
+  defp check_dechunk(ir) do
+    bsize = byte_size(Map.get(ir, "msg", <<>>))
+    invid = "#{ir["invocation_id"]}-r"
+
+    # if declared content size is greater than the actual (e.g. empty payload) then
+    # we know we need to de-chunk
+    with true <- Map.get(ir, "content_length", bsize) > bsize,
+         {:ok, bytes} <- HostCore.WasmCloud.Native.dechunk_inv(invid) do
+      bytes
+    else
+      _ ->
+        ir["msg"]
     end
   end
 

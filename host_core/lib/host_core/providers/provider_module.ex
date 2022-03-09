@@ -158,7 +158,15 @@ defmodule HostCore.Providers.ProviderModule do
   def handle_info({:DOWN, _ref, :port, _port, :normal}, state) do
     Logger.debug("Received DOWN message from port (executable stopped normally)")
 
-    {:noreply, state}
+    publish_provider_stopped(
+      state.public_key,
+      state.link_name,
+      state.instance_id,
+      state.contract_id,
+      "normal"
+    )
+
+    {:stop, :normal, state}
   end
 
   def handle_info({:DOWN, _ref, :port, _port, reason}, state) do
@@ -182,7 +190,9 @@ defmodule HostCore.Providers.ProviderModule do
 
     res =
       try do
-        Gnat.request(:lattice_nats, topic, payload, receive_timeout: HostCore.Host.rpc_timeout())
+        HostCore.Nats.safe_req(:lattice_nats, topic, payload,
+          receive_timeout: HostCore.Host.rpc_timeout()
+        )
       rescue
         _e -> {:error, "Received no response on health check topic from provider"}
       end
@@ -231,7 +241,7 @@ defmodule HostCore.Providers.ProviderModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp publish_health_failed(state) do
@@ -246,7 +256,7 @@ defmodule HostCore.Providers.ProviderModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   @spec publish_provider_stopped(String.t(), String.t(), String.t(), String.t(), String.t()) ::
@@ -266,7 +276,7 @@ defmodule HostCore.Providers.ProviderModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp publish_provider_started(claims, link_name, contract_id, instance_id, image_ref) do
@@ -292,6 +302,6 @@ defmodule HostCore.Providers.ProviderModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 end

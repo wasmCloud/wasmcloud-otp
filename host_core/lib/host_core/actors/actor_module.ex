@@ -194,13 +194,19 @@ defmodule HostCore.Actors.ActorModule do
                    inv["origin"]["link_name"],
                    inv["origin"]["contract_id"]
                  )
-                 |> perform_invocation(inv["operation"], inv["msg"]) do
+                 |> perform_invocation(
+                   inv["operation"],
+                   check_dechunk_inv(inv["id"], inv["content_length"], Map.get(inv, "msg", <<>>))
+                   |> IO.iodata_to_binary()
+                 ) do
               {:ok, response} ->
                 {%{
                    msg: response,
                    invocation_id: inv["id"],
-                   instance_id: iid
-                 }, inv}
+                   instance_id: iid,
+                   content_length: byte_size(response)
+                 }
+                 |> chunk_inv_response(), inv}
 
               {:error, error} ->
                 Logger.error("Invocation failure: #{error}")
@@ -223,13 +229,47 @@ defmodule HostCore.Actors.ActorModule do
            }, nil}
       end
 
-    Gnat.pub(:lattice_nats, reply_to, ir |> Msgpax.pack!() |> IO.iodata_to_binary())
+    HostCore.Nats.safe_pub(:lattice_nats, reply_to, ir |> Msgpax.pack!() |> IO.iodata_to_binary())
 
     Task.start(fn ->
       publish_invocation_result(inv, ir)
     end)
 
     {:noreply, agent}
+  end
+
+  # Invocation responses are stored in the chunked object store with a `-r` appended
+  # to the end of the invocation ID
+  defp chunk_inv_response(
+         %{
+           msg: response,
+           invocation_id: invid,
+           instance_id: _iid
+         } = map
+       )
+       when byte_size(response) > 700 * 1024 do
+    with :ok <- HostCore.WasmCloud.Native.chunk_inv("#{invid}-r", response) do
+      %{map | msg: nil}
+    else
+      _ ->
+        map
+    end
+  end
+
+  defp chunk_inv_response(map), do: map
+
+  defp check_dechunk_inv(_, nil, bytes), do: bytes
+
+  # Check if we need to download an artifact from the object store
+  # which will be when the content-length of an invocation is > 0 and
+  # the size of the `msg` binary is 0
+  defp check_dechunk_inv(inv_id, content_length, bytes) do
+    if content_length > byte_size(bytes) do
+      Logger.debug("Dechunking #{content_length} from object store for #{inv_id}")
+      HostCore.WasmCloud.Native.dechunk_inv(inv_id)
+    else
+      bytes
+    end
   end
 
   defp start_actor(claims, bytes, oci) do
@@ -407,7 +447,7 @@ defmodule HostCore.Actors.ActorModule do
       |> CloudEvent.new(evt_type)
 
     topic = "wasmbus.evt.#{prefix}"
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   def publish_actor_started(claims, api_version, instance_id, oci) do
@@ -435,7 +475,7 @@ defmodule HostCore.Actors.ActorModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   def publish_actor_updated(actor_pk, revision, instance_id) do
@@ -451,7 +491,7 @@ defmodule HostCore.Actors.ActorModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   def publish_actor_stopped(actor_pk, instance_id) do
@@ -466,7 +506,7 @@ defmodule HostCore.Actors.ActorModule do
 
     topic = "wasmbus.evt.#{prefix}"
 
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
   defp publish_check_passed(agent) do
@@ -482,7 +522,7 @@ defmodule HostCore.Actors.ActorModule do
       |> CloudEvent.new("health_check_passed")
 
     topic = "wasmbus.evt.#{prefix}"
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
 
     nil
   end
@@ -501,7 +541,7 @@ defmodule HostCore.Actors.ActorModule do
       |> CloudEvent.new("health_check_failed")
 
     topic = "wasmbus.evt.#{prefix}"
-    Gnat.pub(:control_nats, topic, msg)
+    HostCore.Nats.safe_pub(:control_nats, topic, msg)
 
     nil
   end
