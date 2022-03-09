@@ -403,7 +403,7 @@ defmodule HostCore.ControlInterface.Server do
     Logger.warn("Unexpected/unhandled lattice control command: #{tuple}")
   end
 
-  defp publish_actor_start_failed(actor_ref, msg) do
+  def publish_actor_start_failed(actor_ref, msg) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =

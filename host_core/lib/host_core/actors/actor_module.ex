@@ -51,7 +51,11 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def claims(pid) do
-    GenServer.call(pid, :get_claims)
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_claims)
+    else
+      %{}
+    end
   end
 
   def ociref(pid) do
@@ -59,7 +63,11 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def instance_id(pid) do
-    GenServer.call(pid, :get_instance_id)
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_instance_id)
+    else
+      "??"
+    end
   end
 
   def halt(pid) do
@@ -67,7 +75,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def health_check(pid) do
-    GenServer.call(pid, :health_check)
+    if Process.alive?(pid), do: GenServer.call(pid, :health_check)
   end
 
   def live_update(pid, bytes, claims, oci) do
@@ -76,10 +84,16 @@ defmodule HostCore.Actors.ActorModule do
 
   @impl true
   def init({claims, bytes, oci}) do
-    {:ok, agent} = start_actor(claims, bytes, oci)
-    Process.send(self(), :do_health, [:noconnect, :nosuspend])
-    :timer.send_interval(@thirty_seconds, self(), :do_health)
-    {:ok, agent}
+    case start_actor(claims, bytes, oci) do
+      {:ok, agent} ->
+        Process.send(self(), :do_health, [:noconnect, :nosuspend])
+        :timer.send_interval(@thirty_seconds, self(), :do_health)
+        {:ok, agent}
+
+      {:error, _e} ->
+        # Actor should stop with no adverse effects on the supervisor
+        :ignore
+    end
   end
 
   def handle_call({:live_update, bytes, claims, oci}, _from, agent) do
@@ -280,22 +294,31 @@ defmodule HostCore.Actors.ActorModule do
     {:ok, agent} =
       Agent.start_link(fn -> %State{claims: claims, instance_id: UUID.uuid4(), healthy: false} end)
 
-    prefix = HostCore.Host.lattice_prefix()
-    topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
-
-    Logger.debug("Subscribing to #{topic}")
-    {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
-    Agent.update(agent, fn state -> %State{state | subscription: subscription, ociref: oci} end)
-
     imports = %{
       wapc: Imports.wapc_imports(agent),
       wasmbus: Imports.wasmbus_imports(agent)
     }
 
-    publish_oci_map(oci, claims.public_key)
+    case Wasmex.start_link(%{bytes: bytes, imports: imports}) |> prepare_module(agent, oci) do
+      {:ok, agent} ->
+        prefix = HostCore.Host.lattice_prefix()
+        topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
 
-    Wasmex.start_link(%{bytes: bytes, imports: imports})
-    |> prepare_module(agent, oci)
+        Logger.debug("Subscribing to #{topic}")
+        {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
+
+        Agent.update(agent, fn state ->
+          %State{state | subscription: subscription, ociref: oci}
+        end)
+
+        publish_oci_map(oci, claims.public_key)
+        {:ok, agent}
+
+      {:error, e} ->
+        Logger.error("Failed to start actor: #{inspect(e)}")
+        HostCore.ControlInterface.Server.publish_actor_start_failed(claims.public_key, inspect(e))
+        {:error, e}
+    end
   end
 
   # Actor-to-actor calls are always allowed
@@ -383,6 +406,8 @@ defmodule HostCore.Actors.ActorModule do
 
     res
   end
+
+  defp prepare_module({:error, e}, _agent, _oci), do: {:error, e}
 
   defp prepare_module({:ok, instance}, agent, oci) do
     api_version =
