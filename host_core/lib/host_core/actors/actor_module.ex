@@ -91,7 +91,8 @@ defmodule HostCore.Actors.ActorModule do
         {:ok, agent}
 
       {:error, _e} ->
-        :ignore # Actor should stop with no adverse effects on the supervisor
+        # Actor should stop with no adverse effects on the supervisor
+        :ignore
     end
   end
 
