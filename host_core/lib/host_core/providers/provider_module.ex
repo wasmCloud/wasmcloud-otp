@@ -52,7 +52,11 @@ defmodule HostCore.Providers.ProviderModule do
 
   @impl true
   def init({:executable, path, claims, link_name, contract_id, oci, config_json}) do
-    Logger.info("Starting executable capability provider at  '#{path}'")
+    Logger.info("Starting executable capability provider at  '#{path}'",
+      provider_id: claims.public_key,
+      link_name: link_name,
+      contract_id: contract_id
+    )
 
     instance_id = UUID.uuid4()
     # In case we want to know the contract ID of this provider, we can look it up as the
@@ -150,13 +154,21 @@ defmodule HostCore.Providers.ProviderModule do
 
   @impl true
   def handle_info({_ref, {:data, logline}}, state) do
-    Logger.info("[#{state.public_key}]: #{logline}")
+    Logger.info("[#{state.public_key}]: #{logline}",
+      provider_id: state.public_key,
+      link_name: state.link_name,
+      contract_id: state.contract_id
+    )
 
     {:noreply, state}
   end
 
   def handle_info({:DOWN, _ref, :port, _port, :normal}, state) do
-    Logger.debug("Received DOWN message from port (executable stopped normally)")
+    Logger.debug("Received DOWN message from port (executable stopped normally)",
+      provider_id: state.public_key,
+      link_name: state.link_name,
+      contract_id: state.contract_id
+    )
 
     publish_provider_stopped(
       state.public_key,
@@ -170,7 +182,11 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   def handle_info({:DOWN, _ref, :port, _port, reason}, state) do
-    Logger.error("Received DOWN message from port (executable stopped) - #{reason}")
+    Logger.error("Received DOWN message from port (executable stopped) - #{reason}",
+      provider_id: state.public_key,
+      link_name: state.link_name,
+      contract_id: state.contract_id
+    )
 
     publish_provider_stopped(
       state.public_key,

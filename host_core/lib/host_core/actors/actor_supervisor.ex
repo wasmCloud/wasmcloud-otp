@@ -17,11 +17,11 @@ defmodule HostCore.Actors.ActorSupervisor do
   @spec start_actor(bytes :: binary(), oci :: String.t(), count :: Integer.t()) ::
           {:error, any} | {:ok, [pid()]}
   def start_actor(bytes, oci \\ "", count \\ 1) when is_binary(bytes) do
-    Logger.debug("Start actor request received")
+    Logger.debug("Start actor request received", oci_ref: oci)
 
     case HostCore.WasmCloud.Native.extract_claims(bytes) do
       {:error, err} ->
-        Logger.error("Failed to extract claims from WebAssembly module")
+        Logger.error("Failed to extract claims from WebAssembly module", oci_ref: oci)
         {:error, err}
 
       {:ok, claims} ->
@@ -74,7 +74,7 @@ defmodule HostCore.Actors.ActorSupervisor do
            HostCore.Oci.allowed_insecure()
          ) do
       {:error, err} ->
-        Logger.error("Failed to download OCI bytes for #{oci}")
+        Logger.error("Failed to download OCI bytes for #{oci}: #{inspect(err)}", oci_ref: oci)
         {:error, err}
 
       {:ok, bytes} ->
@@ -90,7 +90,11 @@ defmodule HostCore.Actors.ActorSupervisor do
            String.trim_leading(bindle_id, "bindle://")
          ) do
       {:error, err} ->
-        Logger.error("Failed to download bytes from bindle server for #{bindle_id}")
+        Logger.error(
+          "Failed to download bytes from bindle server for #{bindle_id}: #{inspect(err)}",
+          bindle_id: bindle_id
+        )
+
         {:error, err}
 
       {:ok, bytes} ->
@@ -115,7 +119,11 @@ defmodule HostCore.Actors.ActorSupervisor do
       HostCore.Claims.Manager.put_claims(new_claims)
       HostCore.Refmaps.Manager.put_refmap(oci, new_claims.public_key)
       targets = find_actor(new_claims.public_key)
-      Logger.info("Performing live update on #{length(targets)} instances")
+
+      Logger.info("Performing live update on #{length(targets)} instances",
+        actor_id: new_claims.public_key,
+        oci_ref: oci
+      )
 
       targets
       |> Enum.each(fn pid ->

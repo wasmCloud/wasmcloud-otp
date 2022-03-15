@@ -63,11 +63,15 @@ defmodule HostCore.Providers.ProviderSupervisor do
       )
     else
       {:error, err} ->
-        Logger.error("Error starting provider from OCI: #{err}")
+        Logger.error("Error starting provider from OCI: #{err}",
+          oci_ref: oci,
+          link_name: link_name
+        )
+
         {:error, err}
 
-      _err ->
-        Logger.error("Error starting provider from OCI")
+      err ->
+        Logger.error("Error starting provider from OCI: #{inspect(err)}", oci_ref: oci)
         {:error, "Error starting provider from OCI"}
     end
   end
@@ -96,11 +100,19 @@ defmodule HostCore.Providers.ProviderSupervisor do
       )
     else
       {:error, err} ->
-        Logger.error("Error starting provider from Bindle: #{err}")
+        Logger.error("Error starting provider from Bindle: #{inspect(err)}",
+          bindle_id: bindle_id,
+          link_name: link_name
+        )
+
         {:error, err}
 
-      _err ->
-        Logger.error("Error starting provider from Bindle")
+      err ->
+        Logger.error("Error starting provider from Bindle: #{inspect(err)}",
+          bindle_id: bindle_id,
+          link_name: link_name
+        )
+
         {:error, "Error starting provider from OCI"}
     end
   end
@@ -120,11 +132,11 @@ defmodule HostCore.Providers.ProviderSupervisor do
       )
     else
       {:error, err} ->
-        Logger.error("Error starting provider from file: #{err}")
+        Logger.error("Error starting provider from file: #{err}", link_name: link_name)
         {:error, err}
 
       err ->
-        Logger.error("Error starting provider from file")
+        Logger.error("Error starting provider from file", link_name: link_name)
         {:error, err}
     end
   end
@@ -137,7 +149,11 @@ defmodule HostCore.Providers.ProviderSupervisor do
   def terminate_provider(public_key, link_name) do
     case Registry.lookup(Registry.ProviderRegistry, {public_key, link_name}) do
       [{pid, _val}] ->
-        Logger.info("About to terminate child process")
+        Logger.info("About to terminate child process",
+          provider_id: public_key,
+          link_name: link_name
+        )
+
         prefix = HostCore.Host.lattice_prefix()
 
         # Allow provider 2 seconds to respond/acknowledge termination request (give time to clean up resources)
@@ -156,7 +172,10 @@ defmodule HostCore.Providers.ProviderSupervisor do
         ProviderModule.halt(pid)
 
       [] ->
-        Logger.warn("No provider is running with that public key and link name")
+        Logger.warn("No provider is running with that public key and link name",
+          provider_id: public_key,
+          link_name: link_name
+        )
     end
   end
 

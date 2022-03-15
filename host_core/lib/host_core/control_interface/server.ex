@@ -155,11 +155,14 @@ defmodule HostCore.ControlInterface.Server do
 
         case res do
           {:ok, _pid} ->
-            Logger.debug("Completed request to start actor #{start_actor_command["actor_ref"]}")
+            Logger.debug("Completed request to start actor #{start_actor_command["actor_ref"]}",
+              actor_ref: start_actor_command["actor_ref"]
+            )
 
           {:error, e} ->
             Logger.error(
-              "Failed to start actor #{start_actor_command["actor_ref"]} per remote call"
+              "Failed to start actor #{start_actor_command["actor_ref"]} per remote call",
+              actor_ref: start_actor_command["actor_ref"]
             )
 
             publish_actor_start_failed(start_actor_command["actor_ref"], inspect(e))
@@ -206,7 +209,7 @@ defmodule HostCore.ControlInterface.Server do
         Task.start(fn ->
           case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
             {:error, err} ->
-              Logger.error("Error scaling actor: #{err}")
+              Logger.error("Error scaling actor: #{err}", actor_id: actor_id)
 
             _ ->
               :ok
@@ -400,7 +403,7 @@ defmodule HostCore.ControlInterface.Server do
 
   # FALL THROUGH
   defp handle_request(tuple, _body, _reply_to) do
-    Logger.warn("Unexpected/unhandled lattice control command: #{tuple}")
+    Logger.warn("Unexpected/unhandled lattice control command: #{inspect(tuple)}")
   end
 
   def publish_actor_start_failed(actor_ref, msg) do

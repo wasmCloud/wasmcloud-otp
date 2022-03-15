@@ -173,7 +173,7 @@ defmodule HostCore.Host do
 
   @impl true
   def terminate(reason, state) do
-    Logger.debug("Host termination requested: #{inspect(reason)}")
+    Logger.debug("Host termination requested: #{inspect(reason)}", reason: reason)
     publish_host_stopped(state.labels)
     :timer.sleep(300)
   end
@@ -371,15 +371,15 @@ defmodule HostCore.Host do
   end
 
   def generate_hostinfo_for(provider_key, link_name, instance_id, config_json) do
-    {url, jwt, seed, tls, timeout} =
+    {url, jwt, seed, tls, timeout, structured_logging_enabled} =
       case :ets.lookup(:config_table, :config) do
         [config: config_map] ->
           {"#{config_map[:prov_rpc_host]}:#{config_map[:prov_rpc_port]}",
            config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed], config_map[:prov_rpc_tls],
-           config_map[:rpc_timeout]}
+           config_map[:rpc_timeout], config_map[:enable_structured_logging]}
 
         _ ->
-          {"127.0.0.1:4222", "", "", 2000}
+          {"127.0.0.1:4222", "", "", 2000, false}
       end
 
     lds =
@@ -404,7 +404,9 @@ defmodule HostCore.Host do
       config_json: config_json,
       default_rpc_timeout_ms: timeout,
       cluster_issuers: cluster_issuers(),
-      invocation_seed: cluster_seed()
+      invocation_seed: cluster_seed(),
+      # In case providers want to be aware of this for their own logging
+      structured_logging_enabled: structured_logging_enabled
     }
     |> Jason.encode!()
   end

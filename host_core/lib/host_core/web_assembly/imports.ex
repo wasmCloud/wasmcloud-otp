@@ -99,7 +99,7 @@ defmodule HostCore.WebAssembly.Imports do
     txt = Wasmex.Memory.read_string(context.memory, ptr, len)
 
     if txt != nil do
-      Logger.info("Log from guest: #{txt}")
+      Logger.info("Log from guest (non-actor): #{txt}")
     end
 
     nil

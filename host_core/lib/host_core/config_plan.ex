@@ -50,7 +50,10 @@ defmodule HostCore.ConfigPlan do
           {:allowed_insecure, "WASMCLOUD_OCI_ALLOWED_INSECURE",
            required: false, map: &String.split(&1, ",")},
           {:js_domain, "WASMCLOUD_JS_DOMAIN", required: false},
-          {:config_service_enabled, "WASMCLOUD_CONFIG_SERVICE", required: false}
+          {:config_service_enabled, "WASMCLOUD_CONFIG_SERVICE", required: false},
+          {:enable_structured_logging, "WASMCLOUD_STRUCTURED_LOGGING_ENABLED", required: false},
+          {:structured_log_level, "WASMCLOUD_STRUCTURED_LOG_LEVEL",
+           required: false, map: &string_to_loglevel/1}
         ]
       }
     ]
@@ -82,7 +85,13 @@ defmodule HostCore.ConfigPlan do
       {:allow_latest, "allow_latest", required: false, default: false},
       {:allowed_insecure, "allowed_insecure", required: false, default: []},
       {:js_domain, "js_domain", required: false, default: nil},
-      {:config_service_enabled, "config_service_enabled", required: false, default: ""}
+      {:config_service_enabled, "config_service_enabled", required: false, default: ""},
+      {:enable_structured_logging, "structured_logging_enabled", required: false, default: false},
+      {:structured_log_level, "structured_log_level", required: false, default: :info}
     ]
+  end
+
+  defp string_to_loglevel(s) do
+    s |> String.trim() |> String.downcase() |> String.to_existing_atom()
   end
 end

@@ -57,7 +57,9 @@ defmodule HostCore.Nats do
     if Process.whereis(process_name) != nil do
       Gnat.pub(process_name, topic, msg)
     else
-      Logger.warn("Publication on #{topic} aborted - connection #{process_name} is down")
+      Logger.warn("Publication on #{topic} aborted - connection #{process_name} is down",
+        nats_topic: topic
+      )
     end
   end
 
@@ -66,7 +68,8 @@ defmodule HostCore.Nats do
       Gnat.request(process_name, topic, body, opts)
     else
       Logger.error(
-        "NATS request for #{topic} aborted, connection #{process_name} is down. Returning 'fast timeout'"
+        "NATS request for #{topic} aborted, connection #{process_name} is down. Returning 'fast timeout'",
+        nats_topic: topic
       )
 
       {:error, :timeout}

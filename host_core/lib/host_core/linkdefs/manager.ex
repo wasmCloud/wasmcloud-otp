@@ -57,7 +57,10 @@ defmodule HostCore.Linkdefs.Manager do
 
       :error ->
         Logger.warn(
-          "Attempted to remove non-existent linkdef #{actor}-#{contract_id}-#{link_name}"
+          "Attempted to remove non-existent linkdef #{actor}-#{contract_id}-#{link_name}",
+          actor_id: actor,
+          contract_id: contract_id,
+          link_name: link_name
         )
     end
   end
