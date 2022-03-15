@@ -131,6 +131,7 @@ RUN apt update && \
   curl \
   locales \
   libssl-dev \
+  inotify-tools \
   procps && \
   export LANG=en_US.UTF-8 && \
     echo $LANG UTF-8 > /etc/locale.gen && \
