@@ -2,6 +2,25 @@ apiVersion: v1
 entries:
   wasmcloud-host:
   - apiVersion: v2
+    appVersion: 0.53.0
+    created: "2022-03-15T14:36:45.706189-06:00"
+    description: A Helm chart for running wasmCloud hosts on Kubernetes
+    digest: 9a27000d40e0114cfdbe73ec0c26bcf73c02770d894573460a333c738adf3640
+    home: https://wasmcloud.dev
+    icon: https://github.com/wasmCloud/wasmcloud.com-dev/raw/main/static/images/wasmcloud-logo.png
+    keywords:
+    - wasm
+    - Wasm
+    - wasmCloud
+    - wasmcloud
+    name: wasmcloud-host
+    sources:
+    - https://github.com/wasmCloud/wasmcloud-otp
+    type: application
+    urls:
+    - https://github.com/wasmCloud/wasmcloud-otp/releases/download/wasmcloud-host-0.4.0/wasmcloud-host-0.4.0.tgz
+    version: 0.4.0
+  - apiVersion: v2
     appVersion: 0.51.4
     created: "2021-12-21T19:35:25.216720654Z"
     description: A Helm chart for running wasmCloud hosts on Kubernetes
@@ -115,4 +134,4 @@ entries:
     urls:
     - https://github.com/wasmCloud/wasmcloud-otp/releases/download/wasmcloud-host-0.1.0/wasmcloud-host-0.1.0.tgz
     version: 0.1.0
-generated: "2021-12-21T19:35:25.216749656Z"
+generated: "2022-03-15T14:36:45.706211-06:00"
