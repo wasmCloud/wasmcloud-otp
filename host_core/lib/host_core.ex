@@ -13,11 +13,23 @@ defmodule HostCore do
 
     opts = [strategy: :one_for_one, name: HostCore.Supervisor]
 
+    started = Supervisor.start_link(children, opts)
+
+    if config.enable_structured_logging do
+      :logger.add_handler(:structured_logger, :logger_std_h, %{
+        formatter: {HostCore.StructuredLogger.FormatterJson, []},
+        level: config.structured_log_level
+      })
+
+      :logger.remove_handler(Logger)
+    end
+
     Logger.info(
-      "Starting wasmCloud OTP Host Runtime v#{Application.spec(:host_core, :vsn) |> to_string()}"
+      "Started wasmCloud OTP Host Runtime",
+      version: "#{Application.spec(:host_core, :vsn) |> to_string()}"
     )
 
-    Supervisor.start_link(children, opts)
+    started
   end
 
   defp mount_supervisor_tree(config) do
@@ -95,7 +107,7 @@ defmodule HostCore do
 
           {:error, _err} ->
             Logger.error(
-              "Failed to obtain host public key from seed: #{config.host_seed}. Using new host key."
+              "Failed to obtain host public key from seed: (#{config.host_seed}). Using new host key."
             )
 
             HostCore.WasmCloud.Native.generate_key(:server)
@@ -120,7 +132,7 @@ defmodule HostCore do
 
     if config.js_domain != nil && String.valid?(config.js_domain) &&
          String.length(config.js_domain) > 1 do
-      Logger.info("Using JetStream domain: #{config.js_domain}")
+      Logger.info("Using JetStream domain: #{config.js_domain}", js_domain: "#{config.js_domain}")
     end
 
     {def_cluster_key, def_cluster_seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
@@ -222,6 +234,8 @@ defmodule HostCore do
     |> Map.delete(:cluster_adhoc)
     |> Map.delete(:cache_deliver_inbox)
     |> Map.delete(:host_seed)
+    |> Map.delete(:enable_structured_logging)
+    |> Map.delete(:structured_log_level)
     |> Map.delete(:host_key)
   end
 

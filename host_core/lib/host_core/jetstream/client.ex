@@ -58,7 +58,7 @@ defmodule HostCore.Jetstream.Client do
 
         {:error, :timeout} ->
           Logger.error(
-            "Failed to receive create stream ACK from JetStream. Is JetStream enabled?"
+            "Failed to receive create stream ACK from JetStream within timeout. Is JetStream enabled?"
           )
 
           false
@@ -73,7 +73,7 @@ defmodule HostCore.Jetstream.Client do
 
   @impl true
   def handle_continue(:create_eph_consumer, state) do
-    Logger.info("Attempting to create ephemeral consumer (cache loader)")
+    Logger.info("Attempting to create ephemeral consumer (cache loader)", js_domain: state.domain)
     stream_name = "LATTICECACHE_#{state.lattice_prefix}"
     consumer_name = String.replace(state.deliver_subject, "_INBOX.", "")
 
@@ -106,7 +106,7 @@ defmodule HostCore.Jetstream.Client do
         handle_consumer_create_response(body |> Jason.decode!())
 
       {:error, :timeout} ->
-        Logger.error("Failed to receive create consumer ACK from JetStream.")
+        Logger.error("Failed to receive create consumer ACK from JetStream within timeout.")
         false
     end
 

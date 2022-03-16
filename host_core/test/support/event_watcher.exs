@@ -26,7 +26,7 @@ defmodule HostCoreTest.EventWatcher do
         Logger.debug("Purged NATS stream for events watcher")
 
       {:error, :timeout} ->
-        Logger.error("Failed to purge NATS stream for events watcher")
+        Logger.error("Failed to purge NATS stream for events watcher within timeout")
     end
 
     # Purge all resources from ETS to avoid leftover information

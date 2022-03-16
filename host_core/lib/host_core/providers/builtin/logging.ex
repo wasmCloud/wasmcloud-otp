@@ -7,11 +7,11 @@ defmodule HostCore.Providers.Builtin.Logging do
     text = "[#{actor}] #{msg["text"]}"
 
     case msg["level"] do
-      "error" -> Logger.error(text)
-      "info" -> Logger.info(text)
-      "warn" -> Logger.warn(text)
-      "debug" -> Logger.debug(text)
-      _ -> Logger.debug(text)
+      "error" -> Logger.error(text, actor_id: actor)
+      "info" -> Logger.info(text, actor_id: actor)
+      "warn" -> Logger.warn(text, actor_id: actor)
+      "debug" -> Logger.debug(text, actor_id: actor)
+      _ -> Logger.debug(text, actor_id: actor)
     end
 
     nil

@@ -97,7 +97,10 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def handle_call({:live_update, bytes, claims, oci}, _from, agent) do
-    Logger.debug("Actor #{claims.public_key} performing live update")
+    Logger.debug("Actor #{claims.public_key} performing live update",
+      actor_id: claims.public_key,
+      oci_ref: oci
+    )
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
@@ -126,7 +129,12 @@ defmodule HostCore.Actors.ActorModule do
     Wasmex.call_function(instance, :wapc_init, [])
 
     publish_actor_updated(claims.public_key, claims.revision, instance_id)
-    Logger.debug("Actor #{claims.public_key} live update complete")
+
+    Logger.debug("Actor #{claims.public_key} live update complete",
+      actor_id: claims.public_key,
+      oci_ref: oci
+    )
+
     {:reply, :ok, agent}
   end
 
@@ -159,9 +167,9 @@ defmodule HostCore.Actors.ActorModule do
   @impl true
   def handle_call(:halt_and_cleanup, _from, agent) do
     # Add cleanup if necessary here...
-    Logger.debug("Actor instance termination requested")
     subscription = Agent.get(agent, fn content -> content.subscription end)
     public_key = Agent.get(agent, fn content -> content.claims.public_key end)
+    Logger.debug("Actor instance termination requested", actor_id: public_key)
     instance_id = Agent.get(agent, fn content -> content.instance_id end)
 
     Gnat.unsub(:lattice_nats, subscription)
@@ -193,7 +201,9 @@ defmodule HostCore.Actors.ActorModule do
       with {:ok, inv} <- Msgpax.unpack(body) do
         case HostCore.WasmCloud.Native.validate_antiforgery(body, HostCore.Host.cluster_issuers()) do
           {:error, msg} ->
-            Logger.error("Invocation failed anti-forgery validation check: #{msg}")
+            Logger.error("Invocation failed anti-forgery validation check: #{msg}",
+              invocation_id: inv["id"]
+            )
 
             {%{
                msg: nil,
@@ -223,7 +233,7 @@ defmodule HostCore.Actors.ActorModule do
                  |> chunk_inv_response(), inv}
 
               {:error, error} ->
-                Logger.error("Invocation failure: #{error}")
+                Logger.error("Invocation failure: #{error}", invocation_id: inv["id"])
 
                 {%{
                    msg: nil,
@@ -279,7 +289,10 @@ defmodule HostCore.Actors.ActorModule do
   # the size of the `msg` binary is 0
   defp check_dechunk_inv(inv_id, content_length, bytes) do
     if content_length > byte_size(bytes) do
-      Logger.debug("Dechunking #{content_length} from object store for #{inv_id}")
+      Logger.debug("Dechunking #{content_length} from object store for #{inv_id}",
+        invocation_id: inv_id
+      )
+
       HostCore.WasmCloud.Native.dechunk_inv(inv_id)
     else
       bytes
@@ -287,7 +300,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp start_actor(claims, bytes, oci) do
-    Logger.info("Starting actor #{claims.public_key}")
+    Logger.info("Starting actor #{claims.public_key}", actor_id: claims.public_key, oci_ref: oci)
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.Claims.Manager.put_claims(claims)
 
@@ -315,7 +328,7 @@ defmodule HostCore.Actors.ActorModule do
         {:ok, agent}
 
       {:error, e} ->
-        Logger.error("Failed to start actor: #{inspect(e)}")
+        Logger.error("Failed to start actor: #{inspect(e)}", actor_id: claims.public_key)
         HostCore.ControlInterface.Server.publish_actor_start_failed(claims.public_key, inspect(e))
         {:error, e}
     end
@@ -337,8 +350,12 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp perform_invocation({agent, true}, operation, payload) do
-    Logger.debug("performing invocation #{operation}")
     raw_state = Agent.get(agent, fn content -> content end)
+
+    Logger.debug("performing invocation #{operation}",
+      operation: operation,
+      actor_id: raw_state.claims.public_key
+    )
 
     raw_state = %State{
       raw_state
@@ -362,8 +379,11 @@ defmodule HostCore.Actors.ActorModule do
     |> to_guest_call_result(agent)
   end
 
-  defp perform_invocation({_agent, false}, _operation, _payload) do
-    Logger.error("Actor does not have proper capabilities to receive this invocation")
+  defp perform_invocation({_agent, false}, operation, _payload) do
+    Logger.error("Actor does not have proper capabilities to receive this invocation",
+      operation: operation
+    )
+
     {:error, "actor is missing capability claims"}
   end
 
