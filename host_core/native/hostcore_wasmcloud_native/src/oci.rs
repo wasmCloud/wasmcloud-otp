@@ -58,8 +58,7 @@ pub(crate) async fn fetch_oci_path(
                 let content = imgdata
                     .layers
                     .into_iter()
-                    .map(|l| l.data)
-                    .flatten()
+                    .flat_map(|l| l.data)
                     .collect::<Vec<_>>();
                 f.write_all(&content).await?;
                 f.flush().await?;
@@ -76,9 +75,9 @@ async fn cached_file(img: &str) -> std::io::Result<PathBuf> {
     let path = path.join("wasmcloud_ocicache");
     ::tokio::fs::create_dir_all(&path).await?;
     // should produce a file like wasmcloud_azurecr_io_kvcounter_v1.bin
-    let img = img.replace(":", "_");
-    let img = img.replace("/", "_");
-    let img = img.replace(".", "_");
+    let img = img.replace(':', "_");
+    let img = img.replace('/', "_");
+    let img = img.replace('.', "_");
     let mut path = path.join(img);
     path.set_extension("bin");
 

@@ -600,12 +600,15 @@ fn get_nats_connection(config: &HashMap<String, String>) -> Result<Connection, E
     let host = config
         .get("host")
         .cloned()
-        .unwrap_or("127.0.0.1".to_string());
-    let port = config.get("port").cloned().unwrap_or("4222".to_string());
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+    let port = config
+        .get("port")
+        .cloned()
+        .unwrap_or_else(|| "4222".to_string());
     let nats_url = format!("{}:{}", host, port);
 
     let nc = match (config.get("jwt").cloned(), config.get("seed").cloned()) {
-        (Some(jwt), Some(seed)) if jwt.len() > 0 && seed.len() > 0 => {
+        (Some(jwt), Some(seed)) if !jwt.is_empty() && !seed.is_empty() => {
             let kp = KeyPair::from_seed(&seed).map_err(to_rustler_err)?;
             nats::Options::with_jwt(
                 move || Ok(jwt.clone()),
