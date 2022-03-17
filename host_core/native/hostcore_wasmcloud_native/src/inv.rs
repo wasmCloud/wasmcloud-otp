@@ -173,7 +173,7 @@ impl Invocation {
         // via object store. This is an optimization that helps us not have to run
         // through the same set of bytes twice. The object store internals have their
         // own hash mechanisms so we'll know the chunked bytes haven't been manipulated
-        if self.msg.len() > 0 && inv_claims.invocation_hash != self.hash() {
+        if !self.msg.is_empty() && inv_claims.invocation_hash != self.hash() {
             let s = format!(
                 "Invocation hash does not match signed claims hash ({} / {})",
                 inv_claims.invocation_hash,
@@ -215,10 +215,10 @@ impl WasmCloudEntity {
                 "{}://{}/{}/{}",
                 URL_SCHEME,
                 self.contract_id
-                    .replace(":", "/")
-                    .replace(" ", "_")
+                    .replace(':', "/")
+                    .replace(' ', "_")
                     .to_lowercase(),
-                self.link_name.replace(" ", "_").to_lowercase(),
+                self.link_name.replace(' ', "_").to_lowercase(),
                 self.public_key
             )
         }
