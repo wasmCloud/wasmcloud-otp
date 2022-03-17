@@ -133,7 +133,7 @@ fn set_chunking_connection_config(config: HashMap<String, String>) -> Result<Ato
     let lattice = config
         .get("lattice")
         .cloned()
-        .unwrap_or("default".to_string());
+        .unwrap_or_else(|| "default".to_string());
     let store = objstore::create_or_reuse_store(&js, &lattice).map_err(to_rustler_err)?;
 
     *CHUNKING_STORE.write().unwrap() = Some(store);
@@ -515,7 +515,7 @@ fn generate_invocation_bytes(
         msg.as_slice().to_vec(),
     );
     if msg.len() > CHONKY_THRESHOLD_BYTES {
-        inv.msg = vec![];        
+        inv.msg = vec![];
         objstore::chonk_to_object_store(&inv.id, &mut msg.as_slice())?;
     }
     Ok(inv::serialize(&inv).unwrap())

@@ -147,7 +147,7 @@ defmodule HostCore do
 
     chunk_config =
       if config.js_domain != nil do
-        Map.put(config, "js_domain", config.js_domain)
+        Map.put(chunk_config, "js_domain", config.js_domain)
       else
         chunk_config
       end
