@@ -14,6 +14,7 @@ jobs:
     env:
       MIX_ENV: prod
       working-directory: wasmcloud_host
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
 
     steps:
       - name: Checkout
@@ -41,6 +42,30 @@ jobs:
 
       - name: Determine version
         run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+
+      # Install erlang/OTP and elixir
+      - name: Install erlang and elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "=24"
+          elixir-version: "1.12"
+          install-hex: true
+          install-rebar: true
+
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix local.rebar --force 
+          mix local.hex --force
+          mix deps.get
+
+      - name: Compile Phoenix Assets
+        working-directory: ${{env.working-directory}}
+        # esbuild + dart sass are only included in the dev runtime environment
+        env:
+          MIX_ENV: dev
+        run: |
+          make esbuild
 
       - name: Build and release docker image
         uses: docker/build-push-action@v2
