@@ -89,11 +89,6 @@ RUN mix local.rebar --force && \
 WORKDIR ./wasmcloud_host
 RUN mix do deps.compile, compile
 
-# This step builds assets for the Phoenix app
-RUN if [ ! "$SKIP_PHOENIX" = "true" ]; then \
-  MIX_ENV=dev make esbuild; \
-fi
-
 RUN mkdir -p /opt/built && \
   mix distillery.release --verbose && \
   cp _build/${MIX_ENV}/rel/${APP_NAME}/releases/${APP_VSN}/${APP_NAME}.tar.gz /opt/built && \
