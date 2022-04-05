@@ -8,8 +8,7 @@ This is the web UI dashboard that provides for a basic way to interact with a ho
 
 - [Elixir installation](https://elixir-lang.org/install.html), minimum `v1.12.0`
 - [Erlang/OTP installation](https://elixir-lang.org/install.html#installing-erlang), minimum `OTP 22`
-- [NATS installation](https://docs.nats.io/nats-server/installation), minimum `v2.3.4`
-- [Node/NPM installation](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), recommended node `14`
+- [NATS installation](https://docs.nats.io/nats-server/installation), minimum `v2.7.2`
 
 ## Starting the Host and Web UI Dashboard
 
@@ -21,7 +20,7 @@ nats-server -js &
 
 # install dependencies
 mix deps.get
-npm --prefix ./assets install ./assets
+make esbuild
 
 # start the host
 mix phx.server

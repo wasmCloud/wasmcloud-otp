@@ -30,6 +30,30 @@ config :mime, :types, %{
   "application/gzip" => ["gz"]
 }
 
+# Configure esbuild (the version is required)
+config :esbuild,
+  version: "0.12.18",
+  default: [
+    args: [
+      "js/app.js",
+      "--bundle",
+      "--target=es2016",
+      "--outdir=../priv/static/assets",
+      "--inject:vendor/@coreui/coreui-pro/js/coreui.bundle.min.js",
+      "--inject:vendor/phoenix/enable-topbar.js",
+      "--inject:vendor/wasmcloud/js/extra.js",
+      "--inject:vendor/wasmcloud/js/popovers.js",
+      "--inject:vendor/wasmcloud/js/tooltips.js",
+      "--external:/static/*"
+    ],
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+  ]
+
+# Configure Dart for scss support
+config :dart_sass,
+  version: "1.49.0"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"

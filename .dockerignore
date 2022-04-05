@@ -1,0 +1,11 @@
+*/_build/
+*/.elixir_ls/
+*/deps/
+*/.git/
+*/.gitignore
+*/Dockerfile
+*/Makefile
+*/README*
+*/test/
+*/target/debug/
+*/target/release/
