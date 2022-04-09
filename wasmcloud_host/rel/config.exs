@@ -7,6 +7,8 @@
 |> Path.wildcard()
 |> Enum.map(&Code.eval_file(&1))
 
+import Config
+
 use Distillery.Releases.Config,
   # This sets the default release built by `mix distillery.release`
   default_release: :default,
