@@ -48,7 +48,7 @@ jobs:
         uses: erlef/setup-beam@v1
         with:
           otp-version: "=24"
-          elixir-version: "1.12"
+          elixir-version: "1.13.3"
           install-hex: true
           install-rebar: true
 
@@ -76,7 +76,7 @@ jobs:
           file: ${{env.working-directory}}/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
-            BUILDER_IMAGE=elixir:1.12.2-slim
+            BUILDER_IMAGE=elixir:1.13.3-slim
             RELEASE_IMAGE=debian:buster-slim
             APP_NAME=wasmcloud_host
             APP_VSN=${{ env.wasmcloud_host_version }}
@@ -125,8 +125,8 @@ jobs:
     env:
       working-directory: ${{ matrix.working-directory }}
       MIX_ENV: prod
-      ERLANG_VERSION: 24.0.3
-      ELIXIR_VERSION: 1.12.2
+      ERLANG_VERSION: 24
+      ELIXIR_VERSION: 1.13.3
       SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
 
     steps:
@@ -145,7 +145,7 @@ jobs:
         uses: erlef/setup-beam@v1
         with:
           otp-version: "=24"
-          elixir-version: "1.12"
+          elixir-version: "1.13.3"
           install-hex: true
           install-rebar: true
       - name: Install erlang and elixir
