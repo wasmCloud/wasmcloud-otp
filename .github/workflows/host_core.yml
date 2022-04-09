@@ -24,10 +24,11 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Setup elixir
-        uses: actions/setup-elixir@v1
+        uses: actions/setup-elixir@v1.5
         with:
           elixir-version: ${{ matrix.elixir }} # Define the elixir version [required]
           otp-version: ${{ matrix.otp }} # Define the OTP version [required]
+          experimental-otp: true # experimental flag required for ubuntu 20.04
 
       - name: Retrieve Mix Dependencies Cache
         uses: actions/cache@v2
