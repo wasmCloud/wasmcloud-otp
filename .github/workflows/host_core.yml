@@ -62,6 +62,7 @@ jobs:
           EXTRA_TEST_ARGS: "--timeout 120000"
         run: |
           WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
+          WASMCLOUD_RPC_TIMEOUT_MS=3000 \
           make test
 
       - name: Retrieve PLT Cache
