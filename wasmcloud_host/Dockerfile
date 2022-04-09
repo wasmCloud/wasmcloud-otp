@@ -102,7 +102,7 @@ RUN mkdir -p /opt/built && \
 ##
 
 # Release image should be the same as the _base container image_ used for the builder.
-# E.g. `elixir:1.12.2-alpine`'s base container image is `alpine:3.14'
+# E.g. `elixir:1.13.3-alpine`'s base container image is `alpine:3.15.4'
 FROM ${RELEASE_IMAGE}
 
 ARG APP_NAME

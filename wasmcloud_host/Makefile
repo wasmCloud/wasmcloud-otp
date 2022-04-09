@@ -20,7 +20,7 @@ help:  ## Display this help
 build-image: build esbuild ## Build docker image for running, testing, or distribution
 	cd ../ && \
 	docker build $(BASE_ARGS) \
-		--build-arg BUILDER_IMAGE=elixir:1.12.2-slim \
+		--build-arg BUILDER_IMAGE=elixir:1.13.3-slim \
 		--build-arg RELEASE_IMAGE=debian:buster-slim  \
 		$(BASE_TAGS) \
 		-f $(DOCKERFILE) \
@@ -29,7 +29,7 @@ build-image: build esbuild ## Build docker image for running, testing, or distri
 build-arm-image: build esbuild ## Build arm64 docker image for running, testing, or distribution
 	cd ../ && \
 	docker buildx build $(BASE_ARGS) \
-		--build-arg BUILDER_IMAGE=elixir:1.12.2-slim \
+		--build-arg BUILDER_IMAGE=elixir:1.13.3-slim \
 		--build-arg RELEASE_IMAGE=debian:buster-slim \
 		-t wasmcloud_host:arm64 \
 		--platform linux/arm64 \
