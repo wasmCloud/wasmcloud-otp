@@ -7,7 +7,7 @@ defmodule HostCore.MixProject do
     [
       app: :host_core,
       version: @app_vsn,
-      elixir: "~> 1.12",
+      elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       rustler_crates: [
@@ -30,9 +30,9 @@ defmodule HostCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:wasmex, "~> 0.5.0"},
+      {:wasmex, "~> 0.7.0"},
       {:msgpax, "~> 2.3"},
-      {:rustler, "~> 0.22.0"},
+      {:rustler, "~> 0.24.0"},
       {:jason, "~> 1.2.2"},
       {:gnat, "~> 1.2"},
       {:cloudevents, "~> 0.4.0"},
