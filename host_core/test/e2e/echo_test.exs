@@ -94,7 +94,7 @@ defmodule HostCore.E2E.EchoTest do
              @httpserver_contract,
              @httpserver_link,
              @httpserver_key,
-             %{PORT: "8084"}
+             %{PORT: "8884"}
            ) == :ok
 
     {:ok, _pid} =
@@ -117,11 +117,11 @@ defmodule HostCore.E2E.EchoTest do
              @httpserver_contract,
              @httpserver_link,
              @httpserver_key,
-             %{PORT: "8084"}
+             %{PORT: "8884"}
            ) == :ok
 
     {:ok, _okay} = HTTPoison.start()
-    {:ok, resp} = request_http("http://localhost:8084/foobar", 10)
+    {:ok, resp} = request_http("http://localhost:8884/foobar", 10)
 
     assert resp.body == ""
     assert resp.status_code == 500
