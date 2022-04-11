@@ -32,7 +32,7 @@ defmodule DefineLinkComponent do
         value_list ->
           value_list
           |> String.split(",")
-          |> Enum.flat_map(fn s -> String.split(s, "=") end)
+          |> Enum.flat_map(fn s -> String.split(s, "=", parts: 2) end)
           |> Enum.chunk_every(2)
           |> Enum.map(fn [a, b] -> {a, b} end)
           |> Map.new()
