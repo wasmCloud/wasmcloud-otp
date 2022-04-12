@@ -175,7 +175,9 @@ defmodule HostCore.Host do
   def terminate(reason, state) do
     Logger.debug("Host termination requested: #{inspect(reason)}", reason: reason)
     publish_host_stopped(state.labels)
+    purge()
     :timer.sleep(300)
+    :init.stop()
   end
 
   defp get_env_host_labels() do
