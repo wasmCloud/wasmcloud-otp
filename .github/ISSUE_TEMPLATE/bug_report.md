@@ -32,7 +32,7 @@ If you ran into this issue while developing a feature for wasmCloud:
  ```
  Erlang/OTP 24 [erts-12.3.1] [source] [64-bit] [smp:10:10] [ds:10:10:10] [async-threads:1] [dtrace]
 
-Elixir 1.13.4 (compiled with Erlang/OTP 24)
+Elixir 1.13.3 (compiled with Erlang/OTP 24)
  ```
  - Output of `cargo --version` e.g.:
  ```
