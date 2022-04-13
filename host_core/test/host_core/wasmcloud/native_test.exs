@@ -3,7 +3,7 @@ defmodule HostCore.WasmCloud.NativeTest do
   @kvcounter_key HostCoreTest.Constants.kvcounter_key()
   @echo_oci HostCoreTest.Constants.echo_ociref()
   @echo_key HostCoreTest.Constants.echo_key()
-  @httpserver_zero_revision_oci "wasmcloud.azurecr.io/httpserver:0.14.0"
+  @httpserver_zero_revision_oci "wasmcloud.azurecr.io/httpserver:0.15.0"
 
   @httpserver_key HostCoreTest.Constants.httpserver_key()
   @httpserver_link HostCoreTest.Constants.default_link()
@@ -21,7 +21,7 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
-    assert par.claims.version == "0.14.10"
+    assert par.claims.version == "0.15.0"
 
     stat =
       File.stat!(
@@ -130,7 +130,7 @@ defmodule HostCore.WasmCloud.NativeTest do
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
-    assert par.claims.revision == 1_631_292_694
+    assert par.claims.revision == 1_646_188_953
 
     {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(nil, @kvcounter_oci, false, [])
     bytes = bytes |> IO.iodata_to_binary()
