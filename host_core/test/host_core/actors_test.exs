@@ -167,7 +167,14 @@ defmodule HostCore.ActorsTest do
 
     assert res != :fail
     ir = res |> Msgpax.unpack!()
-    ir = Map.put(ir, "msg", HostCore.WasmCloud.Native.dechunk_inv("#{ir["invocation_id"]}-r"))
+
+    ir =
+      case HostCore.WasmCloud.Native.dechunk_inv("#{ir["invocation_id"]}-r") do
+        {:ok, resp} -> Map.put(ir, "msg", resp)
+        {:error, _e} -> :fail
+      end
+
+    assert ir != :fail
 
     # NOTE: this is using "magic knowledge" that the HTTP server provider is using
     # msgpack to communicate with actors

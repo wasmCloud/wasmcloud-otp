@@ -273,7 +273,7 @@ defmodule HostCore.Actors.ActorModule do
        )
        when byte_size(response) > 700 * 1024 do
     with :ok <- HostCore.WasmCloud.Native.chunk_inv("#{invid}-r", response) do
-      %{map | msg: nil}
+      %{map | msg: <<>>}
     else
       _ ->
         map
@@ -293,7 +293,15 @@ defmodule HostCore.Actors.ActorModule do
         invocation_id: inv_id
       )
 
-      HostCore.WasmCloud.Native.dechunk_inv(inv_id)
+      case HostCore.WasmCloud.Native.dechunk_inv(inv_id) do
+        {:ok, bytes} ->
+          bytes
+
+        {:error, e} ->
+          Logger.error("Failed to dechunk invocation response: #{inspect(e)}")
+
+          <<>>
+      end
     else
       bytes
     end
