@@ -424,15 +424,18 @@ defmodule HostCore.WebAssembly.Imports do
         ir = res |> Msgpax.unpack!()
 
         if ir["error"] == nil do
-          {1, :host_response, check_dechunk(ir)}
+          {1, :host_response, check_dechunk(ir) |> IO.iodata_to_binary()}
         else
           {0, :host_error, ir["error"]}
         end
     end
   end
 
+  defp safe_bsize(nil), do: 0
+  defp safe_bsize(b) when is_binary(b), do: byte_size(b)
+
   defp check_dechunk(ir) do
-    bsize = byte_size(Map.get(ir, "msg", <<>>))
+    bsize = safe_bsize(Map.get(ir, "msg", <<>>))
     invid = "#{ir["invocation_id"]}-r"
 
     # if declared content size is greater than the actual (e.g. empty payload) then
@@ -441,8 +444,12 @@ defmodule HostCore.WebAssembly.Imports do
          {:ok, bytes} <- HostCore.WasmCloud.Native.dechunk_inv(invid) do
       bytes
     else
+      {:error, e} ->
+        Logger.error("Failed to dechunk invocation response: #{inspect(e)}")
+        <<>>
+
       _ ->
-        ir["msg"]
+        Map.get(ir, "msg", <<>>)
     end
   end
 
@@ -455,7 +462,7 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp host_response_len(_api_type, _context, agent) do
     if (hr = Agent.get(agent, fn content -> content.host_response end)) != nil do
-      byte_size(hr)
+      safe_bsize(hr)
     else
       0
     end
@@ -470,7 +477,7 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp host_error_len(_api_type, _context, agent) do
     if (he = Agent.get(agent, fn content -> content.host_error end)) != nil do
-      byte_size(he)
+      safe_bsize(he)
     else
       0
     end

@@ -480,8 +480,8 @@ fn generate_key(key_type: KeyType) -> Result<(String, String), Error> {
 }
 
 #[rustler::nif(schedule = "DirtyIo")]
-fn dechunk_inv(inv_id: String) -> Result<Vec<u8>, Error> {
-    objstore::unchonk_from_object_store(&inv_id)
+fn dechunk_inv(inv_id: String) -> Result<(Atom, Vec<u8>), Error> {
+    Ok((atoms::ok(), objstore::unchonk_from_object_store(&inv_id)?))
 }
 
 #[rustler::nif(schedule = "DirtyIo")]
