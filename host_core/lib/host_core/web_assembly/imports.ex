@@ -13,6 +13,14 @@ defmodule HostCore.WebAssembly.Imports do
   @chunk_threshold 700 * 1024
   @chunk_rpc_timeout 15000
 
+  def fake_wasi(_agent) do
+    %{
+      fd_write:
+        {:fn, [:i32, :i32, :i32, :i32], [:i32],
+         fn context, _a, _b, _c, _d -> suppress_fdwrite() end}
+    }
+  end
+
   def wapc_imports(agent) do
     %{
       __host_call:
@@ -93,6 +101,10 @@ defmodule HostCore.WebAssembly.Imports do
       __host_error_len:
         {:fn, [], [:i32], fn context -> host_error_len(:wasmbus, context, agent) end}
     }
+  end
+
+  defp suppress_fdwrite() do
+    Logger.debug("Suppressed actor module call to WASI fd_write")
   end
 
   defp console_log(_api_type, context, ptr, len) do
