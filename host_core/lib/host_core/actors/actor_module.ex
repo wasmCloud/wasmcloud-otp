@@ -309,7 +309,8 @@ defmodule HostCore.Actors.ActorModule do
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
-      wasmbus: Imports.wasmbus_imports(agent)
+      wasmbus: Imports.wasmbus_imports(agent),
+      wasi_snapshot_preview1: Imports.fake_wasi(agent)
     }
 
     case Wasmex.start_link(%{bytes: bytes, imports: imports}) |> prepare_module(agent, oci) do
@@ -418,6 +419,8 @@ defmodule HostCore.Actors.ActorModule do
         end
 
       {:error, reason} ->
+        Logger.debug("Actor health check failed: #{reason}")
+
         if Agent.get(agent, fn contents -> contents.healthy end) do
           publish_check_failed(agent, reason)
           Agent.update(agent, fn contents -> %State{contents | healthy: false} end)
@@ -438,8 +441,19 @@ defmodule HostCore.Actors.ActorModule do
 
     claims = Agent.get(agent, fn content -> content.claims end)
     instance_id = Agent.get(agent, fn content -> content.instance_id end)
-    Wasmex.call_function(instance, :start, [])
-    Wasmex.call_function(instance, :wapc_init, [])
+
+    if Wasmex.function_exists(instance, :start) do
+      Wasmex.call_function(instance, :start, [])
+    end
+
+    if Wasmex.function_exists(instance, :wapc_init) do
+      Wasmex.call_function(instance, :wapc_init, [])
+    end
+
+    # TinyGo exports `main` as `_start`
+    if Wasmex.function_exists(instance, :_start) do
+      Wasmex.call_function(instance, :_start, [])
+    end
 
     Agent.update(agent, fn content ->
       %State{content | api_version: api_version, instance: instance}
