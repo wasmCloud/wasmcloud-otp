@@ -138,4 +138,4 @@ ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
     WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
     WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
 
-CMD trap 'exit' INT; /opt/app/bin/wasmcloud_host foreground
+CMD ["/opt/app/bin/wasmcloud_host", "foreground"]
