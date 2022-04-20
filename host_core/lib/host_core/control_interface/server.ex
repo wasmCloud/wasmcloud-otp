@@ -232,30 +232,39 @@ defmodule HostCore.ControlInterface.Server do
          true <-
            ["provider_ref", "link_name"]
            |> Enum.all?(&Map.has_key?(start_provider_command, &1)) do
-      Task.start(fn ->
-        res =
-          if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
-            start_provider_from_bindle(
-              start_provider_command["provider_ref"],
-              start_provider_command["link_name"],
-              Map.get(start_provider_command, "configuration", "")
-            )
-          else
-            start_provider_from_oci(
-              start_provider_command["provider_ref"],
-              start_provider_command["link_name"],
-              Map.get(start_provider_command, "configuration", "")
-            )
+      if !HostCore.Providers.ProviderSupervisor.provider_running?(
+           start_provider_command["provider_ref"],
+           start_provider_command["link_name"]
+         ) do
+        Task.start(fn ->
+          res =
+            if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
+              start_provider_from_bindle(
+                start_provider_command["provider_ref"],
+                start_provider_command["link_name"],
+                Map.get(start_provider_command, "configuration", "")
+              )
+            else
+              start_provider_from_oci(
+                start_provider_command["provider_ref"],
+                start_provider_command["link_name"],
+                Map.get(start_provider_command, "configuration", "")
+              )
+            end
+
+          case res do
+            {:ok, _pid} ->
+              Logger.debug("Completed request to start provider")
+
+            {:error, e} ->
+              publish_provider_start_failed(start_provider_command, inspect(e))
           end
-
-        case res do
-          {:ok, _pid} ->
-            Logger.debug("Completed request to start provider")
-
-          {:error, e} ->
-            publish_provider_start_failed(start_provider_command, inspect(e))
-        end
-      end)
+        end)
+      else
+        Logger.warn(
+          "Ignoring request to start provider, provider #{start_provider_command["provider_ref"]}/#{start_provider_command["link_name"]} is already running"
+        )
+      end
 
       {:reply, success_ack()}
     else
@@ -377,15 +386,17 @@ defmodule HostCore.ControlInterface.Server do
          true <-
            ["constraints", "provider_ref"]
            |> Enum.all?(&Map.has_key?(auction_request, &1)) do
+
       host_labels = HostCore.Host.host_labels()
       required_labels = auction_request["constraints"]
+      provider_ref = auction_request["provider_ref"]
+      link_name = Map.get(auction_request, "link_name", "default")
 
-      # TODO - don't answer this request if we're already running a provider
-      # that matches this link_name and ref.
-      if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) do
+      if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) &&
+           !HostCore.Providers.ProviderSupervisor.provider_running?(provider_ref, link_name) do
         ack = %{
-          provider_ref: auction_request["provider_ref"],
-          link_name: Map.get(auction_request, "link_name", "default"),
+          provider_ref: provider_ref,
+          link_name: link_name,
           constraints: auction_request["constraints"],
           host_id: HostCore.Host.host_key()
         }
