@@ -52,7 +52,7 @@ defmodule WasmcloudHost.MixProject do
       {:distillery, "~> 2.0"},
       {:file_system, "~> 0.2"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false}
     ]
   end
 

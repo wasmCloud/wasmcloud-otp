@@ -14,20 +14,21 @@ jobs:
   build:
     strategy:
       matrix:
-        elixir: [1.12.1]
-        otp: [22.0, 23.0, 23.3.4.1, 24.0]
+        elixir: [1.13.3]
+        otp: [23.0, 23.3.4.1, 24.0]
 
     name: Build and test
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Setup elixir
-        uses: actions/setup-elixir@v1
+        uses: actions/setup-elixir@v1.5
         with:
           elixir-version: ${{ matrix.elixir }} # Define the elixir version [required]
           otp-version: ${{ matrix.otp }} # Define the OTP version [required]
+          experimental-otp: true # experimental flag required for ubuntu 20.04
 
       - name: Retrieve Mix Dependencies Cache
         uses: actions/cache@v2
@@ -61,6 +62,7 @@ jobs:
           EXTRA_TEST_ARGS: "--timeout 120000"
         run: |
           WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
+          WASMCLOUD_RPC_TIMEOUT_MS=3000 \
           make test
 
       - name: Retrieve PLT Cache

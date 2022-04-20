@@ -38,9 +38,9 @@ run-interactive: build ## Run host_core with an iex session
 	iex -S mix
 
 test: build ## Run test suite, launch NATS with docker-compose
-	docker-compose -f ./test/docker-compose.yml up --detach
+	docker compose -f ./test/docker-compose.yml up --detach
 	MIX_ENV=test mix test $(EXTRA_TEST_ARGS)
-	docker-compose -f ./test/docker-compose.yml down
+	docker compose -f ./test/docker-compose.yml down
 
 wasmcloud-nif: ## Build wasmcloud native NIF
 	cd native/hostcore_wasmcloud_native && \
