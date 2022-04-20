@@ -386,7 +386,6 @@ defmodule HostCore.ControlInterface.Server do
          true <-
            ["constraints", "provider_ref"]
            |> Enum.all?(&Map.has_key?(auction_request, &1)) do
-
       host_labels = HostCore.Host.host_labels()
       required_labels = auction_request["constraints"]
       provider_ref = auction_request["provider_ref"]
