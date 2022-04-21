@@ -146,6 +146,30 @@ defmodule HostCore.Providers.ProviderSupervisor do
     {:noreply, state}
   end
 
+  def provider_running?(reference, link_name) do
+    key =
+      if String.starts_with?(reference, "V") do
+        reference
+      else
+        case HostCore.Refmaps.Manager.lookup_refmap(reference) do
+          {:ok, {_oci, pk}} -> pk
+          _ -> ""
+        end
+      end
+
+    if String.length(key) > 0 do
+      case Registry.lookup(Registry.ProviderRegistry, {key, link_name}) do
+        [{_pid, _val}] ->
+          true
+
+        _ ->
+          false
+      end
+    else
+      false
+    end
+  end
+
   def terminate_provider(public_key, link_name) do
     case Registry.lookup(Registry.ProviderRegistry, {public_key, link_name}) do
       [{pid, _val}] ->

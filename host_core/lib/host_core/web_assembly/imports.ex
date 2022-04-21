@@ -17,7 +17,7 @@ defmodule HostCore.WebAssembly.Imports do
     %{
       fd_write:
         {:fn, [:i32, :i32, :i32, :i32], [:i32],
-         fn context, _a, _b, _c, _d -> suppress_fdwrite() end}
+         fn _context, _a, _b, _c, _d -> suppress_fdwrite() end}
     }
   end
 
