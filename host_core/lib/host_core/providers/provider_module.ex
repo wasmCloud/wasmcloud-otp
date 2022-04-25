@@ -306,7 +306,14 @@ defmodule HostCore.Providers.ProviderModule do
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
-  defp publish_provider_started(claims, link_name, contract_id, instance_id, image_ref, annotations) do
+  defp publish_provider_started(
+         claims,
+         link_name,
+         contract_id,
+         instance_id,
+         image_ref,
+         annotations
+       ) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
