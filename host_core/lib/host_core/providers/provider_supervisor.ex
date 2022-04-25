@@ -19,13 +19,15 @@ defmodule HostCore.Providers.ProviderSupervisor do
          link_name,
          contract_id,
          oci \\ "",
-         config_json \\ ""
+         config_json \\ "",
+         annotations \\ %{}
        ) do
     case Registry.count_match(Registry.ProviderRegistry, {claims.public_key, link_name}, :_) do
       0 ->
         DynamicSupervisor.start_child(
           __MODULE__,
-          {ProviderModule, {:executable, path, claims, link_name, contract_id, oci, config_json}}
+          {ProviderModule,
+           {:executable, path, claims, link_name, contract_id, oci, config_json, annotations}}
         )
 
       _ ->
@@ -33,7 +35,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  def start_provider_from_oci(oci, link_name, config_json \\ "") do
+  def start_provider_from_oci(oci, link_name, config_json \\ "", annotations \\ %{}) do
     creds = HostCore.Host.get_creds(oci)
 
     with {:ok, path} <-
@@ -59,7 +61,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
         link_name,
         par.contract_id,
         oci,
-        config_json
+        config_json,
+        annotations
       )
     else
       {:error, err} ->
@@ -76,7 +79,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  def start_provider_from_bindle(bindle_id, link_name, config_json \\ "") do
+  def start_provider_from_bindle(bindle_id, link_name, config_json \\ "", annotations \\ %{}) do
     creds = HostCore.Host.get_creds(bindle_id)
 
     with {:ok, par} <-
@@ -96,7 +99,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
         link_name,
         par.contract_id,
         bindle_id,
-        config_json
+        config_json,
+        annotations
       )
     else
       {:error, err} ->
@@ -117,7 +121,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  def start_provider_from_file(path, link_name) do
+  def start_provider_from_file(path, link_name, annotations \\ %{}) do
     with {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path, link_name) do
       start_executable_provider(
         HostCore.WasmCloud.Native.par_cache_path(
@@ -128,7 +132,10 @@ defmodule HostCore.Providers.ProviderSupervisor do
         ),
         par.claims,
         link_name,
-        par.contract_id
+        par.contract_id,
+        "",
+        "",
+        annotations
       )
     else
       {:error, err} ->

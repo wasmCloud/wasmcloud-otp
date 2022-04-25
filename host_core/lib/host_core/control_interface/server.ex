@@ -7,10 +7,10 @@ defmodule HostCore.ControlInterface.Server do
   alias HostCore.CloudEvent
 
   import HostCore.Actors.ActorSupervisor,
-    only: [start_actor_from_bindle: 2, start_actor_from_oci: 2]
+    only: [start_actor_from_bindle: 3, start_actor_from_oci: 3]
 
   import HostCore.Providers.ProviderSupervisor,
-    only: [start_provider_from_bindle: 3, start_provider_from_oci: 3]
+    only: [start_provider_from_bindle: 4, start_provider_from_oci: 4]
 
   def request(%{topic: topic, body: body, reply_to: reply_to}) do
     topic
@@ -145,12 +145,13 @@ defmodule HostCore.ControlInterface.Server do
            Map.has_key?(start_actor_command, "actor_ref") do
       Task.start(fn ->
         count = Map.get(start_actor_command, "count", 1)
+        annotations = Map.get(start_actor_command, "annotations", %{})
 
         res =
           if String.starts_with?(start_actor_command["actor_ref"], "bindle://") do
-            start_actor_from_bindle(start_actor_command["actor_ref"], count)
+            start_actor_from_bindle(start_actor_command["actor_ref"], count, annotations)
           else
-            start_actor_from_oci(start_actor_command["actor_ref"], count)
+            start_actor_from_oci(start_actor_command["actor_ref"], count, annotations)
           end
 
         case res do
@@ -237,18 +238,22 @@ defmodule HostCore.ControlInterface.Server do
            start_provider_command["link_name"]
          ) do
         Task.start(fn ->
+          annotations = Map.get(start_provider_command, "annotations", %{})
+
           res =
             if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
               start_provider_from_bindle(
                 start_provider_command["provider_ref"],
                 start_provider_command["link_name"],
-                Map.get(start_provider_command, "configuration", "")
+                Map.get(start_provider_command, "configuration", ""),
+                annotations
               )
             else
               start_provider_from_oci(
                 start_provider_command["provider_ref"],
                 start_provider_command["link_name"],
-                Map.get(start_provider_command, "configuration", "")
+                Map.get(start_provider_command, "configuration", ""),
+                annotations
               )
             end
 

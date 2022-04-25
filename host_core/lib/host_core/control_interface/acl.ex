@@ -11,7 +11,7 @@ defmodule HostCore.ControlInterface.ACL do
         pids
         |> Enum.map(fn pid ->
           %{
-            annotations: %{},
+            annotations: HostCore.Actors.ActorModule.annotations(pid),
             instance_id: HostCore.Actors.ActorModule.instance_id(pid),
             revision: revision
           }
@@ -41,6 +41,7 @@ defmodule HostCore.ControlInterface.ACL do
         link_name: link,
         name: name,
         instance_id: instance_id,
+        annotations: HostCore.Providers.ProviderModule.annotations(pid),
         revision: revision
       }
     end)
