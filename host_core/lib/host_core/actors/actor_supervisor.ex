@@ -14,6 +14,12 @@ defmodule HostCore.Actors.ActorSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
+  @spec start_actor(
+          bytes :: binary(),
+          oci :: String.t(),
+          count :: Integer.t(),
+          annotations :: Map.t()
+        ) :: {:error, any} | {:ok, [pid()]}
   def start_actor(bytes, oci \\ "", count \\ 1, annotations \\ %{}) when is_binary(bytes) do
     Logger.debug("Start actor request received", oci_ref: oci)
 
