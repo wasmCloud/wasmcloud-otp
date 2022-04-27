@@ -23,7 +23,10 @@ defmodule HostCore.ProvidersTest do
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
         @httpserver_path,
-        @httpserver_link
+        @httpserver_link,
+        %{
+          "is_testing" => "youbetcha"
+        }
       )
 
     {:ok, par} = HostCore.WasmCloud.Native.par_from_path(@httpserver_path, @httpserver_link)
@@ -38,8 +41,13 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
+    provs = HostCore.Providers.ProviderSupervisor.all_providers()
+
+    assert elem(Enum.at(provs, 0), 1) ==
              httpserver_key
+
+    annotations = elem(Enum.at(provs, 0), 0) |> HostCore.Providers.ProviderModule.annotations()
+    assert annotations == %{"is_testing" => "youbetcha"}
 
     HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
 

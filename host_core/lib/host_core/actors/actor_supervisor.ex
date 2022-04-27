@@ -14,9 +14,13 @@ defmodule HostCore.Actors.ActorSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  @spec start_actor(bytes :: binary(), oci :: String.t(), count :: Integer.t()) ::
-          {:error, any} | {:ok, [pid()]}
-  def start_actor(bytes, oci \\ "", count \\ 1) when is_binary(bytes) do
+  @spec start_actor(
+          bytes :: binary(),
+          oci :: String.t(),
+          count :: Integer.t(),
+          annotations :: Map.t()
+        ) :: {:error, any} | {:ok, [pid()]}
+  def start_actor(bytes, oci \\ "", count \\ 1, annotations \\ %{}) when is_binary(bytes) do
     Logger.debug("Start actor request received", oci_ref: oci)
 
     case HostCore.WasmCloud.Native.extract_claims(bytes) do
@@ -34,7 +38,7 @@ defmodule HostCore.Actors.ActorSupervisor do
                |> Enum.reduce_while([], fn _count, pids ->
                  case DynamicSupervisor.start_child(
                         __MODULE__,
-                        {HostCore.Actors.ActorModule, {claims, bytes, oci}}
+                        {HostCore.Actors.ActorModule, {claims, bytes, oci, annotations}}
                       ) do
                    {:error, err} ->
                      {:halt, {:error, "Error: #{err}"}}
@@ -64,7 +68,7 @@ defmodule HostCore.Actors.ActorSupervisor do
     |> length() > 0
   end
 
-  def start_actor_from_oci(oci, count \\ 1) do
+  def start_actor_from_oci(oci, count \\ 1, annotations \\ %{}) do
     creds = HostCore.Host.get_creds(oci)
 
     case HostCore.WasmCloud.Native.get_oci_bytes(
@@ -78,11 +82,11 @@ defmodule HostCore.Actors.ActorSupervisor do
         {:error, err}
 
       {:ok, bytes} ->
-        start_actor(bytes |> IO.iodata_to_binary(), oci, count)
+        start_actor(bytes |> IO.iodata_to_binary(), oci, count, annotations)
     end
   end
 
-  def start_actor_from_bindle(bindle_id, count \\ 1) do
+  def start_actor_from_bindle(bindle_id, count \\ 1, annotations \\ %{}) do
     creds = HostCore.Host.get_creds(bindle_id)
 
     case HostCore.WasmCloud.Native.get_actor_bindle(
@@ -98,7 +102,7 @@ defmodule HostCore.Actors.ActorSupervisor do
         {:error, err}
 
       {:ok, bytes} ->
-        start_actor(bytes |> IO.iodata_to_binary(), bindle_id, count)
+        start_actor(bytes |> IO.iodata_to_binary(), bindle_id, count, annotations)
     end
   end
 

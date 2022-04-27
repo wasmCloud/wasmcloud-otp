@@ -94,7 +94,11 @@ defmodule HostCore.ActorsTest do
   test "can load actors", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@kvcounter_path)
-    {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", 5)
+
+    {:ok, _pids} =
+      HostCore.Actors.ActorSupervisor.start_actor(bytes, "", 5, %{
+        "is_testing" => "youbetcha"
+      })
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_event(
@@ -104,9 +108,13 @@ defmodule HostCore.ActorsTest do
         5
       )
 
-    actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key)
-      |> length
+    actors = HostCore.Actors.ActorSupervisor.all_actors()
+    kv_counters = Map.get(actors, @kvcounter_key)
+
+    actor_count = kv_counters |> length
+
+    assert Enum.at(kv_counters, 0) |> HostCore.Actors.ActorModule.annotations() ==
+             %{"is_testing" => "youbetcha"}
 
     assert actor_count == 5
     HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 5)

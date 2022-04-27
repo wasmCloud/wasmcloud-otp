@@ -21,6 +21,7 @@ defmodule HostCore.Actors.ActorModule do
       :host_error,
       :instance,
       :instance_id,
+      :annotations,
       :api_version,
       :invocation,
       :claims,
@@ -70,6 +71,14 @@ defmodule HostCore.Actors.ActorModule do
     end
   end
 
+  def annotations(pid) do
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_annotations)
+    else
+      %{}
+    end
+  end
+
   def halt(pid) do
     if Process.alive?(pid), do: GenServer.call(pid, :halt_and_cleanup)
   end
@@ -83,8 +92,8 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   @impl true
-  def init({claims, bytes, oci}) do
-    case start_actor(claims, bytes, oci) do
+  def init({claims, bytes, oci, annotations}) do
+    case start_actor(claims, bytes, oci, annotations) do
       {:ok, agent} ->
         Process.send(self(), :do_health, [:noconnect, :nosuspend])
         :timer.send_interval(@thirty_seconds, self(), :do_health)
@@ -148,6 +157,10 @@ defmodule HostCore.Actors.ActorModule do
 
   def handle_call(:get_instance_id, _from, agent) do
     {:reply, Agent.get(agent, fn content -> content.instance_id end), agent}
+  end
+
+  def handle_call(:get_annotations, _from, agent) do
+    {:reply, Agent.get(agent, fn content -> content.annotations end), agent}
   end
 
   def handle_call(:get_ociref, _from, agent) do
@@ -307,13 +320,20 @@ defmodule HostCore.Actors.ActorModule do
     end
   end
 
-  defp start_actor(claims, bytes, oci) do
+  defp start_actor(claims, bytes, oci, annotations) do
     Logger.info("Starting actor #{claims.public_key}", actor_id: claims.public_key, oci_ref: oci)
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.Claims.Manager.put_claims(claims)
 
     {:ok, agent} =
-      Agent.start_link(fn -> %State{claims: claims, instance_id: UUID.uuid4(), healthy: false} end)
+      Agent.start_link(fn ->
+        %State{
+          claims: claims,
+          instance_id: UUID.uuid4(),
+          healthy: false,
+          annotations: annotations
+        }
+      end)
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
@@ -449,6 +469,7 @@ defmodule HostCore.Actors.ActorModule do
 
     claims = Agent.get(agent, fn content -> content.claims end)
     instance_id = Agent.get(agent, fn content -> content.instance_id end)
+    annotations = Agent.get(agent, fn content -> content.annotations end)
 
     if Wasmex.function_exists(instance, :start) do
       Wasmex.call_function(instance, :start, [])
@@ -467,7 +488,7 @@ defmodule HostCore.Actors.ActorModule do
       %State{content | api_version: api_version, instance: instance}
     end)
 
-    publish_actor_started(claims, api_version, instance_id, oci)
+    publish_actor_started(claims, api_version, instance_id, oci, annotations)
     {:ok, agent}
   end
 
@@ -517,7 +538,7 @@ defmodule HostCore.Actors.ActorModule do
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
-  def publish_actor_started(claims, api_version, instance_id, oci) do
+  def publish_actor_started(claims, api_version, instance_id, oci, annotations) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
@@ -526,6 +547,7 @@ defmodule HostCore.Actors.ActorModule do
         image_ref: oci,
         api_version: api_version,
         instance_id: instance_id,
+        annotations: annotations,
         claims: %{
           call_alias: claims.call_alias,
           caps: claims.caps,

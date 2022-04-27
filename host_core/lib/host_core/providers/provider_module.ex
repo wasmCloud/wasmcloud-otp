@@ -17,6 +17,7 @@ defmodule HostCore.Providers.ProviderModule do
       :public_key,
       :lattice_prefix,
       :instance_id,
+      :annotations,
       :executable_path,
       :ociref,
       :healthy
@@ -38,6 +39,10 @@ defmodule HostCore.Providers.ProviderModule do
     GenServer.call(pid, :get_instance_id)
   end
 
+  def annotations(pid) do
+    GenServer.call(pid, :get_annotations)
+  end
+
   def ociref(pid) do
     GenServer.call(pid, :get_ociref)
   end
@@ -51,7 +56,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   @impl true
-  def init({:executable, path, claims, link_name, contract_id, oci, config_json}) do
+  def init({:executable, path, claims, link_name, contract_id, oci, config_json, annotations}) do
     Logger.info("Starting executable capability provider at  '#{path}'",
       provider_id: claims.public_key,
       link_name: link_name,
@@ -84,11 +89,11 @@ defmodule HostCore.Providers.ProviderModule do
     {:os_pid, pid} = Port.info(port, :os_pid)
 
     # Worth pointing out here that this process doesn't need to subscribe to
-    # the provider's NATS topic. The provider now subscribes to that directly
+    # the provider's NATS topic. The provider subscribes to that directly
     # when it starts.
 
     HostCore.Claims.Manager.put_claims(claims)
-    publish_provider_started(claims, link_name, contract_id, instance_id, oci)
+    publish_provider_started(claims, link_name, contract_id, instance_id, oci, annotations)
 
     if oci != nil && oci != "" do
       publish_provider_oci_map(claims.public_key, link_name, oci)
@@ -107,6 +112,7 @@ defmodule HostCore.Providers.ProviderModule do
        instance_id: instance_id,
        lattice_prefix: HostCore.Host.lattice_prefix(),
        executable_path: path,
+       annotations: annotations,
        # until we prove otherwise
        healthy: false,
        ociref: oci
@@ -140,6 +146,11 @@ defmodule HostCore.Providers.ProviderModule do
   @impl true
   def handle_call(:get_instance_id, _from, state) do
     {:reply, state.instance_id, state}
+  end
+
+  @impl true
+  def handle_call(:get_annotations, _from, state) do
+    {:reply, state.annotations, state}
   end
 
   @impl true
@@ -295,7 +306,14 @@ defmodule HostCore.Providers.ProviderModule do
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
-  defp publish_provider_started(claims, link_name, contract_id, instance_id, image_ref) do
+  defp publish_provider_started(
+         claims,
+         link_name,
+         contract_id,
+         instance_id,
+         image_ref,
+         annotations
+       ) do
     prefix = HostCore.Host.lattice_prefix()
 
     msg =
@@ -305,6 +323,7 @@ defmodule HostCore.Providers.ProviderModule do
         link_name: link_name,
         contract_id: contract_id,
         instance_id: instance_id,
+        annotations: annotations,
         claims: %{
           issuer: claims.issuer,
           tags: claims.tags,
