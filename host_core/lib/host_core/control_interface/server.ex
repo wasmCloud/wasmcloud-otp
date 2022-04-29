@@ -344,12 +344,13 @@ defmodule HostCore.ControlInterface.Server do
       Logger.debug(
         "Replaced registry credential map, new registry count: #{length(Map.keys(credsmap))}"
       )
+
+      {:reply, success_ack()}
     else
       _ ->
         Logger.error("failed to update registry credential map")
+        {:reply, failure_ack("failed to update registry credential map")}
     end
-
-    :ok
   end
 
   ### AUCTIONS
