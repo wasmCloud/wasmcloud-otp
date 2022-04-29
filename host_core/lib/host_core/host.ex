@@ -199,7 +199,11 @@ defmodule HostCore.Host do
       end)
       |> Enum.into(%{})
 
-    {:noreply, Map.put(state, "registryCredentials", credsmap)}
+    state = Map.put_new(state, :supplemental_config, %{"registryCredentials" => %{}})
+    existing_creds = Map.get(state.supplemental_config, "registryCredentials", %{})
+    state = put_in(state.supplemental_config["registryCredentials"], Map.merge(existing_creds, credsmap))
+
+    {:noreply, state}
   end
 
   @impl true
