@@ -195,7 +195,7 @@ defmodule HostCore.Host do
     credsmap =
       credsmap
       |> Enum.filter(fn {_k, v} ->
-        Map.has_key?(v, "userName") || Map.has_key?(v, "password") || Map.has_key?(v, "token")
+        Map.has_key?(v, "username") || Map.has_key?(v, "password") || Map.has_key?(v, "token")
       end)
       |> Enum.into(%{})
 
