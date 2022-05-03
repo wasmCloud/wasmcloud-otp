@@ -199,11 +199,22 @@ defmodule HostCore.Host do
       end)
       |> Enum.into(%{})
 
-    state = Map.put_new(state, :supplemental_config, %{"registryCredentials" => %{}})
-    existing_creds = Map.get(state.supplemental_config, "registryCredentials", %{})
-    state = put_in(state.supplemental_config["registryCredentials"], Map.merge(existing_creds, credsmap))
+    new_state =
+      case Map.get(state, :supplemental_config) do
+        nil ->
+          %State{state | supplemental_config: %{"registryCredentials" => credsmap}}
 
-    {:noreply, state}
+        supp_config ->
+          existing_creds = Map.get(supp_config, "registryCredentials", %{})
+          merged_creds = Map.merge(existing_creds, credsmap)
+
+          %State{
+            state
+            | supplemental_config: Map.put(supp_config, "registryCredentials", merged_creds)
+          }
+      end
+
+    {:noreply, new_state}
   end
 
   @impl true
