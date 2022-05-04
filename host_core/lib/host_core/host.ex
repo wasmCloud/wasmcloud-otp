@@ -195,11 +195,26 @@ defmodule HostCore.Host do
     credsmap =
       credsmap
       |> Enum.filter(fn {_k, v} ->
-        Map.has_key?(v, "userName") || Map.has_key?(v, "password") || Map.has_key?(v, "token")
+        Map.has_key?(v, "username") || Map.has_key?(v, "password") || Map.has_key?(v, "token")
       end)
       |> Enum.into(%{})
 
-    {:noreply, Map.put(state, "registryCredentials", credsmap)}
+    new_state =
+      case Map.get(state, :supplemental_config) do
+        nil ->
+          %State{state | supplemental_config: %{"registryCredentials" => credsmap}}
+
+        supp_config ->
+          existing_creds = Map.get(supp_config, "registryCredentials", %{})
+          merged_creds = Map.merge(existing_creds, credsmap)
+
+          %State{
+            state
+            | supplemental_config: Map.put(supp_config, "registryCredentials", merged_creds)
+          }
+      end
+
+    {:noreply, new_state}
   end
 
   @impl true
