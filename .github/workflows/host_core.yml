@@ -14,11 +14,12 @@ jobs:
   build:
     strategy:
       matrix:
+        os: [ubuntu-20.04, windows-2019, macos-10.15]
         elixir: [1.13.3]
-        otp: [23.0, 23.3.4.1, 24.0]
+        otp: [23.0, 24.0]
 
     name: Build and test
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v2
