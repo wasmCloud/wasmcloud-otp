@@ -67,12 +67,16 @@ jobs:
         continue-on-error: true # Don't fail entire action with refactoring opportunities for now
         run: mix credo --strict
 
+      - name: Determine lattice prefix
+        shell: bash
+        run: echo "wasmcloud_lattice_prefix=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g')" > $GITHUB_ENV
+
       - name: Run Tests
         working-directory: ${{env.working-directory}}
         env:
           EXTRA_TEST_ARGS: "--timeout 120000"
         run: |
-          WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
+          WASMCLOUD_LATTICE_PREFIX=${{ env.wasmcloud_lattice_prefix }} \
           WASMCLOUD_RPC_TIMEOUT_MS=3000 \
           make test
 
