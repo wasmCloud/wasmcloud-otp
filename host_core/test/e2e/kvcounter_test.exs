@@ -206,7 +206,7 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, resp} = request_http("http://localhost:8082/foobar", 10)
 
     assert resp.body ==
-             "{\"error\":\"Host send error Invocation not authorized: missing claim for wasmcloud:keyvalue\"}"
+             "{\"error\":\"Host send error Invocation not authorized: missing capability claim for wasmcloud:keyvalue\"}"
 
     assert resp.status_code == 500
   end

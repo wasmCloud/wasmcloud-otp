@@ -257,7 +257,6 @@ defmodule HostCore.WebAssembly.Imports do
   defp invoke(
          _token = %{
            verified: false,
-           authorized: false,
            agent: agent,
            namespace: namespace,
            prefix: prefix
