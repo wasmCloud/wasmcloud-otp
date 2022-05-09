@@ -13,28 +13,32 @@ jobs:
   build:
     strategy:
       matrix:
+        os: [ubuntu-20.04, windows-2019, macos-10.15]
         elixir: [1.13.3]
-        otp: [23.0, 23.3.4.1, 24.0]
-    services:
-      nats:
-        image: nats:2
-        ports:
-          - 4222:4222
+        otp: [23.0, 24.0]
 
     name: Build and test
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
     env:
       MIX_ENV: test
 
     steps:
       - uses: actions/checkout@v2
 
-      - name: Setup elixir
-        uses: actions/setup-elixir@v1.5
+      # Install erlang/OTP and elixir
+      - name: Install erlang and elixir
+        if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
+        uses: erlef/setup-beam@v1
         with:
-          elixir-version: ${{ matrix.elixir }} # Define the elixir version [required]
-          otp-version: ${{ matrix.otp }} # Define the OTP version [required]
-          experimental-otp: true # experimental flag required for ubuntu 20.04
+          otp-version: "=24"
+          elixir-version: "1.13.3"
+          install-hex: true
+          install-rebar: true
+      - name: Install erlang and elixir
+        if: ${{ startswith(matrix.os, 'macos') }}
+        run: |
+          brew install erlang
+          brew install elixir
 
       - name: Retrieve Mix Dependencies Cache
         uses: actions/cache@v2
@@ -66,6 +70,7 @@ jobs:
         continue-on-error: true # Don't fail entire action with refactoring opportunities for now
         run: mix credo --strict
 
+      # Currently we do not have tests for the UI part of the wasmCloud dashboard
       # - name: Run Tests
       #   working-directory: ${{env.working-directory}}
       #   run: |
