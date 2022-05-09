@@ -12,9 +12,9 @@ env:
 jobs:
   build:
     strategy:
-      fail-fast: false
+      # fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
+        os: [ubuntu-20.04, windows-2022, macos-10.15]
         elixir: [1.13.3]
         otp: [23.0, 24.0]
 
