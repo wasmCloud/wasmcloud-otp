@@ -75,10 +75,9 @@ jobs:
         working-directory: ${{env.working-directory}}
         env:
           EXTRA_TEST_ARGS: "--timeout 120000"
-        run: |
-          WASMCLOUD_LATTICE_PREFIX=${{ env.wasmcloud_lattice_prefix }} \
-          WASMCLOUD_RPC_TIMEOUT_MS=3000 \
-          make test
+          WASMCLOUD_LATTICE_PREFIX: ${{ env.wasmcloud_lattice_prefix }}
+          WASMCLOUD_RPC_TIMEOUT_MS: 3000
+        run: make test
 
       - name: Retrieve PLT Cache
         uses: actions/cache@v2
