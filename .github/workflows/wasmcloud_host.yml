@@ -12,14 +12,11 @@ env:
 jobs:
   build:
     strategy:
-      # fail-fast: false
+      fail-fast: false
       matrix:
-        os: [windows-2022]
+        os: [ubuntu-20.04, windows-2019, macos-10.15]
         elixir: [1.13.3]
-        otp: [24.0]
-        # os: [ubuntu-20.04, windows-2022, macos-10.15]
-        # elixir: [1.13.3]
-        # otp: [23.0, 24.0]
+        otp: [23.0, 24.0]
 
     name: Build and test
     runs-on: ${{ matrix.os }}
