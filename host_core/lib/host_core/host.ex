@@ -22,10 +22,10 @@ defmodule HostCore.Host do
   @doc """
   NATS is used for all lattice communications, which includes communication between actors and capability providers,
   whether those capability providers are local or remote.
-
+  
   The following is an outline of the important subject spaces required for providers, the host, and RPC listeners. All
   subscriptions are not in a queue group unless otherwise specified.
-
+  
   * `wasmbus.rpc.{prefix}.{public_key}` - Send invocations to an actor Invocation->InvocationResponse
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}` - Send invocations (from actors only) to Providers  Invocation->InvocationResponse
   * `wasmbus.rpc.{prefix}.{public_key}.{link_name}.linkdefs.put` - Publish link definition (e.g. bind to an actor)
@@ -54,14 +54,14 @@ defmodule HostCore.Host do
       For any other host or CLI tool to communicate with this host,
       you MUST copy the following seed key and use it as the value
       of the WASMCLOUD_CLUSTER_SEED environment variable:
-
+      
       #{opts.cluster_seed}
-
+      
       You must also ensure the following cluster signer is in the list of valid
       signers for any new host you start:
-
+      
       #{opts.cluster_issuers |> Enum.at(0)}
-
+      
       """
 
       Logger.warn(warning)

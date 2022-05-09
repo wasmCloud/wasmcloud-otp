@@ -1,48 +1,48 @@
 defmodule HostCore.StructuredLogger do
   @moduledoc """
   HostCore.StructuredLogger formats any incoming messages into JSON.
-
+  
   The key difference between this logger and others is that it uses erlang handlers instead of elixir backends.
   Because the Elixir Backend interface for logging always returns the message as binary data, it is not
   possible to format it so that it can be decoded in a single pass in 1.11.4. With this logger, the output
   can be fully decoded into the appropriate types/terms.
-
+  
   As it can parse both the message and the metadata, this formatter will merge the two into a relatively
   flat structure. For instance, the mfa, ip, user_id, and guid are from metadata, while the rest are from
   the plug request. This makes it easier to write queries on the backend system.
-
+  
       {"duration":126.472,"guid":"03de7c92-cdbf-4f67-ad10-6abd51ef634c","headers":{},"ip":"1.2.3.4","level":"info",
       "method":"GET","mfa":"StructuredLogger.Plugs.Logger.call/2","params":{},"path":"/","pid":"#PID<0.16365.0>",
       "request_id":"Fm5q11B9tgEmrLEAAZGB","status":200,"time":"2021-03-21T17:13:09.400033Z","user_id":8}
-
+  
   Note that in development where you might want to see a well-formatted stacktrace of a 500 error or exception,
   you might want to continue using Logger for the console. Any exceptions will be put into a JSON format of
   {"level" => level, "metadata" => metadata, "msg" => report}
-
+  
   ## Installation
   In the MyApp.Application.start/2, add the log handler for the formatter. Note that you may want to remove
   the Logger to avoid double logging.
-
+  
       :logger.add_handler(:structured_logger, :logger_std_h, %{formatter: {HostCore.StructuredLogger.FormatterJson, []}, level: :info})
       :logger.remove_handler(Logger)
-
+  
   ### Logging
-
+  
   Like normal, just use Logger.log. Maps and Keyword lists are supported.
       Logger.log(:info, %{"params" => %{"a" => "b"}, "duration" => 10})
-
+  
   ## Credits
-
+  
   https://github.com/elixir-metadata-logger/metadata_logger
   https://github.com/navinpeiris/logster
   https://elixirforum.com/t/structured-logging-for-liveview-handle-params-and-channels/38333/5
   https://elixirforum.com/t/structured-logging-for-liveview-handle-params-and-channels/38333/9
-
+  
   ## NB
-
+  
   We've had to make a few changes (like removing status reports from supervisors) because the report
   format doesn't encode to JSON. Otherwise this is largely the same as originally found.
-
+  
   """
 end
 
