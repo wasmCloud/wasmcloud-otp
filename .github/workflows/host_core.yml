@@ -15,15 +15,30 @@ jobs:
     strategy:
       # fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2022, macos-10.15]
+        os: [windows-2019]
         elixir: [1.13.3]
-        otp: [23.0, 24.0]
+        otp: [24.0]
+        # os: [ubuntu-20.04, windows-2022, macos-10.15]
+        # elixir: [1.13.3]
+        # otp: [23.0, 24.0]
 
     name: Build and test
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Connor test
+        run: vswhere -products * -latest -prerelease -property installationPath
+
+      - name: Set up Visual Studio C++ toolchain
+        uses: ilammy/msvc-dev-cmd@v1
+        if: ${{ startswith(matrix.os, 'windows') }}
+
+      - id: run-nats
+        uses: wasmcloud/common-actions/run-nats@main
+      - id: run-redis
+        uses: wasmcloud/common-actions/run-redis@main
 
       # Install erlang/OTP and elixir
       - name: Install erlang and elixir
@@ -77,6 +92,7 @@ jobs:
           EXTRA_TEST_ARGS: "--timeout 120000"
           WASMCLOUD_LATTICE_PREFIX: ${{ env.wasmcloud_lattice_prefix }}
           WASMCLOUD_RPC_TIMEOUT_MS: 3000
+          MIX_ENV: test
         run: make test
 
       - name: Retrieve PLT Cache

@@ -14,9 +14,12 @@ jobs:
     strategy:
       # fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2022, macos-10.15]
+        os: [windows-2022]
         elixir: [1.13.3]
-        otp: [23.0, 24.0]
+        otp: [24.0]
+        # os: [ubuntu-20.04, windows-2022, macos-10.15]
+        # elixir: [1.13.3]
+        # otp: [23.0, 24.0]
 
     name: Build and test
     runs-on: ${{ matrix.os }}
