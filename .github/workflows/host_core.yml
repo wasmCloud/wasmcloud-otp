@@ -13,6 +13,7 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-20.04, windows-2019, macos-10.15]
         elixir: [1.13.3]
@@ -57,6 +58,7 @@ jobs:
           mix do deps.get, deps.compile
 
       - name: Check Formatting
+        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about carriage returns
         working-directory: ${{env.working-directory}}
         run: mix format --check-formatted
 
