@@ -253,9 +253,33 @@ defmodule HostCore.WebAssembly.Imports do
     %{token | authorized: true}
   end
 
+  # Deny invocation due to missing link definition for a contract ID and link name
+  defp invoke(
+         _token = %{
+           verified: false,
+           agent: agent,
+           namespace: namespace,
+           prefix: prefix
+         }
+       ) do
+    Agent.update(agent, fn state ->
+      %State{
+        state
+        | host_error:
+            "Invocation not authorized: missing link definition for #{namespace} on #{prefix}"
+      }
+    end)
+
+    0
+  end
+
+  # Deny invocation due to missing capability claim
   defp invoke(_token = %{authorized: false, agent: agent, namespace: namespace}) do
     Agent.update(agent, fn state ->
-      %State{state | host_error: "Invocation not authorized: missing claim for #{namespace}"}
+      %State{
+        state
+        | host_error: "Invocation not authorized: missing capability claim for #{namespace}"
+      }
     end)
 
     0
