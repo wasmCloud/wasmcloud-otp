@@ -16,7 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-20.04, windows-2019, macos-10.15]
         elixir: [1.13.3]
-        otp: [23.0, 24.0]
+        otp: [23, 24]
 
     name: Build and test
     runs-on: ${{ matrix.os }}
@@ -34,8 +34,8 @@ jobs:
         if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "=24"
-          elixir-version: "1.13.3"
+          otp-version: "=${{ matrix.otp }}"
+          elixir-version: ${{ matrix.elixir }}
           install-hex: true
           install-rebar: true
       - name: Install erlang and elixir
