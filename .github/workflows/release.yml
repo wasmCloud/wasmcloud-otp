@@ -77,7 +77,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             BUILDER_IMAGE=elixir:1.13.3-slim
-            RELEASE_IMAGE=debian:buster-slim
+            RELEASE_IMAGE=debian:bullseye-slim
             APP_NAME=wasmcloud_host
             APP_VSN=${{ env.wasmcloud_host_version }}
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
