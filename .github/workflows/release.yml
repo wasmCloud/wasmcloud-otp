@@ -163,6 +163,7 @@ jobs:
         run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
 
       - name: Retrieve Mix Dependencies Cache
+        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
         uses: actions/cache@v2
         id: mix-cache #id to use in retrieve action
         with:
