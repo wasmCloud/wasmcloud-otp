@@ -61,6 +61,7 @@ jobs:
 
       - name: Compile Phoenix Assets
         working-directory: ${{env.working-directory}}
+        shell: bash
         # esbuild + dart sass are only included in the dev runtime environment
         env:
           MIX_ENV: dev
@@ -184,6 +185,7 @@ jobs:
       - name: Compile Phoenix Assets
         if: ${{ env.working-directory == 'wasmcloud_host' }}
         working-directory: ${{env.working-directory}}
+        shell: bash
         # esbuild + dart sass are only included in the dev runtime environment
         env:
           MIX_ENV: dev
