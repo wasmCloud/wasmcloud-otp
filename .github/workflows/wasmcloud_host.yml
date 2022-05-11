@@ -73,6 +73,8 @@ jobs:
       - name: Ensure static files build properly
         working-directory: ${{env.working-directory}}
         shell: bash
+        env:
+          MIX_ENV: dev
         run: make esbuild
 
       - name: Run Credo
