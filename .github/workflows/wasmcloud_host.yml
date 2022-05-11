@@ -45,6 +45,7 @@ jobs:
           brew install elixir
 
       - name: Retrieve Mix Dependencies Cache
+        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
         uses: actions/cache@v2
         id: mix-cache #id to use in retrieve action
         with:
@@ -72,6 +73,9 @@ jobs:
 
       - name: Ensure static files build properly
         working-directory: ${{env.working-directory}}
+        shell: bash
+        env:
+          MIX_ENV: dev
         run: make esbuild
 
       - name: Run Credo
