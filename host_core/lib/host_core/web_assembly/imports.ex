@@ -8,10 +8,10 @@ defmodule HostCore.WebAssembly.Imports do
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
 
-  # Once a message body reaches 700kb, we will use the object
+  # Once a message body reaches 900kb, we will use the object
   # store to hold it and allow 15 seconds for the RPC call to
   # finish (giving the other side time to "de-chunk")
-  @chunk_threshold 700 * 1024
+  @chunk_threshold 900 * 1024
   @chunk_rpc_timeout 15000
 
   def fake_wasi(_agent) do

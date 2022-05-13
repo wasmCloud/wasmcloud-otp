@@ -346,12 +346,15 @@ defmodule HostCore.ControlInterface.Server do
                  span_ctx
                ) do
             :ok -> success_ack()
-            {:error, err} -> failure_ack("Unable to perform live update: #{err}")
+            {:error, err} ->
+              Tracer.set_status(:error, "#{err}")
+              failure_ack("Unable to perform live update: #{err}")
           end
 
         {:reply, response}
       else
         _ ->
+          Tracer.set_status(:error, "Invalid JSON request")
           {:reply, failure_ack("Invalid JSON request to update actor")}
       end
     end

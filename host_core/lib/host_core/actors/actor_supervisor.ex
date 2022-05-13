@@ -29,11 +29,13 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       case HostCore.WasmCloud.Native.extract_claims(bytes) do
         {:error, err} ->
+          Tracer.set_status(:error, "#{inspect(err)}")
           Logger.error("Failed to extract claims from WebAssembly module", oci_ref: oci)
           {:error, err}
 
         {:ok, claims} ->
           if other_oci_already_running?(oci, claims.public_key) do
+            Tracer.set_status(:error, "Already running")
             {:error,
              "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
           else
@@ -91,6 +93,7 @@ defmodule HostCore.Actors.ActorSupervisor do
            ) do
         {:error, err} ->
           Tracer.add_event("OCI image fetch failed", reason: "#{inspect(err)}")
+          Tracer.set_status(:error, "#{inspect(err)}")
           Logger.error("Failed to download OCI bytes for #{oci}: #{inspect(err)}", oci_ref: oci)
           {:error, err}
 

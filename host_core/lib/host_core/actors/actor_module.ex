@@ -6,6 +6,7 @@ defmodule HostCore.Actors.ActorModule do
   require OpenTelemetry.Tracer, as: Tracer
 
   @op_health_check "Actor.HealthRequest"
+  @chunk_threshold 900 * 1024
   @thirty_seconds 30_000
 
   require Logger
@@ -332,7 +333,7 @@ defmodule HostCore.Actors.ActorModule do
            instance_id: _iid
          } = map
        )
-       when byte_size(response) > 700 * 1024 do
+       when byte_size(response) > @chunk_threshold do
     with :ok <- HostCore.WasmCloud.Native.chunk_inv("#{invid}-r", response) do
       %{map | msg: <<>>}
     else

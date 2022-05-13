@@ -76,10 +76,12 @@ defmodule HostCore.Providers.ProviderSupervisor do
             oci_ref: oci,
             link_name: link_name
           )
+          Tracer.set_status(:error, "#{err}")
 
           {:error, err}
 
         err ->
+          Tracer.set_status(:error, "#{inspect(err)}")
           Logger.error("Error starting provider from OCI: #{inspect(err)}", oci_ref: oci)
           {:error, "Error starting provider from OCI"}
       end
@@ -196,35 +198,39 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def terminate_provider(public_key, link_name) do
-    case Registry.lookup(Registry.ProviderRegistry, {public_key, link_name}) do
-      [{pid, _val}] ->
-        Logger.info("About to terminate child process",
-          provider_id: public_key,
-          link_name: link_name
-        )
+    Tracer.with_span "Terminate Provider", kind: :server do
+      case Registry.lookup(Registry.ProviderRegistry, {public_key, link_name}) do
+        [{pid, _val}] ->
+          Logger.info("About to terminate child process",
+            provider_id: public_key,
+            link_name: link_name
+          )
+          Tracer.set_attribute("public_key", public_key)
+          Tracer.set_attribute("link_name", link_name)
 
-        prefix = HostCore.Host.lattice_prefix()
+          prefix = HostCore.Host.lattice_prefix()
 
-        # Allow provider 2 seconds to respond/acknowledge termination request (give time to clean up resources)
-        case HostCore.Nats.safe_req(
-               :lattice_nats,
-               "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
-               "",
-               receive_timeout: 2000
-             ) do
-          {:ok, _msg} -> :ok
-          {:error, :timeout} -> :error
-        end
+          # Allow provider 2 seconds to respond/acknowledge termination request (give time to clean up resources)
+          case HostCore.Nats.safe_req(
+                :lattice_nats,
+                "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
+                "",
+                receive_timeout: 2000
+              ) do
+            {:ok, _msg} -> :ok
+            {:error, :timeout} -> :error
+          end
 
-        # Pause for n milliseconds between shutdown request and forceful termination
-        Process.sleep(HostCore.Host.provider_shutdown_delay())
-        ProviderModule.halt(pid)
+          # Pause for n milliseconds between shutdown request and forceful termination
+          Process.sleep(HostCore.Host.provider_shutdown_delay())
+          ProviderModule.halt(pid)
 
-      [] ->
-        Logger.warn("No provider is running with that public key and link name",
-          provider_id: public_key,
-          link_name: link_name
-        )
+        [] ->
+          Logger.warn("No provider is running with that public key and link name",
+            provider_id: public_key,
+            link_name: link_name
+          )
+      end
     end
   end
 
