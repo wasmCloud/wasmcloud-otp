@@ -1,6 +1,7 @@
 defmodule HostCore.ControlInterface.Server do
   @moduledoc false
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
   use Gnat.Server
 
   alias HostCore.ControlInterface.ACL
@@ -28,17 +29,19 @@ defmodule HostCore.ControlInterface.Server do
   ### PING
   # Answered by all hosts in a collect/gather operation by clients
   defp handle_request({"ping", "hosts"}, _body, _reply_to) do
-    {total, _} = :erlang.statistics(:wall_clock)
+    Tracer.with_span "Handle Host Ping (ctl)", kind: :server do
+      {total, _} = :erlang.statistics(:wall_clock)
 
-    res = %{
-      id: HostCore.Host.host_key(),
-      friendly_name: HostCore.Host.friendly_name(),
-      uptime_seconds: div(total, 1000)
-    }
+      res = %{
+        id: HostCore.Host.host_key(),
+        friendly_name: HostCore.Host.friendly_name(),
+        uptime_seconds: div(total, 1000)
+      }
 
-    HostCore.HeartbeatEmitter.emit_heartbeat()
+      HostCore.HeartbeatEmitter.emit_heartbeat()
 
-    {:reply, Jason.encode!(res)}
+      {:reply, Jason.encode!(res)}
+    end
   end
 
   ### GET queries
@@ -46,40 +49,46 @@ defmodule HostCore.ControlInterface.Server do
 
   # Retrieves claims from the in-memory cache
   defp handle_request({"get", "claims"}, _body, _reply_to) do
-    claims = HostCore.Claims.Manager.get_claims()
+    Tracer.with_span "Handle Claims Request (ctl)", kind: :server do
+      claims = HostCore.Claims.Manager.get_claims()
 
-    res = %{
-      claims: claims
-    }
+      res = %{
+        claims: claims
+      }
 
-    {:reply, Jason.encode!(res)}
+      {:reply, Jason.encode!(res)}
+    end
   end
 
   # Retrieves link definitions from the in-memory cache
   defp handle_request({"get", "links"}, _body, _reply_to) do
-    links = HostCore.Linkdefs.Manager.get_link_definitions()
+    Tracer.with_span "Handle Linkdef Request (ctl)", kind: :server do
+      links = HostCore.Linkdefs.Manager.get_link_definitions()
 
-    res = %{
-      links: links
-    }
+      res = %{
+        links: links
+      }
 
-    {:reply, Jason.encode!(res)}
+      {:reply, Jason.encode!(res)}
+    end
   end
 
   # Retrieves the inventory of the current host
   defp handle_request({"get", host_id, "inv"}, _body, _reply_to) do
-    if host_id == HostCore.Host.host_key() do
-      res = %{
-        host_id: HostCore.Host.host_key(),
-        labels: HostCore.Host.host_labels(),
-        friendly_name: HostCore.Host.friendly_name(),
-        actors: ACL.all_actors(),
-        providers: ACL.all_providers()
-      }
+    Tracer.with_span "Handle Inventory Request (ctl)", kind: :server do
+      if host_id == HostCore.Host.host_key() do
+        res = %{
+          host_id: HostCore.Host.host_key(),
+          labels: HostCore.Host.host_labels(),
+          friendly_name: HostCore.Host.friendly_name(),
+          actors: ACL.all_actors(),
+          providers: ACL.all_providers()
+        }
 
-      {:reply, Jason.encode!(res)}
-    else
-      {:reply, failure_ack("Command received by incorrect host and could not be processed")}
+        {:reply, Jason.encode!(res)}
+      else
+        {:reply, failure_ack("Command received by incorrect host and could not be processed")}
+      end
     end
   end
 
@@ -91,22 +100,24 @@ defmodule HostCore.ControlInterface.Server do
   # This will first store the link definition in memory, then publish it to the stream
   # then publish it directly to the relevant provider via the RPC channel
   defp handle_request({"linkdefs", "put"}, body, _reply_to) do
-    with {:ok, ld} <- Jason.decode(body),
-         true <-
-           ["actor_id", "contract_id", "link_name", "provider_id", "values"]
-           |> Enum.all?(&Map.has_key?(ld, &1)) do
-      HostCore.Linkdefs.Manager.put_link_definition(
-        ld["actor_id"],
-        ld["contract_id"],
-        ld["link_name"],
-        ld["provider_id"],
-        ld["values"]
-      )
+    Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
+      with {:ok, ld} <- Jason.decode(body),
+           true <-
+             ["actor_id", "contract_id", "link_name", "provider_id", "values"]
+             |> Enum.all?(&Map.has_key?(ld, &1)) do
+        HostCore.Linkdefs.Manager.put_link_definition(
+          ld["actor_id"],
+          ld["contract_id"],
+          ld["link_name"],
+          ld["provider_id"],
+          ld["values"]
+        )
 
-      {:reply, success_ack()}
-    else
-      _ ->
-        {:reply, failure_ack("Invalid link definition put request")}
+        {:reply, success_ack()}
+      else
+        _ ->
+          {:reply, failure_ack("Invalid link definition put request")}
+      end
     end
   end
 
@@ -115,20 +126,22 @@ defmodule HostCore.ControlInterface.Server do
   # message to the stream, then publish the removal directly to the relevant provider via the
   # RPC channel
   defp handle_request({"linkdefs", "del"}, body, _reply_to) do
-    with {:ok, ld} <- Jason.decode(body),
-         true <-
-           ["actor_id", "contract_id", "link_name"]
-           |> Enum.all?(&Map.has_key?(ld, &1)) do
-      HostCore.Linkdefs.Manager.del_link_definition(
-        ld["actor_id"],
-        ld["contract_id"],
-        ld["link_name"]
-      )
+    Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
+      with {:ok, ld} <- Jason.decode(body),
+           true <-
+             ["actor_id", "contract_id", "link_name"]
+             |> Enum.all?(&Map.has_key?(ld, &1)) do
+        HostCore.Linkdefs.Manager.del_link_definition(
+          ld["actor_id"],
+          ld["contract_id"],
+          ld["link_name"]
+        )
 
-      {:reply, success_ack()}
-    else
-      _ ->
-        {:reply, failure_ack("Invalid link definition removal request")}
+        {:reply, success_ack()}
+      else
+        _ ->
+          {:reply, failure_ack("Invalid link definition removal request")}
+      end
     end
   end
 
@@ -144,29 +157,37 @@ defmodule HostCore.ControlInterface.Server do
          true <-
            Map.has_key?(start_actor_command, "actor_ref") do
       Task.start(fn ->
-        count = Map.get(start_actor_command, "count", 1)
-        annotations = Map.get(start_actor_command, "annotations", %{})
+        Tracer.with_span "Handle Launch Actor Request (ctl)", kind: :server do
+          count = Map.get(start_actor_command, "count", 1)
+          annotations = Map.get(start_actor_command, "annotations", %{})
 
-        res =
-          if String.starts_with?(start_actor_command["actor_ref"], "bindle://") do
-            start_actor_from_bindle(start_actor_command["actor_ref"], count, annotations)
-          else
-            start_actor_from_oci(start_actor_command["actor_ref"], count, annotations)
+          Tracer.set_attribute("count", count)
+
+          res =
+            if String.starts_with?(start_actor_command["actor_ref"], "bindle://") do
+              start_actor_from_bindle(start_actor_command["actor_ref"], count, annotations)
+            else
+              start_actor_from_oci(start_actor_command["actor_ref"], count, annotations)
+            end
+
+          case res do
+            {:ok, _pid} ->
+              Logger.debug("Completed request to start actor #{start_actor_command["actor_ref"]}",
+                actor_ref: start_actor_command["actor_ref"]
+              )
+
+              Tracer.set_status(:ok, "")
+
+            {:error, e} ->
+              Logger.error(
+                "Failed to start actor #{start_actor_command["actor_ref"]} per remote call",
+                actor_ref: start_actor_command["actor_ref"]
+              )
+
+              Tracer.set_status(:error, "Failed to start actor")
+
+              publish_actor_start_failed(start_actor_command["actor_ref"], inspect(e))
           end
-
-        case res do
-          {:ok, _pid} ->
-            Logger.debug("Completed request to start actor #{start_actor_command["actor_ref"]}",
-              actor_ref: start_actor_command["actor_ref"]
-            )
-
-          {:error, e} ->
-            Logger.error(
-              "Failed to start actor #{start_actor_command["actor_ref"]} per remote call",
-              actor_ref: start_actor_command["actor_ref"]
-            )
-
-            publish_actor_start_failed(start_actor_command["actor_ref"], inspect(e))
         end
       end)
 
@@ -179,19 +200,21 @@ defmodule HostCore.ControlInterface.Server do
 
   # Stop Actor
   defp handle_request({"cmd", _host_id, "sa"}, body, _reply_to) do
-    with {:ok, stop_actor_command} <- Jason.decode(body),
-         true <-
-           ["actor_ref", "count"]
-           |> Enum.all?(&Map.has_key?(stop_actor_command, &1)) do
-      HostCore.Actors.ActorSupervisor.terminate_actor(
-        stop_actor_command["actor_ref"],
-        stop_actor_command["count"]
-      )
+    Tracer.with_span "Handle Stop Actor Request (ctl)", kind: :server do
+      with {:ok, stop_actor_command} <- Jason.decode(body),
+           true <-
+             ["actor_ref", "count"]
+             |> Enum.all?(&Map.has_key?(stop_actor_command, &1)) do
+        HostCore.Actors.ActorSupervisor.terminate_actor(
+          stop_actor_command["actor_ref"],
+          stop_actor_command["count"]
+        )
 
-      {:reply, success_ack()}
-    else
-      _ ->
-        {:reply, failure_ack("Invalid request to stop actor")}
+        {:reply, success_ack()}
+      else
+        _ ->
+          {:reply, failure_ack("Invalid request to stop actor")}
+      end
     end
   end
 
@@ -208,12 +231,14 @@ defmodule HostCore.ControlInterface.Server do
         count = scale_request["count"]
 
         Task.start(fn ->
-          case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
-            {:error, err} ->
-              Logger.error("Error scaling actor: #{err}", actor_id: actor_id)
+          Tracer.with_span "Handle Scale Actor Request (ctl)", kind: :server do
+            case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
+              {:error, err} ->
+                Logger.error("Error scaling actor: #{err}", actor_id: actor_id)
 
-            _ ->
-              :ok
+              _ ->
+                :ok
+            end
           end
         end)
 
@@ -238,31 +263,34 @@ defmodule HostCore.ControlInterface.Server do
            start_provider_command["link_name"]
          ) do
         Task.start(fn ->
-          annotations = Map.get(start_provider_command, "annotations", %{})
+          Tracer.with_span "Handle Launch Provider Request (ctl)", kind: :server do
+            annotations = Map.get(start_provider_command, "annotations", %{})
 
-          res =
-            if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
-              start_provider_from_bindle(
-                start_provider_command["provider_ref"],
-                start_provider_command["link_name"],
-                Map.get(start_provider_command, "configuration", ""),
-                annotations
-              )
-            else
-              start_provider_from_oci(
-                start_provider_command["provider_ref"],
-                start_provider_command["link_name"],
-                Map.get(start_provider_command, "configuration", ""),
-                annotations
-              )
+            res =
+              if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
+                start_provider_from_bindle(
+                  start_provider_command["provider_ref"],
+                  start_provider_command["link_name"],
+                  Map.get(start_provider_command, "configuration", ""),
+                  annotations
+                )
+              else
+                start_provider_from_oci(
+                  start_provider_command["provider_ref"],
+                  start_provider_command["link_name"],
+                  Map.get(start_provider_command, "configuration", ""),
+                  annotations
+                )
+              end
+
+            case res do
+              {:ok, _pid} ->
+                Logger.debug("Completed request to start provider")
+
+              {:error, e} ->
+                Tracer.set_status(:error, inspect(e))
+                publish_provider_start_failed(start_provider_command, inspect(e))
             end
-
-          case res do
-            {:ok, _pid} ->
-              Logger.debug("Completed request to start provider")
-
-            {:error, e} ->
-              publish_provider_start_failed(start_provider_command, inspect(e))
           end
         end)
       else
@@ -280,76 +308,98 @@ defmodule HostCore.ControlInterface.Server do
 
   # Stop Provider
   defp handle_request({"cmd", _host_id, "sp"}, body, _reply_to) do
-    with {:ok, stop_provider_command} <- Jason.decode(body),
-         true <-
-           ["provider_ref", "link_name"]
-           |> Enum.all?(&Map.has_key?(stop_provider_command, &1)) do
-      HostCore.Providers.ProviderSupervisor.terminate_provider(
-        stop_provider_command["provider_ref"],
-        stop_provider_command["link_name"]
-      )
+    Tracer.with_span "Handle Stop Provider Request (ctl)", kind: :server do
+      with {:ok, stop_provider_command} <- Jason.decode(body),
+           true <-
+             ["provider_ref", "link_name"]
+             |> Enum.all?(&Map.has_key?(stop_provider_command, &1)) do
+        Tracer.set_attribute("provider_ref", stop_provider_command["provider_ref"])
+        Tracer.set_attribute("link_name", stop_provider_command["link_name"] || "default")
 
-      {:reply, success_ack()}
-    else
-      _ ->
-        {:reply, failure_ack("Invalid JSON request for stop provider")}
+        HostCore.Providers.ProviderSupervisor.terminate_provider(
+          stop_provider_command["provider_ref"],
+          stop_provider_command["link_name"]
+        )
+
+        {:reply, success_ack()}
+      else
+        _ ->
+          {:reply, failure_ack("Invalid JSON request for stop provider")}
+      end
     end
   end
 
   # Update Actor
   # input: %{"new_actor_ref" => "... oci URL ..."} , public key, etc needs to match a running actor
   defp handle_request({"cmd", _host_id, "upd"}, body, _reply_to) do
-    with {:ok, update_actor_command} = Jason.decode(body),
-         true <- Map.has_key?(update_actor_command, "new_actor_ref") do
-      response =
-        case HostCore.Actors.ActorSupervisor.live_update(update_actor_command["new_actor_ref"]) do
-          :ok -> success_ack()
-          {:error, err} -> failure_ack("Unable to perform live update: #{err}")
-        end
+    Tracer.with_span "Handle Live Update Request (ctl)", kind: :server do
+      with {:ok, update_actor_command} = Jason.decode(body),
+           true <- Map.has_key?(update_actor_command, "new_actor_ref") do
+        # Note to the curious - we can update existing actors using nothing but the new ref (e.g. we don't need the old)
+        # because a precondition is that the new ref must have the same public key as the running actor
+        Tracer.set_attribute("new_actor_ref", update_actor_command["new_actor_ref"])
+        span_ctx = Tracer.current_span_ctx()
 
-      {:reply, response}
-    else
-      _ ->
-        {:reply, failure_ack("Invalid JSON request to update actor")}
+        response =
+          case HostCore.Actors.ActorSupervisor.live_update(
+                 update_actor_command["new_actor_ref"],
+                 span_ctx
+               ) do
+            :ok -> success_ack()
+            {:error, err} -> failure_ack("Unable to perform live update: #{err}")
+          end
+
+        {:reply, response}
+      else
+        _ ->
+          {:reply, failure_ack("Invalid JSON request to update actor")}
+      end
     end
   end
 
   # Stop Host
   defp handle_request({"cmd", host_id, "stop"}, body, _reply_to) do
-    case Jason.decode(body) do
-      # TODO: Right now this will contain a parameter for timeout. Obviously how this works currently
-      # only results in the graceful shutdowns built into the system. There may be some inflight work
-      # we want to wait for up to the timeout. We could use this library possibly so we can put in
-      # hooks: https://github.com/botsquad/graceful_stop.
-      {:ok, stop_host_command} ->
-        if host_id == HostCore.Host.host_key() do
-          Logger.info("Received stop request for host")
-          Process.send_after(HostCore.Host, {:do_stop, stop_host_command["timeout"]}, 100)
-          {:reply, success_ack()}
-        else
-          {:reply, failure_ack("Handled stop request for incorrect host. Ignoring")}
-        end
+    Tracer.with_span "Handle Stop Host Command (ctl)", kind: :server do
+      case Jason.decode(body) do
+        # TODO: Right now this will contain a parameter for timeout. Obviously how this works currently
+        # only results in the graceful shutdowns built into the system. There may be some inflight work
+        # we want to wait for up to the timeout. We could use this library possibly so we can put in
+        # hooks: https://github.com/botsquad/graceful_stop.
+        {:ok, stop_host_command} ->
+          if host_id == HostCore.Host.host_key() do
+            Logger.info("Received stop request for host")
+            Process.send_after(HostCore.Host, {:do_stop, stop_host_command["timeout"]}, 100)
+            Tracer.set_status(:ok, "")
+            {:reply, success_ack()}
+          else
+            Tracer.set_status(:error, "Incorrect host for stop command")
+            {:reply, failure_ack("Handled stop request for incorrect host. Ignoring")}
+          end
 
-      {:error, e} ->
-        Logger.error("Unable to parse incoming stop request: #{e}")
-        {:reply, failure_ack("Unable to parse stop host command: #{e}")}
+        {:error, e} ->
+          Tracer.set_status(:error, "Failed to parse stop host command")
+          Logger.error("Unable to parse incoming stop request: #{e}")
+          {:reply, failure_ack("Unable to parse stop host command: #{e}")}
+      end
     end
   end
 
   ### REGISTRY CREDENTIALS (via Config Service)
   defp handle_request({"registries", "put"}, body, _reply_to) do
-    with {:ok, credsmap} <- Jason.decode(body) do
-      HostCore.Host.set_credsmap(credsmap)
+    Tracer.with_span "Handle Registries Put (ctl)", kind: :server do
+      with {:ok, credsmap} <- Jason.decode(body) do
+        HostCore.Host.set_credsmap(credsmap)
 
-      Logger.debug(
-        "Replaced registry credential map, new registry count: #{length(Map.keys(credsmap))}"
-      )
+        Logger.debug(
+          "Replaced registry credential map, new registry count: #{length(Map.keys(credsmap))}"
+        )
 
-      {:reply, success_ack()}
-    else
-      _ ->
-        Logger.error("failed to update registry credential map")
-        {:reply, failure_ack("failed to update registry credential map")}
+        {:reply, success_ack()}
+      else
+        _ ->
+          Logger.error("failed to update registry credential map")
+          {:reply, failure_ack("failed to update registry credential map")}
+      end
     end
   end
 
@@ -360,66 +410,73 @@ defmodule HostCore.ControlInterface.Server do
   # Auction Actor
   # input: #{"actor_ref" => "...", "constraints" => %{}}
   defp handle_request({"auction", "actor"}, body, _reply_to) do
-    with {:ok, auction_request} <- Jason.decode(body),
-         true <-
-           ["constraints", "actor_ref"]
-           |> Enum.all?(&Map.has_key?(auction_request, &1)) do
-      host_labels = HostCore.Host.host_labels()
-      required_labels = auction_request["constraints"]
+    Tracer.with_span "Handle Actor Auction Request (ctl)", kind: :server do
+      with {:ok, auction_request} <- Jason.decode(body),
+           true <-
+             ["constraints", "actor_ref"]
+             |> Enum.all?(&Map.has_key?(auction_request, &1)) do
+        host_labels = HostCore.Host.host_labels()
+        required_labels = auction_request["constraints"]
 
-      if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) do
-        ack = %{
-          actor_ref: auction_request["actor_ref"],
-          constraints: auction_request["constraints"],
-          host_id: HostCore.Host.host_key()
-        }
+        if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) do
+          ack = %{
+            actor_ref: auction_request["actor_ref"],
+            constraints: auction_request["constraints"],
+            host_id: HostCore.Host.host_key()
+          }
 
-        {:reply, Jason.encode!(ack)}
+          {:reply, Jason.encode!(ack)}
+        else
+          # We don't respond to an auction request if this host cannot satisfy the constraints
+          :ok
+        end
       else
-        # We don't respond to an auction request if this host cannot satisfy the constraints
-        :ok
+        _ ->
+          {:reply, failure_ack("Invalid JSON request for actor auction")}
       end
-    else
-      _ ->
-        {:reply, failure_ack("Invalid JSON request for actor auction")}
     end
   end
 
   # Auction Provider
   # input: #{"actor_ref" => "...", "constraints" => %{}}
   defp handle_request({"auction", "provider"}, body, _reply_to) do
-    with {:ok, auction_request} <- Jason.decode(body),
-         true <-
-           ["constraints", "provider_ref"]
-           |> Enum.all?(&Map.has_key?(auction_request, &1)) do
-      host_labels = HostCore.Host.host_labels()
-      required_labels = auction_request["constraints"]
-      provider_ref = auction_request["provider_ref"]
-      link_name = Map.get(auction_request, "link_name", "default")
+    Tracer.with_span "Handle Provider Auction Request (ctl)", kind: :server do
+      with {:ok, auction_request} <- Jason.decode(body),
+           true <-
+             ["constraints", "provider_ref"]
+             |> Enum.all?(&Map.has_key?(auction_request, &1)) do
+        host_labels = HostCore.Host.host_labels()
+        required_labels = auction_request["constraints"]
+        provider_ref = auction_request["provider_ref"]
+        link_name = Map.get(auction_request, "link_name", "default")
 
-      if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) &&
-           !HostCore.Providers.ProviderSupervisor.provider_running?(provider_ref, link_name) do
-        ack = %{
-          provider_ref: provider_ref,
-          link_name: link_name,
-          constraints: auction_request["constraints"],
-          host_id: HostCore.Host.host_key()
-        }
+        if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) &&
+             !HostCore.Providers.ProviderSupervisor.provider_running?(provider_ref, link_name) do
+          ack = %{
+            provider_ref: provider_ref,
+            link_name: link_name,
+            constraints: auction_request["constraints"],
+            host_id: HostCore.Host.host_key()
+          }
 
-        {:reply, Jason.encode!(ack)}
+          {:reply, Jason.encode!(ack)}
+        else
+          # We don't respond to an auction request if this host cannot satisfy the constraints
+          :ok
+        end
       else
-        # We don't respond to an auction request if this host cannot satisfy the constraints
-        :ok
+        _ ->
+          {:reply, failure_ack("Invalid JSON request to auction provider")}
       end
-    else
-      _ ->
-        {:reply, failure_ack("Invalid JSON request to auction provider")}
     end
   end
 
   # FALL THROUGH
   defp handle_request(tuple, _body, _reply_to) do
-    Logger.warn("Unexpected/unhandled lattice control command: #{inspect(tuple)}")
+    Tracer.with_span "Handle Unexpected Control Command (ctl)", kind: :server do
+      Logger.warn("Unexpected/unhandled lattice control command: #{inspect(tuple)}")
+      Tracer.set_status(:error, "Unexpected control command: #{inspect(tuple)}")
+    end
   end
 
   def publish_actor_start_failed(actor_ref, msg) do

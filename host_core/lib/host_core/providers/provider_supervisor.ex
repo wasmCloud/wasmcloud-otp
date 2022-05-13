@@ -2,6 +2,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   @moduledoc false
   use DynamicSupervisor
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
   alias HostCore.Providers.ProviderModule
 
   def start_link(init_arg) do
@@ -36,115 +37,132 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   def start_provider_from_oci(oci, link_name, config_json \\ "", annotations \\ %{}) do
-    creds = HostCore.Host.get_creds(oci)
+    Tracer.with_span "Start Provider from OCI" do
+      creds = HostCore.Host.get_creds(oci)
+      Tracer.set_attribute("oci_ref", oci)
+      Tracer.set_attribute("link_name", link_name)
 
-    with {:ok, path} <-
-           HostCore.WasmCloud.Native.get_oci_path(
-             creds,
-             oci,
-             HostCore.Oci.allow_latest(),
-             HostCore.Oci.allowed_insecure()
-           ),
-         {:ok, par} <-
-           HostCore.WasmCloud.Native.par_from_path(
-             path,
-             link_name
-           ) do
-      start_executable_provider(
-        HostCore.WasmCloud.Native.par_cache_path(
-          par.claims.public_key,
-          par.claims.revision,
+      with {:ok, path} <-
+             HostCore.WasmCloud.Native.get_oci_path(
+               creds,
+               oci,
+               HostCore.Oci.allow_latest(),
+               HostCore.Oci.allowed_insecure()
+             ),
+           {:ok, par} <-
+             HostCore.WasmCloud.Native.par_from_path(
+               path,
+               link_name
+             ) do
+        Tracer.add_event("Provider fetched", [])
+
+        start_executable_provider(
+          HostCore.WasmCloud.Native.par_cache_path(
+            par.claims.public_key,
+            par.claims.revision,
+            par.contract_id,
+            link_name
+          ),
+          par.claims,
+          link_name,
           par.contract_id,
-          link_name
-        ),
-        par.claims,
-        link_name,
-        par.contract_id,
-        oci,
-        config_json,
-        annotations
-      )
-    else
-      {:error, err} ->
-        Logger.error("Error starting provider from OCI: #{err}",
-          oci_ref: oci,
-          link_name: link_name
+          oci,
+          config_json,
+          annotations
         )
+      else
+        {:error, err} ->
+          Logger.error("Error starting provider from OCI: #{err}",
+            oci_ref: oci,
+            link_name: link_name
+          )
 
-        {:error, err}
+          {:error, err}
 
-      err ->
-        Logger.error("Error starting provider from OCI: #{inspect(err)}", oci_ref: oci)
-        {:error, "Error starting provider from OCI"}
+        err ->
+          Logger.error("Error starting provider from OCI: #{inspect(err)}", oci_ref: oci)
+          {:error, "Error starting provider from OCI"}
+      end
     end
   end
 
   def start_provider_from_bindle(bindle_id, link_name, config_json \\ "", annotations \\ %{}) do
-    creds = HostCore.Host.get_creds(bindle_id)
+    Tracer.with_span "Start Provider from Bindle" do
+      creds = HostCore.Host.get_creds(bindle_id)
+      Tracer.set_attribute("bindle_id", bindle_id)
+      Tracer.set_attribute("link_name", link_name)
 
-    with {:ok, par} <-
-           HostCore.WasmCloud.Native.get_provider_bindle(
-             creds,
-             String.trim_leading(bindle_id, "bindle://"),
-             link_name
-           ) do
-      start_executable_provider(
-        HostCore.WasmCloud.Native.par_cache_path(
-          par.claims.public_key,
-          par.claims.revision,
+      with {:ok, par} <-
+             HostCore.WasmCloud.Native.get_provider_bindle(
+               creds,
+               String.trim_leading(bindle_id, "bindle://"),
+               link_name
+             ) do
+        Tracer.add_event("Provider fetched", [])
+
+        start_executable_provider(
+          HostCore.WasmCloud.Native.par_cache_path(
+            par.claims.public_key,
+            par.claims.revision,
+            par.contract_id,
+            link_name
+          ),
+          par.claims,
+          link_name,
           par.contract_id,
-          link_name
-        ),
-        par.claims,
-        link_name,
-        par.contract_id,
-        bindle_id,
-        config_json,
-        annotations
-      )
-    else
-      {:error, err} ->
-        Logger.error("Error starting provider from Bindle: #{inspect(err)}",
-          bindle_id: bindle_id,
-          link_name: link_name
+          bindle_id,
+          config_json,
+          annotations
         )
+      else
+        {:error, err} ->
+          Logger.error("Error starting provider from Bindle: #{inspect(err)}",
+            bindle_id: bindle_id,
+            link_name: link_name
+          )
 
-        {:error, err}
+          Tracer.set_status(:error, "#{inspect(err)}")
+          {:error, err}
 
-      err ->
-        Logger.error("Error starting provider from Bindle: #{inspect(err)}",
-          bindle_id: bindle_id,
-          link_name: link_name
-        )
+        err ->
+          Logger.error("Error starting provider from Bindle: #{inspect(err)}",
+            bindle_id: bindle_id,
+            link_name: link_name
+          )
 
-        {:error, "Error starting provider from OCI"}
+          Tracer.set_status(:error, "#{inspect(err)}")
+
+          {:error, "Error starting provider from Bindle"}
+      end
     end
   end
 
   def start_provider_from_file(path, link_name, annotations \\ %{}) do
-    with {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path, link_name) do
-      start_executable_provider(
-        HostCore.WasmCloud.Native.par_cache_path(
-          par.claims.public_key,
-          par.claims.revision,
+    Tracer.with_span "Start Provider from File" do
+      with {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path, link_name) do
+        start_executable_provider(
+          HostCore.WasmCloud.Native.par_cache_path(
+            par.claims.public_key,
+            par.claims.revision,
+            par.contract_id,
+            link_name
+          ),
+          par.claims,
+          link_name,
           par.contract_id,
-          link_name
-        ),
-        par.claims,
-        link_name,
-        par.contract_id,
-        "",
-        "",
-        annotations
-      )
-    else
-      {:error, err} ->
-        Logger.error("Error starting provider from file: #{err}", link_name: link_name)
-        {:error, err}
+          "",
+          "",
+          annotations
+        )
+      else
+        {:error, err} ->
+          Logger.error("Error starting provider from file: #{err}", link_name: link_name)
+          {:error, err}
 
-      err ->
-        Logger.error("Error starting provider from file", link_name: link_name)
-        {:error, err}
+        err ->
+          Logger.error("Error starting provider from file", link_name: link_name)
+          {:error, err}
+      end
     end
   end
 

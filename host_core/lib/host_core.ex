@@ -9,6 +9,8 @@ defmodule HostCore do
     config = Vapor.load!(HostCore.ConfigPlan)
     config = post_process_config(config)
 
+    OpentelemetryLoggerMetadata.setup()
+
     children = mount_supervisor_tree(config)
 
     opts = [strategy: :one_for_one, name: HostCore.Supervisor]

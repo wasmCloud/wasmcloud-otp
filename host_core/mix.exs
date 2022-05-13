@@ -19,10 +19,18 @@ defmodule HostCore.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
+  # In order to ensure that TLS cert check starts before the otel applications,
+  # we disable auto-start from dependencies and start them in explicit order in the
+  # application function
   def application do
     [
-      extra_applications: [:logger, :crypto],
+      extra_applications: [
+        :logger,
+        :crypto,
+        :tls_certificate_check,
+        :opentelemetry_exporter,
+        :opentelemetry
+      ],
       mod: {HostCore, []}
     ]
   end
@@ -39,6 +47,10 @@ defmodule HostCore.MixProject do
       {:erlavro, "~> 2.9.7", override: true, manager: :rebar3},
       {:cloudevents, "~> 0.4.0"},
       {:uuid, "~> 1.1"},
+      {:opentelemetry_api, "~> 1.0"},
+      {:opentelemetry, "~> 1.0", application: false},
+      {:opentelemetry_exporter, "~> 1.0", application: false},
+      {:opentelemetry_logger_metadata, "~> 0.1.0"},
 
       # {:vapor, "~> 0.10.0"},
       # TODO: switch to new version of vapor once PR is merged

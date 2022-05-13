@@ -16,7 +16,8 @@ defmodule HostCore.WasmCloud.Native do
         _target_contract_id,
         _target_link_name,
         _op,
-        _msg
+        _msg,
+        _trace_context
       ),
       do: error()
 

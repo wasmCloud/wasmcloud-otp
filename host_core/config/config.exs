@@ -14,4 +14,12 @@ import Config
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
 #
+
+config :opentelemetry, :resource, service: %{name: "wasmcloud"}
+
+config :opentelemetry, :processors,
+  otel_batch_processor: %{
+    exporter: :undefined
+  }
+
 import_config "#{config_env()}.exs"

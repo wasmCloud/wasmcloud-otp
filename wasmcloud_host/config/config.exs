@@ -7,6 +7,13 @@
 # General application configuration
 import Config
 
+config :opentelemetry, :resource, service: %{name: "wasmcloud"}
+
+config :opentelemetry, :processors,
+  otel_batch_processor: %{
+    exporter: :undefined
+  }
+
 # Configures the endpoint
 config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
   url: [host: "localhost"],
@@ -18,7 +25,7 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [:request_id, :span_id, :trace_id]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
