@@ -345,7 +345,9 @@ defmodule HostCore.ControlInterface.Server do
                  update_actor_command["new_actor_ref"],
                  span_ctx
                ) do
-            :ok -> success_ack()
+            :ok ->
+              success_ack()
+
             {:error, err} ->
               Tracer.set_status(:error, "#{err}")
               failure_ack("Unable to perform live update: #{err}")

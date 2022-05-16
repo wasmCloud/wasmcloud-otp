@@ -36,6 +36,7 @@ defmodule HostCore.Actors.ActorSupervisor do
         {:ok, claims} ->
           if other_oci_already_running?(oci, claims.public_key) do
             Tracer.set_status(:error, "Already running")
+
             {:error,
              "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
           else

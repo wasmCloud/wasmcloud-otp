@@ -9,10 +9,9 @@ import Config
 
 config :opentelemetry, :resource, service: %{name: "wasmcloud"}
 
-config :opentelemetry, :processors,
-  otel_batch_processor: %{
-    exporter: :undefined
-  }
+config :opentelemetry,
+  span_processor: :batch,
+  traces_exporter: :none
 
 # Configures the endpoint
 config :wasmcloud_host, WasmcloudHostWeb.Endpoint,

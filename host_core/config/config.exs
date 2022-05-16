@@ -17,9 +17,8 @@ import Config
 
 config :opentelemetry, :resource, service: %{name: "wasmcloud"}
 
-config :opentelemetry, :processors,
-  otel_batch_processor: %{
-    exporter: :undefined
-  }
+config :opentelemetry,
+  span_processor: :batch,
+  traces_exporter: :none
 
 import_config "#{config_env()}.exs"

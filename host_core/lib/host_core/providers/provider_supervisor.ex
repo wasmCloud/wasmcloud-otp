@@ -76,6 +76,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
             oci_ref: oci,
             link_name: link_name
           )
+
           Tracer.set_status(:error, "#{err}")
 
           {:error, err}
@@ -205,6 +206,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
             provider_id: public_key,
             link_name: link_name
           )
+
           Tracer.set_attribute("public_key", public_key)
           Tracer.set_attribute("link_name", link_name)
 
@@ -212,11 +214,11 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
           # Allow provider 2 seconds to respond/acknowledge termination request (give time to clean up resources)
           case HostCore.Nats.safe_req(
-                :lattice_nats,
-                "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
-                "",
-                receive_timeout: 2000
-              ) do
+                 :lattice_nats,
+                 "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
+                 "",
+                 receive_timeout: 2000
+               ) do
             {:ok, _msg} -> :ok
             {:error, :timeout} -> :error
           end
