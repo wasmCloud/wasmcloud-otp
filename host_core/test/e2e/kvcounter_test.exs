@@ -30,6 +30,11 @@ defmodule HostCore.E2E.KVCounterTest do
 
   test "kvcounter roundtrip", %{:evt_watcher => evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
+
+    # uncomment the before and after delays if you want this test to
+    # reliably emit trace exports
+    # :timer.sleep(6000)
+
     {:ok, bytes} = File.read(@kvcounter_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
@@ -118,6 +123,8 @@ defmodule HostCore.E2E.KVCounterTest do
     incr_count = Map.get(body, "counter") + 1
     {:ok, resp} = request_http("http://localhost:8081/foobar", 2)
     assert resp.body == "{\"counter\":#{incr_count}}"
+
+    # :timer.sleep(6000)
   end
 
   test "kvcounter unprivileged access denied", %{:evt_watcher => evt_watcher} do

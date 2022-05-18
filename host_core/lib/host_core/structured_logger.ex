@@ -95,8 +95,11 @@ defmodule HostCore.StructuredLogger.FormatterJson do
   defp encode_msg({format, terms}),
     do: %{"msg" => format |> Logger.Utils.scan_inspect(terms, :infinity) |> :io_lib.build_text()}
 
-  defp encode_meta(%{mfa: {m, f, a}}), do: %{mfa: "#{inspect(m)}.#{f}/#{a}"}
-  # defp encode_meta(_m), do: %{}
+  defp encode_meta(%{mfa: {m, f, a}}) do
+    %{mfa: "#{inspect(m)}.#{f}/#{a}"}
+  end
+
+  defp encode_meta(_m), do: %{}
 
   # https://github.com/elixir-metadata-logger/metadata_logger
   @spec log_to_map(Logger.level(), list[keyword]) :: map()

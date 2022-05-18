@@ -1,0 +1,20 @@
+server:
+  http_listen_port: 8000
+
+distributor:
+  log_received_traces: true
+  receivers:
+    otlp:
+      protocols:
+        http:
+
+storage:
+  trace:
+    backend: local
+    block:
+      encoding: zstd
+    wal:
+      path: /tmp/tempo/wal
+      encoding: none
+    local:
+      path: /tmp/tempo/blocks

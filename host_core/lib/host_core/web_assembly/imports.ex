@@ -1,16 +1,17 @@
 defmodule HostCore.WebAssembly.Imports do
   @moduledoc false
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
   alias HostCore.Actors.ActorModule.State
   alias HostCore.CloudEvent
 
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
 
-  # Once a message body reaches 700kb, we will use the object
+  # Once a message body reaches 900kb, we will use the object
   # store to hold it and allow 15 seconds for the RPC call to
   # finish (giving the other side time to "de-chunk")
-  @chunk_threshold 700 * 1024
+  @chunk_threshold 900 * 1024
   @chunk_rpc_timeout 15000
 
   def fake_wasi(_agent) do
@@ -130,6 +131,9 @@ defmodule HostCore.WebAssembly.Imports do
          len,
          agent
        ) do
+    span_ctx = Agent.get(agent, fn content -> content.parent_span end)
+    Tracer.set_current_span(span_ctx)
+
     # Read host_call parameters from wasm memory
     payload = Wasmex.Memory.read_binary(context.memory, ptr, len)
     binding = Wasmex.Memory.read_string(context.memory, bd_ptr, bd_len)
@@ -144,25 +148,42 @@ defmodule HostCore.WebAssembly.Imports do
     claims = state.claims
     actor = claims.public_key
 
-    %{
-      payload: payload,
-      binding: binding,
-      namespace: namespace,
-      operation: operation,
-      seed: seed,
-      claims: claims,
-      prefix: prefix,
-      state: state,
-      agent: agent,
-      source_actor: actor,
-      target: nil,
-      authorized: false,
-      verified: false
-    }
-    |> identify_target()
-    |> verify_link()
-    |> authorize_call()
-    |> invoke()
+    Tracer.with_span "Host Call", kind: :client do
+      Tracer.set_attribute("namespace", namespace)
+      Tracer.set_attribute("binding", binding)
+      Tracer.set_attribute("operation", operation)
+      Tracer.set_attribute("actor_id", actor)
+      Tracer.set_attribute("payload_size", byte_size(payload))
+
+      res =
+        %{
+          payload: payload,
+          binding: binding,
+          namespace: namespace,
+          operation: operation,
+          seed: seed,
+          claims: claims,
+          prefix: prefix,
+          state: state,
+          agent: agent,
+          source_actor: actor,
+          target: nil,
+          authorized: false,
+          verified: false
+        }
+        |> identify_target()
+        |> verify_link()
+        |> authorize_call()
+        |> invoke()
+
+      if res == 1 do
+        Tracer.set_status(:ok, "")
+      else
+        Tracer.set_status(:error, "")
+      end
+
+      res
+    end
   end
 
   defp identify_target(
@@ -176,14 +197,17 @@ defmodule HostCore.WebAssembly.Imports do
     target =
       case HostCore.Linkdefs.Manager.lookup_link_definition(actor_id, namespace, binding) do
         {:ok, ld} ->
+          Tracer.set_attribute("target_provider", ld.provider_id)
           {:provider, ld.provider_id, "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{binding}"}
 
         _ ->
           if String.starts_with?(namespace, "M") && String.length(namespace) == 56 do
+            Tracer.set_attribute("target_actor", namespace)
             {:actor, namespace, "wasmbus.rpc.#{prefix}.#{namespace}"}
           else
             case lookup_call_alias(namespace) do
               {:ok, actor_key} ->
+                Tracer.set_attribute("target_actor", actor_key)
                 {:actor, actor_key, "wasmbus.rpc.#{prefix}.#{actor_key}"}
 
               :error ->
@@ -338,6 +362,11 @@ defmodule HostCore.WebAssembly.Imports do
 
     # generate_invocation_bytes will optionally chunk out the payload
     # to the object store
+
+    # produce a hash map containing the propagated trace context suitable for
+    # storing on an invocation
+    trace_context = :otel_propagator_text_map.inject([]) |> Enum.into(%{})
+
     invocation_res =
       HostCore.WasmCloud.Native.generate_invocation_bytes(
         seed,
@@ -347,7 +376,8 @@ defmodule HostCore.WebAssembly.Imports do
         namespace,
         binding,
         operation,
-        payload
+        payload,
+        trace_context
       )
       |> perform_rpc_invoke(target_subject, timeout)
 
@@ -442,9 +472,21 @@ defmodule HostCore.WebAssembly.Imports do
 
   defp perform_rpc_invoke(inv_bytes, target_subject, timeout) do
     # Perform RPC invocation over lattice
-    case HostCore.Nats.safe_req(:lattice_nats, target_subject, inv_bytes, receive_timeout: timeout) do
-      {:ok, %{body: body}} -> body
-      {:error, :timeout} -> :fail
+    Tracer.with_span "Outbound RPC", kind: :client do
+      Tracer.set_attribute("timeout", timeout)
+      Tracer.set_attribute("topic", target_subject)
+
+      case HostCore.Nats.safe_req(:lattice_nats, target_subject, inv_bytes,
+             receive_timeout: timeout
+           ) do
+        {:ok, %{body: body}} ->
+          Tracer.set_status(:ok, "")
+          body
+
+        {:error, :timeout} ->
+          Tracer.set_status(:error, "timeout")
+          :fail
+      end
     end
   end
 

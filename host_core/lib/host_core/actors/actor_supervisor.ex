@@ -2,6 +2,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   @moduledoc false
   use DynamicSupervisor
   alias HostCore.Actors.ActorModule
+  require OpenTelemetry.Tracer, as: Tracer
   require Logger
 
   def start_link(init_arg) do
@@ -21,42 +22,55 @@ defmodule HostCore.Actors.ActorSupervisor do
           annotations :: Map.t()
         ) :: {:error, any} | {:ok, [pid()]}
   def start_actor(bytes, oci \\ "", count \\ 1, annotations \\ %{}) when is_binary(bytes) do
-    Logger.debug("Start actor request received", oci_ref: oci)
+    Tracer.with_span "Starting Actor" do
+      Tracer.set_attribute("actor_ref", oci)
+      Tracer.set_attribute("byte_size", byte_size(bytes))
+      Logger.debug("Start actor request received", oci_ref: oci)
 
-    case HostCore.WasmCloud.Native.extract_claims(bytes) do
-      {:error, err} ->
-        Logger.error("Failed to extract claims from WebAssembly module", oci_ref: oci)
-        {:error, err}
+      case HostCore.WasmCloud.Native.extract_claims(bytes) do
+        {:error, err} ->
+          Tracer.set_status(:error, "#{inspect(err)}")
+          Logger.error("Failed to extract claims from WebAssembly module", oci_ref: oci)
+          {:error, err}
 
-      {:ok, claims} ->
-        if other_oci_already_running?(oci, claims.public_key) do
-          {:error,
-           "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
-        else
-          # Start `count` instances of this actor
-          case 1..count
-               |> Enum.reduce_while([], fn _count, pids ->
-                 case DynamicSupervisor.start_child(
-                        __MODULE__,
-                        {HostCore.Actors.ActorModule, {claims, bytes, oci, annotations}}
-                      ) do
-                   {:error, err} ->
-                     {:halt, {:error, "Error: #{err}"}}
+        {:ok, claims} ->
+          if other_oci_already_running?(oci, claims.public_key) do
+            Tracer.set_status(:error, "Already running")
 
-                   {:ok, pid} ->
-                     {:cont, [pid | pids]}
+            {:error,
+             "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
+          else
+            # Start `count` instances of this actor
+            case 1..count
+                 |> Enum.reduce_while([], fn _count, pids ->
+                   case DynamicSupervisor.start_child(
+                          __MODULE__,
+                          {HostCore.Actors.ActorModule, {claims, bytes, oci, annotations}}
+                        ) do
+                     {:error, err} ->
+                       {:halt, {:error, "Error: #{err}"}}
 
-                   {:ok, pid, _info} ->
-                     {:cont, [pid | pids]}
+                     {:ok, pid} ->
+                       {:cont, [pid | pids]}
 
-                   :ignore ->
-                     {:cont, pids}
-                 end
-               end) do
-            {:error, err} -> {:error, err}
-            pids -> {:ok, pids}
+                     {:ok, pid, _info} ->
+                       {:cont, [pid | pids]}
+
+                     :ignore ->
+                       {:cont, pids}
+                   end
+                 end) do
+              {:error, err} ->
+                Tracer.set_status(:error, "#{inspect(err)}")
+                {:error, err}
+
+              pids ->
+                Tracer.add_event("Actor(s) Started", [])
+                Tracer.set_status(:ok, "")
+                {:ok, pids}
+            end
           end
-        end
+      end
     end
   end
 
@@ -69,44 +83,54 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def start_actor_from_oci(oci, count \\ 1, annotations \\ %{}) do
-    creds = HostCore.Host.get_creds(oci)
+    Tracer.with_span "Starting Actor from OCI", kind: :server do
+      creds = HostCore.Host.get_creds(oci)
 
-    case HostCore.WasmCloud.Native.get_oci_bytes(
-           creds,
-           oci,
-           HostCore.Oci.allow_latest(),
-           HostCore.Oci.allowed_insecure()
-         ) do
-      {:error, err} ->
-        Logger.error("Failed to download OCI bytes for #{oci}: #{inspect(err)}", oci_ref: oci)
-        {:error, err}
+      case HostCore.WasmCloud.Native.get_oci_bytes(
+             creds,
+             oci,
+             HostCore.Oci.allow_latest(),
+             HostCore.Oci.allowed_insecure()
+           ) do
+        {:error, err} ->
+          Tracer.add_event("OCI image fetch failed", reason: "#{inspect(err)}")
+          Tracer.set_status(:error, "#{inspect(err)}")
+          Logger.error("Failed to download OCI bytes for #{oci}: #{inspect(err)}", oci_ref: oci)
+          {:error, err}
 
-      {:ok, bytes} ->
-        start_actor(bytes |> IO.iodata_to_binary(), oci, count, annotations)
+        {:ok, bytes} ->
+          Tracer.add_event("OCI image fetched", byte_size: length(bytes))
+          start_actor(bytes |> IO.iodata_to_binary(), oci, count, annotations)
+      end
     end
   end
 
   def start_actor_from_bindle(bindle_id, count \\ 1, annotations \\ %{}) do
-    creds = HostCore.Host.get_creds(bindle_id)
+    Tracer.with_span "Starting Actor from Bindle", kind: :server do
+      creds = HostCore.Host.get_creds(bindle_id)
 
-    case HostCore.WasmCloud.Native.get_actor_bindle(
-           creds,
-           String.trim_leading(bindle_id, "bindle://")
-         ) do
-      {:error, err} ->
-        Logger.error(
-          "Failed to download bytes from bindle server for #{bindle_id}: #{inspect(err)}",
-          bindle_id: bindle_id
-        )
+      case HostCore.WasmCloud.Native.get_actor_bindle(
+             creds,
+             String.trim_leading(bindle_id, "bindle://")
+           ) do
+        {:error, err} ->
+          Tracer.add_event("Bindle fetch failed", reason: "#{inspect(err)}")
 
-        {:error, err}
+          Logger.error(
+            "Failed to download bytes from bindle server for #{bindle_id}: #{inspect(err)}",
+            bindle_id: bindle_id
+          )
 
-      {:ok, bytes} ->
-        start_actor(bytes |> IO.iodata_to_binary(), bindle_id, count, annotations)
+          {:error, err}
+
+        {:ok, bytes} ->
+          Tracer.add_event("Bindle fetched", byte_size: length(bytes))
+          start_actor(bytes |> IO.iodata_to_binary(), bindle_id, count, annotations)
+      end
     end
   end
 
-  def live_update(oci) do
+  def live_update(oci, span_ctx \\ nil) do
     creds = HostCore.Host.get_creds(oci)
 
     with {:ok, bytes} <-
@@ -129,13 +153,17 @@ defmodule HostCore.Actors.ActorSupervisor do
         oci_ref: oci
       )
 
+      # Each spawned function is a new process, therefore a new root trace
+      # this is why we pass the span context so all child updates roll up
+      # to the current trace
       targets
       |> Enum.each(fn pid ->
         HostCore.Actors.ActorModule.live_update(
           pid,
           bytes |> IO.iodata_to_binary(),
           new_claims,
-          oci
+          oci,
+          span_ctx
         )
       end)
 
@@ -239,6 +267,7 @@ defmodule HostCore.Actors.ActorSupervisor do
         end
 
       diff < 0 ->
+        Tracer.set_status(:error, "Not allowed to scale actor w/out OCI reference")
         {:error, "Scaling actor up without an OCI reference is not currently supported"}
     end
   end
