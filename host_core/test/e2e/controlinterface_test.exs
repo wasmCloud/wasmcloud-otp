@@ -30,12 +30,12 @@ defmodule HostCore.E2E.ControlInterfaceTest do
 
     Tracer.with_span "Make claims request", kind: :client do
       Logger.debug("Making claims request")
-      trace_context = :otel_propagator_text_map.inject([]) |> Enum.into(%{}) |> Jason.encode!()
+      trace_context = :otel_propagator_text_map.inject([])
 
       {:ok, %{body: body}} =
         HostCore.Nats.safe_req(:control_nats, topic, [],
           receive_timeout: 2_000,
-          headers: [{"tracecontext", trace_context}]
+          headers: trace_context
         )
 
       echo_claims =

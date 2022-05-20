@@ -318,8 +318,8 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp extract_trace_context(invocation) do
-    if Map.has_key?(invocation, "traceContext") do
-      cleaned = Map.get(invocation, "traceContext", %{}) |> Enum.into([])
+    if Map.has_key?(invocation, "trace_context") do
+      cleaned = Map.get(invocation, "trace_context", %{}) |> Enum.into([])
       :otel_propagator_text_map.extract(cleaned)
     end
   end

@@ -32,16 +32,7 @@ defmodule HostCore.ControlInterface.Server do
   end
 
   defp reconstitute_trace_context(headers) when is_list(headers) do
-    hmap = headers |> Enum.into(%{})
-
-    if Map.has_key?(hmap, "tracecontext") do
-      with {:ok, decoded} <- Map.get(hmap, "tracecontext") |> Jason.decode() do
-        :otel_propagator_text_map.extract(decoded |> Enum.into([]))
-      else
-        _ ->
-          Logger.error("Control message had tracecontext header, but could not decode")
-      end
-    end
+    :otel_propagator_text_map.extract(headers)
   end
 
   defp reconstitute_trace_context(_) do
