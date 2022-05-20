@@ -13,7 +13,12 @@ defmodule HostCore.ControlInterface.Server do
   import HostCore.Providers.ProviderSupervisor,
     only: [start_provider_from_bindle: 4, start_provider_from_oci: 4]
 
-  def request(%{topic: topic, body: body, reply_to: reply_to}) do
+  def request(%{topic: topic, body: body, reply_to: reply_to} = req) do
+    headers = Map.get(req, :headers)
+    reconstitute_trace_context(headers)
+
+    Logger.debug("Received control interface request on #{topic}")
+
     topic
     |> String.split(".")
     # wasmbus
@@ -24,6 +29,23 @@ defmodule HostCore.ControlInterface.Server do
     |> List.delete_at(0)
     |> List.to_tuple()
     |> handle_request(body, reply_to)
+  end
+
+  defp reconstitute_trace_context(headers) when is_list(headers) do
+    hmap = headers |> Enum.into(%{})
+
+    if Map.has_key?(hmap, "tracecontext") do
+      with {:ok, decoded} <- Map.get(hmap, "tracecontext") |> Jason.decode() do
+        :otel_propagator_text_map.extract(decoded |> Enum.into([]))
+      else
+        _ ->
+          Logger.error("Control message had tracecontext header, but could not decode")
+      end
+    end
+  end
+
+  defp reconstitute_trace_context(_) do
+    # NO OP
   end
 
   ### PING

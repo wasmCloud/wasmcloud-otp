@@ -1,6 +1,9 @@
 defmodule HostCore.E2E.ControlInterfaceTest do
   use ExUnit.Case, async: false
 
+  require OpenTelemetry.Tracer, as: Tracer
+  require Logger
+
   setup do
     {:ok, evt_watcher} =
       GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
@@ -25,16 +28,24 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     prefix = HostCore.Host.lattice_prefix()
     topic = "wasmbus.ctl.#{prefix}.get.claims"
 
-    {:ok, %{body: body}} =
-      HostCore.Nats.safe_req(:control_nats, topic, [], receive_timeout: 2_000)
+    Tracer.with_span "Make claims request", kind: :client do
+      Logger.debug("Making claims request")
+      trace_context = :otel_propagator_text_map.inject([]) |> Enum.into(%{}) |> Jason.encode!()
 
-    echo_claims =
-      body
-      |> Jason.decode!()
-      |> Map.get("claims")
-      |> Enum.find(fn claims -> Map.get(claims, "sub") == @echo_key end)
+      {:ok, %{body: body}} =
+        HostCore.Nats.safe_req(:control_nats, topic, [],
+          receive_timeout: 2_000,
+          headers: [{"tracecontext", trace_context}]
+        )
 
-    assert Map.get(echo_claims, "sub") == @echo_key
+      echo_claims =
+        body
+        |> Jason.decode!()
+        |> Map.get("claims")
+        |> Enum.find(fn claims -> Map.get(claims, "sub") == @echo_key end)
+
+      assert Map.get(echo_claims, "sub") == @echo_key
+    end
   end
 
   test "can get linkdefs", %{:evt_watcher => _evt_watcher} do
