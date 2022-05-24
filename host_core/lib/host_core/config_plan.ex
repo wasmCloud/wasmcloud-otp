@@ -66,7 +66,7 @@ defmodule HostCore.ConfigPlan do
       {:rpc_host, "rpc_host", required: false, default: "127.0.0.1"},
       {:rpc_port, "rpc_port", required: false, default: 4222},
       {:rpc_seed, "rpc_seed", required: false, default: ""},
-      {:rpc_timeout, "rpc_timeout_ms", required: false, default: 2000},
+      {:rpc_timeout_ms, "rpc_timeout_ms", required: false, default: 2000},
       {:rpc_jwt, "rpc_jwt", required: false, default: ""},
       {:rpc_tls, "rpc_tls", required: false, default: 0},
       {:prov_rpc_host, "prov_rpc_host", required: false, default: "127.0.0.1"},
