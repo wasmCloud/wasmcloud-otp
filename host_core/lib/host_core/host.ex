@@ -365,7 +365,7 @@ defmodule HostCore.Host do
 
   def rpc_timeout() do
     case :ets.lookup(:config_table, :config) do
-      [config: config_map] -> config_map[:rpc_timeout]
+      [config: config_map] -> config_map[:rpc_timeout_ms]
       _ -> 2_000
     end
   end
@@ -393,7 +393,7 @@ defmodule HostCore.Host do
         [config: config_map] ->
           {"#{config_map[:prov_rpc_host]}:#{config_map[:prov_rpc_port]}",
            config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed], config_map[:prov_rpc_tls],
-           config_map[:rpc_timeout], config_map[:enable_structured_logging]}
+           config_map[:rpc_timeout_ms], config_map[:enable_structured_logging]}
 
         _ ->
           {"127.0.0.1:4222", "", "", 2000, false}
