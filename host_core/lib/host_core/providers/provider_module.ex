@@ -82,7 +82,7 @@ defmodule HostCore.Providers.ProviderModule do
       |> Base.encode64()
       |> to_charlist()
 
-    port = Port.open({:spawn, "#{path}"}, [:binary])
+    port = Port.open({:spawn, "#{path}"}, [:binary, {:env, extract_env_vars()}])
     Port.monitor(port)
     Port.command(port, "#{host_info}\n")
 
@@ -117,6 +117,15 @@ defmodule HostCore.Providers.ProviderModule do
        healthy: false,
        ociref: oci
      }}
+  end
+
+  @propagated_env_vars ["OTEL_TRACES_EXPORTER", "OTEL_EXPORTER_OTLP_ENDPOINT"]
+
+  defp extract_env_vars() do
+    @propagated_env_vars
+    |> Enum.map(fn e -> {e |> to_charlist(), System.get_env(e) |> to_charlist()} end)
+    |> Enum.filter(fn {_k, v} -> length(v) > 0 end)
+    |> Enum.into([])
   end
 
   @impl true
