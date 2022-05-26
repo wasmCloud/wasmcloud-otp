@@ -365,7 +365,6 @@ defmodule HostCore.WebAssembly.Imports do
 
     # produce a hash map containing the propagated trace context suitable for
     # storing on an invocation
-    trace_context = :otel_propagator_text_map.inject([]) |> Enum.into(%{})
 
     invocation_res =
       HostCore.WasmCloud.Native.generate_invocation_bytes(
@@ -376,8 +375,7 @@ defmodule HostCore.WebAssembly.Imports do
         namespace,
         binding,
         operation,
-        payload,
-        trace_context
+        payload
       )
       |> perform_rpc_invoke(target_subject, timeout)
 
@@ -476,8 +474,11 @@ defmodule HostCore.WebAssembly.Imports do
       Tracer.set_attribute("timeout", timeout)
       Tracer.set_attribute("topic", target_subject)
 
+      trace_context = :otel_propagator_text_map.inject([])
+
       case HostCore.Nats.safe_req(:lattice_nats, target_subject, inv_bytes,
-             receive_timeout: timeout
+             receive_timeout: timeout,
+             headers: trace_context
            ) do
         {:ok, %{body: body}} ->
           Tracer.set_status(:ok, "")

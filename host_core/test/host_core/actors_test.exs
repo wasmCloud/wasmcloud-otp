@@ -67,8 +67,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_contract,
         @httpserver_link,
         "HttpServer.HandleRequest",
-        req,
-        %{}
+        req
       )
 
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
@@ -163,8 +162,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_contract,
         @httpserver_link,
         "HttpServer.HandleRequest",
-        req,
-        %{}
+        req
       )
 
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
@@ -223,8 +221,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_contract,
         @httpserver_link,
         "HttpServer.HandleRequest",
-        req,
-        %{}
+        req
       )
 
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
@@ -284,8 +281,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_contract,
         @httpserver_link,
         "HttpServer.HandleRequest",
-        req,
-        %{}
+        req
       )
 
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
@@ -338,8 +334,7 @@ defmodule HostCore.ActorsTest do
         @httpserver_contract,
         @httpserver_link,
         "HandleRequest",
-        req,
-        %{}
+        req
       )
 
     topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@pinger_key}"

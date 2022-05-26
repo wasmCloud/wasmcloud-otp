@@ -34,8 +34,6 @@ pub struct Invocation {
     pub host_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_length: Option<u64>,
-    #[serde(default)]
-    pub trace_context: Option<HashMap<String, String>> // this shows up as a "none" if not included from the other side
 }
 
 /// Represents an entity within the host runtime that can be the source
@@ -76,7 +74,6 @@ impl Invocation {
         target: WasmCloudEntity,
         op: &str,
         msg: Vec<u8>,
-        trace_context: Option<HashMap<String, String>>
     ) -> Invocation {
         let subject = format!("{}", Uuid::new_v4());
         let issuer = hostkey.public_key();
@@ -98,7 +95,6 @@ impl Invocation {
             id: subject,
             encoded_claims: claims.encode(hostkey).unwrap(),
             host_id: issuer,
-            trace_context
         }
     }
 
@@ -129,8 +125,7 @@ impl Invocation {
             msg: vec![],
             id: subject,
             encoded_claims: claims.encode(hostkey).unwrap(),
-            host_id: issuer,
-            trace_context: None,
+            host_id: issuer,            
         }
     }
 
