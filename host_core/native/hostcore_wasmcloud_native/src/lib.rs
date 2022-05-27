@@ -502,7 +502,6 @@ fn generate_invocation_bytes(
     target_link_name: String,
     operation: String,
     msg: Binary,
-    trace_context: Option<HashMap<String, String>>
 ) -> Result<Vec<u8>, Error> {
     let mut inv = inv::Invocation::new(
         &KeyPair::from_seed(&host_seed).unwrap(),
@@ -514,7 +513,6 @@ fn generate_invocation_bytes(
         },
         &operation,
         msg.as_slice().to_vec(),
-        trace_context
     );
     if msg.len() > CHONKY_THRESHOLD_BYTES {
         inv.msg = vec![];

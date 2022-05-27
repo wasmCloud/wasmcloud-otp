@@ -202,6 +202,14 @@ defmodule HostCore.Actors.ActorModule do
     {:stop, :normal, :ok, agent}
   end
 
+  defp reconstitute_trace_context(headers) when is_list(headers) do
+    :otel_propagator_text_map.extract(headers)
+  end
+
+  defp reconstitute_trace_context(_) do
+    # NO OP
+  end
+
   @impl true
   def handle_info(:do_health, agent) do
     perform_health_check(agent)
@@ -215,9 +223,11 @@ defmodule HostCore.Actors.ActorModule do
            body: body,
            reply_to: reply_to,
            topic: topic
-         }},
+         } = msg},
         agent
       ) do
+    reconstitute_trace_context(Map.get(msg, :headers))
+
     Tracer.with_span "Handle Invocation", kind: :server do
       Logger.debug("Received invocation on #{topic}")
       iid = Agent.get(agent, fn content -> content.instance_id end)
@@ -228,7 +238,6 @@ defmodule HostCore.Actors.ActorModule do
 
       {ir, inv} =
         with {:ok, inv} <- Msgpax.unpack(body) do
-          extract_trace_context(inv)
           Tracer.set_attribute("invocation_id", inv["id"])
 
           case HostCore.WasmCloud.Native.validate_antiforgery(
@@ -315,13 +324,6 @@ defmodule HostCore.Actors.ActorModule do
     # span
 
     {:noreply, agent}
-  end
-
-  defp extract_trace_context(invocation) do
-    if Map.has_key?(invocation, "trace_context") do
-      cleaned = Map.get(invocation, "trace_context", %{}) |> Enum.into([])
-      :otel_propagator_text_map.extract(cleaned)
-    end
   end
 
   # Invocation responses are stored in the chunked object store with a `-r` appended
@@ -430,10 +432,10 @@ defmodule HostCore.Actors.ActorModule do
   defp perform_invocation({agent, true}, operation, payload) do
     raw_state = Agent.get(agent, fn content -> content end)
 
-    Tracer.set_attribute("operation", operation)
-    Tracer.set_attribute("payload_size", byte_size(payload))
-
     Tracer.with_span "Wasm Guest Call", kind: :client do
+      Tracer.set_attribute("operation", operation)
+      Tracer.set_attribute("payload_size", byte_size(payload))
+
       Logger.debug("performing invocation #{operation}",
         operation: operation,
         actor_id: raw_state.claims.public_key
