@@ -54,7 +54,8 @@ defmodule HostCore.ConfigPlan do
           {:config_service_enabled, "WASMCLOUD_CONFIG_SERVICE", required: false},
           {:enable_structured_logging, "WASMCLOUD_STRUCTURED_LOGGING_ENABLED", required: false},
           {:structured_log_level, "WASMCLOUD_STRUCTURED_LOG_LEVEL",
-           required: false, map: &string_to_loglevel/1}
+           required: false, map: &string_to_loglevel/1},
+          {:enable_ipv6, "WASMCLOUD_ENABLE_IPV6", required: false, map: &String.to_integer/1}
         ]
       }
     ]
@@ -88,7 +89,8 @@ defmodule HostCore.ConfigPlan do
       {:js_domain, "js_domain", required: false, default: nil},
       {:config_service_enabled, "config_service_enabled", required: false, default: ""},
       {:enable_structured_logging, "structured_logging_enabled", required: false, default: false},
-      {:structured_log_level, "structured_log_level", required: false, default: :info}
+      {:structured_log_level, "structured_log_level", required: false, default: :info},
+      {:enable_ipv6, "enable_ipv6", required: false, default: 0}
     ]
   end
 
