@@ -42,15 +42,36 @@ test: build ## Run test suite, launch NATS with docker-compose
 	MIX_ENV=test mix test $(EXTRA_TEST_ARGS)
 	docker compose -f ./test/docker-compose.yml down
 
-wasmcloud-nif: ## Build wasmcloud native NIF
-	cd native/hostcore_wasmcloud_native && \
-	cargo build --release --target $(ARCH)-$(TARGET) && \
-	cd target/$(ARCH)-$(TARGET)/release/ && \
-	ls | egrep ".*(dylib|so|dll)$$" | xargs -I % cp % ../../../../../priv/native/libhostcore_wasmcloud_native.so
+##
+# Release Targets
+##
 
-wasmex-nif: ## Build wasmex native NIF
-	mkdir -p deps/wasmex/priv/native && \
-	cd deps/wasmex/native/wasmex && \
-	cargo build --release --target $(ARCH)-$(TARGET) && \
-	cd target/$(ARCH)-$(TARGET)/release/ && \
-	ls | egrep ".*(dylib|so|dll)$$" | xargs -I % cp % ../../../../../priv/native/libwasmex.so
+HOST_CORE_NATIVE_NIF_DIR ?= priv/native
+HOST_CORE_NATIVE_NIF_NAME ?= libhostcore_wasmcloud_native.so
+RELEASE_NIF_PATH ?= priv/built
+MIX_ENV = release_prod
+RELEASE_FILE ?= host_core
+# Copies native NIF from directory into the path the release expects
+copy-nif:
+	@mkdir -p $(RELEASE_NIF_PATH)
+	@cp $(HOST_CORE_NATIVE_NIF_DIR)/$(HOST_CORE_NATIVE_NIF_NAME) $(RELEASE_NIF_PATH)/$(HOST_CORE_NATIVE_NIF_NAME)
+
+distillery-release-prod:
+	@export MIX_ENV=$(MIX_ENV) && \
+		mix deps.get && \
+		mix compile && \
+		mix distillery.release --executable
+
+## The following targets assemble a distillery release following a strict order
+# 1. Copy the Wasmcloud Native NIF from a supplied location so it can be built separately
+# 2. Assemble the distillery release without building a NIF or including ERTS
+# 3. Copy the ERTS from a supplied location
+# 4. Assemble the application tarball with all of the above components
+#
+# This is intended to be used to easily assemble a distillery release with a provided
+# NIF and ERTS, reducing release times.
+release-prod: copy-nif distillery-release-prod copy-erts assemble-tarball ## Assemble distillery release with copied ERTS and native NIF
+
+cleanup-release: ## Remove distillery release specific artifacts
+	mix clean
+	rm -r priv/built _build/release_prod

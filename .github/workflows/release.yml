@@ -1,11 +1,47 @@
-name: WasmCloud Host Release
+name: WasmCloud Release
 
 on:
   push:
     tags: ["v*"] # Push events to matching v*, i.e. v1.0, v20.15.10
   workflow_dispatch: # Allow manual creation of artifacts without a release
+  pull_request:
+    branches: [main]
 
 jobs:
+  compile-native-nif:
+    name: Compile wasmcloud_host_core Native NIF
+    env:
+      working-directory: ./host_core/native/hostcore_wasmcloud_native
+      artifact-name: hostcore_wasmcloud_native
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+          - x86_64-pc-windows-gnu
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: wasmcloud/common-actions/install-cross@main
+
+      - name: Build native nif
+        run: |
+          chmod +x ~/.cargo/bin/cross
+          cross build --release --target ${{ matrix.target }}
+        working-directory: ${{ env.working-directory }}
+
+      - name: Upload nif to GH Actions
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.so
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.exe
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.dylib
+
   release-docker:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
 
