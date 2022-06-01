@@ -51,16 +51,17 @@ HOST_CORE_NATIVE_NIF_NAME ?= libhostcore_wasmcloud_native.so
 RELEASE_NIF_PATH ?= priv/built
 MIX_ENV = release_prod
 RELEASE_FILE ?= host_core
+
 # Copies native NIF from directory into the path the release expects
 copy-nif:
 	@mkdir -p $(RELEASE_NIF_PATH)
 	@cp $(HOST_CORE_NATIVE_NIF_DIR)/$(HOST_CORE_NATIVE_NIF_NAME) $(RELEASE_NIF_PATH)/$(HOST_CORE_NATIVE_NIF_NAME)
 
-distillery-release-prod:
+distillery-release-prod: 
 	@export MIX_ENV=$(MIX_ENV) && \
 		mix deps.get && \
 		mix compile && \
-		mix distillery.release --executable
+		mix distillery.release --executable --verbose
 
 ## The following targets assemble a distillery release following a strict order
 # 1. Copy the Wasmcloud Native NIF from a supplied location so it can be built separately
@@ -70,7 +71,7 @@ distillery-release-prod:
 #
 # This is intended to be used to easily assemble a distillery release with a provided
 # NIF and ERTS, reducing release times.
-release-prod: copy-nif distillery-release-prod copy-erts assemble-tarball ## Assemble distillery release with copied ERTS and native NIF
+release-prod: copy-nif distillery-release-prod ## Assemble distillery release with copied native NIF
 
 cleanup-release: ## Remove distillery release specific artifacts
 	mix clean

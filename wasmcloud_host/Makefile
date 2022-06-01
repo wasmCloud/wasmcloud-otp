@@ -40,23 +40,13 @@ build-arm-image: build esbuild ## Build arm64 docker image for running, testing,
 deps: ## Fetch mix dependencies
 	mix deps.get
 
-wasmcloud-nif: ## Build wasmcloud native NIF
-	mkdir -p ../host_core/priv/native && \
-	cd ../host_core/native/hostcore_wasmcloud_native && \
-	cargo build --release --target $(RUST_ARCH)-$(RUST_TARGET) && \
-	cd target/$(RUST_ARCH)-$(RUST_TARGET)/release/ && \
-	ls | egrep ".*(dylib|so|dll)$$" | xargs -I % cp % ../../../../../priv/native/libhostcore_wasmcloud_native.so
-
-wasmex-nif: ## Build wasmex native NIF
-	mkdir -p deps/wasmex/priv/native && \
-	cd deps/wasmex/native/wasmex && \
-	cargo build --release --target $(RUST_ARCH)-$(RUST_TARGET) && \
-	cd target/$(RUST_ARCH)-$(RUST_TARGET)/release/ && \
-	ls | egrep ".*(dylib|so|dll)$$" | xargs -I % cp % ../../../../../priv/native/libwasmex.so
+release-prod: build
+	cd ../host_core && copy-nif
+	MIX_ENV=release_prod SECRET_KEY_BASE=$(SECRET_KEY_BASE) mix distillery.release --executable --verbose
 
 esbuild:
-	MIX_ENV=dev mix sass default assets/css/app.scss priv/static/assets/app.css
-	MIX_ENV=dev mix assets.deploy
+	mix sass default assets/css/app.scss priv/static/assets/app.css
+	mix assets.deploy
 	cp -r assets/static/* priv/static/
 	cp -r assets/css/coreui priv/static/assets/coreui
 

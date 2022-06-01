@@ -21,8 +21,9 @@ jobs:
           - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
           - x86_64-apple-darwin
-          - aarch64-apple-darwin
-          - x86_64-pc-windows-msvc
+          #TODO: determine if -gnu is fine or if we need -msvc
+          - x86_64-pc-windows-gnu
+          # - aarch64-apple-darwin
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -53,38 +54,39 @@ jobs:
     needs: compile-native-nif
     name: Build application release tarballs
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
+        os: [ubuntu-20.04, windows-2019, macos-11]
         working-directory: [wasmcloud_host, host_core]
         include:
           - os: ubuntu-20.04
             rust-target: x86_64-unknown-linux-gnu
-            executable-filename: wasmcloud-x86_64-linux
+            distillery-filename: wasmcloud-x86_64-linux
             working-directory: wasmcloud_host
           - os: windows-2019
-            rust-target: x86_64-pc-windows-msvc
-            executable-filename: wasmcloud-x86_64-windows
+            rust-target: x86_64-pc-windows-gnu
+            distillery-filename: wasmcloud-x86_64-windows.tar.gz
             working-directory: wasmcloud_host
-          - os: macos-10.15
+          - os: macos-11
             rust-target: x86_64-apple-darwin
-            executable-filename: wasmcloud-x86_64-macos
+            distillery-filename: wasmcloud-x86_64-macos
             working-directory: wasmcloud_host
           - os: ubuntu-20.04
             rust-target: x86_64-unknown-linux-gnu
-            executable-filename: wasmcloud-core-x86_64-linux
+            distillery-filename: wasmcloud-core-x86_64-linux
             working-directory: host_core
           - os: windows-2019
-            rust-target: x86_64-pc-windows-msvc
-            executable-filename: wasmcloud-core-x86_64-windows
+            rust-target: x86_64-pc-windows-gnu
+            distillery-filename: wasmcloud-core-x86_64-windows.tar.gz
             working-directory: host_core
-          - os: macos-10.15
+          - os: macos-11
             rust-target: x86_64-apple-darwin
-            executable-filename: wasmcloud-core-x86_64-macos
+            distillery-filename: wasmcloud-core-x86_64-macos
             working-directory: host_core
     runs-on: ${{ matrix.os }}
     env:
       working-directory: ${{ matrix.working-directory }}
-      MIX_ENV: prod
+      MIX_ENV: release_prod
       ERLANG_VERSION: 24
       ELIXIR_VERSION: 1.13.3
       SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
@@ -101,7 +103,7 @@ jobs:
         uses: erlef/setup-beam@v1
         with:
           otp-version: "=24"
-          elixir-version: "1.13.3"
+          elixir-version: "1.13.4"
           install-hex: true
           install-rebar: true
       - name: Install erlang and elixir
@@ -152,29 +154,36 @@ jobs:
         if: ${{ env.working-directory == 'wasmcloud_host' }}
         working-directory: ${{env.working-directory}}
         shell: bash
-        # esbuild + dart sass are only included in the dev runtime environment
-        env:
-          MIX_ENV: dev
         run: |
           make esbuild
 
-      - name: Create Distillery Release
+      - name: debug files
         working-directory: ${{env.working-directory}}
         run: |
-          mix distillery.release --executable --verbose
+          ls -R ./_build
+          ls -R ./
 
-      # It's currently output as `wasmcloud_host.run`, but we want it to be indicative of the ARCH-OS pair
-      # NOTE: The use of `working-directory`` is because the output directory names are the same
-      - name: Rename release for Upload
-        shell: bash
+      - name: Create Distillery Release
+        if: ${{ !startswith(matrix.os, 'windows') }}
+        working-directory: ${{env.working-directory}}
         run: |
-          mv ${{env.working-directory}}/_build/release_prod/rel/${{env.working-directory}}/bin/${{env.working-directory}}.run ${{env.working-directory}}/_build/prod/rel/${{env.working-directory}}/releases/${{ env.wasmcloud_host_version }}/${{ matrix.executable-filename }}
+          mkdir -p _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases
+          touch _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases/RELEASES
+          mix distillery.release --executable --verbose
+          mv _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/bin/${{env.working-directory}}.run ${{ matrix.distillery-filename }}
+      # --executable not supported on Windows
+      - name: Create Distillery Release
+        if: ${{ startswith(matrix.os, 'windows') }}
+        working-directory: ${{env.working-directory}}
+        run: |
+          mix distillery.release --verbose
+          mv _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases/${{ env.wasmcloud_host_version }}/${{env.working-directory}}.tar.gz ${{ matrix.distillery-filename }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.executable-filename }}
-          path: ${{env.working-directory}}/_build/prod/rel/${{env.working-directory}}/releases/${{ env.wasmcloud_host_version }}/${{ matrix.executable-filename }}
+          name: ${{ matrix.distillery-filename }}
+          path: ${{env.working-directory}}/${{ matrix.distillery-filename }}
 
   release-docker:
     # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
@@ -182,7 +191,7 @@ jobs:
     name: Release Linux Docker Image
     runs-on: ubuntu-latest
     env:
-      MIX_ENV: prod
+      MIX_ENV: release_prod
       working-directory: wasmcloud_host
       SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
 
@@ -232,22 +241,22 @@ jobs:
       - name: Compile Phoenix Assets
         working-directory: ${{env.working-directory}}
         shell: bash
-        # esbuild + dart sass are only included in the dev runtime environment
-        env:
-          MIX_ENV: dev
         run: |
           make esbuild
 
       # Download the NIF in the path that Docker expects for x86
       - uses: actions/download-artifact@v3
         with:
-          path: ${{ env.working-directory }}/priv/built/x86_64
+          path: ./host_core/priv/built/x86_64
           name: x86_64-unknown-linux-gnu
       # Download the NIF in the path that Docker expects for aarch64
       - uses: actions/download-artifact@v3
         with:
-          path: ${{ env.working-directory }}/priv/built/aarch64
+          path: ./host_core/priv/built/aarch64
           name: aarch64-unknown-linux-gnu
+
+      - name: debug files
+        run: ls -R ./host_core/priv/built
 
       - name: Build and release docker image
         uses: docker/build-push-action@v2
