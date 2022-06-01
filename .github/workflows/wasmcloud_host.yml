@@ -1,110 +1,110 @@
-name: WasmcloudHost Elixir CI
+# name: WasmcloudHost Elixir CI
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#     branches: [main]
 
-env:
-  working-directory: wasmcloud_host
+# env:
+#   working-directory: wasmcloud_host
 
-jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
-        elixir: [1.13.3]
-        otp: [23, 24]
+# jobs:
+#   build:
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         os: [ubuntu-20.04, windows-2019, macos-10.15]
+#         elixir: [1.13.3]
+#         otp: [23, 24]
 
-    name: Build and test
-    runs-on: ${{ matrix.os }}
-    env:
-      MIX_ENV: test
+#     name: Build and test
+#     runs-on: ${{ matrix.os }}
+#     env:
+#       MIX_ENV: test
 
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Visual Studio C++ toolchain for Windows
-        uses: ilammy/msvc-dev-cmd@v1
-        if: ${{ startswith(matrix.os, 'windows') }}
+#     steps:
+#       - uses: actions/checkout@v2
+#       - name: Set up Visual Studio C++ toolchain for Windows
+#         uses: ilammy/msvc-dev-cmd@v1
+#         if: ${{ startswith(matrix.os, 'windows') }}
 
-      # Install erlang/OTP and elixir
-      - name: Install erlang and elixir
-        if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: "=${{ matrix.otp }}"
-          elixir-version: ${{ matrix.elixir }}
-          install-hex: true
-          install-rebar: true
-      - name: Install erlang and elixir
-        if: ${{ startswith(matrix.os, 'macos') }}
-        run: |
-          brew install erlang
-          brew install elixir
+#       # Install erlang/OTP and elixir
+#       - name: Install erlang and elixir
+#         if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
+#         uses: erlef/setup-beam@v1
+#         with:
+#           otp-version: "=${{ matrix.otp }}"
+#           elixir-version: ${{ matrix.elixir }}
+#           install-hex: true
+#           install-rebar: true
+#       - name: Install erlang and elixir
+#         if: ${{ startswith(matrix.os, 'macos') }}
+#         run: |
+#           brew install erlang
+#           brew install elixir
 
-      - name: Retrieve Mix Dependencies Cache
-        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
-        uses: actions/cache@v2
-        id: mix-cache #id to use in retrieve action
-        with:
-          path: |
-            wasmcloud_host/deps
-            wasmcloud_host/_build
-          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+#       - name: Retrieve Mix Dependencies Cache
+#         if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
+#         uses: actions/cache@v2
+#         id: mix-cache #id to use in retrieve action
+#         with:
+#           path: |
+#             wasmcloud_host/deps
+#             wasmcloud_host/_build
+#           key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
 
-      - name: Install Rebar and Hex
-        working-directory: ${{env.working-directory}}
-        run: |
-          mix local.rebar --force
-          mix local.hex --force
+#       - name: Install Rebar and Hex
+#         working-directory: ${{env.working-directory}}
+#         run: |
+#           mix local.rebar --force
+#           mix local.hex --force
 
-      - name: Install Mix Dependencies
-        working-directory: ${{env.working-directory}}
-        if: steps.mix-cache.outputs.cache-hit != 'true'
-        run: |
-          mix do deps.get, deps.compile
+#       - name: Install Mix Dependencies
+#         working-directory: ${{env.working-directory}}
+#         if: steps.mix-cache.outputs.cache-hit != 'true'
+#         run: |
+#           mix do deps.get, deps.compile
 
-      - name: Check Formatting
-        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about carriage returns
-        working-directory: ${{env.working-directory}}
-        run: mix format --check-formatted
+#       - name: Check Formatting
+#         if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about carriage returns
+#         working-directory: ${{env.working-directory}}
+#         run: mix format --check-formatted
 
-      - name: Ensure static files build properly
-        working-directory: ${{env.working-directory}}
-        shell: bash
-        env:
-          MIX_ENV: dev
-        run: make esbuild
+#       - name: Ensure static files build properly
+#         working-directory: ${{env.working-directory}}
+#         shell: bash
+#         env:
+#           MIX_ENV: dev
+#         run: make esbuild
 
-      - name: Run Credo
-        working-directory: ${{env.working-directory}}
-        continue-on-error: true # Don't fail entire action with refactoring opportunities for now
-        run: mix credo --strict
+#       - name: Run Credo
+#         working-directory: ${{env.working-directory}}
+#         continue-on-error: true # Don't fail entire action with refactoring opportunities for now
+#         run: mix credo --strict
 
-      # Currently we do not have tests for the UI part of the wasmCloud dashboard
-      # - name: Run Tests
-      #   working-directory: ${{env.working-directory}}
-      #   run: |
-      #     WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
-      #     mix test
+#       # Currently we do not have tests for the UI part of the wasmCloud dashboard
+#       # - name: Run Tests
+#       #   working-directory: ${{env.working-directory}}
+#       #   run: |
+#       #     WASMCLOUD_LATTICE_PREFIX=$(echo "${{ runner.os }}__${{ matrix.otp }}__${{ matrix.elixir }}__${{ env.working-directory }}" | sed 's/\./_/g') \
+#       #     mix test
 
-      - name: Retrieve PLT Cache
-        uses: actions/cache@v2
-        id: plt-cache
-        with:
-          path: wasmcloud_host/priv/plts
-          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
+#       - name: Retrieve PLT Cache
+#         uses: actions/cache@v2
+#         id: plt-cache
+#         with:
+#           path: wasmcloud_host/priv/plts
+#           key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
 
-      - name: Create PLTs
-        working-directory: ${{env.working-directory}}
-        if: steps.plt-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p priv/plts
-          mix dialyzer --plt
+#       - name: Create PLTs
+#         working-directory: ${{env.working-directory}}
+#         if: steps.plt-cache.outputs.cache-hit != 'true'
+#         run: |
+#           mkdir -p priv/plts
+#           mix dialyzer --plt
 
-      - name: Run dialyzer
-        working-directory: ${{env.working-directory}}
-        continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
-        run: mix dialyzer --no-check
+#       - name: Run dialyzer
+#         working-directory: ${{env.working-directory}}
+#         continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
+#         run: mix dialyzer --no-check

@@ -9,7 +9,7 @@ ARG RELEASE_IMAGE
 ##
 FROM ${BUILDER_IMAGE} AS deps-builder
 
-ARG MIX_ENV=prod
+ARG MIX_ENV=release_prod
 ARG SECRET_KEY_BASE
 
 ENV MIX_ENV=${MIX_ENV} \
@@ -78,24 +78,20 @@ RUN apt update && \
   inotify-tools \
   build-essential
 
-# Install Rust for NIF compilation
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
 # This step installs all the build tools we'll need
 RUN mix local.rebar --force && \
   mix local.hex --force
 
+COPY ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so
+COPY ./host_core/priv/built/aarch64/libhostcore_wasmcloud_native.so ./host_core/priv/built/aarch64/libhostcore_wasmcloud_native.so
+# Grab platform-specific NIF
+RUN cp ./host_core/priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./host_core/priv/built/libhostcore_wasmcloud_native.so 
 WORKDIR ./wasmcloud_host
 RUN mix do deps.compile, compile
 
 RUN mkdir -p /opt/built && \
-  mix distillery.release --verbose && \
-  cp _build/${MIX_ENV}/rel/${APP_NAME}/releases/${APP_VSN}/${APP_NAME}.tar.gz /opt/built && \
-  cd /opt/built && \
-  tar -xzf ${APP_NAME}.tar.gz && \
-  mkdir -p /opt/rel && \
-  mv ${APP_NAME}.tar.gz /opt/rel
+  mix distillery.release --executable --verbose && \
+  cp _build/${MIX_ENV}/rel/${APP_NAME}/bin/${APP_NAME}.run /opt/built/${APP_NAME}
 
 ##
 # STEP 3: Build optimized final release image
@@ -138,4 +134,4 @@ ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
     WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
     WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
 
-CMD ["/opt/app/bin/wasmcloud_host", "foreground"]
+CMD ["/opt/app/wasmcloud_host", "foreground"]
