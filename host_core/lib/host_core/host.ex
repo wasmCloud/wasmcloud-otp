@@ -430,6 +430,8 @@ defmodule HostCore.Host do
 
   defp to_bool(val) when is_binary(val), do: String.downcase(val) == "true"
 
+  defp to_bool(val) when is_boolean(val), do: val
+
   defp to_bool(_), do: false
 
   defp normalize_prefix("bindle://" <> _str = s) do
