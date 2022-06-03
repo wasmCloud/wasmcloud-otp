@@ -111,7 +111,8 @@ jobs:
         run: |
           brew tap-new wasmcloud/temptap
           brew extract --version=1.13.3 elixir wasmcloud/temptap
-          brew install wasmcloud/temptap/elixir@1.13.3
+          brew install erlang@24
+          brew install --ignore-dependencies wasmcloud/temptap/elixir@1.13.3
 
       - name: Determine version
         shell: bash
