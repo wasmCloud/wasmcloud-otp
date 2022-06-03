@@ -110,11 +110,10 @@ jobs:
         if: ${{ startswith(matrix.os, 'macos') }}
         run: |
           brew tap-new wasmcloud/temptap
-          brew extract --version=24 erlang wasmcloud/temptap
           brew extract --version=1.13.3 elixir wasmcloud/temptap
-          brew install erlang wasmcloud/temptap/erlang@24
+          brew install erlang@24
+          export PATH="/usr/local/opt/erlang@24/bin:$PATH"
           echo 'export PATH="/usr/local/opt/erlang@24/bin:$PATH"' >> ${HOME}/.bash_profile
-          export LDFLAGS="-L/usr/local/opt/erlang@24/lib"
           brew install --ignore-dependencies wasmcloud/temptap/elixir@1.13.3
 
       - name: Determine version
