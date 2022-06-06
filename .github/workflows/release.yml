@@ -141,6 +141,7 @@ jobs:
       - name: Install Mix Dependencies
         working-directory: ${{env.working-directory}}
         run: |
+          . $HOME/.asdf/asdf.sh
           mix local.rebar --force 
           mix local.hex --force
           mix deps.get
@@ -161,6 +162,7 @@ jobs:
       - name: Compile Elixir
         working-directory: ${{env.working-directory}}
         run: |
+          . $HOME/.asdf/asdf.sh
           mix compile
 
       - name: Compile Phoenix Assets
@@ -168,6 +170,7 @@ jobs:
         working-directory: ${{env.working-directory}}
         shell: bash
         run: |
+          . $HOME/.asdf/asdf.sh
           make esbuild
 
       - name: debug files
@@ -180,6 +183,7 @@ jobs:
         if: ${{ !startswith(matrix.os, 'windows') }}
         working-directory: ${{env.working-directory}}
         run: |
+          . $HOME/.asdf/asdf.sh
           mkdir -p _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases
           touch _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases/RELEASES
           mix distillery.release --executable --verbose
