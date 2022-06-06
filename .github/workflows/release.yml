@@ -114,7 +114,11 @@ jobs:
           brew install erlang@24
           export PATH="/usr/local/opt/erlang@24/bin:$PATH"
           echo 'export PATH="/usr/local/opt/erlang@24/bin:$PATH"' >> ${HOME}/.bash_profile
-          brew install --ignore-dependencies wasmcloud/temptap/elixir@1.13.3
+          env
+          echo $PATH
+          which erl
+          which erlc
+          PATH="/usr/local/opt/erlang@24/bin:$PATH" brew install --ignore-dependencies wasmcloud/temptap/elixir@1.13.3
 
       - name: Determine version
         shell: bash
