@@ -112,7 +112,7 @@ jobs:
         run: |
           echo "~~~ Installing ASDF for Erlang/Elixir ~~~"
           git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.8.1
-          echo ". $HOME/.asdf/asdf.sh" >> ~/.zshrc
+          echo ". $HOME/.asdf/asdf.sh" >> ~/.bash_profile
           . $HOME/.asdf/asdf.sh
 
           echo "~~~ Installing Erlang ~~~"
