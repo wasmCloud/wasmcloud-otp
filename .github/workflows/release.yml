@@ -107,18 +107,23 @@ jobs:
           install-hex: true
           install-rebar: true
       - name: Install erlang and elixir
+        shell: bash
         if: ${{ startswith(matrix.os, 'macos') }}
         run: |
-          brew tap-new wasmcloud/temptap
-          brew extract --version=1.13.3 elixir wasmcloud/temptap
-          brew install erlang@24
-          export PATH="/usr/local/opt/erlang@24/bin:$PATH"
-          echo 'export PATH="/usr/local/opt/erlang@24/bin:$PATH"' >> ${HOME}/.bash_profile
-          env
-          echo $PATH
-          which erl
-          which erlc
-          PATH="/usr/local/opt/erlang@24/bin:$PATH" brew install --ignore-dependencies wasmcloud/temptap/elixir@1.13.3
+          echo "~~~ Installing ASDF for Erlang/Elixir ~~~"
+          git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.8.1
+          echo ". $HOME/.asdf/asdf.sh" >> ~/.zshrc
+          . $HOME/.asdf/asdf.sh
+
+          echo "~~~ Installing Erlang ~~~"
+          asdf plugin add erlang https://github.com/asdf-vm/asdf-erlang.git
+          asdf install erlang 24.3.4
+          asdf global erlang 24.3.4
+
+          echo "~~~ Installing Elixir ~~~"
+          asdf plugin-add elixir https://github.com/asdf-vm/asdf-elixir.git
+          asdf install elixir 1.13.3
+          asdf global elixir 1.13.3
 
       - name: Determine version
         shell: bash
