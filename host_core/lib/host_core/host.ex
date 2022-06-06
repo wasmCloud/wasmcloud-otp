@@ -423,10 +423,16 @@ defmodule HostCore.Host do
       cluster_issuers: cluster_issuers(),
       invocation_seed: cluster_seed(),
       # In case providers want to be aware of this for their own logging
-      structured_logging_enabled: structured_logging_enabled
+      structured_logging_enabled: to_bool(structured_logging_enabled)
     }
     |> Jason.encode!()
   end
+
+  defp to_bool(val) when is_binary(val), do: String.downcase(val) == "true"
+
+  defp to_bool(val) when is_boolean(val), do: val
+
+  defp to_bool(_), do: false
 
   defp normalize_prefix("bindle://" <> _str = s) do
     s
