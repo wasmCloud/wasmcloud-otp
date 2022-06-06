@@ -32,11 +32,16 @@ defmodule HostCore.ControlInterface.Server do
   end
 
   defp reconstitute_trace_context(headers) when is_list(headers) do
-    :otel_propagator_text_map.extract(headers)
+    if Enum.any?(headers, fn {k, _v} -> k == "traceparent" end) do
+      :otel_propagator_text_map.extract(headers)
+    else
+      OpenTelemetry.Ctx.clear()
+    end
   end
 
   defp reconstitute_trace_context(_) do
-    # NO OP
+    # If there is a nil for the headers, then clear context
+    OpenTelemetry.Ctx.clear()
   end
 
   ### PING
