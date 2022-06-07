@@ -147,12 +147,18 @@ jobs:
           path: ./host_core/priv/built
           name: ${{ matrix.rust-target }}
 
-      # Required step as Rustler always looks for the same .so file regardless of OS
+      # Rustler looks for .so even on Mac
       - name: Rename NIF to shared object
-        if: ${{ !startswith(matrix.os, 'ubuntu') }} # Don't attempt to rename a shared object
+        if: ${{ startswith(matrix.os, 'macos') }}
         working-directory: ./host_core/priv/built
         run: |
           mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.so
+      # Rustler looks for .dll on Windows
+      - name: Rename NIF to shared object
+        if: ${{ startswith(matrix.os, 'windows') }}
+        working-directory: ./host_core/priv/built
+        run: |
+          mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.dll
 
       - name: Compile Elixir
         working-directory: ${{env.working-directory}}
