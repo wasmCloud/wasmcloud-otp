@@ -10,7 +10,7 @@ on:
 jobs:
   compile-native-nif:
     # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     name: Compile wasmcloud_host_core Native NIF
     env:
       working-directory: ./host_core/native/hostcore_wasmcloud_native
@@ -47,7 +47,7 @@ jobs:
 
   build-distillery-executable:
     # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     needs: compile-native-nif
     name: Build application release tarballs
     strategy:
@@ -190,7 +190,7 @@ jobs:
           path: ${{env.working-directory}}/${{ matrix.distillery-filename }}
 
   release-docker:
-    # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs: compile-native-nif
     name: Release Linux Docker Image
     runs-on: ubuntu-latest
