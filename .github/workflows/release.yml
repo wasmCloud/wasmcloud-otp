@@ -136,6 +136,7 @@ jobs:
 
       - name: Install Mix Dependencies
         working-directory: ${{env.working-directory}}
+        shell: bash
         run: |
           . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
           mix local.rebar --force 
@@ -157,6 +158,7 @@ jobs:
 
       - name: Compile Elixir
         working-directory: ${{env.working-directory}}
+        shell: bash
         run: |
           . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
           mix compile
