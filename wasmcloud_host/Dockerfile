@@ -91,8 +91,12 @@ WORKDIR ./wasmcloud_host
 RUN mix do deps.compile, compile
 
 RUN mkdir -p /opt/built && \
-  mix distillery.release --executable --verbose && \
-  cp _build/${MIX_ENV}/rel/${APP_NAME}/bin/${APP_NAME}.run /opt/built/${APP_NAME}
+  mix distillery.release --verbose && \
+  cp _build/${MIX_ENV}/rel/${APP_NAME}/releases/${APP_VSN}/${APP_NAME}.tar.gz /opt/built && \
+  cd /opt/built && \
+  tar -xzf ${APP_NAME}.tar.gz && \
+  mkdir -p /opt/rel && \
+  mv ${APP_NAME}.tar.gz /opt/rel
 
 ##
 # STEP 3: Build optimized final release image
@@ -135,4 +139,4 @@ ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
     WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
     WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
 
-CMD ["/opt/app/wasmcloud_host", "foreground"]
+CMD ["/opt/app/bin/wasmcloud_host", "foreground"]

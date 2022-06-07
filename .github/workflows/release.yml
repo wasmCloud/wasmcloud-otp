@@ -61,27 +61,27 @@ jobs:
         include:
           - os: ubuntu-20.04
             rust-target: x86_64-unknown-linux-gnu
-            distillery-filename: wasmcloud-x86_64-linux
+            distillery-filename: x86_64-linux.tar.gz
             working-directory: wasmcloud_host
           - os: windows-2019
             rust-target: x86_64-pc-windows-gnu
-            distillery-filename: wasmcloud-x86_64-windows.tar.gz
+            distillery-filename: x86_64-windows.tar.gz
             working-directory: wasmcloud_host
           - os: macos-11
             rust-target: x86_64-apple-darwin
-            distillery-filename: wasmcloud-x86_64-macos
+            distillery-filename: x86_64-macos.tar.gz
             working-directory: wasmcloud_host
           - os: ubuntu-20.04
             rust-target: x86_64-unknown-linux-gnu
-            distillery-filename: wasmcloud-core-x86_64-linux
+            distillery-filename: x86_64-core-linux.tar.gz
             working-directory: host_core
           - os: windows-2019
             rust-target: x86_64-pc-windows-gnu
-            distillery-filename: wasmcloud-core-x86_64-windows.tar.gz
+            distillery-filename: x86_64-core-windows.tar.gz
             working-directory: host_core
           - os: macos-11
             rust-target: x86_64-apple-darwin
-            distillery-filename: wasmcloud-core-x86_64-macos
+            distillery-filename: x86_64-core-macos.tar.gz
             working-directory: host_core
     runs-on: ${{ matrix.os }}
     env:
@@ -106,6 +106,7 @@ jobs:
           elixir-version: "1.13.4"
           install-hex: true
           install-rebar: true
+      # Ideally we would use brew here to install, but OTP 25 isn't compatible with distillery
       - name: Install erlang and elixir
         shell: bash
         if: ${{ startswith(matrix.os, 'macos') }}
@@ -178,19 +179,10 @@ jobs:
           ls -R ./
 
       - name: Create Distillery Release
-        if: ${{ !startswith(matrix.os, 'windows') }}
         working-directory: ${{env.working-directory}}
+        shell: bash
         run: |
           . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
-          mkdir -p _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases
-          touch _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases/RELEASES
-          mix distillery.release --executable --verbose
-          mv _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/bin/${{env.working-directory}}.run ${{ matrix.distillery-filename }}
-      # --executable not supported on Windows
-      - name: Create Distillery Release
-        if: ${{ startswith(matrix.os, 'windows') }}
-        working-directory: ${{env.working-directory}}
-        run: |
           mix distillery.release --verbose
           mv _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases/${{ env.wasmcloud_host_version }}/${{env.working-directory}}.tar.gz ${{ matrix.distillery-filename }}
 
