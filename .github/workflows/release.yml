@@ -110,20 +110,16 @@ jobs:
         shell: bash
         if: ${{ startswith(matrix.os, 'macos') }}
         run: |
-          echo "~~~ Installing ASDF for Erlang/Elixir ~~~"
           git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.8.1
-          echo ". $HOME/.asdf/asdf.sh" >> ~/.bash_profile
+          echo ". $HOME/.asdf/asdf.sh" >> $HOME/.bash_profile
           . $HOME/.asdf/asdf.sh
 
-          echo "~~~ Installing Erlang ~~~"
           asdf plugin add erlang https://github.com/asdf-vm/asdf-erlang.git
           asdf install erlang 24.3.4
           asdf global erlang 24.3.4
-
-          echo "~~~ Installing Elixir ~~~"
-          asdf plugin-add elixir https://github.com/asdf-vm/asdf-elixir.git
-          asdf install elixir 1.13.3
-          asdf global elixir 1.13.3
+          asdf plugin add elixir https://github.com/asdf-vm/asdf-elixir.git
+          asdf install elixir 1.13.4
+          asdf global elixir 1.13.4
 
       - name: Determine version
         shell: bash
@@ -141,7 +137,7 @@ jobs:
       - name: Install Mix Dependencies
         working-directory: ${{env.working-directory}}
         run: |
-          . $HOME/.asdf/asdf.sh
+          . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
           mix local.rebar --force 
           mix local.hex --force
           mix deps.get
@@ -162,7 +158,7 @@ jobs:
       - name: Compile Elixir
         working-directory: ${{env.working-directory}}
         run: |
-          . $HOME/.asdf/asdf.sh
+          . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
           mix compile
 
       - name: Compile Phoenix Assets
@@ -170,7 +166,7 @@ jobs:
         working-directory: ${{env.working-directory}}
         shell: bash
         run: |
-          . $HOME/.asdf/asdf.sh
+          . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
           make esbuild
 
       - name: debug files
@@ -183,7 +179,7 @@ jobs:
         if: ${{ !startswith(matrix.os, 'windows') }}
         working-directory: ${{env.working-directory}}
         run: |
-          . $HOME/.asdf/asdf.sh
+          . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
           mkdir -p _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases
           touch _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases/RELEASES
           mix distillery.release --executable --verbose
