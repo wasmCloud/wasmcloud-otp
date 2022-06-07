@@ -474,11 +474,8 @@ defmodule HostCore.WebAssembly.Imports do
       Tracer.set_attribute("timeout", timeout)
       Tracer.set_attribute("topic", target_subject)
 
-      trace_context = :otel_propagator_text_map.inject([])
-
       case HostCore.Nats.safe_req(:lattice_nats, target_subject, inv_bytes,
-             receive_timeout: timeout,
-             headers: trace_context
+             receive_timeout: timeout
            ) do
         {:ok, %{body: body}} ->
           Tracer.set_status(:ok, "")

@@ -68,7 +68,8 @@ defmodule HostCore.Nats do
 
   def safe_pub(process_name, topic, msg) do
     if Process.whereis(process_name) != nil do
-      Gnat.pub(process_name, topic, msg)
+      trace_context = :otel_propagator_text_map.inject([])
+      Gnat.pub(process_name, topic, msg, headers: trace_context)
     else
       Logger.warn("Publication on #{topic} aborted - connection #{process_name} is down",
         nats_topic: topic
@@ -78,6 +79,8 @@ defmodule HostCore.Nats do
 
   def safe_req(process_name, topic, body, opts \\ []) do
     if Process.whereis(process_name) != nil do
+      trace_context = :otel_propagator_text_map.inject([])
+      opts = opts ++ [headers: trace_context]
       Gnat.request(process_name, topic, body, opts)
     else
       Logger.error(
