@@ -35,9 +35,6 @@ jobs:
           cross build --release --target ${{ matrix.target }}
         working-directory: ${{ env.working-directory }}
 
-      - name: check paths
-        run: ls -R ${{ env.working-directory }}/target/${{ matrix.target }}/release
-
       - name: Upload nif to GH Actions
         uses: actions/upload-artifact@v3
         with:
@@ -147,13 +144,13 @@ jobs:
       # Download the NIF in the path that Rustler expects
       - uses: actions/download-artifact@v3
         with:
-          path: ${{ env.working-directory }}/priv/built
+          path: ./host_core/priv/built
           name: ${{ matrix.rust-target }}
 
       # Required step as Rustler always looks for the same .so file regardless of OS
       - name: Rename NIF to shared object
         if: ${{ !startswith(matrix.os, 'ubuntu') }} # Don't attempt to rename a shared object
-        working-directory: ${{env.working-directory}}/priv/built
+        working-directory: ./host_core/priv/built
         run: |
           mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.so
 
@@ -171,12 +168,6 @@ jobs:
         run: |
           . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
           make esbuild
-
-      - name: debug files
-        working-directory: ${{env.working-directory}}
-        run: |
-          ls -R ./_build
-          ls -R ./
 
       - name: Create Distillery Release
         working-directory: ${{env.working-directory}}
@@ -261,9 +252,6 @@ jobs:
         with:
           path: ./host_core/priv/built/aarch64
           name: aarch64-unknown-linux-gnu
-
-      - name: debug files
-        run: ls -R ./host_core/priv/built
 
       - name: Build and release docker image
         uses: docker/build-push-action@v2
