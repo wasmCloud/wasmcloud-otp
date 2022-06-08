@@ -21,9 +21,7 @@ jobs:
           - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
           - x86_64-apple-darwin
-          #TODO: determine if -gnu is fine or if we need -msvc
           - x86_64-pc-windows-gnu
-          # - aarch64-apple-darwin
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2

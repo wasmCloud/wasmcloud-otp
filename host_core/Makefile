@@ -65,12 +65,11 @@ distillery-release-prod:
 
 ## The following targets assemble a distillery release following a strict order
 # 1. Copy the Wasmcloud Native NIF from a supplied location so it can be built separately
-# 2. Assemble the distillery release without building a NIF or including ERTS
-# 3. Copy the ERTS from a supplied location
-# 4. Assemble the application tarball with all of the above components
+# 2. Assemble the distillery release without building a NIF
+# 3. Assemble the application tarball with all of the above components
 #
 # This is intended to be used to easily assemble a distillery release with a provided
-# NIF and ERTS, reducing release times.
+# NIF, reducing release times.
 release-prod: copy-nif distillery-release-prod ## Assemble distillery release with copied native NIF
 
 cleanup-release: ## Remove distillery release specific artifacts
