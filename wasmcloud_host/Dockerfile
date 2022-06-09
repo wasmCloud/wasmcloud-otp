@@ -9,7 +9,7 @@ ARG RELEASE_IMAGE
 ##
 FROM ${BUILDER_IMAGE} AS deps-builder
 
-ARG MIX_ENV=prod
+ARG MIX_ENV=release_prod
 ARG SECRET_KEY_BASE
 
 ENV MIX_ENV=${MIX_ENV} \
@@ -45,7 +45,7 @@ ARG APP_NAME
 # The version of the application we are building (required)
 ARG APP_VSN
 # The environment to build with
-ARG MIX_ENV=prod
+ARG MIX_ENV=release_prod
 # Set this to true if this release is not a Phoenix app
 ARG SKIP_PHOENIX=false
 # Secret key is required
@@ -78,14 +78,15 @@ RUN apt update && \
   inotify-tools \
   build-essential
 
-# Install Rust for NIF compilation
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
 # This step installs all the build tools we'll need
 RUN mix local.rebar --force && \
   mix local.hex --force
 
+RUN ls -R ./host_core/priv/built
+COPY ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so
+COPY ./host_core/priv/built/aarch64/libhostcore_wasmcloud_native.so ./host_core/priv/built/aarch64/libhostcore_wasmcloud_native.so
+# Grab platform-specific NIF
+RUN cp ./host_core/priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./host_core/priv/built/libhostcore_wasmcloud_native.so 
 WORKDIR ./wasmcloud_host
 RUN mix do deps.compile, compile
 

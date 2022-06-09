@@ -1,18 +1,199 @@
-name: WasmCloud Host Release
+name: WasmCloud Release
 
 on:
   push:
     tags: ["v*"] # Push events to matching v*, i.e. v1.0, v20.15.10
   workflow_dispatch: # Allow manual creation of artifacts without a release
+  pull_request:
+    branches: [main]
 
 jobs:
+  compile-native-nif:
+    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    name: Compile wasmcloud_host_core Native NIF
+    env:
+      working-directory: ./host_core/native/hostcore_wasmcloud_native
+      artifact-name: hostcore_wasmcloud_native
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-gnu
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: wasmcloud/common-actions/install-cross@main
+
+      - name: Build native nif
+        run: |
+          chmod +x ~/.cargo/bin/cross
+          cross build --release --target ${{ matrix.target }}
+        working-directory: ${{ env.working-directory }}
+
+      - name: Upload nif to GH Actions
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.so
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/${{ env.artifact-name }}.dll
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.dylib
+
+  build-distillery-executable:
+    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    needs: compile-native-nif
+    name: Build application release tarballs
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, windows-2019, macos-11]
+        working-directory: [wasmcloud_host, host_core]
+        include:
+          - os: ubuntu-20.04
+            rust-target: x86_64-unknown-linux-gnu
+            distillery-filename: x86_64-linux.tar.gz
+            working-directory: wasmcloud_host
+          - os: windows-2019
+            rust-target: x86_64-pc-windows-gnu
+            distillery-filename: x86_64-windows.tar.gz
+            working-directory: wasmcloud_host
+          - os: macos-11
+            rust-target: x86_64-apple-darwin
+            distillery-filename: x86_64-macos.tar.gz
+            working-directory: wasmcloud_host
+          - os: ubuntu-20.04
+            rust-target: x86_64-unknown-linux-gnu
+            distillery-filename: x86_64-core-linux.tar.gz
+            working-directory: host_core
+          - os: windows-2019
+            rust-target: x86_64-pc-windows-gnu
+            distillery-filename: x86_64-core-windows.tar.gz
+            working-directory: host_core
+          - os: macos-11
+            rust-target: x86_64-apple-darwin
+            distillery-filename: x86_64-core-macos.tar.gz
+            working-directory: host_core
+    runs-on: ${{ matrix.os }}
+    env:
+      working-directory: ${{ matrix.working-directory }}
+      MIX_ENV: release_prod
+      ERLANG_VERSION: 24
+      ELIXIR_VERSION: 1.13.3
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Visual Studio C++ toolchain for Windows
+        uses: ilammy/msvc-dev-cmd@v1
+        if: ${{ startswith(matrix.os, 'windows') }}
+
+      # Install erlang/OTP and elixir
+      - name: Install erlang and elixir
+        if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "=24"
+          elixir-version: "1.13.4"
+          install-hex: true
+          install-rebar: true
+      # Ideally we would use brew here to install, but OTP 25 isn't compatible with distillery
+      - name: Install erlang and elixir
+        shell: bash
+        if: ${{ startswith(matrix.os, 'macos') }}
+        run: |
+          git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.8.1
+          echo ". $HOME/.asdf/asdf.sh" >> $HOME/.bash_profile
+          . $HOME/.asdf/asdf.sh
+
+          asdf plugin add erlang https://github.com/asdf-vm/asdf-erlang.git
+          asdf install erlang 24.3.4
+          asdf global erlang 24.3.4
+          asdf plugin add elixir https://github.com/asdf-vm/asdf-elixir.git
+          asdf install elixir 1.13.4
+          asdf global elixir 1.13.4
+
+      - name: Determine version
+        shell: bash
+        run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+
+      - name: Retrieve Mix Dependencies Cache
+        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
+        uses: actions/cache@v2
+        id: mix-cache #id to use in retrieve action
+        with:
+          path: |
+            ${{ env.working-directory }}/deps
+          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('${{ env.working-directory }}/mix.exs', '${{ env.working-directory }}/mix.lock') }}
+
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        run: |
+          . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
+          mix local.rebar --force 
+          mix local.hex --force
+          mix deps.get
+
+      # Download the NIF in the path that Rustler expects
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built
+          name: ${{ matrix.rust-target }}
+
+      # Rustler looks for .so even on Mac
+      - name: Rename NIF to shared object
+        if: ${{ startswith(matrix.os, 'macos') }}
+        working-directory: ./host_core/priv/built
+        run: |
+          mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.so
+      # Rustler looks for .dll on Windows
+      - name: Rename NIF to shared object
+        if: ${{ startswith(matrix.os, 'windows') }}
+        working-directory: ./host_core/priv/built
+        run: |
+          mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.dll
+
+      - name: Compile Elixir
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        run: |
+          . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
+          mix compile
+
+      - name: Compile Phoenix Assets
+        if: ${{ env.working-directory == 'wasmcloud_host' }}
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        run: |
+          . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
+          make esbuild
+
+      - name: Create Distillery Release
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        run: |
+          . $HOME/.asdf/asdf.sh || true # Temporary hack until distillery works with OTP 25.0
+          mix distillery.release --verbose
+          mv _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}/releases/${{ env.wasmcloud_host_version }}/${{env.working-directory}}.tar.gz ${{ matrix.distillery-filename }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.distillery-filename }}
+          path: ${{env.working-directory}}/${{ matrix.distillery-filename }}
+
   release-docker:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-
+    needs: compile-native-nif
     name: Release Linux Docker Image
     runs-on: ubuntu-latest
     env:
-      MIX_ENV: prod
+      MIX_ENV: release_prod
       working-directory: wasmcloud_host
       SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
 
@@ -62,18 +243,27 @@ jobs:
       - name: Compile Phoenix Assets
         working-directory: ${{env.working-directory}}
         shell: bash
-        # esbuild + dart sass are only included in the dev runtime environment
-        env:
-          MIX_ENV: dev
         run: |
           make esbuild
+
+      # Download the NIF in the path that Docker expects for x86
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built/x86_64
+          name: x86_64-unknown-linux-gnu
+      # Download the NIF in the path that Docker expects for aarch64
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built/aarch64
+          name: aarch64-unknown-linux-gnu
 
       - name: Build and release docker image
         uses: docker/build-push-action@v2
         with:
           context: .
           builder: ${{ steps.buildx-builder.outputs.name }}
-          push: true
+          #TODO: make true
+          push: false
           file: ${{env.working-directory}}/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
@@ -88,132 +278,9 @@ jobs:
             wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
             wasmcloud/wasmcloud_host:latest
 
-  create-tarballs:
-    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    name: Build application release tarballs
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
-        working-directory: [wasmcloud_host, host_core]
-        include:
-          - os: ubuntu-20.04
-            rust-target: x86_64-unknown-linux-gnu
-            tarball-filename: x86_64-linux
-            working-directory: wasmcloud_host
-          - os: windows-2019
-            rust-target: x86_64-pc-windows-msvc
-            tarball-filename: x86_64-windows
-            working-directory: wasmcloud_host
-          - os: macos-10.15
-            rust-target: x86_64-apple-darwin
-            tarball-filename: x86_64-macos
-            working-directory: wasmcloud_host
-          - os: ubuntu-20.04
-            rust-target: x86_64-unknown-linux-gnu
-            tarball-filename: x86_64-core-linux
-            working-directory: host_core
-          - os: windows-2019
-            rust-target: x86_64-pc-windows-msvc
-            tarball-filename: x86_64-core-windows
-            working-directory: host_core
-          - os: macos-10.15
-            rust-target: x86_64-apple-darwin
-            tarball-filename: x86_64-core-macos
-            working-directory: host_core
-
-    runs-on: ${{ matrix.os }}
-    env:
-      working-directory: ${{ matrix.working-directory }}
-      MIX_ENV: prod
-      ERLANG_VERSION: 24
-      ELIXIR_VERSION: 1.13.3
-      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Visual Studio C++ toolchain for Windows
-        uses: ilammy/msvc-dev-cmd@v1
-        if: ${{ startswith(matrix.os, 'windows') }}
-
-      # Setup Rust for NIF dependencies
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.rust-target }}
-          override: true
-
-      # Install erlang/OTP and elixir
-      - name: Install erlang and elixir
-        if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: "=24"
-          elixir-version: "1.13.3"
-          install-hex: true
-          install-rebar: true
-      - name: Install erlang and elixir
-        if: ${{ startswith(matrix.os, 'macos') }}
-        run: |
-          brew install erlang
-          brew install elixir
-
-      - name: Determine version
-        shell: bash
-        run: echo "wasmcloud_host_version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
-
-      - name: Retrieve Mix Dependencies Cache
-        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
-        uses: actions/cache@v2
-        id: mix-cache #id to use in retrieve action
-        with:
-          path: |
-            ${{ env.working-directory }}/deps
-          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('${{ env.working-directory }}/mix.exs', '${{ env.working-directory }}/mix.lock') }}
-
-      - name: Install Mix Dependencies
-        working-directory: ${{env.working-directory}}
-        run: |
-          mix local.rebar --force 
-          mix local.hex --force
-          mix deps.get
-
-      - name: Compile Elixir
-        working-directory: ${{env.working-directory}}
-        run: |
-          mix compile
-
-      - name: Compile Phoenix Assets
-        if: ${{ env.working-directory == 'wasmcloud_host' }}
-        working-directory: ${{env.working-directory}}
-        shell: bash
-        # esbuild + dart sass are only included in the dev runtime environment
-        env:
-          MIX_ENV: dev
-        run: |
-          make esbuild
-
-      - name: Create Distillery Release
-        working-directory: ${{env.working-directory}}
-        run: |
-          mix distillery.release --verbose
-
-      # It's currently output as `wasmcloud_host.tar.gz`, but we want it to be indicative of the ARCH-OS pair
-      # NOTE: The use of `working-directory`` is because the output directory names are the same
-      - name: Rename release for Upload
-        shell: bash
-        run: |
-          mv ${{env.working-directory}}/_build/prod/rel/${{env.working-directory}}/releases/${{ env.wasmcloud_host_version }}/${{env.working-directory}}.tar.gz ${{env.working-directory}}/_build/prod/rel/${{env.working-directory}}/releases/${{ env.wasmcloud_host_version }}/${{ matrix.tarball-filename }}.tar.gz
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.tarball-filename }}
-          path: ${{env.working-directory}}/_build/prod/rel/${{env.working-directory}}/releases/${{ env.wasmcloud_host_version }}/${{ matrix.tarball-filename }}.tar.gz
-
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    needs: [create-tarballs]
+    needs: [build-distillery-executable]
     runs-on: ubuntu-latest
     steps:
       - name: Download Release Tarballs

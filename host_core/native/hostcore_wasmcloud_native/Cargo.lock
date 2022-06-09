@@ -1309,25 +1309,37 @@ dependencies = [
 
 [[package]]
 name = "oci-distribution"
-version = "0.8.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb3c580ad67504493981fff06d790929ece7ce149f344f4d8e411808e5a50f62"
+checksum = "041f69213c79239ee261d70755c14902f26d9efb322b42f8b0cd4a315fde91fe"
 dependencies = [
- "anyhow",
  "futures-util",
  "hyperx",
  "jwt",
  "lazy_static",
+ "olpc-cjson",
  "regex",
  "reqwest",
  "serde",
  "serde_json",
  "sha2 0.9.9",
+ "thiserror",
  "tokio",
  "tracing",
  "unicase 1.4.2",
  "url 1.7.2",
  "www-authenticate",
+]
+
+[[package]]
+name = "olpc-cjson"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72ca49fe685014bbf124ee547da94ed7bb65a6eb9dc9c4711773c081af96a39c"
+dependencies = [
+ "serde",
+ "serde_json",
+ "unicode-normalization",
 ]
 
 [[package]]

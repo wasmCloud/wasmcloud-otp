@@ -58,7 +58,7 @@ config :esbuild,
 
 # Configure Dart for scss support
 config :dart_sass,
-  version: "1.49.0"
+  version: "1.52.1"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
