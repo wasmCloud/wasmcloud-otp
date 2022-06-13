@@ -69,6 +69,7 @@ defmodule HostCore.ControlInterface.Server do
 
       res = %{
         id: HostCore.Host.host_key(),
+        labels: HostCore.Host.host_labels(),
         friendly_name: HostCore.Host.friendly_name(),
         uptime_seconds: ut_seconds,
         uptime_human: ut_human,
