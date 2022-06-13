@@ -39,7 +39,6 @@ defmodule HostCore.HeartbeatEmitter do
   end
 
   defp publish_heartbeat(state) do
-    Logger.debug("Publishing heartbeat")
     topic = "wasmbus.evt.#{state[:lattice_prefix]}"
     msg = generate_heartbeat(state)
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
@@ -56,11 +55,22 @@ defmodule HostCore.HeartbeatEmitter do
         %{public_key: pk, link_name: link, contract_id: contract, instance_id: instance_id}
       end)
 
+    {total, _} = :erlang.statistics(:wall_clock)
+    ut_seconds = div(total, 1000)
+
+    ut_human =
+      ut_seconds
+      |> Timex.Duration.from_seconds()
+      |> Timex.Format.Duration.Formatters.Humanized.format()
+
     %{
       actors: actors,
       providers: providers,
       labels: HostCore.Host.host_labels(),
-      friendly_name: HostCore.Host.friendly_name()
+      friendly_name: HostCore.Host.friendly_name(),
+      version: Application.spec(:host_core, :vsn) |> to_string(),
+      uptime_seconds: ut_seconds,
+      uptime_human: ut_human
     }
     |> CloudEvent.new("host_heartbeat", state[:host_key])
   end

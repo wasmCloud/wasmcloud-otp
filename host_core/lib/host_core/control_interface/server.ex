@@ -50,10 +50,35 @@ defmodule HostCore.ControlInterface.Server do
     Tracer.with_span "Handle Host Ping (ctl)", kind: :server do
       {total, _} = :erlang.statistics(:wall_clock)
 
+      ut_seconds = div(total, 1000)
+
+      ut_human =
+        ut_seconds
+        |> Timex.Duration.from_seconds()
+        |> Timex.Format.Duration.Formatters.Humanized.format()
+
+      {js_domain, ctl_host, prov_rpc_host, rpc_host, lattice_prefix} =
+        case :ets.lookup(:config_table, :config) do
+          [config: config_map] ->
+            {config_map.js_domain, config_map.ctl_host, config_map.prov_rpc_host,
+             config_map.rpc_host, config_map.lattice_prefix}
+
+          _ ->
+            {nil, "localhost", "localhost", "localhost", "default"}
+        end
+
       res = %{
         id: HostCore.Host.host_key(),
         friendly_name: HostCore.Host.friendly_name(),
-        uptime_seconds: div(total, 1000)
+        uptime_seconds: ut_seconds,
+        uptime_human: ut_human,
+        version: Application.spec(:host_core, :vsn) |> to_string(),
+        cluster_issuers: HostCore.Host.cluster_issuers() |> Enum.join(","),
+        js_domain: js_domain,
+        ctl_host: ctl_host,
+        prov_rpc_host: prov_rpc_host,
+        rpc_host: rpc_host,
+        lattice_prefix: lattice_prefix
       }
 
       HostCore.HeartbeatEmitter.emit_heartbeat()
