@@ -1,9 +1,6 @@
 import Config
 
-config :logger, :console,
-  format: "$time $metadata[$level] $message\n",
-  level: :debug,
-  metadata: [:span_id, :trace_id]
+config :logger, :console, level: :debug
 
 # Uncomment one of the below items ONLY if you're not using environment variables to
 # configure the otel exporter AND you're not using wasmcloud_host (e.g. you're running

@@ -15,6 +15,12 @@ import Config
 # here (which is why it is important to import them last).
 #
 
+config :logger, :console,
+  format: "$time $metadata[$level] $message\n",
+  level: :info,
+  metadata: [:span_id, :trace_id],
+  device: :standard_error
+
 config :opentelemetry, :resource, service: %{name: "wasmcloud"}
 
 config :opentelemetry,

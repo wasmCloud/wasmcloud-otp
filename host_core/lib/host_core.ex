@@ -20,7 +20,10 @@ defmodule HostCore do
     if config.enable_structured_logging do
       :logger.add_handler(:structured_logger, :logger_std_h, %{
         formatter: {HostCore.StructuredLogger.FormatterJson, []},
-        level: config.structured_log_level
+        level: config.structured_log_level,
+        config: %{
+          type: :standard_error
+        }
       })
 
       :logger.remove_handler(Logger)
