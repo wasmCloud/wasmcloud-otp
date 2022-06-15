@@ -74,6 +74,12 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
+  def handle_info({:EXIT, _pid, reason}, state) do
+    Logger.debug("Actor supervisor child terminated: #{inspect(reason)}")
+
+    {:noreply, state}
+  end
+
   # Returns whether the given actor's public key has at least one
   # OCI reference running _other_ than the candidate supplied.
   defp other_oci_already_running?(coci, pk) do
@@ -274,10 +280,17 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   # Terminate `count` instances of an actor
   def terminate_actor(public_key, count) when count > 0 do
-    Registry.lookup(Registry.ActorRegistry, public_key)
+    actors = Registry.lookup(Registry.ActorRegistry, public_key)
+    remaining = length(actors) - count
+
+    actors
     |> Enum.take(count)
     |> Enum.map(fn {pid, _v} -> pid end)
     |> Enum.each(fn pid -> ActorModule.halt(pid) end)
+
+    if remaining <= 0 do
+      HostCore.Actors.ActorRpcSupervisor.stop_rpc_subscriber(public_key)
+    end
 
     :ok
   end
@@ -287,6 +300,8 @@ defmodule HostCore.Actors.ActorSupervisor do
     Registry.lookup(Registry.ActorRegistry, public_key)
     |> Enum.map(fn {pid, _v} -> pid end)
     |> Enum.each(fn pid -> ActorModule.halt(pid) end)
+
+    HostCore.Actors.ActorRpcSupervisor.stop_rpc_subscriber(public_key)
 
     :ok
   end

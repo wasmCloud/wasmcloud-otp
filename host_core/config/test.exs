@@ -10,6 +10,9 @@ config :logger, :console,
   level: :debug,
   metadata: [:span_id, :trace_id]
 
+config :host_core,
+  retain_rpc_subscriptions: true
+
 # config :opentelemetry, :processors,
 #   otel_batch_processor: %{
 #     exporter: {:otel_exporter_stdout, []}

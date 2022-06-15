@@ -8,3 +8,6 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
 
 # Print only warnings and errors during test
 config :logger, level: :warn
+
+config :host_core,
+  retain_rpc_subscriptions: true

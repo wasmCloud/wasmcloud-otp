@@ -21,6 +21,10 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
   pubsub_server: WasmcloudHost.PubSub,
   live_view: [signing_salt: "Jr0Bi5x0"]
 
+config :host_core,
+  retain_rpc_subscriptions: false
+
+
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",

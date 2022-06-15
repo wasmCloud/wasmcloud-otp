@@ -21,4 +21,7 @@ config :opentelemetry,
   span_processor: :batch,
   traces_exporter: :none
 
+config :host_core,
+  retain_rpc_subscriptions: false
+
 import_config "#{config_env()}.exs"

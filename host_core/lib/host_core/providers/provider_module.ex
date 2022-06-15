@@ -36,19 +36,35 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   def instance_id(pid) do
-    GenServer.call(pid, :get_instance_id)
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_instance_id)
+    else
+      "n/a"
+    end
   end
 
   def annotations(pid) do
-    GenServer.call(pid, :get_annotations)
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_annotations)
+    else
+      %{}
+    end
   end
 
   def ociref(pid) do
-    GenServer.call(pid, :get_ociref)
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_ociref)
+    else
+      "n/a"
+    end
   end
 
   def path(pid) do
-    GenServer.call(pid, :get_path)
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_path)
+    else
+      "n/a"
+    end
   end
 
   def halt(pid) do

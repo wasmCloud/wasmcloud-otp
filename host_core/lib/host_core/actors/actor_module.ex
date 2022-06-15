@@ -27,7 +27,6 @@ defmodule HostCore.Actors.ActorModule do
       :api_version,
       :invocation,
       :claims,
-      :subscription,
       :ociref,
       :healthy,
       :parent_span
@@ -63,7 +62,11 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def ociref(pid) do
-    GenServer.call(pid, :get_ociref)
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_ociref)
+    else
+      "n/a"
+    end
   end
 
   def instance_id(pid) do
@@ -98,8 +101,6 @@ defmodule HostCore.Actors.ActorModule do
   def init({claims, bytes, oci, annotations}) do
     case start_actor(claims, bytes, oci, annotations) do
       {:ok, agent} ->
-        Process.send(self(), :do_health, [:noconnect, :nosuspend])
-        :timer.send_interval(@thirty_seconds, self(), :do_health)
         {:ok, agent}
 
       {:error, _e} ->
@@ -191,46 +192,25 @@ defmodule HostCore.Actors.ActorModule do
   @impl true
   def handle_call(:halt_and_cleanup, _from, agent) do
     # Add cleanup if necessary here...
-    subscription = Agent.get(agent, fn content -> content.subscription end)
     public_key = Agent.get(agent, fn content -> content.claims.public_key end)
     Logger.debug("Actor instance termination requested", actor_id: public_key)
     instance_id = Agent.get(agent, fn content -> content.instance_id end)
 
-    Gnat.unsub(:lattice_nats, subscription)
     publish_actor_stopped(public_key, instance_id)
 
     {:stop, :normal, :ok, agent}
   end
 
-  defp reconstitute_trace_context(headers) when is_list(headers) do
-    if Enum.any?(headers, fn {k, _v} -> k == "traceparent" end) do
-      :otel_propagator_text_map.extract(headers)
-    else
-      OpenTelemetry.Ctx.clear()
-    end
-  end
-
-  defp reconstitute_trace_context(_) do
-    # If there is a nil for the headers, then clear context
-    OpenTelemetry.Ctx.clear()
-  end
-
   @impl true
-  def handle_info(:do_health, agent) do
-    OpenTelemetry.Ctx.clear()
-    perform_health_check(agent)
-
-    {:noreply, agent}
-  end
-
-  @impl true
-  def handle_info(
-        {:msg,
-         %{
-           body: body,
-           reply_to: reply_to,
-           topic: topic
-         } = msg},
+  def handle_cast(
+        {
+          :handle_incoming_rpc,
+          %{
+            body: body,
+            reply_to: reply_to,
+            topic: topic
+          } = msg
+        },
         agent
       ) do
     reconstitute_trace_context(Map.get(msg, :headers))
@@ -333,6 +313,27 @@ defmodule HostCore.Actors.ActorModule do
     {:noreply, agent}
   end
 
+  defp reconstitute_trace_context(headers) when is_list(headers) do
+    if Enum.any?(headers, fn {k, _v} -> k == "traceparent" end) do
+      :otel_propagator_text_map.extract(headers)
+    else
+      OpenTelemetry.Ctx.clear()
+    end
+  end
+
+  defp reconstitute_trace_context(_) do
+    # If there is a nil for the headers, then clear context
+    OpenTelemetry.Ctx.clear()
+  end
+
+  @impl true
+  def handle_info(:do_health, agent) do
+    OpenTelemetry.Ctx.clear()
+    perform_health_check(agent)
+
+    {:noreply, agent}
+  end
+
   # Invocation responses are stored in the chunked object store with a `-r` appended
   # to the end of the invocation ID
   defp chunk_inv_response(
@@ -382,6 +383,7 @@ defmodule HostCore.Actors.ActorModule do
     Logger.info("Starting actor #{claims.public_key}", actor_id: claims.public_key, oci_ref: oci)
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.Claims.Manager.put_claims(claims)
+    HostCore.Actors.ActorRpcSupervisor.start_or_reuse_consumer_supervisor(claims)
 
     {:ok, agent} =
       Agent.start_link(fn ->
@@ -401,14 +403,8 @@ defmodule HostCore.Actors.ActorModule do
 
     case Wasmex.start_link(%{bytes: bytes, imports: imports}) |> prepare_module(agent, oci) do
       {:ok, agent} ->
-        prefix = HostCore.Host.lattice_prefix()
-        topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
-
-        Logger.debug("Subscribing to #{topic}")
-        {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
-
         Agent.update(agent, fn state ->
-          %State{state | subscription: subscription, ociref: oci}
+          %State{state | ociref: oci}
         end)
 
         publish_oci_map(oci, claims.public_key)
