@@ -21,6 +21,14 @@ config :opentelemetry,
   span_processor: :batch,
   traces_exporter: :none
 
+# Subscription retention is a test-enabling tool. When enabled, a subscriber for
+# an actor _will not unsubscribe_ after all instances of that actor have been
+# removed from a host. This helps in testing because the constant churning of
+# stopping, unsubscribing, starting, and re-subscribing in the middle of a test
+# suite causes failure and race conditions on a large scale.
+#
+# tl;dr - leave subscription retention off at all times unless you're running
+# tests.
 config :host_core,
   retain_rpc_subscriptions: false
 
