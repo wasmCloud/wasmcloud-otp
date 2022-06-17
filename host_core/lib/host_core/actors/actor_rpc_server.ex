@@ -11,9 +11,8 @@ defmodule HostCore.Actors.ActorRpcServer do
       ) do
     pk = topic |> String.split(".") |> Enum.at(-1)
 
-    # Randomly choose a running instance to handle this request.
-    # optimization for later - in the future, we might be able to detect an instance that isn't currently
-    # handling a request (isn't busy) to optimize this
+    # Choose the least busy (smallest message queue length) actor in the registry
+    # as the target for the inbound RPC
     #
     # NOTE - dispatch doesn't invoke the handler if no registry entries exist for the given key
     Registry.dispatch(Registry.ActorRegistry, pk, fn entries ->
