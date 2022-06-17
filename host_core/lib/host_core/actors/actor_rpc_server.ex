@@ -11,19 +11,27 @@ defmodule HostCore.Actors.ActorRpcServer do
       ) do
     pk = topic |> String.split(".") |> Enum.at(-1)
 
+    # NOTE - dispatch doesn't invoke the handler if no registry entries exist for the given key
+
+    # (This is a potentially blocking method. Need to spike to determine if this approach
+    # is detrimental / causes locking)
     # Choose the least busy (smallest message queue length) actor in the registry
     # as the target for the inbound RPC
     #
-    # NOTE - dispatch doesn't invoke the handler if no registry entries exist for the given key
-    Registry.dispatch(Registry.ActorRegistry, pk, fn entries ->
-      {pid, _ql} =
-        entries
-        |> Enum.map(fn {pid, _value} ->
-          {pid, Process.info(pid, :message_queue_len) |> elem(1)}
-        end)
-        |> Enum.sort(&(elem(&1, 1) <= elem(&2, 1)))
-        |> Enum.at(0)
+    # Registry.dispatch(Registry.ActorRegistry, pk, fn entries ->
+    #   {pid, _ql} =
+    #     entries
+    #     |> Enum.map(fn {pid, _value} ->
+    #       {pid, Process.info(pid, :message_queue_len) |> elem(1)}
+    #     end)
+    #     |> Enum.sort(&(elem(&1, 1) <= elem(&2, 1)))
+    #     |> Enum.at(0)
 
+    #   GenServer.cast(pid, {:handle_incoming_rpc, msg})
+    # end)
+
+    Registry.dispatch(Registry.ActorRegistry, pk, fn entries ->
+      {pid, _value} = entries |> Enum.random()
       GenServer.cast(pid, {:handle_incoming_rpc, msg})
     end)
   end
