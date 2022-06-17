@@ -41,6 +41,7 @@ defmodule HostCore do
     [
       {Registry, keys: :unique, name: Registry.ProviderRegistry},
       {Registry, keys: :duplicate, name: Registry.ActorRegistry},
+      {Registry, keys: :unique, name: Registry.ActorRpcSubscribers},
       {Registry,
        keys: :duplicate,
        name: Registry.EventMonitorRegistry,
@@ -53,6 +54,7 @@ defmodule HostCore do
         {Gnat.ConnectionSupervisor, HostCore.Nats.rpc_connection_settings(config)},
         id: :rpc_connection_supervisor
       ),
+      {HostCore.Actors.ActorRpcSupervisor, strategy: :one_for_one},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor,
        strategy: :one_for_one,

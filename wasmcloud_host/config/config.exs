@@ -21,6 +21,17 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
   pubsub_server: WasmcloudHost.PubSub,
   live_view: [signing_salt: "Jr0Bi5x0"]
 
+# Subscription retention is a test-enabling tool. When enabled, a subscriber for
+# an actor _will not unsubscribe_ after all instances of that actor have been
+# removed from a host. This helps in testing because the constant churning of
+# stopping, unsubscribing, starting, and re-subscribing in the middle of a test
+# suite causes failure and race conditions on a large scale.
+#
+# tl;dr - leave subscription retention off at all times unless you're running
+# tests.
+config :host_core,
+  retain_rpc_subscriptions: false
+
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",

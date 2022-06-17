@@ -5,7 +5,6 @@ defmodule HostCore.Actors.ActorModule do
   alias HostCore.CloudEvent
   require OpenTelemetry.Tracer, as: Tracer
 
-  @op_health_check "Actor.HealthRequest"
   @chunk_threshold 900 * 1024
   @thirty_seconds 30_000
 
@@ -27,7 +26,6 @@ defmodule HostCore.Actors.ActorModule do
       :api_version,
       :invocation,
       :claims,
-      :subscription,
       :ociref,
       :healthy,
       :parent_span
@@ -63,7 +61,11 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   def ociref(pid) do
-    GenServer.call(pid, :get_ociref)
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_ociref)
+    else
+      "n/a"
+    end
   end
 
   def instance_id(pid) do
@@ -86,10 +88,6 @@ defmodule HostCore.Actors.ActorModule do
     if Process.alive?(pid), do: GenServer.call(pid, :halt_and_cleanup)
   end
 
-  def health_check(pid) do
-    if Process.alive?(pid), do: GenServer.call(pid, :health_check)
-  end
-
   def live_update(pid, bytes, claims, oci, span_ctx \\ nil) do
     GenServer.call(pid, {:live_update, bytes, claims, oci, span_ctx}, @thirty_seconds)
   end
@@ -98,8 +96,6 @@ defmodule HostCore.Actors.ActorModule do
   def init({claims, bytes, oci, annotations}) do
     case start_actor(claims, bytes, oci, annotations) do
       {:ok, agent} ->
-        Process.send(self(), :do_health, [:noconnect, :nosuspend])
-        :timer.send_interval(@thirty_seconds, self(), :do_health)
         {:ok, agent}
 
       {:error, _e} ->
@@ -184,53 +180,27 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   @impl true
-  def handle_call(:health_check, _from, agent) do
-    {:reply, perform_health_check(agent), agent}
-  end
-
-  @impl true
   def handle_call(:halt_and_cleanup, _from, agent) do
     # Add cleanup if necessary here...
-    subscription = Agent.get(agent, fn content -> content.subscription end)
     public_key = Agent.get(agent, fn content -> content.claims.public_key end)
     Logger.debug("Actor instance termination requested", actor_id: public_key)
     instance_id = Agent.get(agent, fn content -> content.instance_id end)
 
-    Gnat.unsub(:lattice_nats, subscription)
     publish_actor_stopped(public_key, instance_id)
 
     {:stop, :normal, :ok, agent}
   end
 
-  defp reconstitute_trace_context(headers) when is_list(headers) do
-    if Enum.any?(headers, fn {k, _v} -> k == "traceparent" end) do
-      :otel_propagator_text_map.extract(headers)
-    else
-      OpenTelemetry.Ctx.clear()
-    end
-  end
-
-  defp reconstitute_trace_context(_) do
-    # If there is a nil for the headers, then clear context
-    OpenTelemetry.Ctx.clear()
-  end
-
   @impl true
-  def handle_info(:do_health, agent) do
-    OpenTelemetry.Ctx.clear()
-    perform_health_check(agent)
-
-    {:noreply, agent}
-  end
-
-  @impl true
-  def handle_info(
-        {:msg,
-         %{
-           body: body,
-           reply_to: reply_to,
-           topic: topic
-         } = msg},
+  def handle_cast(
+        {
+          :handle_incoming_rpc,
+          %{
+            body: body,
+            reply_to: reply_to,
+            topic: topic
+          } = msg
+        },
         agent
       ) do
     reconstitute_trace_context(Map.get(msg, :headers))
@@ -333,6 +303,19 @@ defmodule HostCore.Actors.ActorModule do
     {:noreply, agent}
   end
 
+  defp reconstitute_trace_context(headers) when is_list(headers) do
+    if Enum.any?(headers, fn {k, _v} -> k == "traceparent" end) do
+      :otel_propagator_text_map.extract(headers)
+    else
+      OpenTelemetry.Ctx.clear()
+    end
+  end
+
+  defp reconstitute_trace_context(_) do
+    # If there is a nil for the headers, then clear context
+    OpenTelemetry.Ctx.clear()
+  end
+
   # Invocation responses are stored in the chunked object store with a `-r` appended
   # to the end of the invocation ID
   defp chunk_inv_response(
@@ -382,6 +365,7 @@ defmodule HostCore.Actors.ActorModule do
     Logger.info("Starting actor #{claims.public_key}", actor_id: claims.public_key, oci_ref: oci)
     Registry.register(Registry.ActorRegistry, claims.public_key, claims)
     HostCore.Claims.Manager.put_claims(claims)
+    HostCore.Actors.ActorRpcSupervisor.start_or_reuse_consumer_supervisor(claims)
 
     {:ok, agent} =
       Agent.start_link(fn ->
@@ -401,14 +385,8 @@ defmodule HostCore.Actors.ActorModule do
 
     case Wasmex.start_link(%{bytes: bytes, imports: imports}) |> prepare_module(agent, oci) do
       {:ok, agent} ->
-        prefix = HostCore.Host.lattice_prefix()
-        topic = "wasmbus.rpc.#{prefix}.#{claims.public_key}"
-
-        Logger.debug("Subscribing to #{topic}")
-        {:ok, subscription} = Gnat.sub(:lattice_nats, self(), topic, queue_group: topic)
-
         Agent.update(agent, fn state ->
-          %State{state | subscription: subscription, ociref: oci}
+          %State{state | ociref: oci}
         end)
 
         publish_oci_map(oci, claims.public_key)
@@ -504,35 +482,6 @@ defmodule HostCore.Actors.ActorModule do
 
   defp to_guest_call_result({:error, err}, _agent) do
     {:error, err}
-  end
-
-  defp perform_health_check(agent) do
-    payload = %{placeholder: true} |> Msgpax.pack!() |> IO.iodata_to_binary()
-
-    res =
-      try do
-        perform_invocation({agent, true}, @op_health_check, payload)
-      rescue
-        _e -> {:error, "Failed to invoke actor module"}
-      end
-
-    case res do
-      {:ok, _payload} ->
-        if !Agent.get(agent, fn contents -> contents.healthy end) do
-          publish_check_passed(agent)
-          Agent.update(agent, fn contents -> %State{contents | healthy: true} end)
-        end
-
-      {:error, reason} ->
-        Logger.debug("Actor health check failed: #{reason}")
-
-        if Agent.get(agent, fn contents -> contents.healthy end) do
-          publish_check_failed(agent, reason)
-          Agent.update(agent, fn contents -> %State{contents | healthy: false} end)
-        end
-    end
-
-    res
   end
 
   defp prepare_module({:error, e}, _agent, _oci, _first_time), do: {:error, e}
@@ -693,42 +642,5 @@ defmodule HostCore.Actors.ActorModule do
     topic = "wasmbus.evt.#{prefix}"
 
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
-  end
-
-  defp publish_check_passed(agent) do
-    prefix = HostCore.Host.lattice_prefix()
-    claims = Agent.get(agent, fn content -> content.claims end)
-    iid = Agent.get(agent, fn content -> content.instance_id end)
-
-    msg =
-      %{
-        public_key: claims.public_key,
-        instance_id: iid
-      }
-      |> CloudEvent.new("health_check_passed")
-
-    topic = "wasmbus.evt.#{prefix}"
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
-
-    nil
-  end
-
-  defp publish_check_failed(agent, reason) do
-    prefix = HostCore.Host.lattice_prefix()
-    claims = Agent.get(agent, fn content -> content.claims end)
-    iid = Agent.get(agent, fn content -> content.instance_id end)
-
-    msg =
-      %{
-        public_key: claims.public_key,
-        instance_id: iid,
-        reason: reason
-      }
-      |> CloudEvent.new("health_check_failed")
-
-    topic = "wasmbus.evt.#{prefix}"
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
-
-    nil
   end
 end

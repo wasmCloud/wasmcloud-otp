@@ -67,6 +67,12 @@ defmodule HostCore.Host do
       Logger.warn(warning)
     end
 
+    if Application.get_env(:host_core, :retain_rpc_subscriptions, false) do
+      Logger.warn(
+        "RPC Subscription Retention Enabled. This host instance is NOT stable in production!"
+      )
+    end
+
     labels =
       get_env_host_labels()
       |> Map.merge(HostCore.WasmCloud.Native.detect_core_host_labels())
