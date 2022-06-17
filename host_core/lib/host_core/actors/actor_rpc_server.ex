@@ -17,7 +17,14 @@ defmodule HostCore.Actors.ActorRpcServer do
     #
     # NOTE - dispatch doesn't invoke the handler if no registry entries exist for the given key
     Registry.dispatch(Registry.ActorRegistry, pk, fn entries ->
-      {pid, _value} = entries |> Enum.random()
+      {pid, _ql} =
+        entries
+        |> Enum.map(fn {pid, _value} ->
+          {pid, Process.info(pid, :message_queue_len) |> elem(1)}
+        end)
+        |> Enum.sort(&(elem(&1, 1) <= elem(&2, 1)))
+        |> Enum.at(0)
+
       GenServer.cast(pid, {:handle_incoming_rpc, msg})
     end)
   end
