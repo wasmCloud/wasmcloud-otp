@@ -12,6 +12,6 @@ defmodule HostCore.Actors.CallCounter do
   end
 
   def read_and_increment(pk) when is_binary(pk) do
-    :ets.update_counter(HostCore.Actors.CallCounter, pk, 1, {pk, -1})
+    :ets.update_counter(HostCore.Actors.CallCounter, pk, 1, {pk, 0})
   end
 end
