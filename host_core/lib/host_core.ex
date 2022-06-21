@@ -97,6 +97,7 @@ defmodule HostCore do
          }},
         id: :cacheloader_consumer_supervisor
       ),
+      {HostCore.Actors.CallCounter, nil},
       {HostCore.Host, config},
       {HostCore.HeartbeatEmitter, config},
       {HostCore.Jetstream.Client, config}
