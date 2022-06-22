@@ -6,13 +6,17 @@ use tokio::io::AsyncWriteExt;
 
 use oci_distribution::secrets::RegistryAuth;
 
+pub(crate) const OCI_VAR_REGISTRY: &str = "OCI_REGISTRY";
 pub(crate) const OCI_VAR_USER: &str = "OCI_REGISTRY_USER";
 pub(crate) const OCI_VAR_PASSWORD: &str = "OCI_REGISTRY_PASSWORD";
 const PROVIDER_ARCHIVE_MEDIA_TYPE: &str = "application/vnd.wasmcloud.provider.archive.layer.v1+par";
 const WASM_MEDIA_TYPE: &str = "application/vnd.module.wasm.content.layer.v1+wasm";
 const OCI_MEDIA_TYPE: &str = "application/vnd.oci.image.layer.v1.tar";
 
-fn determine_auth(creds_override: Option<HashMap<String, String>>) -> RegistryAuth {
+fn determine_auth(
+    image_reference: &str,
+    creds_override: Option<HashMap<String, String>>,
+) -> RegistryAuth {
     if let Some(hm) = creds_override {
         match (hm.get("username"), hm.get("password")) {
             (Some(un), Some(pw)) => {
@@ -21,8 +25,14 @@ fn determine_auth(creds_override: Option<HashMap<String, String>>) -> RegistryAu
             _ => oci_distribution::secrets::RegistryAuth::Anonymous,
         }
     } else {
-        match (var(OCI_VAR_USER), var(OCI_VAR_PASSWORD)) {
-            (Ok(u), Ok(p)) => oci_distribution::secrets::RegistryAuth::Basic(u, p),
+        match (
+            var(OCI_VAR_REGISTRY),
+            var(OCI_VAR_USER),
+            var(OCI_VAR_PASSWORD),
+        ) {
+            (Ok(reg), Ok(u), Ok(p)) if image_reference.starts_with(&reg) => {
+                oci_distribution::secrets::RegistryAuth::Basic(u, p)
+            }
             _ => oci_distribution::secrets::RegistryAuth::Anonymous,
         }
     }
@@ -40,8 +50,8 @@ pub(crate) async fn fetch_oci_path(
     }
     let cf = cached_file(img).await?;
     if tokio::fs::metadata(&cf).await.is_err() {
+        let auth = determine_auth(img, creds_override);
         let img = oci_distribution::Reference::from_str(img)?;
-        let auth = determine_auth(creds_override);
 
         let protocol =
             oci_distribution::client::ClientProtocol::HttpsExcept(allowed_insecure.to_vec());
