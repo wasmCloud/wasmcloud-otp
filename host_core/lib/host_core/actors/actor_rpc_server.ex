@@ -1,5 +1,6 @@
 defmodule HostCore.Actors.ActorRpcServer do
   require Logger
+  alias HostCore.Actors.CallCounter
   use Gnat.Server
 
   def request(
@@ -11,29 +12,17 @@ defmodule HostCore.Actors.ActorRpcServer do
       ) do
     pk = topic |> String.split(".") |> Enum.at(-1)
 
-    # NOTE - dispatch doesn't invoke the handler if no registry entries exist for the given key
+    case Registry.lookup(Registry.ActorRegistry, pk) do
+      [] ->
+        {:error, "Actor #{pk} is not running on this host. RPC call skipped."}
 
-    # (This is a potentially blocking method. Need to spike to determine if this approach
-    # is detrimental / causes locking)
-    # Choose the least busy (smallest message queue length) actor in the registry
-    # as the target for the inbound RPC
-    #
-    # Registry.dispatch(Registry.ActorRegistry, pk, fn entries ->
-    #   {pid, _ql} =
-    #     entries
-    #     |> Enum.map(fn {pid, _value} ->
-    #       {pid, Process.info(pid, :message_queue_len) |> elem(1)}
-    #     end)
-    #     |> Enum.sort(&(elem(&1, 1) <= elem(&2, 1)))
-    #     |> Enum.at(0)
+      actors ->
+        next_index = CallCounter.read_and_increment(pk)
+        {pid, _value} = Enum.at(actors, rem(next_index, length(actors)))
 
-    #   GenServer.cast(pid, {:handle_incoming_rpc, msg})
-    # end)
-
-    Registry.dispatch(Registry.ActorRegistry, pk, fn entries ->
-      {pid, _value} = entries |> Enum.random()
-      GenServer.cast(pid, {:handle_incoming_rpc, msg})
-    end)
+        GenServer.cast(pid, {:handle_incoming_rpc, msg})
+        :ok
+    end
   end
 
   def error(
