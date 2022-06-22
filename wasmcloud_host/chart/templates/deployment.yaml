@@ -91,6 +91,10 @@ spec:
             - name: WASMCLOUD_JS_DOMAIN
               value: {{ .Values.wasmcloud.config.jetstreamDomain | quote }}
             {{- end }}
+            {{- if .Values.wasmcloud.config.registry.url }}
+            - name: OCI_REGISTRY
+              value: {{ .Values.wasmcloud.config.registry.url | quote }}
+            {{- end }}
             {{- if .Values.wasmcloud.config.registry.username }}
             - name: OCI_REGISTRY_USER
               value: {{ .Values.wasmcloud.config.registry.username | quote }}
