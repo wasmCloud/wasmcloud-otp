@@ -394,7 +394,7 @@ defmodule HostCore.Host do
   end
 
   def generate_hostinfo_for(provider_key, link_name, instance_id, config_json) do
-    {url, jwt, seed, tls, timeout, structured_logging_enabled} =
+    {url, jwt, seed, tls, timeout, enable_structured_logging} =
       case :ets.lookup(:config_table, :config) do
         [config: config_map] ->
           {"#{config_map[:prov_rpc_host]}:#{config_map[:prov_rpc_port]}",
@@ -429,7 +429,7 @@ defmodule HostCore.Host do
       cluster_issuers: cluster_issuers(),
       invocation_seed: cluster_seed(),
       # In case providers want to be aware of this for their own logging
-      structured_logging_enabled: to_bool(structured_logging_enabled)
+      structured_logging: to_bool(enable_structured_logging)
     }
     |> Jason.encode!()
   end
