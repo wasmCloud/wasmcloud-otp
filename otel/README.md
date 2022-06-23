@@ -10,7 +10,7 @@ We also _**strongly**_ recommend enabling wasmCloud's structured logging feature
 ## Example / Demo
 If you want to play around with OpenTelemetry and some easily configured collectors and dashboards, there's a [compose.yaml](./compose.yaml) file that will start up **Grafana Tempo** for collecting traces and **Grafana** proper for exposing a dashboard that lets you look up traces.
 
-You can either configure the endpoint via environment variables or uncomment the appropriate lines in the `dev.exs` files in the appropriate `config` folder. If you're using the compose file, you'll be able to browse to [localhost:5000](http://localhost:5000) to reach the Grafana home page. From there, just pick **Explore** and then **Tempo**. Paste a trace ID you capture either from looking at logs from the `docker logs otel-tempo-1` command or from sifting through the log output from the host.
+You can either configure the endpoint via environment variables or uncomment the appropriate lines in the `dev.exs` files in the appropriate `config` folder. If you're using the compose file, you'll be able to browse to [localhost:5050](http://localhost:5050) to reach the Grafana home page. From there, just pick **Explore** and then **Tempo**. Paste a trace ID you capture either from looking at logs from the `docker logs otel-tempo-1` command or from sifting through the log output from the host.
 
 ## Common Environment Variables
 For information on the Elixir-specific environment variables and how they're supposed to be used, check out the [opentelemetry_exporter](https://hexdocs.pm/opentelemetry_exporter/readme.html) docs.
