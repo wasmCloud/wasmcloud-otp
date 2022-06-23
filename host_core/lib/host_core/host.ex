@@ -429,7 +429,7 @@ defmodule HostCore.Host do
       cluster_issuers: cluster_issuers(),
       invocation_seed: cluster_seed(),
       # In case providers want to be aware of this for their own logging
-      structured_logging: to_bool(enable_structured_logging)
+      enable_structured_logging: to_bool(enable_structured_logging)
     }
     |> Jason.encode!()
   end
