@@ -25,6 +25,9 @@ wasmcloud:
     providerRpcSeed: ""
     ctlSeed: ""
     jetstreamDomain: ""
+    otel:
+      exporter: ""
+      endpoint: ""
     # Sets the username and password for use with a private registry
     registry:
       url: ""
