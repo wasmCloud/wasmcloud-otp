@@ -25,6 +25,9 @@ wasmcloud:
     providerRpcSeed: ""
     ctlSeed: ""
     jetstreamDomain: ""
+    logging:
+      structuredLoggingEnabled: false
+      logLevel: ""
     otel:
       exporter: ""
       endpoint: ""
