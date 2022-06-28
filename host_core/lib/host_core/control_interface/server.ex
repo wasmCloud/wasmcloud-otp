@@ -251,7 +251,8 @@ defmodule HostCore.ControlInterface.Server do
              |> Enum.all?(&Map.has_key?(stop_actor_command, &1)) do
         HostCore.Actors.ActorSupervisor.terminate_actor(
           stop_actor_command["actor_ref"],
-          stop_actor_command["count"]
+          stop_actor_command["count"],
+          Map.get(stop_actor_command, "annotations", %{})
         )
 
         {:reply, success_ack()}

@@ -117,7 +117,7 @@ defmodule HostCore.ActorsTest do
              %{"is_testing" => "youbetcha"}
 
     assert actor_count == 5
-    HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 5)
+    HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 5, %{})
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_event(
@@ -233,7 +233,7 @@ defmodule HostCore.ActorsTest do
       end
 
     assert res != :fail
-    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1, %{})
 
     ir = res |> Msgpax.unpack!()
 
@@ -293,7 +293,7 @@ defmodule HostCore.ActorsTest do
       end
 
     assert res != :fail
-    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1)
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1, %{})
 
     ir = res |> Msgpax.unpack!()
 
@@ -398,7 +398,7 @@ defmodule HostCore.ActorsTest do
       |> length
 
     assert actor_count == 5
-    HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 0)
+    HostCore.Actors.ActorSupervisor.terminate_actor(@kvcounter_key, 0, %{})
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_event(
