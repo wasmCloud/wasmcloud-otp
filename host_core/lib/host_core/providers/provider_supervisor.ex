@@ -242,7 +242,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   end
 
   @doc """
-  Produces a list of tuples in the form of {public_key, link_name, contract_id, instance_id}
+  Produces a list of tuples in the form of {pid, public_key, link_name, contract_id, instance_id}
   of all of the current providers running
   """
   def all_providers() do
