@@ -285,6 +285,7 @@ defmodule HostCore.Actors.ActorSupervisor do
       Registry.lookup(Registry.ActorRegistry, public_key)
       |> Enum.filter(fn {pid, _v} ->
         existing = HostCore.Actors.ActorModule.annotations(pid)
+        # Property of maps - map a is contained within b if b.merge(a) == b
         Map.merge(existing, annotations) == existing
       end)
 
@@ -307,6 +308,7 @@ defmodule HostCore.Actors.ActorSupervisor do
     Registry.lookup(Registry.ActorRegistry, public_key)
     |> Enum.filter(fn {pid, _v} ->
       existing = HostCore.Actors.ActorModule.annotations(pid)
+      # Property of maps - map a is contained within b if b.merge(a) == b
       Map.merge(existing, annotations) == existing
     end)
     |> Enum.map(fn {pid, _v} -> pid end)
