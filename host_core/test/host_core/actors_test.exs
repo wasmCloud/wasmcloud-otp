@@ -426,7 +426,7 @@ defmodule HostCore.ActorsTest do
         5
       )
 
-    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 0)
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 0, %{})
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_event(
@@ -473,6 +473,6 @@ defmodule HostCore.ActorsTest do
       end
 
     assert res != :fail
-    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 0)
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 0, %{})
   end
 end
