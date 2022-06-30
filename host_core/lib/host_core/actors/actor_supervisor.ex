@@ -262,7 +262,8 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       # Current count is greater than desired count, terminate instances
       diff > 0 ->
-        terminate_actor(public_key, diff)
+        # wadm won't use the scale actor call, so we don't care about annotations here
+        terminate_actor(public_key, diff, %{})
 
       # Current count is less than desired count, start more instances
       diff < 0 && ociref != "" ->
@@ -279,8 +280,15 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   # Terminate `count` instances of an actor
-  def terminate_actor(public_key, count) when count > 0 do
-    actors = Registry.lookup(Registry.ActorRegistry, public_key)
+  def terminate_actor(public_key, count, annotations) when count > 0 do
+    actors =
+      Registry.lookup(Registry.ActorRegistry, public_key)
+      |> Enum.filter(fn {pid, _v} ->
+        existing = HostCore.Actors.ActorModule.annotations(pid)
+        # Property of maps - map a is contained within b if b.merge(a) == b
+        Map.merge(existing, annotations) == existing
+      end)
+
     remaining = length(actors) - count
 
     actors
@@ -296,8 +304,13 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   # Terminate all instances of an actor
-  def terminate_actor(public_key, 0) do
+  def terminate_actor(public_key, 0, annotations) do
     Registry.lookup(Registry.ActorRegistry, public_key)
+    |> Enum.filter(fn {pid, _v} ->
+      existing = HostCore.Actors.ActorModule.annotations(pid)
+      # Property of maps - map a is contained within b if b.merge(a) == b
+      Map.merge(existing, annotations) == existing
+    end)
     |> Enum.map(fn {pid, _v} -> pid end)
     |> Enum.each(fn pid -> ActorModule.halt(pid) end)
 
@@ -309,6 +322,6 @@ defmodule HostCore.Actors.ActorSupervisor do
   def terminate_all() do
     all_actors()
     |> Enum.map(fn {k, v} -> {k, Enum.count(v)} end)
-    |> Enum.each(fn {pk, count} -> terminate_actor(pk, count) end)
+    |> Enum.each(fn {pk, count} -> terminate_actor(pk, count, %{}) end)
   end
 end
