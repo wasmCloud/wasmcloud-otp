@@ -223,7 +223,9 @@ defmodule HostCoreTest.EventWatcher do
       "provider start",
       timeout
     )
-    :timer.sleep(1000) # hacky: give the provider a little bit of time to finish processing its link defs
+
+    # hacky: give the provider a little bit of time to finish processing its link defs
+    :timer.sleep(1000)
   end
 
   # Waits for an `provider_stopped` event to occur with the given link_name

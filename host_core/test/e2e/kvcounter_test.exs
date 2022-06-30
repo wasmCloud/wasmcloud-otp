@@ -114,8 +114,8 @@ defmodule HostCore.E2E.KVCounterTest do
 
     ap = HostCore.Providers.ProviderSupervisor.all_providers()
     assert length(ap) == 2
-    assert Enum.any?(ap, fn { _, p, _, _, _ } -> p == @httpserver_key end)
-    assert Enum.any?(ap, fn { _, p, _, _, _ } -> p == @redis_key end)
+    assert Enum.any?(ap, fn {_, p, _, _, _} -> p == @httpserver_key end)
+    assert Enum.any?(ap, fn {_, p, _, _, _} -> p == @redis_key end)
 
     {:ok, _okay} = HTTPoison.start()
     {:ok, resp} = request_http("http://localhost:8081/foobar", 5)
