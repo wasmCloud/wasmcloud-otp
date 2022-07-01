@@ -16,9 +16,18 @@ defmodule HostCore.Actors.ActorRpcSupervisor do
   end
 
   def stop_rpc_subscriber(public_key) do
-    if !Application.get_env(:host_core, :retain_rpc_subscriptions, false) do
-      Logger.debug("Terminating RPC subscriber for actor #{public_key}")
-      Supervisor.terminate_child(__MODULE__, via_tuple(public_key))
+    case Supervisor.terminate_child(__MODULE__, via_tuple(public_key)) do
+      :ok ->
+        case Supervisor.delete_child(__MODULE__, via_tuple(public_key)) do
+          :ok ->
+            Logger.debug("Terminating RPC subscriber for actor #{public_key}")
+
+          {:error, e} ->
+            Logger.error("Failed to delete RPC subscriber for actor #{public_key}: #{inspect(e)}")
+        end
+
+      {:error, e} ->
+        Logger.error("Failed to terminate RPC subscriber for actor #{public_key}: #{inspect(e)}")
     end
   end
 
@@ -34,10 +43,12 @@ defmodule HostCore.Actors.ActorRpcSupervisor do
       ]
     }
 
+    spec_id = via_tuple(claims.public_key)
+
     spec =
       Supervisor.child_spec(
         {Gnat.ConsumerSupervisor, cs_settings},
-        id: via_tuple(claims.public_key)
+        id: spec_id
       )
 
     case Supervisor.start_child(
@@ -51,7 +62,17 @@ defmodule HostCore.Actors.ActorRpcSupervisor do
         Logger.debug("Reusing existing consumer supervisor for actor RPC #{claims.public_key}")
 
       {:error, :already_present} ->
-        Logger.debug("Reusing existing consumer supervisor for actor RPC #{claims.public_key}")
+        case Supervisor.restart_child(HostCore.Actors.ActorRpcSupervisor, spec_id) do
+          {:ok, _v} ->
+            Logger.debug(
+              "Restarting existing consumer supervisor for actor RPC #{claims.public_key}"
+            )
+
+          {:error, e} ->
+            Logger.error(
+              "Failed to restart consumer supervisor for actor RPC #{claims.public_key}: #{inspect(e)}"
+            )
+        end
 
       {:error, e} ->
         Logger.error(

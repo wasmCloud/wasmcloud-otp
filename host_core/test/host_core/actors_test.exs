@@ -410,4 +410,69 @@ defmodule HostCore.ActorsTest do
 
     assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @kvcounter_key) == nil
   end
+
+  test "can invoke an actor after stopping all instances and restarting", %{
+    :evt_watcher => evt_watcher
+  } do
+    on_exit(fn -> HostCore.Host.purge() end)
+    {:ok, bytes} = File.read(@echo_path)
+    {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", 5)
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_event(
+        evt_watcher,
+        :actor_started,
+        %{"public_key" => @echo_key},
+        5
+      )
+
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 0, %{})
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_event(
+        evt_watcher,
+        :actor_stopped,
+        %{"public_key" => @echo_key},
+        5
+      )
+
+    # restart actor
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    seed = HostCore.Host.cluster_seed()
+
+    req =
+      %{
+        body: "hello",
+        header: %{},
+        path: "/",
+        queryString: "",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HttpServer.HandleRequest",
+        req
+      )
+
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
+
+    res =
+      case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+        {:ok, %{body: body}} -> body
+        {:error, :timeout} -> :fail
+      end
+
+    assert res != :fail
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 0, %{})
+  end
 end
