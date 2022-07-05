@@ -83,7 +83,7 @@ pub async fn get_client(
     } else {
         var(BINDLE_URL_ENV).unwrap_or_else(|_| DEFAULT_BINDLE_URL.to_owned())
     };
-    let client = Client::new(&bindle_url, auth)?;
+    let client = Client::new(&bindle_url, auth, std::sync::Arc::new(bindle::signature::KeyRing::default()))?;
     let local = FileProvider::new(bindle_dir, NoopEngine::default()).await;
     Ok(DumbCache::new(client, local))
 }

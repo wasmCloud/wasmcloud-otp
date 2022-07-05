@@ -26,7 +26,8 @@ defmodule HostCore.MixProject do
     [
       extra_applications: [
         :logger,
-        :crypto,
+        # TODO: can we get rid of this for host_core?
+        # :crypto,
         :tls_certificate_check,
         :opentelemetry_exporter,
         :opentelemetry
