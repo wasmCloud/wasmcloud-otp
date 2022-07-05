@@ -133,7 +133,7 @@ dependencies = [
 [[package]]
 name = "bindle"
 version = "0.8.0"
-source = "git+https://github.com/brooksmtownsend/bindle?branch=main#870f7a333ddf8d2c978096dbeb3b6fe69f84922f"
+source = "git+https://github.com/brooksmtownsend/bindle?branch=main#27ba6826ae22162da4a5c20d2d36543ac37d728d"
 dependencies = [
  "anyhow",
  "async-compression",
