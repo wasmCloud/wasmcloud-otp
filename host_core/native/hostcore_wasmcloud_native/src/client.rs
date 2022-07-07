@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env::var};
+use std::{collections::HashMap, env::var, path::PathBuf};
 
 use bindle::{
     cache::DumbCache,
@@ -8,15 +8,18 @@ use bindle::{
     },
     provider::file::FileProvider,
     search::NoopEngine,
+    signature::{KeyRing, KeyRingLoader, KeyRingSaver},
 };
 
 const BINDLE_USER_NAME_ENV: &str = "BINDLE_USER_NAME";
 const BINDLE_TOKEN_ENV: &str = "BINDLE_TOKEN";
 const BINDLE_PASSWORD_ENV: &str = "BINDLE_PASSWORD";
 const BINDLE_URL_ENV: &str = "BINDLE_URL";
+const BINDLE_KEYRING_PATH: &str = "BINDLE_KEYRING_PATH";
 
 const DEFAULT_BINDLE_URL: &str = "http://localhost:8080/v1/";
 const CACHE_DIR: &str = "wasmcloud_bindlecache";
+const KEYRING_FILE: &str = "keyring.toml";
 
 pub type CachedClient = DumbCache<FileProvider<NoopEngine>, Client<PickYourAuth>>;
 
@@ -76,14 +79,43 @@ pub async fn get_client(
     let auth = get_bindle_auth(creds_override.clone());
 
     // Make sure the cache dir exists
-    let bindle_dir = std::env::temp_dir().join(CACHE_DIR);
+    let temp_dir = std::env::temp_dir();
+    let bindle_dir = temp_dir.join(CACHE_DIR);
+
+    let keyring_path = if let Ok(bindle_keyring_path) = var(BINDLE_KEYRING_PATH) {
+        PathBuf::from(bindle_keyring_path)
+    } else {
+        bindle_dir.join(KEYRING_FILE)
+    };
     tokio::fs::create_dir_all(&bindle_dir).await?;
     let bindle_url = if creds_override.is_some() {
         extract_server(bindle_id)
     } else {
         var(BINDLE_URL_ENV).unwrap_or_else(|_| DEFAULT_BINDLE_URL.to_owned())
     };
-    let client = Client::new(&bindle_url, auth, std::sync::Arc::new(bindle::signature::KeyRing::default()))?;
+    let keyring: KeyRing = match keyring_path.load().await {
+        Ok(k) => k,
+        Err(e) => {
+            eprintln!("WARN: Got error when trying to load keyring: {}\n\n Attempting to fetch host keys from server", e);
+            let client = Client::new(
+                &bindle_url,
+                auth.clone(),
+                std::sync::Arc::new(KeyRing::default()),
+            )?;
+
+            let k = client.get_host_keys().await.map_err(|e| {
+                format!(
+                    "Unable to fetch host keys for validation and no keyring was provided: {}",
+                    e
+                )
+            })?;
+            if let Err(e) = keyring_path.save(&k).await {
+                eprintln!("WARN: Unable to save fetched host keys to {}. Will continue with keyring in memory: {}", keyring_path.display(), e);
+            }
+            k
+        }
+    };
+    let client = Client::new(&bindle_url, auth, std::sync::Arc::new(keyring))?;
     let local = FileProvider::new(bindle_dir, NoopEngine::default()).await;
     Ok(DumbCache::new(client, local))
 }
