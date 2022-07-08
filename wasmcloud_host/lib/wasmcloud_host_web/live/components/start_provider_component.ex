@@ -141,7 +141,7 @@ defmodule StartProviderComponent do
         <label class="col-md-3 col-form-label" for="file-input">OCI Reference</label>
         <div class="col-md-9">
           <input class="form-control" id="provider-ociref-input" type="text" name="provider_ociref"
-            placeholder="wasmcloud.azurecr.io/httpserver:0.14.4" value="" required>
+            placeholder="wasmcloud.azurecr.io/httpserver:0.16.0" value="" required>
           <span class="help-block">Enter an OCI reference</span>
         </div>
       </div>
