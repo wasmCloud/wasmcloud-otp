@@ -28,8 +28,8 @@ once_cell = "1.2.0"
 chrono-humanize = "0.2.1"
 chrono = "0.4.19"
 tokio-stream = "0.1"
-# This should be replaced with a published version once https://github.com/deislabs/bindle/pull/340 is merged.
-bindle = { version = "0.8", git = "https://github.com/thomastaylor312/bindle", branch = "feat/bindle-keys", default-features = false, features = ["client", "caching", "rustls-tls"] }
+# This should be replaced with a published version once bindle 0.9 is out
+bindle = { version = "0.8", git = "https://github.com/deislabs/bindle", rev = "7a5f11ca9986837f8ee54e8d577204ec520b6764", default-features = false, features = ["client", "caching", "rustls-tls"] }
 async-trait = "0.1"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
 nats = "0.20.1"
