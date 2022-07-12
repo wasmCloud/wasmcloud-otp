@@ -70,7 +70,8 @@ defmodule WasmcloudHost.ActorWatcher do
 
     HostCore.Actors.ActorSupervisor.terminate_actor(
       actor_id,
-      replicas
+      replicas,
+      %{}
     )
 
     start_actor(bytes, replicas)

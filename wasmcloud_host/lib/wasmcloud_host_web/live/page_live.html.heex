@@ -55,7 +55,6 @@
                            <tr>
                               <th>Name</th>
                               <th>Count</th>
-                              <th>Status</th>
                               <th>Actions</th>
                            </tr>
                         </thead>
@@ -65,13 +64,11 @@
                            <% actor_name = @claims |> Enum.find({"", %{}}, fn {k, _v} -> k == actor end) |> elem(1) |> Map.get(:name, "N/A") %>
                            <% oci_ref = @ocirefs |> Enum.find({"", actor}, fn {_oci, id} -> id == actor end) |> elem(0) %>
                            <% count = Map.get(info_map, :count) %>
-                           <% status = Map.get(info_map, :status) %>
                            <% is_hotwatched = WasmcloudHost.ActorWatcher.is_hotwatched?(:actor_watcher, actor) %>
                            <%= live_component ActorRowComponent,
                               id: "#{actor} (#{host_id})",
                               actor: actor,
                               host_id: host_id,
-                              status: status,
                               count: count,
                               name: actor_name,
                               oci_ref: oci_ref,
