@@ -22,17 +22,6 @@ defmodule ActorRowComponent do
       </td>
       <td><%= @count %></td>
       <td>
-        <span class="badge <%= case @status do
-              "Awaiting" -> "badge-secondary"
-              "Healthy" -> "badge-success"
-              "Unhealthy" -> "badge-danger"
-              end%>">
-          <%= @status %></span>
-        <%= if @is_hotwatched do %>
-          <span class="badge badge-danger">Hot reloading</span>
-        <% end %>
-      </td>
-      <td>
         <button id="copy_actor_id_<%= @actor %>_<%= @host_id %>" class="btn btn-sm btn-primary id-monospace" data-toggle="tooltip"
           data-placement="top" title data-original-title="Copy Actor ID"
           onClick="navigator.clipboard.writeText('<%= @actor %>')">
