@@ -200,7 +200,11 @@ defmodule HostCore.ControlInterface.Server do
     with {:ok, start_actor_command} <- Jason.decode(body),
          true <-
            Map.has_key?(start_actor_command, "actor_ref") do
+      ctx = Tracer.current_span_ctx()
+
       Task.start(fn ->
+        Tracer.set_current_span(ctx)
+
         Tracer.with_span "Handle Launch Actor Request (ctl)", kind: :server do
           count = Map.get(start_actor_command, "count", 1)
           annotations = Map.get(start_actor_command, "annotations", %{})
@@ -275,7 +279,11 @@ defmodule HostCore.ControlInterface.Server do
         actor_ref = scale_request["actor_ref"]
         count = scale_request["count"]
 
+        ctx = Tracer.current_span_ctx()
+
         Task.start(fn ->
+          Tracer.set_current_span(ctx)
+
           Tracer.with_span "Handle Scale Actor Request (ctl)", kind: :server do
             case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
               {:error, err} ->
@@ -307,7 +315,11 @@ defmodule HostCore.ControlInterface.Server do
            start_provider_command["provider_ref"],
            start_provider_command["link_name"]
          ) do
+        ctx = Tracer.current_span_ctx()
+
         Task.start(fn ->
+          Tracer.set_current_span(ctx)
+
           Tracer.with_span "Handle Launch Provider Request (ctl)", kind: :server do
             annotations = Map.get(start_provider_command, "annotations", %{})
 
