@@ -17,12 +17,9 @@ defmodule HostCore.Actors.ActorRpcServer do
         {:error, "Actor #{pk} is not running on this host. RPC call skipped."}
 
       actors ->
-        IO.puts("found actor for the invocation")
-
         {pid, _claims} =
           actors
           |> List.first()
-          |> IO.inspect()
 
         # next_index = CallCounter.read_and_increment(pk)
         # {pid, _value} = Enum.at(actors, rem(next_index, length(actors)))

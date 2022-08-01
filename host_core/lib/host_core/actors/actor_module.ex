@@ -212,9 +212,6 @@ defmodule HostCore.Actors.ActorModule do
       Logger.debug("Received invocation on #{topic}")
       # iid = Agent.get(agent, fn content -> content.instance_id end)
       iid = "omgwowthisisarealinvid"
-      IO.puts("checkin agent contents")
-      Agent.get(agent, fn content -> IO.inspect(content) end)
-      IO.puts("checkin agent contents")
 
       {module, imports, public_key} =
         Agent.get(agent, fn content ->
@@ -224,99 +221,114 @@ defmodule HostCore.Actors.ActorModule do
       # TODO: where this come from
       oci = "wasmcloud.azurecr.io/echo:0.3.4"
 
-      {:ok, instance} =
-        case Wasmex.start_link(%{module: module, imports: imports})
-             |> prepare_module(agent, oci) do
-          {:ok, instance} ->
-            # publish_oci_map(oci, claims.public_key)
-            IO.puts("we instantiated")
-            {:ok, instance}
+      results =
+        ParallelTask.new()
+        |> ParallelTask.add(
+          instantiate: fn ->
+            case Wasmex.start_link(%{module: module, imports: imports})
+                 |> prepare_module(agent, oci) do
+              {:ok, instance} ->
+                # publish_oci_map(oci, claims.public_key)
+                {:ok, instance}
 
-          {:error, e} ->
-            Logger.error("Failed to start actor: #{inspect(e)}", actor_id: public_key)
+              {:error, e} ->
+                Logger.error("Failed to start actor: #{inspect(e)}", actor_id: public_key)
 
-            # HostCore.ControlInterface.Server.publish_actor_start_failed(
-            #   claims.public_key,
-            #   inspect(e)
-            # )
+                # HostCore.ControlInterface.Server.publish_actor_start_failed(
+                #   claims.public_key,
+                #   inspect(e)
+                # )
 
-            {:error, e}
-        end
+                {:error, e}
+            end
+          end
+        )
+        |> ParallelTask.add(
+          validate: fn ->
+            with {:ok, inv} <- Msgpax.unpack(body) do
+              Tracer.set_attribute("invocation_id", inv["id"])
+
+              case HostCore.WasmCloud.Native.validate_antiforgery(
+                     body,
+                     HostCore.Host.cluster_issuers()
+                   ) do
+                {:error, msg} ->
+                  Logger.error("Invocation failed anti-forgery validation check: #{msg}",
+                    invocation_id: inv["id"]
+                  )
+
+                  Tracer.set_status(:error, "Anti-forgery check failed #{msg}")
+
+                  {%{
+                     msg: nil,
+                     invocation_id: inv["id"],
+                     error: msg,
+                     instance_id: iid
+                   }, inv}
+
+                _ ->
+                  {validate_invocation(
+                     agent,
+                     inv["origin"]["link_name"],
+                     inv["origin"]["contract_id"]
+                   ), inv}
+              end
+            else
+              _ ->
+                Tracer.set_status(:error, "Failed to deserialize msgpack invocation")
+
+                {%{
+                   msg: nil,
+                   invocation_id: "",
+                   error: "Failed to deserialize msgpack invocation",
+                   instance_id: iid
+                 }, nil}
+            end
+          end
+        )
+        |> ParallelTask.perform()
+
+      %{
+        instantiate: {:ok, instance},
+        validate: {valid_res, inv}
+      } = results
 
       Tracer.set_attribute("instance_id", iid)
       Tracer.set_attribute("public_key", public_key)
 
       {ir, inv} =
-        with {:ok, inv} <- Msgpax.unpack(body) do
-          Tracer.set_attribute("invocation_id", inv["id"])
+        case valid_res
+             |> perform_invocation(
+               instance,
+               inv["operation"],
+               check_dechunk_inv(
+                 inv["id"],
+                 inv["content_length"],
+                 Map.get(inv, "msg", <<>>)
+               )
+               |> IO.iodata_to_binary()
+             ) do
+          {:ok, response} ->
+            Tracer.set_status(:ok, "")
 
-          case HostCore.WasmCloud.Native.validate_antiforgery(
-                 body,
-                 HostCore.Host.cluster_issuers()
-               ) do
-            {:error, msg} ->
-              Logger.error("Invocation failed anti-forgery validation check: #{msg}",
-                invocation_id: inv["id"]
-              )
+            {%{
+               msg: response,
+               invocation_id: inv["id"],
+               instance_id: iid,
+               content_length: byte_size(response)
+             }
+             |> chunk_inv_response(), inv}
 
-              Tracer.set_status(:error, "Anti-forgery check failed #{msg}")
-
-              {%{
-                 msg: nil,
-                 invocation_id: inv["id"],
-                 error: msg,
-                 instance_id: iid
-               }, inv}
-
-            _ ->
-              case validate_invocation(
-                     agent,
-                     inv["origin"]["link_name"],
-                     inv["origin"]["contract_id"]
-                   )
-                   |> perform_invocation(
-                     instance,
-                     inv["operation"],
-                     check_dechunk_inv(
-                       inv["id"],
-                       inv["content_length"],
-                       Map.get(inv, "msg", <<>>)
-                     )
-                     |> IO.iodata_to_binary()
-                   ) do
-                {:ok, response} ->
-                  Tracer.set_status(:ok, "")
-
-                  {%{
-                     msg: response,
-                     invocation_id: inv["id"],
-                     instance_id: iid,
-                     content_length: byte_size(response)
-                   }
-                   |> chunk_inv_response(), inv}
-
-                {:error, error} ->
-                  Logger.error("Invocation failure: #{error}", invocation_id: inv["id"])
-                  Tracer.set_status(:error, "Invocation failure: #{error}")
-
-                  {%{
-                     msg: nil,
-                     error: error,
-                     invocation_id: inv["id"],
-                     instance_id: iid
-                   }, inv}
-              end
-          end
-        else
-          _ ->
-            Tracer.set_status(:error, "Failed to deserialize msgpack invocation")
+          {:error, error} ->
+            Logger.error("Invocation failure: #{error}", invocation_id: inv["id"])
+            Tracer.set_status(:error, "Invocation failure: #{error}")
 
             {%{
                msg: nil,
-               invocation_id: "",
-               error: "Failed to deserialize msgpack invocation",
+               error: error,
+               invocation_id: inv["id"],
                instance_id: iid
-             }, nil}
+             }, inv}
         end
 
       HostCore.Nats.safe_pub(
@@ -330,11 +342,11 @@ defmodule HostCore.Actors.ActorModule do
       Task.start(fn ->
         publish_invocation_result(inv, ir)
       end)
+
+      # span
+
+      {:noreply, agent}
     end
-
-    # span
-
-    {:noreply, agent}
   end
 
   defp reconstitute_trace_context(headers) when is_list(headers) do
