@@ -28,7 +28,10 @@ defmodule HostCore.Actors.ActorModule do
       :claims,
       :ociref,
       :healthy,
-      :parent_span
+      :parent_span,
+      # Here's a little lesson in hackery
+      :module,
+      :imports
     ]
   end
 
@@ -207,8 +210,38 @@ defmodule HostCore.Actors.ActorModule do
 
     Tracer.with_span "Handle Invocation", kind: :server do
       Logger.debug("Received invocation on #{topic}")
-      iid = Agent.get(agent, fn content -> content.instance_id end)
-      public_key = Agent.get(agent, fn content -> content.claims.public_key end)
+      # iid = Agent.get(agent, fn content -> content.instance_id end)
+      iid = "omgwowthisisarealinvid"
+      IO.puts("checkin agent contents")
+      Agent.get(agent, fn content -> IO.inspect(content) end)
+      IO.puts("checkin agent contents")
+
+      {module, imports, public_key} =
+        Agent.get(agent, fn content ->
+          {content.module, content.imports, content.claims.public_key}
+        end)
+
+      # TODO: where this come from
+      oci = "wasmcloud.azurecr.io/echo:0.3.4"
+
+      {:ok, instance} =
+        case Wasmex.start_link(%{module: module, imports: imports})
+             |> prepare_module(agent, oci) do
+          {:ok, instance} ->
+            # publish_oci_map(oci, claims.public_key)
+            IO.puts("we instantiated")
+            {:ok, instance}
+
+          {:error, e} ->
+            Logger.error("Failed to start actor: #{inspect(e)}", actor_id: public_key)
+
+            # HostCore.ControlInterface.Server.publish_actor_start_failed(
+            #   claims.public_key,
+            #   inspect(e)
+            # )
+
+            {:error, e}
+        end
 
       Tracer.set_attribute("instance_id", iid)
       Tracer.set_attribute("public_key", public_key)
@@ -242,6 +275,7 @@ defmodule HostCore.Actors.ActorModule do
                      inv["origin"]["contract_id"]
                    )
                    |> perform_invocation(
+                     instance,
                      inv["operation"],
                      check_dechunk_inv(
                        inv["id"],
@@ -383,20 +417,23 @@ defmodule HostCore.Actors.ActorModule do
       wasi_snapshot_preview1: Imports.fake_wasi(agent)
     }
 
-    case Wasmex.start_link(%{bytes: bytes, imports: imports}) |> prepare_module(agent, oci) do
-      {:ok, agent} ->
-        Agent.update(agent, fn state ->
-          %State{state | ociref: oci}
-        end)
+    {:ok, module} = Wasmex.Module.compile(bytes)
 
-        publish_oci_map(oci, claims.public_key)
-        {:ok, agent}
+    # case Wasmex.start_link(%{bytes: bytes, imports: imports}) |> prepare_module(agent, oci) do
+    #   {:ok, agent} ->
+    Agent.update(agent, fn state ->
+      %State{state | ociref: oci, module: module, imports: imports}
+    end)
 
-      {:error, e} ->
-        Logger.error("Failed to start actor: #{inspect(e)}", actor_id: claims.public_key)
-        HostCore.ControlInterface.Server.publish_actor_start_failed(claims.public_key, inspect(e))
-        {:error, e}
-    end
+    #     publish_oci_map(oci, claims.public_key)
+    #     {:ok, agent}
+
+    #   {:error, e} ->
+    #     Logger.error("Failed to start actor: #{inspect(e)}", actor_id: claims.public_key)
+    #     HostCore.ControlInterface.Server.publish_actor_start_failed(claims.public_key, inspect(e))
+    #     {:error, e}
+    # end
+    {:ok, agent}
   end
 
   # Actor-to-actor calls are always allowed
@@ -414,7 +451,7 @@ defmodule HostCore.Actors.ActorModule do
     {agent, Enum.member?(caps, contract_id)}
   end
 
-  defp perform_invocation({agent, true}, operation, payload) do
+  defp perform_invocation({agent, true}, instance, operation, payload) do
     raw_state = Agent.get(agent, fn content -> content end)
 
     Tracer.with_span "Wasm Guest Call", kind: :client do
@@ -445,7 +482,7 @@ defmodule HostCore.Actors.ActorModule do
       # if it fails, set guest_error, return 1
       # if it succeeeds, set guest_response, return 0
       try do
-        Wasmex.call_function(raw_state.instance, :__guest_call, [
+        Wasmex.call_function(instance, :__guest_call, [
           byte_size(operation),
           byte_size(payload)
         ])
@@ -486,16 +523,16 @@ defmodule HostCore.Actors.ActorModule do
 
   defp prepare_module({:error, e}, _agent, _oci, _first_time), do: {:error, e}
 
-  defp prepare_module({:ok, instance}, agent, oci, first_time \\ true) do
-    api_version =
-      case Wasmex.call_function(instance, :__wasmbus_rpc_version, []) do
-        {:ok, [v]} -> v
-        _ -> 0
-      end
+  defp prepare_module({:ok, instance}, _agent, _oci, _first_time \\ true) do
+    # api_version =
+    case Wasmex.call_function(instance, :__wasmbus_rpc_version, []) do
+      {:ok, [v]} -> v
+      _ -> 0
+    end
 
-    claims = Agent.get(agent, fn content -> content.claims end)
-    instance_id = Agent.get(agent, fn content -> content.instance_id end)
-    annotations = Agent.get(agent, fn content -> content.annotations end)
+    # claims = Agent.get(agent, fn content -> content.claims end)
+    # instance_id = Agent.get(agent, fn content -> content.instance_id end)
+    # annotations = Agent.get(agent, fn content -> content.annotations end)
 
     if Wasmex.function_exists(instance, :start) do
       Wasmex.call_function(instance, :start, [])
@@ -510,15 +547,15 @@ defmodule HostCore.Actors.ActorModule do
       Wasmex.call_function(instance, :_start, [])
     end
 
-    Agent.update(agent, fn content ->
-      %State{content | api_version: api_version, instance: instance}
-    end)
+    # Agent.update(agent, fn content ->
+    #   %State{content | api_version: api_version, instance: instance}
+    # end)
 
-    if first_time do
-      publish_actor_started(claims, api_version, instance_id, oci, annotations)
-    end
+    # if first_time do
+    #   publish_actor_started(claims, api_version, instance_id, oci, annotations)
+    # end
 
-    {:ok, agent}
+    {:ok, instance}
   end
 
   def publish_oci_map("", _pk) do

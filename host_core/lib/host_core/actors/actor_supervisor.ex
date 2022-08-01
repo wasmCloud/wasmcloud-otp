@@ -41,33 +41,33 @@ defmodule HostCore.Actors.ActorSupervisor do
              "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
           else
             # Start `count` instances of this actor
-            case 1..count
-                 |> Enum.reduce_while([], fn _count, pids ->
-                   case DynamicSupervisor.start_child(
-                          __MODULE__,
-                          {HostCore.Actors.ActorModule, {claims, bytes, oci, annotations}}
-                        ) do
-                     {:error, err} ->
-                       {:halt, {:error, "Error: #{err}"}}
+            # case 1..count
+            #  |> Enum.reduce_while([], fn _count, pids ->
+            case DynamicSupervisor.start_child(
+                   __MODULE__,
+                   {HostCore.Actors.ActorModule, {claims, bytes, oci, annotations}}
+                 ) do
+              #  {:error, err} ->
+              #    {:halt, {:error, "Error: #{err}"}}
 
-                     {:ok, pid} ->
-                       {:cont, [pid | pids]}
+              #  {:ok, pid} ->
+              #    {:cont, [pid | pids]}
 
-                     {:ok, pid, _info} ->
-                       {:cont, [pid | pids]}
+              #  {:ok, pid, _info} ->
+              #    {:cont, [pid | pids]}
 
-                     :ignore ->
-                       {:cont, pids}
-                   end
-                 end) do
+              #  :ignore ->
+              #    {:cont, pids}
+              #  end
+              #  end) do
               {:error, err} ->
                 Tracer.set_status(:error, "#{inspect(err)}")
                 {:error, err}
 
-              pids ->
-                Tracer.add_event("Actor(s) Started", [])
+              {:ok, pid} ->
+                Tracer.add_event("Actor Started", [])
                 Tracer.set_status(:ok, "")
-                {:ok, pids}
+                {:ok, pid}
             end
           end
       end
