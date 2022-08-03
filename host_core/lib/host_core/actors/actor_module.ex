@@ -285,13 +285,15 @@ defmodule HostCore.Actors.ActorModule do
              }, nil}
         end
 
-      HostCore.Nats.safe_pub(
-        :lattice_nats,
-        reply_to,
-        ir |> Msgpax.pack!() |> IO.iodata_to_binary()
-      )
+      Task.start(fn ->
+        HostCore.Nats.safe_pub(
+          :lattice_nats,
+          reply_to,
+          ir |> Msgpax.pack!() |> IO.iodata_to_binary()
+        )
+      end)
 
-      Tracer.add_event("Reply published", [])
+      # Tracer.add_event("Reply published", [])
 
       Task.start(fn ->
         publish_invocation_result(inv, ir)

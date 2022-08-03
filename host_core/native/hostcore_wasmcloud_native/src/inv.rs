@@ -125,7 +125,7 @@ impl Invocation {
             msg: vec![],
             id: subject,
             encoded_claims: claims.encode(hostkey).unwrap(),
-            host_id: issuer,            
+            host_id: issuer,
         }
     }
 
