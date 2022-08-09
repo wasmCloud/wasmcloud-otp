@@ -69,8 +69,7 @@ defmodule HostCore.ActorsTest do
       },
       warmup: 1,
       time: 5,
-      parallel: 10,
-      profile_after: :eprof
+      parallel: 10
     )
 
     assert true
