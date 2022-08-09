@@ -192,15 +192,16 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   @impl true
-  def handle_cast(
+  def handle_call(
         {
           :handle_incoming_rpc,
           %{
             body: body,
-            reply_to: reply_to,
+            reply_to: _reply_to,
             topic: topic
           } = msg
         },
+        _from,
         agent
       ) do
     reconstitute_trace_context(Map.get(msg, :headers))
@@ -285,22 +286,12 @@ defmodule HostCore.Actors.ActorModule do
              }, nil}
         end
 
-      HostCore.Nats.safe_pub(
-        :lattice_nats,
-        reply_to,
-        ir |> Msgpax.pack!() |> IO.iodata_to_binary()
-      )
-
-      Tracer.add_event("Reply published", [])
-
       Task.start(fn ->
         publish_invocation_result(inv, ir)
       end)
+
+      {:reply, {:ok, ir |> Msgpax.pack!() |> IO.iodata_to_binary()}, agent}
     end
-
-    # span
-
-    {:noreply, agent}
   end
 
   defp reconstitute_trace_context(headers) when is_list(headers) do

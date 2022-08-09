@@ -62,6 +62,7 @@ defmodule HostCore.MixProject do
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:httpoison, "~> 1.8", only: [:test]},
       {:json, "~> 1.4", only: [:test]},
+      {:benchee, "~> 1.0", only: :test},
       {:distillery, "~> 2.1"}
     ]
   end
