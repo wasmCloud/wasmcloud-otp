@@ -1,10 +1,8 @@
-defmodule HostCore.ActorsTest do
+defmodule HostCore.BenchmarkTest do
   # Any test suite that relies on things like querying the actor count or the provider
   # count will need to be _synchronous_ tests so that other tests that rely on that same
   # information won't get bad/confusing results.
   use ExUnit.Case, async: false
-
-  doctest HostCore.Actors
 
   setup do
     {:ok, evt_watcher} =
