@@ -19,8 +19,15 @@ defmodule HostCore.Actors.ActorRpcServer do
       actors ->
         next_index = CallCounter.read_and_increment(pk)
         {pid, _value} = Enum.at(actors, rem(next_index, length(actors)))
-        {:ok, resp} = GenServer.call(pid, {:handle_incoming_rpc, msg})
-        {:reply, resp}
+
+        case GenServer.call(pid, {:handle_incoming_rpc, msg}) do
+          {:ok, resp} ->
+            {:reply, resp}
+
+          _ ->
+            Logger.error("Failed to handle actor RPC call")
+            :ok
+        end
     end
   end
 
