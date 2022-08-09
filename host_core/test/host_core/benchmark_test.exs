@@ -17,8 +17,6 @@ defmodule HostCore.ActorsTest do
 
   @echo_key HostCoreTest.Constants.echo_key()
   @echo_path HostCoreTest.Constants.echo_path()
-  @echo_old_oci_reference HostCoreTest.Constants.echo_ociref()
-  @echo_oci_reference HostCoreTest.Constants.echo_ociref_updated()
 
   @httpserver_key HostCoreTest.Constants.httpserver_key()
   @httpserver_contract HostCoreTest.Constants.httpserver_contract()
@@ -26,10 +24,8 @@ defmodule HostCore.ActorsTest do
 
   test "load test with echo actor", %{:evt_watcher => _evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
-    :ets.delete(:refmap_table, @echo_oci_reference)
-    :ets.delete(:refmap_table, @echo_old_oci_reference)
     {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", 1)
+    {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", 100)
 
     seed = HostCore.Host.cluster_seed()
 
@@ -59,46 +55,24 @@ defmodule HostCore.ActorsTest do
     msg = %{
       body: inv |> IO.iodata_to_binary(),
       topic: "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}",
-      reply_to: nil
+      reply_to: "_INBOX.thisisatest.notinterested"
     }
-
-    # Let the system cool down a bit after starting 100 actors
-    IO.puts("calming down")
-    :timer.sleep(2_000)
 
     Benchee.run(
       %{
         "nats_echo_request" => fn ->
           HostCore.Nats.safe_req(:lattice_nats, msg.topic, inv, receive_timeout: 2_000)
+        end,
+        "direct_echo_request" => fn ->
+          HostCore.Actors.ActorRpcServer.request(msg)
         end
-        # "direct_echo_request" => fn ->
-        #   HostCore.Actors.ActorRpcServer.request(msg)
-        # end
       },
-      warmup: 0,
-      time: 0.1
+      warmup: 1,
+      time: 5,
+      parallel: 10,
+      profile_after: :eprof
     )
 
-    # topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_key}"
-
-    # res =
-    #   case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 2_000) do
-    #     {:ok, %{body: body}} -> body
-    #     {:error, :timeout} -> :fail
-    #   end
-
-    # assert res != :fail
-    # HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 1, %{})
-
-    # ir = res |> Msgpax.unpack!()
     assert true
-
-    # payload = ir["msg"] |> Msgpax.unpack!()
-
-    # assert payload["header"] == %{}
-    # assert payload["statusCode"] == 200
-
-    # assert payload["body"] ==
-    #          "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 end

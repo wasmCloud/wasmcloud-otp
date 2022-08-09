@@ -18,10 +18,9 @@ defmodule HostCore.Actors.ActorRpcServer do
 
       actors ->
         next_index = CallCounter.read_and_increment(pk)
-        IO.puts(next_index)
         {pid, _value} = Enum.at(actors, rem(next_index, length(actors)))
-
-        GenServer.cast(pid, {:handle_incoming_rpc, msg})
+        {:ok, resp} = GenServer.call(pid, {:handle_incoming_rpc, msg})
+        {:reply, resp}
     end
   end
 
