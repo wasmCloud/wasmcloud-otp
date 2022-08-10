@@ -34,12 +34,27 @@ defmodule HostCore.Actors.ActorSupervisor do
           {:error, err}
 
         {:ok, claims} ->
-          if other_oci_already_running?(oci, claims.public_key) do
-            Tracer.set_status(:error, "Already running")
-
-            {:error,
-             "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
-          else
+          with %{action_permitted: true} <-
+                 HostCore.Policy.Manager.evaluate_action(
+                   %{
+                     public_key: "",
+                     contract_id: "",
+                     link_name: "",
+                     capabilities: [],
+                     issuer: "",
+                     issued_on: "",
+                     # TODO: how long?
+                     expires_in_mins: 60
+                   },
+                   %{
+                     public_key: claims.public_key,
+                     issuer: claims.issuer,
+                     contract_id: nil,
+                     link_name: nil
+                   },
+                   "start_actor"
+                 ),
+               false <- other_oci_already_running?(oci, claims.public_key) do
             # Start `count` instances of this actor
             case 1..count
                  |> Enum.reduce_while([], fn _count, pids ->
@@ -69,6 +84,16 @@ defmodule HostCore.Actors.ActorSupervisor do
                 Tracer.set_status(:ok, "")
                 {:ok, pids}
             end
+          else
+            true ->
+              Tracer.set_status(:error, "Already running")
+
+              {:error,
+               "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
+
+            %{action_permitted: false, message: message, request_id: request_id} ->
+              Tracer.set_status(:error, "Policy denied starting actor, request: #{request_id}")
+              {:error, "Starting actor #{claims.public_key} denied: #{message}"}
           end
       end
     end

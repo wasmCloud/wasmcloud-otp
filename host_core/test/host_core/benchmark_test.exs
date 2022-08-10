@@ -22,8 +22,10 @@ defmodule HostCore.BenchmarkTest do
 
   test "load test with echo actor", %{:evt_watcher => _evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
+    num_actors = 100
+    parallel = 10
     {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", 100)
+    {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", num_actors)
 
     seed = HostCore.Host.cluster_seed()
 
@@ -56,6 +58,8 @@ defmodule HostCore.BenchmarkTest do
       reply_to: "_INBOX.thisisatest.notinterested"
     }
 
+    IO.puts("Benchmarking with #{num_actors} actors and #{parallel} parallel requests")
+
     Benchee.run(
       %{
         "nats_echo_request" => fn ->
@@ -67,7 +71,7 @@ defmodule HostCore.BenchmarkTest do
       },
       warmup: 1,
       time: 5,
-      parallel: 10
+      parallel: parallel
     )
 
     assert true

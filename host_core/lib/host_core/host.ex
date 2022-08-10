@@ -314,6 +314,7 @@ defmodule HostCore.Host do
     :ets.new(:refmap_table, [:named_table, :set, :public])
     :ets.new(:callalias_table, [:named_table, :set, :public])
     :ets.new(:config_table, [:named_table, :set, :public])
+    :ets.new(:policy_table, [:named_table, :set, :public])
   end
 
   def set_credsmap(credsmap) do

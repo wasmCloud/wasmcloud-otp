@@ -63,6 +63,7 @@ defmodule HostCore.MixProject do
       {:httpoison, "~> 1.8", only: [:test]},
       {:json, "~> 1.4", only: [:test]},
       {:benchee, "~> 1.0", only: :test},
+      {:mock, "~> 0.3.0", only: :test},
       {:distillery, "~> 2.1"}
     ]
   end

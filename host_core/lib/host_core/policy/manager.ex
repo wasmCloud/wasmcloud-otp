@@ -1,11 +1,11 @@
-# TODO: policy module, fail open or fail closed options
 defmodule HostCore.Policy.Manager do
   @moduledoc false
   require Logger
 
+  @policy_table :policy_table
+
   def evaluate_action(source, target, action) do
-    # mwahaha security
-    with {:ok, topic} <- policy_topic(),
+    with {:ok, topic} <- HostCore.Policy.Manager.policy_topic(),
          nil <- cached_decision(source, target, action),
          :ok <- validate_source(source),
          :ok <- validate_target(target),
@@ -25,77 +25,128 @@ defmodule HostCore.Policy.Manager do
       |> evaluate(topic)
       |> cache_decision(source, target, action)
     else
+      :policy_eval_disabled ->
+        allowed_action("Policy evaluation disabled, allowing action", "")
+
       {:ok, decision} ->
         decision
 
       {:error, invalid_error} ->
-        Logger.error("Invalid policy evaluation parameter: #{invalid_error}")
+        Logger.error("#{invalid_error}")
 
-        %{
-          action_permitted: true,
-          message: "",
-          request_id: UUID.uuid4()
-        }
+        allowed_action(invalid_error)
     end
   end
 
   defp evaluate(req, topic) do
     case Jason.encode(req) do
       {:ok, encoded} ->
-        case Gnat.request(:control_nats, topic, encoded, timeout: 2_000) do
-          {:ok, body} ->
-            %{
-              action_permitted: true,
-              message: "",
-              request_id: req |> Map.get(:request_id, "not supplied")
-            }
+        # TODO: what timeout should we use here?
+        case HostCore.Nats.safe_req(:control_nats, topic, encoded, receive_timeout: 2_000) do
+          {:ok, %{body: _body}} ->
+            allowed_action("", req |> Map.get(:request_id, "not supplied"))
 
-          _ ->
-            %{
-              action_permitted: true,
-              message: "",
-              request_id: req |> Map.get(:request_id, "not supplied")
-            }
+          {:error, :timeout} ->
+            allowed_action(
+              "Policy request timed out, allowing action",
+              req |> Map.get(:request_id, "not supplied")
+            )
         end
 
       {:error, e} ->
         Logger.error("Could not JSON encode request, #{e}")
 
-        %{
-          action_permitted: true,
-          message: "",
-          request_id: req |> Map.get(:request_id, "not supplied")
-        }
+        allowed_action("", req |> Map.get(:request_id, "not supplied"))
     end
   end
 
-  # Returns nil or {:ok, decision} based on policy, store in ets
+  # Returns nil if not present or {:ok, decision} based on previous policy decision
   defp cached_decision(source, target, action) do
-    nil
+    case :ets.lookup(@policy_table, {source, target, action}) do
+      [{{_src, _tgt, _act}, decision}] -> {:ok, decision}
+      [] -> nil
+    end
   end
 
+  # Inserts a policy decision into the policy table as a nested tuple. This
+  # allows future lookups to easily fetch decision based on {source,target,action}
   defp cache_decision(decision, source, target, action) do
-    :ok
+    :ets.insert(@policy_table, {{source, target, action}, decision})
+    decision
   end
 
   # Helper to fetch the policy topic from the host environment
   # TODO: this is better to store in the config ets and fetch it from there in the host
-  defp policy_topic() do
+  def policy_topic() do
     case System.get_env("WASMCLOUD_POLICY_TOPIC") do
-      nil -> :error
+      nil -> :policy_eval_disabled
       topic -> {:ok, topic}
     end
   end
 
-  defp validate_source(source) do
+  ##
+  # Basic validation of source, target, and action ensuring required fields are present
+  ##
+  defp validate_source(%{
+         public_key: _public_key,
+         capabilities: _caps,
+         issuer: _issuer,
+         issued_on: _issued_on,
+         expires_in_mins: _expires
+       }) do
     :ok
   end
 
-  defp validate_target(source) do
+  defp validate_source(source) when is_map(source) do
+    # Narrow down missing fields by removing present fields from the list
+    missing_fields =
+      [:public_key, :capabilities, :issuer, :issued_on, :expires_in_mins]
+      |> Enum.reject(fn required_field -> Map.get(source, required_field) != nil end)
+      |> Enum.join(", ")
+
+    {:error, "Invalid source argument, missing required fields: #{missing_fields}"}
+  end
+
+  defp validate_source(_), do: {:error, "Invalid source argument, source was not a map"}
+
+  defp validate_target(%{
+         public_key: _public_key,
+         issuer: _issuer
+       }) do
     :ok
   end
 
-  defp validate_action(source) do
-    :ok
+  defp validate_target(target) when is_map(target) do
+    # Narrow down missing fields by removing present fields from the list
+    missing_fields =
+      [:public_key, :issuer]
+      |> Enum.reject(fn required_field -> Map.get(target, required_field) != nil end)
+      |> Enum.join(", ")
+
+    {:error, "Invalid target argument, missing required fields: #{missing_fields}"}
+  end
+
+  defp validate_target(_), do: {:error, "Invalid target argument, target was not a map"}
+
+  # Ensure action is a string
+  defp validate_action(action) when is_binary(action), do: :ok
+  defp validate_action(_), do: {:error, "Invalid action argument, action was not a string"}
+
+  # Helper constructor for an allowed action structure
+  defp allowed_action(message \\ "", request_id \\ UUID.uuid4()) do
+    %{
+      action_permitted: true,
+      message: message,
+      request_id: request_id
+    }
+  end
+
+  # Helper constructor for a denied action structure
+  defp denied_action(message, request_id) do
+    %{
+      action_permitted: false,
+      message: message,
+      request_id: request_id
+    }
   end
 end
