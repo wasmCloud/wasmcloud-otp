@@ -5,6 +5,11 @@ defmodule HostCore.Policy.Manager do
   @policy_table :policy_table
 
   def evaluate_action(source, target, action) do
+    IO.puts("evaluating action")
+    IO.inspect(source)
+    IO.inspect(target)
+    IO.inspect(action)
+
     with {:ok, topic} <- HostCore.Policy.Manager.policy_topic(),
          nil <- cached_decision(source, target, action),
          :ok <- validate_source(source),
@@ -135,7 +140,7 @@ defmodule HostCore.Policy.Manager do
   # Helper constructor for an allowed action structure
   defp allowed_action(message \\ "", request_id \\ UUID.uuid4()) do
     %{
-      action_permitted: true,
+      permitted: true,
       message: message,
       request_id: request_id
     }
@@ -144,7 +149,7 @@ defmodule HostCore.Policy.Manager do
   # Helper constructor for a denied action structure
   defp denied_action(message, request_id) do
     %{
-      action_permitted: false,
+      permitted: false,
       message: message,
       request_id: request_id
     }

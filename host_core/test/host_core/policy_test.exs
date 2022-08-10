@@ -39,7 +39,7 @@ defmodule HostCore.PolicyTest do
              @target_actor,
              @perform_invocation
            ) == %{
-             action_permitted: true,
+             permitted: true,
              message: "Policy evaluation disabled, allowing action",
              request_id: ""
            }
@@ -58,7 +58,7 @@ defmodule HostCore.PolicyTest do
       )
 
     assert decision == %{
-             action_permitted: true,
+             permitted: true,
              message: "Policy request timed out, allowing action",
              # Request ID is generated during evaluation, so grab it for comparison
              request_id: decision.request_id
@@ -77,7 +77,7 @@ defmodule HostCore.PolicyTest do
       )
 
     assert invalid_source == %{
-             action_permitted: true,
+             permitted: true,
              message: "Invalid source argument, missing required fields: public_key",
              request_id: invalid_source.request_id
            }
@@ -90,7 +90,7 @@ defmodule HostCore.PolicyTest do
       )
 
     assert invalid_target == %{
-             action_permitted: true,
+             permitted: true,
              message: "Invalid target argument, missing required fields: issuer",
              request_id: invalid_target.request_id
            }
@@ -103,19 +103,48 @@ defmodule HostCore.PolicyTest do
       )
 
     assert invalid_action == %{
-             action_permitted: true,
+             permitted: true,
              message: "Invalid action argument, action was not a string",
              request_id: invalid_action.request_id
            }
   end
 
   test_with_mock "can request policy evaluations and change behavior",
+                 %{:evt_watcher => evt_watcher},
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn -> {:ok, "wasmcloud.policy.evaluator"} end do
-    # link policy actor to messaging provider on wasmcloud.policy.evaluator
-    # Start policy actor
-    # start messaging provider
+    on_exit(fn -> HostCore.Host.purge() end)
+
+    {:ok, bytes} =
+      File.read("/Users/brooks/github.com/wasmcloud/examples/actor/policy/build/policy_s.wasm")
+
+    HostCore.Linkdefs.Manager.put_link_definition(
+      "MAX4HKZIMZ2E47QNET7ZUP43AIDBGHK5LRAGU3ZGYDMHF74U2UYIELYG",
+      "wasmcloud:messaging",
+      "default",
+      "VADNMSIML2XGO2X4TPIONTIC55R2UUQGPPDZPAVSC2QD7E76CR77SPW7",
+      %{
+        "SUBSCRIPTION" => "wasmcloud.policy.evaluator"
+      }
+    )
+
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    {:ok, _pid} =
+      HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+        "wasmcloud.azurecr.io/nats_messaging:0.14.2",
+        "default"
+      )
+
+    {:ok, _pid} =
+      HostCore.Actors.ActorSupervisor.start_actor_from_oci("wasmcloud.azurecr.io/echo:0.3.4")
+
+    # should actually fail
+    {:error,
+     "Starting actor MAX4HKZIMZ2E47QNET7ZUP43AIDBGHK5LRAGU3ZGYDMHF74U2UYIELYG denied: hee"} =
+      HostCore.Actors.ActorSupervisor.start_actor_from_oci("ghcr.io/brooksmtownsend/wadice:0.1.2")
+
     # send a request that should be allowed (allowed issuer)
     # send a request that should be denied (deniedissuer)
     # Ensure the host doesn't start an actor that's denied
