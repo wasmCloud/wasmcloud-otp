@@ -5,6 +5,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   require OpenTelemetry.Tracer, as: Tracer
   require Logger
 
+  @start_actor "start_actor"
   def start_link(init_arg) do
     DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
@@ -51,7 +52,7 @@ defmodule HostCore.Actors.ActorSupervisor do
                      contract_id: nil,
                      link_name: nil
                    },
-                   "start_actor"
+                   @start_actor
                  ),
                false <- other_oci_already_running?(oci, claims.public_key) do
             # Start `count` instances of this actor

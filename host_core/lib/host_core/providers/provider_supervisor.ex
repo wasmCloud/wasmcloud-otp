@@ -5,6 +5,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   require OpenTelemetry.Tracer, as: Tracer
   alias HostCore.Providers.ProviderModule
 
+  @start_provider "start_provider"
   def start_link(init_arg) do
     DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
@@ -40,7 +41,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
                link_name: link_name,
                contract_id: contract_id
              },
-             "start_provider"
+             @start_provider
            ),
          0 <- Registry.count_match(Registry.ProviderRegistry, {claims.public_key, link_name}, :_) do
       DynamicSupervisor.start_child(

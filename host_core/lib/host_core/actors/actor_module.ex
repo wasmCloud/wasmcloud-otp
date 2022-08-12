@@ -7,6 +7,7 @@ defmodule HostCore.Actors.ActorModule do
 
   @chunk_threshold 900 * 1024
   @thirty_seconds 30_000
+  @perform_invocation "perform_invocation"
 
   require Logger
   alias HostCore.WebAssembly.Imports
@@ -431,7 +432,7 @@ defmodule HostCore.Actors.ActorModule do
            link_name: target["link_name"],
            issuer: target_claims[:iss]
          },
-         "perform_invocation"
+         @perform_invocation
        )}
     else
       # Failed to check claims for source or target, denying

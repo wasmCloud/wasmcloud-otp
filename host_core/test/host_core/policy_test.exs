@@ -36,7 +36,6 @@ defmodule HostCore.PolicyTest do
     issuer: "ADT2YUKCRQUGXXM73BBWVI33E4QLQX2LWRCMSC3ZUSCVKBZ6KQMJNU3L"
   }
 
-  @start_actor "start_actor"
   @perform_invocation "perform_invocation"
 
   test "can allow policy requests when disabled" do
@@ -130,7 +129,7 @@ defmodule HostCore.PolicyTest do
   end
 
   test_with_mock "can request policy evaluations and deny actions",
-                 %{:evt_watcher => evt_watcher},
+                 %{:evt_watcher => _evt_watcher},
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn -> {:ok, "wasmcloud.policy.evaluator"} end do

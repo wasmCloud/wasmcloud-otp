@@ -168,7 +168,7 @@ defmodule HostCore.Policy.Manager do
     # Narrow down missing fields by removing present fields from the list
     missing_fields =
       [:public_key, :capabilities, :issuer, :issued_on, :expires_in_mins]
-      |> Enum.reject(fn required_field -> Map.get(source, required_field) != nil end)
+      |> Enum.filter(fn required_field -> Map.get(source, required_field) == nil end)
       |> Enum.join(", ")
 
     {:error, "Invalid source argument, missing required fields: #{missing_fields}"}
@@ -210,9 +210,16 @@ defmodule HostCore.Policy.Manager do
 
   def policy_topic() do
     case :ets.lookup(:config_table, :config) do
-      [config: config_map] -> {:ok, config_map[:policy_topic]}
-      _ -> :policy_eval_disabled
+      [config: config_map] ->
+        case config_map[:policy_topic] do
+          nil -> :policy_eval_disabled
+          topic -> {:ok, topic}
+        end
+
+      _ ->
+        :policy_eval_disabled
     end
+    |> IO.inspect()
   end
 
   def policy_timeout() do
