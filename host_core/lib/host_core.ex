@@ -101,7 +101,8 @@ defmodule HostCore do
       {HostCore.Host, config},
       {HostCore.HeartbeatEmitter, config},
       {HostCore.Jetstream.Client, config}
-    ]
+    ] ++
+      HostCore.Policy.Manager.spec()
   end
 
   defp post_process_config(config) do

@@ -1,9 +1,50 @@
 defmodule HostCore.Policy.Manager do
   @moduledoc false
   require Logger
-  # TODO: Gnat.server? Listen for
+  use Gnat.Server
 
   @policy_table :policy_table
+
+  def request(%{
+        body: body,
+        reply_to: _reply_to,
+        topic: _topic
+      }) do
+    case Jason.decode(body, keys: :atoms!) do
+      # TODO: change to permitted
+      {:ok, %{request_id: request_id, permitted: permitted, message: message}} ->
+        override_decision(request_id, permitted, message)
+        {:reply, Jason.encode!(%{success: true})}
+
+      msg ->
+        IO.inspect(msg)
+        IO.inspect(body)
+        {:reply, Jason.encode!(%{success: false})}
+    end
+  end
+
+  def spec() do
+    case System.get_env("WASMCLOUD_POLICY_CHANGES_TOPIC") do
+      nil ->
+        []
+
+      topic ->
+        cs_settings = %{
+          connection_name: :control_nats,
+          module: __MODULE__,
+          subscription_topics: [
+            %{topic: topic}
+          ]
+        }
+
+        [
+          Supervisor.child_spec(
+            {Gnat.ConsumerSupervisor, cs_settings},
+            id: :policy_manager
+          )
+        ]
+    end
+  end
 
   def evaluate_action(source, target, action) do
     with {:ok, topic} <- HostCore.Policy.Manager.policy_topic(),
@@ -11,8 +52,10 @@ defmodule HostCore.Policy.Manager do
          :ok <- validate_source(source),
          :ok <- validate_target(target),
          :ok <- validate_action(action) do
+      request_id = UUID.uuid4()
+
       %{
-        request_id: UUID.uuid4(),
+        request_id: request_id,
         source: source,
         target: target,
         action: action,
@@ -24,7 +67,7 @@ defmodule HostCore.Policy.Manager do
         }
       }
       |> evaluate(topic)
-      |> cache_decision(source, target, action)
+      |> cache_decision(source, target, action, request_id)
     else
       :policy_eval_disabled ->
         allowed_action("Policy evaluation disabled, allowing action", "")
@@ -82,10 +125,39 @@ defmodule HostCore.Policy.Manager do
 
   # Inserts a policy decision into the policy table as a nested tuple. This
   # allows future lookups to easily fetch decision based on {source,target,action}
-  defp cache_decision(decision, source, target, action) do
+  # Also stores the {source,target,action} under the request ID as a key for O(1) lookups
+  # to invalidate
+  defp cache_decision(decision, source, target, action, request_id) do
     :ets.insert(@policy_table, {{source, target, action}, decision})
+    :ets.insert(@policy_table, {request_id, {source, target, action}})
     decision
   end
+
+  # Lookup the decision by request ID, then delete both from the policy table
+  defp override_decision(request_id, permitted, message) do
+    decision_key =
+      case :ets.lookup(@policy_table, request_id) do
+        [{src, tgt, act}] -> {:ok, {src, tgt, act}}
+        [] -> nil
+      end
+
+    :ets.insert(
+      @policy_table,
+      {decision_key,
+       %{
+         permitted: permitted,
+         message: message,
+         request_id: request_id
+       }}
+    )
+  end
+
+  # defp invalidate_request(requests) when is_list(requests) do
+
+  # end
+  # defp invalidate_request(request) do
+  #   :ets.match_delete(@policy_table, {{'_','_','_'}, {request, }})
+  # end
 
   ##
   # Basic validation of source, target, and action ensuring required fields are present
@@ -145,15 +217,15 @@ defmodule HostCore.Policy.Manager do
   end
 
   def policy_topic() do
-    case :ets.lookup(:config_table, :policy_topic) do
+    case :ets.lookup(:config_table, :config) do
       [config: config_map] -> {:ok, config_map[:policy_topic]}
       _ -> :policy_eval_disabled
     end
   end
 
   def policy_timeout() do
-    case :ets.lookup(:config_table, :policy_timeout) do
-      [config: config_map] -> {:ok, config_map[:policy_timeout]}
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:policy_timeout]
       _ -> 1_000
     end
   end
