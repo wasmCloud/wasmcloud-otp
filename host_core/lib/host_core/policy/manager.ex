@@ -11,7 +11,6 @@ defmodule HostCore.Policy.Manager do
         topic: _topic
       }) do
     case Jason.decode(body, keys: :atoms!) do
-      # TODO: change to permitted
       {:ok, %{request_id: request_id, permitted: permitted, message: message}} ->
         override_decision(request_id, permitted, message)
         {:reply, Jason.encode!(%{success: true})}
@@ -135,29 +134,22 @@ defmodule HostCore.Policy.Manager do
 
   # Lookup the decision by request ID, then delete both from the policy table
   defp override_decision(request_id, permitted, message) do
-    decision_key =
-      case :ets.lookup(@policy_table, request_id) do
-        [{src, tgt, act}] -> {:ok, {src, tgt, act}}
-        [] -> nil
-      end
+    case :ets.lookup(@policy_table, request_id) do
+      [{_request_id, {source, target, action}}] ->
+        :ets.insert(
+          @policy_table,
+          {{source, target, action},
+           %{
+             permitted: permitted,
+             message: message,
+             request_id: request_id
+           }}
+        )
 
-    :ets.insert(
-      @policy_table,
-      {decision_key,
-       %{
-         permitted: permitted,
-         message: message,
-         request_id: request_id
-       }}
-    )
+      [] ->
+        nil
+    end
   end
-
-  # defp invalidate_request(requests) when is_list(requests) do
-
-  # end
-  # defp invalidate_request(request) do
-  #   :ets.match_delete(@policy_table, {{'_','_','_'}, {request, }})
-  # end
 
   ##
   # Basic validation of source, target, and action ensuring required fields are present
