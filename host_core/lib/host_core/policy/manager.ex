@@ -4,6 +4,8 @@ defmodule HostCore.Policy.Manager do
   use Gnat.Server
 
   @policy_table :policy_table
+  # Deny actions by default
+  @default_permit false
 
   def request(%{
         body: body,
@@ -15,9 +17,7 @@ defmodule HostCore.Policy.Manager do
         override_decision(request_id, permitted, message)
         {:reply, Jason.encode!(%{success: true})}
 
-      msg ->
-        IO.inspect(msg)
-        IO.inspect(body)
+      _ ->
         {:reply, Jason.encode!(%{success: false})}
     end
   end
@@ -65,6 +65,7 @@ defmodule HostCore.Policy.Manager do
           valid_cluster_issuers: HostCore.Host.cluster_issuers()
         }
       }
+      |> IO.inspect()
       |> evaluate(topic)
       |> cache_decision(source, target, action, request_id)
     else
@@ -77,7 +78,7 @@ defmodule HostCore.Policy.Manager do
       {:error, invalid_error} ->
         Logger.error("#{invalid_error}")
 
-        allowed_action(invalid_error)
+        default_decision(invalid_error, "")
     end
   end
 
@@ -91,26 +92,26 @@ defmodule HostCore.Policy.Manager do
             # Decode body with existing atom keys
             case Jason.decode(body, keys: :atoms!) do
               {:ok, policy_res} ->
-                policy_res
+                {policy_res, true}
 
               {:error, _decode} ->
-                allowed_action(
-                  "Policy response failed to decode, allowing",
-                  req |> Map.get(:request_id, "not supplied")
-                )
+                {default_decision(
+                   "Policy response failed to decode",
+                   req |> Map.get(:request_id, "not supplied")
+                 ), false}
             end
 
           {:error, :timeout} ->
-            allowed_action(
-              "Policy request timed out, allowing action",
-              req |> Map.get(:request_id, "not supplied")
-            )
+            {default_decision(
+               "Policy request timed out",
+               req |> Map.get(:request_id, "not supplied")
+             ), false}
         end
 
       {:error, e} ->
         Logger.error("Could not JSON encode request, #{e}")
 
-        allowed_action("", req |> Map.get(:request_id, "not supplied"))
+        {default_decision("", req |> Map.get(:request_id, "not supplied")), false}
     end
   end
 
@@ -122,11 +123,13 @@ defmodule HostCore.Policy.Manager do
     end
   end
 
+  defp cache_decision({decision, false}, _source, _target, _action, _request_id), do: decision
+
   # Inserts a policy decision into the policy table as a nested tuple. This
   # allows future lookups to easily fetch decision based on {source,target,action}
   # Also stores the {source,target,action} under the request ID as a key for O(1) lookups
   # to invalidate
-  defp cache_decision(decision, source, target, action, request_id) do
+  defp cache_decision({decision, true}, source, target, action, request_id) do
     :ets.insert(@policy_table, {{source, target, action}, decision})
     :ets.insert(@policy_table, {request_id, {source, target, action}})
     decision
@@ -200,9 +203,18 @@ defmodule HostCore.Policy.Manager do
   defp validate_action(_), do: {:error, "Invalid action argument, action was not a string"}
 
   # Helper constructor for an allowed action structure
-  defp allowed_action(message, request_id \\ UUID.uuid4()) do
+  defp allowed_action(message, request_id) do
     %{
       permitted: true,
+      message: message,
+      request_id: request_id
+    }
+  end
+
+  # Helper constructor for a "default" decision
+  defp default_decision(message, request_id) do
+    %{
+      permitted: @default_permit,
       message: message,
       request_id: request_id
     }
@@ -219,7 +231,6 @@ defmodule HostCore.Policy.Manager do
       _ ->
         :policy_eval_disabled
     end
-    |> IO.inspect()
   end
 
   def policy_timeout() do

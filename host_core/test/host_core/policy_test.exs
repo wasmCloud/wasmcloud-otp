@@ -10,6 +10,7 @@ defmodule HostCore.PolicyTest do
   @policy_path HostCoreTest.Constants.policy_path()
   @nats_key HostCoreTest.Constants.nats_key()
   @nats_ociref HostCoreTest.Constants.nats_ociref()
+  @echo_key HostCoreTest.Constants.echo_key()
   @echo_ociref HostCoreTest.Constants.echo_ociref()
 
   setup do
@@ -51,7 +52,7 @@ defmodule HostCore.PolicyTest do
   end
 
   # :passthrough enables mocking a single function from the module and still accessing said module
-  test_with_mock "can allow policy by default when timing out",
+  test_with_mock "can deny policy by default when timing out",
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn -> {:ok, "foo.bar"} end do
@@ -63,28 +64,28 @@ defmodule HostCore.PolicyTest do
       )
 
     assert decision == %{
-             permitted: true,
-             message: "Policy request timed out, allowing action",
+             permitted: false,
+             message: "Policy request timed out",
              # Request ID is generated during evaluation, so grab it for comparison
              request_id: decision.request_id
            }
 
-    decision_faster =
+    decision_same =
       HostCore.Policy.Manager.evaluate_action(
         @source_provider,
         @target_actor,
         @perform_invocation
       )
 
-    assert decision_faster == %{
-             permitted: true,
-             message: "Policy request timed out, allowing action",
+    assert decision_same == %{
+             permitted: false,
+             message: "Policy request timed out",
              # Request ID is generated during evaluation, so grab it for comparison
-             request_id: decision_faster.request_id
+             request_id: decision_same.request_id
            }
   end
 
-  test_with_mock "can properly detect fail open when policy requests are invalid",
+  test_with_mock "can properly fail closed when policy requests are invalid",
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn -> {:ok, "foo.bar"} end do
@@ -96,7 +97,7 @@ defmodule HostCore.PolicyTest do
       )
 
     assert invalid_source == %{
-             permitted: true,
+             permitted: false,
              message: "Invalid source argument, missing required fields: public_key",
              request_id: invalid_source.request_id
            }
@@ -109,7 +110,7 @@ defmodule HostCore.PolicyTest do
       )
 
     assert invalid_target == %{
-             permitted: true,
+             permitted: false,
              message: "Invalid target argument, missing required fields: issuer",
              request_id: invalid_target.request_id
            }
@@ -122,7 +123,7 @@ defmodule HostCore.PolicyTest do
       )
 
     assert invalid_action == %{
-             permitted: true,
+             permitted: false,
              message: "Invalid action argument, action was not a string",
              request_id: invalid_action.request_id
            }
@@ -156,7 +157,34 @@ defmodule HostCore.PolicyTest do
 
     :timer.sleep(2000)
 
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_ociref)
+    # Hack, you aren't supposed to run a policy actor on a policy host. This is
+    # allowing the policy actor to receive the invocation from the NATS provider
+    action = "perform_invocation"
+
+    source = %{
+      capabilities: "",
+      contract_id: "wasmcloud:messaging",
+      expires_in_mins: nil,
+      issued_on: nil,
+      issuer: "ACOJJN6WUP4ODD75XEBKKTCCUJJCY5ZKQ56XVKYK4BEJWGVAOOQHZMCW",
+      link_name: "default",
+      public_key: "VADNMSIML2XGO2X4TPIONTIC55R2UUQGPPDZPAVSC2QD7E76CR77SPW7"
+    }
+
+    target = %{
+      contract_id: "",
+      issuer: "ADANTQNWB7RCDOITC7Y3NJ3I7NPEJH6L5PRVG4TPYZXI45Z3K22VHMTY",
+      link_name: "",
+      public_key: "MCX7HXCVATHJQRQLCCKV57R34V726FYRTDQL2QKPHXLYFWGOUE2LWRE3"
+    }
+
+    :ets.insert(
+      :policy_table,
+      {{source, target, action}, %{permitted: true, request_id: UUID.uuid4(), message: "shhhhhh"}}
+    )
+
+    {:error, "Starting actor #{@echo_key} denied: Policy request timed out"} =
+      HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_ociref)
 
     {:error,
      "Starting actor MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW denied: Issuer was not the official wasmCloud issuer"} =
@@ -176,7 +204,7 @@ defmodule HostCore.PolicyTest do
                public_key == "MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW"
              end))
 
-    # Ensure the host doesn't start the provider that's denied
+    # # Ensure the host doesn't start the provider that's denied
     assert !(HostCore.Providers.ProviderSupervisor.all_providers()
              |> Enum.any?(fn {_, public_key, _, _, _} ->
                public_key == "VAHMIAAVLEZLKHF4CZJVBVBGGZTWGUUKBCH3MABLNMPPUPA6CJ2HSJCT"
