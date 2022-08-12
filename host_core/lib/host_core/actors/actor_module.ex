@@ -409,7 +409,8 @@ defmodule HostCore.Actors.ActorModule do
   defp policy_check_invocation({agent, false}, _, _), do: {{agent, false}, %{}}
   # Returns a tuple in the form of {{agent, allowed?}, policy_result}
   defp policy_check_invocation({agent, true}, source, target) do
-    with {:ok, {_pk, source_claims}} <-
+    with {:ok, _topic} <- HostCore.Policy.Manager.policy_topic(),
+         {:ok, {_pk, source_claims}} <-
            HostCore.Claims.Manager.lookup_claims(source["public_key"]),
          {:ok, {_pk, target_claims}} <-
            HostCore.Claims.Manager.lookup_claims(target["public_key"]) do
@@ -434,7 +435,8 @@ defmodule HostCore.Actors.ActorModule do
        )}
     else
       # Failed to check claims for source or target, denying
-      :error -> {{agent, false}, %{permitted: false}}
+      :policy_eval_disabled -> {{agent, true}, %{permitted: true}}
+      :error -> {{agent, true}, %{permitted: false}}
     end
   end
 
