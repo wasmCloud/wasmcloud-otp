@@ -62,10 +62,9 @@ defmodule HostCore.Policy.Manager do
           public_key: HostCore.Host.host_key(),
           lattice_id: HostCore.Host.lattice_prefix(),
           labels: HostCore.Host.host_labels(),
-          valid_cluster_issuers: HostCore.Host.cluster_issuers()
+          cluster_issuers: HostCore.Host.cluster_issuers()
         }
       }
-      |> IO.inspect()
       |> evaluate(topic)
       |> cache_decision(source, target, action, request_id)
     else
