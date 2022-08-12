@@ -1,15 +1,11 @@
 defmodule HostCore.Policy.Manager do
   @moduledoc false
   require Logger
+  # TODO: Gnat.server? Listen for
 
   @policy_table :policy_table
 
   def evaluate_action(source, target, action) do
-    IO.puts("evaluating action")
-    IO.inspect(source)
-    IO.inspect(target)
-    IO.inspect(action)
-
     with {:ok, topic} <- HostCore.Policy.Manager.policy_topic(),
          nil <- cached_decision(source, target, action),
          :ok <- validate_source(source),
@@ -46,10 +42,21 @@ defmodule HostCore.Policy.Manager do
   defp evaluate(req, topic) do
     case Jason.encode(req) do
       {:ok, encoded} ->
-        # TODO: what timeout should we use here?
-        case HostCore.Nats.safe_req(:control_nats, topic, encoded, receive_timeout: 2_000) do
-          {:ok, %{body: _body}} ->
-            allowed_action("", req |> Map.get(:request_id, "not supplied"))
+        case HostCore.Nats.safe_req(:control_nats, topic, encoded,
+               receive_timeout: HostCore.Policy.Manager.policy_timeout()
+             ) do
+          {:ok, %{body: body}} ->
+            # Decode body with existing atom keys
+            case Jason.decode(body, keys: :atoms!) do
+              {:ok, policy_res} ->
+                policy_res
+
+              {:error, _decode} ->
+                allowed_action(
+                  "Policy response failed to decode, allowing",
+                  req |> Map.get(:request_id, "not supplied")
+                )
+            end
 
           {:error, :timeout} ->
             allowed_action(
@@ -78,15 +85,6 @@ defmodule HostCore.Policy.Manager do
   defp cache_decision(decision, source, target, action) do
     :ets.insert(@policy_table, {{source, target, action}, decision})
     decision
-  end
-
-  # Helper to fetch the policy topic from the host environment
-  # TODO: this is better to store in the config ets and fetch it from there in the host
-  def policy_topic() do
-    case System.get_env("WASMCLOUD_POLICY_TOPIC") do
-      nil -> :policy_eval_disabled
-      topic -> {:ok, topic}
-    end
   end
 
   ##
@@ -138,7 +136,7 @@ defmodule HostCore.Policy.Manager do
   defp validate_action(_), do: {:error, "Invalid action argument, action was not a string"}
 
   # Helper constructor for an allowed action structure
-  defp allowed_action(message \\ "", request_id \\ UUID.uuid4()) do
+  defp allowed_action(message, request_id \\ UUID.uuid4()) do
     %{
       permitted: true,
       message: message,
@@ -146,12 +144,17 @@ defmodule HostCore.Policy.Manager do
     }
   end
 
-  # Helper constructor for a denied action structure
-  defp denied_action(message, request_id) do
-    %{
-      permitted: false,
-      message: message,
-      request_id: request_id
-    }
+  def policy_topic() do
+    case :ets.lookup(:config_table, :policy_topic) do
+      [config: config_map] -> {:ok, config_map[:policy_topic]}
+      _ -> :policy_eval_disabled
+    end
+  end
+
+  def policy_timeout() do
+    case :ets.lookup(:config_table, :policy_timeout) do
+      [config: config_map] -> {:ok, config_map[:policy_timeout]}
+      _ -> 1_000
+    end
   end
 end

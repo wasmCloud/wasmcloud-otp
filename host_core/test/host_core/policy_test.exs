@@ -6,6 +6,12 @@ defmodule HostCore.PolicyTest do
 
   import Mock
 
+  @policy_key HostCoreTest.Constants.policy_key()
+  @policy_path HostCoreTest.Constants.policy_path()
+  @nats_key HostCoreTest.Constants.nats_key()
+  @nats_ociref HostCoreTest.Constants.nats_ociref()
+  @echo_ociref HostCoreTest.Constants.echo_ociref()
+
   setup do
     {:ok, evt_watcher} =
       GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
@@ -63,9 +69,23 @@ defmodule HostCore.PolicyTest do
              # Request ID is generated during evaluation, so grab it for comparison
              request_id: decision.request_id
            }
+
+    decision_faster =
+      HostCore.Policy.Manager.evaluate_action(
+        @source_provider,
+        @target_actor,
+        @perform_invocation
+      )
+
+    assert decision_faster == %{
+             permitted: true,
+             message: "Policy request timed out, allowing action",
+             # Request ID is generated during evaluation, so grab it for comparison
+             request_id: decision_faster.request_id
+           }
   end
 
-  test_with_mock "can properly detect invalid policy requests and fail open",
+  test_with_mock "can properly detect fail open when policy requests are invalid",
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn -> {:ok, "foo.bar"} end do
@@ -109,45 +129,58 @@ defmodule HostCore.PolicyTest do
            }
   end
 
-  test_with_mock "can request policy evaluations and change behavior",
+  test_with_mock "can request policy evaluations and deny actions",
                  %{:evt_watcher => evt_watcher},
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn -> {:ok, "wasmcloud.policy.evaluator"} end do
     on_exit(fn -> HostCore.Host.purge() end)
 
-    {:ok, bytes} =
-      File.read("/Users/brooks/github.com/wasmcloud/examples/actor/policy/build/policy_s.wasm")
-
     HostCore.Linkdefs.Manager.put_link_definition(
-      "MAX4HKZIMZ2E47QNET7ZUP43AIDBGHK5LRAGU3ZGYDMHF74U2UYIELYG",
+      @policy_key,
       "wasmcloud:messaging",
       "default",
-      "VADNMSIML2XGO2X4TPIONTIC55R2UUQGPPDZPAVSC2QD7E76CR77SPW7",
+      @nats_key,
       %{
         "SUBSCRIPTION" => "wasmcloud.policy.evaluator"
       }
     )
 
+    {:ok, bytes} = File.read(@policy_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
-        "wasmcloud.azurecr.io/nats_messaging:0.14.2",
+        @nats_ociref,
         "default"
       )
 
-    {:ok, _pid} =
-      HostCore.Actors.ActorSupervisor.start_actor_from_oci("wasmcloud.azurecr.io/echo:0.3.4")
+    :timer.sleep(2000)
 
-    # should actually fail
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_ociref)
+
     {:error,
-     "Starting actor MAX4HKZIMZ2E47QNET7ZUP43AIDBGHK5LRAGU3ZGYDMHF74U2UYIELYG denied: hee"} =
-      HostCore.Actors.ActorSupervisor.start_actor_from_oci("ghcr.io/brooksmtownsend/wadice:0.1.2")
+     "Starting actor MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW denied: Issuer was not the official wasmCloud issuer"} =
+      HostCore.Actors.ActorSupervisor.start_actor_from_oci("ghcr.io/brooksmtownsend/wadice:0.1.0")
 
-    # send a request that should be allowed (allowed issuer)
-    # send a request that should be denied (deniedissuer)
-    # Ensure the host doesn't start an actor that's denied
-    assert true
+    {:error,
+     "Starting provider VAHMIAAVLEZLKHF4CZJVBVBGGZTWGUUKBCH3MABLNMPPUPA6CJ2HSJCT denied: Issuer was not the official wasmCloud issuer"} =
+      HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+        "ghcr.io/brooksmtownsend/factorial:0.1.0",
+        "default"
+      )
+
+    # Ensure the host doesn't start the actor that's denied
+    assert !(HostCore.Actors.ActorSupervisor.all_actors()
+             |> Map.keys()
+             |> Enum.any?(fn public_key ->
+               public_key == "MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW"
+             end))
+
+    # Ensure the host doesn't start the provider that's denied
+    assert !(HostCore.Providers.ProviderSupervisor.all_providers()
+             |> Enum.any?(fn {_, public_key, _, _, _} ->
+               public_key == "VAHMIAAVLEZLKHF4CZJVBVBGGZTWGUUKBCH3MABLNMPPUPA6CJ2HSJCT"
+             end))
   end
 end

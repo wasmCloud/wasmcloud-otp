@@ -55,7 +55,11 @@ defmodule HostCore.ConfigPlan do
           {:enable_structured_logging, "WASMCLOUD_STRUCTURED_LOGGING_ENABLED", required: false},
           {:structured_log_level, "WASMCLOUD_STRUCTURED_LOG_LEVEL",
            required: false, map: &string_to_loglevel/1},
-          {:enable_ipv6, "WASMCLOUD_ENABLE_IPV6", required: false, map: &String.to_integer/1}
+          {:enable_ipv6, "WASMCLOUD_ENABLE_IPV6", required: false, map: &String.to_integer/1},
+          {:policy_topic, "WASMCLOUD_POLICY_TOPIC", required: false},
+          {:policy_changes_topic, "WASMCLOUD_POLICY_CHANGES_TOPIC", required: false},
+          {:policy_timeout, "WASMCLOUD_POLICY_TIMEOUT",
+           required: false, map: &String.to_integer/1}
         ]
       }
     ]
@@ -90,7 +94,10 @@ defmodule HostCore.ConfigPlan do
       {:config_service_enabled, "config_service_enabled", required: false, default: ""},
       {:enable_structured_logging, "structured_logging_enabled", required: false, default: false},
       {:structured_log_level, "structured_log_level", required: false, default: :info},
-      {:enable_ipv6, "enable_ipv6", required: false, default: 0}
+      {:enable_ipv6, "enable_ipv6", required: false, default: 0},
+      {:policy_topic, "policy_topic", required: false},
+      {:policy_changes_topic, "policy_changes_topic", required: false},
+      {:policy_timeout, "policy_timeout", required: false, default: 1_000}
     ]
   end
 

@@ -43,8 +43,7 @@ defmodule HostCore.Actors.ActorSupervisor do
                      capabilities: [],
                      issuer: "",
                      issued_on: "",
-                     # TODO: how long?
-                     expires_in_mins: 60
+                     expires_in_mins: 1
                    },
                    %{
                      public_key: claims.public_key,

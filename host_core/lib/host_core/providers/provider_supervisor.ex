@@ -23,13 +23,35 @@ defmodule HostCore.Providers.ProviderSupervisor do
          config_json \\ "",
          annotations \\ %{}
        ) do
-    case Registry.count_match(Registry.ProviderRegistry, {claims.public_key, link_name}, :_) do
-      0 ->
-        DynamicSupervisor.start_child(
-          __MODULE__,
-          {ProviderModule,
-           {:executable, path, claims, link_name, contract_id, oci, config_json, annotations}}
-        )
+    with %{permitted: true} <-
+           HostCore.Policy.Manager.evaluate_action(
+             %{
+               public_key: "",
+               contract_id: "",
+               link_name: "",
+               capabilities: [],
+               issuer: "",
+               issued_on: "",
+               expires_in_mins: 1
+             },
+             %{
+               public_key: claims.public_key,
+               issuer: claims.issuer,
+               link_name: link_name,
+               contract_id: contract_id
+             },
+             "start_provider"
+           ),
+         0 <- Registry.count_match(Registry.ProviderRegistry, {claims.public_key, link_name}, :_) do
+      DynamicSupervisor.start_child(
+        __MODULE__,
+        {ProviderModule,
+         {:executable, path, claims, link_name, contract_id, oci, config_json, annotations}}
+      )
+    else
+      %{permitted: false, message: message, request_id: request_id} ->
+        Tracer.set_status(:error, "Policy denied starting provider, request: #{request_id}")
+        {:error, "Starting provider #{claims.public_key} denied: #{message}"}
 
       _ ->
         {:error, "Provider is already running on this host"}
