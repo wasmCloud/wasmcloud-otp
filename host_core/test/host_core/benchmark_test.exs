@@ -22,8 +22,8 @@ defmodule HostCore.BenchmarkTest do
 
   test "load test with echo actor", %{:evt_watcher => _evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
-    num_actors = 100
-    parallel = 10
+    num_actors = 10
+    parallel = 1
     {:ok, bytes} = File.read(@echo_path)
     {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, "", num_actors)
 
@@ -59,6 +59,8 @@ defmodule HostCore.BenchmarkTest do
     }
 
     IO.puts("Benchmarking with #{num_actors} actors and #{parallel} parallel requests")
+    # very noisy debug logs during bench
+    Logger.configure(level: :info)
 
     Benchee.run(
       %{
@@ -73,6 +75,9 @@ defmodule HostCore.BenchmarkTest do
       time: 5,
       parallel: parallel
     )
+
+    # turning debug logs back on
+    Logger.configure(level: :debug)
 
     assert true
   end

@@ -13,13 +13,30 @@ defmodule HostCore.PolicyTest do
   @echo_key HostCoreTest.Constants.echo_key()
   @echo_ociref HostCoreTest.Constants.echo_ociref()
 
-  setup do
-    {:ok, evt_watcher} =
-      GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
+  # Setup to ensure policy resources are started beforehand
+  setup_all do
+    HostCore.Linkdefs.Manager.put_link_definition(
+      @policy_key,
+      "wasmcloud:messaging",
+      "default",
+      @nats_key,
+      %{
+        "SUBSCRIPTION" => "wasmcloud.policy.evaluator"
+      }
+    )
 
-    [
-      evt_watcher: evt_watcher
-    ]
+    {:ok, bytes} = File.read(@policy_path)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    {:ok, _pid} =
+      HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+        @nats_ociref,
+        "default"
+      )
+
+    :timer.sleep(2000)
+
+    [policy_setup: true]
   end
 
   @source_provider %{
@@ -130,32 +147,10 @@ defmodule HostCore.PolicyTest do
   end
 
   test_with_mock "can request policy evaluations and deny actions",
-                 %{:evt_watcher => _evt_watcher},
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn -> {:ok, "wasmcloud.policy.evaluator"} end do
     on_exit(fn -> HostCore.Host.purge() end)
-
-    HostCore.Linkdefs.Manager.put_link_definition(
-      @policy_key,
-      "wasmcloud:messaging",
-      "default",
-      @nats_key,
-      %{
-        "SUBSCRIPTION" => "wasmcloud.policy.evaluator"
-      }
-    )
-
-    {:ok, bytes} = File.read(@policy_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
-
-    {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
-        @nats_ociref,
-        "default"
-      )
-
-    :timer.sleep(2000)
 
     # Hack, you aren't supposed to run a policy actor on a policy host. This is
     # allowing the policy actor to receive the invocation from the NATS provider
@@ -183,9 +178,6 @@ defmodule HostCore.PolicyTest do
       {{source, target, action}, %{permitted: true, request_id: UUID.uuid4(), message: "shhhhhh"}}
     )
 
-    {:error, "Starting actor #{@echo_key} denied: Policy request timed out"} =
-      HostCore.Actors.ActorSupervisor.start_actor_from_oci(@echo_ociref)
-
     {:error,
      "Starting actor MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW denied: Issuer was not the official wasmCloud issuer"} =
       HostCore.Actors.ActorSupervisor.start_actor_from_oci("ghcr.io/brooksmtownsend/wadice:0.1.0")
@@ -204,7 +196,7 @@ defmodule HostCore.PolicyTest do
                public_key == "MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW"
              end))
 
-    # # Ensure the host doesn't start the provider that's denied
+    # Ensure the host doesn't start the provider that's denied
     assert !(HostCore.Providers.ProviderSupervisor.all_providers()
              |> Enum.any?(fn {_, public_key, _, _, _} ->
                public_key == "VAHMIAAVLEZLKHF4CZJVBVBGGZTWGUUKBCH3MABLNMPPUPA6CJ2HSJCT"
