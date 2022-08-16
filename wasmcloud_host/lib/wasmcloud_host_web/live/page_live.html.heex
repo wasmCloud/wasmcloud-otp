@@ -24,9 +24,9 @@
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
-                              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button"
+                              <button class="btn btn-secondary dropdown-toggle" id="dropdownActorsMenuButton" type="button"
                                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <div class="dropdown-menu" aria-labelledby="dropdownActorsMenuButton">
                                  <%= if @selected_host == HostCore.Host.host_key() do %>
                                  <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Actor from File" phx-value-component="StartActorComponent"
@@ -91,10 +91,10 @@
                         </div>
                         <div class="mfe-2">
                            <div class="dropdown d-inline-block">
-                              <button class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" type="button"
+                              <button class="btn btn-secondary dropdown-toggle" id="dropdownProvidersMenuButton" type="button"
                                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start
                                  Provider</button>
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <div class="dropdown-menu" aria-labelledby="dropdownProvidersMenuButton">
                                  <%= if @selected_host == HostCore.Host.host_key() do %>
                                  <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Provider from File"
@@ -200,12 +200,12 @@
                            <h3><strong>Host Info</strong></h3>
                         </div>
                         <div class="dropdown d-inline-block">
-                           <button class="btn btn-light dropdown-toggle" id="dropdownMenuButton" type="button"
+                           <button class="btn btn-light dropdown-toggle" id="dropdownHostMenuButton" type="button"
                               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                               Select Host
                               <span class="badge badge-pill badge-primary"><%= @hosts |> Enum.count() %></span>
                            </button>
-                           <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                           <div class="dropdown-menu" aria-labelledby="dropdownHostMenuButton">
                               <button class="dropdown-item" phx-click="show_all_hosts">
                                  Show All
                               </button>
