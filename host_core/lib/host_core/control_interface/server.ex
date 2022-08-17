@@ -346,6 +346,7 @@ defmodule HostCore.ControlInterface.Server do
 
               {:error, e} ->
                 Tracer.set_status(:error, inspect(e))
+                Logger.error("#{inspect(e)}")
                 publish_provider_start_failed(start_provider_command, inspect(e))
             end
           end

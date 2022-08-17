@@ -5,6 +5,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   require OpenTelemetry.Tracer, as: Tracer
   alias HostCore.Providers.ProviderModule
 
+  @start_provider "start_provider"
   def start_link(init_arg) do
     DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
@@ -23,13 +24,36 @@ defmodule HostCore.Providers.ProviderSupervisor do
          config_json \\ "",
          annotations \\ %{}
        ) do
-    case Registry.count_match(Registry.ProviderRegistry, {claims.public_key, link_name}, :_) do
-      0 ->
-        DynamicSupervisor.start_child(
-          __MODULE__,
-          {ProviderModule,
-           {:executable, path, claims, link_name, contract_id, oci, config_json, annotations}}
-        )
+    with %{permitted: true} <-
+           HostCore.Policy.Manager.evaluate_action(
+             %{
+               publicKey: "",
+               contractId: "",
+               linkName: "",
+               capabilities: [],
+               issuer: "",
+               issuedOn: "",
+               expiresAt: DateTime.utc_now() |> DateTime.add(60) |> DateTime.to_unix(),
+               expired: false
+             },
+             %{
+               publicKey: claims.public_key,
+               issuer: claims.issuer,
+               linkName: link_name,
+               contractId: contract_id
+             },
+             @start_provider
+           ),
+         0 <- Registry.count_match(Registry.ProviderRegistry, {claims.public_key, link_name}, :_) do
+      DynamicSupervisor.start_child(
+        __MODULE__,
+        {ProviderModule,
+         {:executable, path, claims, link_name, contract_id, oci, config_json, annotations}}
+      )
+    else
+      %{permitted: false, message: message, requestId: request_id} ->
+        Tracer.set_status(:error, "Policy denied starting provider, request: #{request_id}")
+        {:error, "Starting provider #{claims.public_key} denied: #{message}"}
 
       _ ->
         {:error, "Provider is already running on this host"}

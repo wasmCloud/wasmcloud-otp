@@ -5,6 +5,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   require OpenTelemetry.Tracer, as: Tracer
   require Logger
 
+  @start_actor "start_actor"
   def start_link(init_arg) do
     DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
@@ -34,12 +35,27 @@ defmodule HostCore.Actors.ActorSupervisor do
           {:error, err}
 
         {:ok, claims} ->
-          if other_oci_already_running?(oci, claims.public_key) do
-            Tracer.set_status(:error, "Already running")
-
-            {:error,
-             "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
-          else
+          with %{permitted: true} <-
+                 HostCore.Policy.Manager.evaluate_action(
+                   %{
+                     publicKey: "",
+                     contractId: "",
+                     linkName: "",
+                     capabilities: [],
+                     issuer: "",
+                     issuedOn: "",
+                     expiresAt: DateTime.utc_now() |> DateTime.add(60) |> DateTime.to_unix(),
+                     expired: false
+                   },
+                   %{
+                     publicKey: claims.public_key,
+                     issuer: claims.issuer,
+                     contractId: nil,
+                     linkName: nil
+                   },
+                   @start_actor
+                 ),
+               false <- other_oci_already_running?(oci, claims.public_key) do
             # Start `count` instances of this actor
             case 1..count
                  |> Enum.reduce_while([], fn _count, pids ->
@@ -69,6 +85,16 @@ defmodule HostCore.Actors.ActorSupervisor do
                 Tracer.set_status(:ok, "")
                 {:ok, pids}
             end
+          else
+            true ->
+              Tracer.set_status(:error, "Already running")
+
+              {:error,
+               "Cannot start new instance of #{claims.public_key} from OCI '#{oci}', it is already running with different OCI reference. To upgrade an actor, use live update."}
+
+            %{permitted: false, message: message, requestId: request_id} ->
+              Tracer.set_status(:error, "Policy denied starting actor, request: #{request_id}")
+              {:error, "Starting actor #{claims.public_key} denied: #{message}"}
           end
       end
     end

@@ -7,6 +7,7 @@ defmodule HostCore.Actors.ActorModule do
 
   @chunk_threshold 900 * 1024
   @thirty_seconds 30_000
+  @perform_invocation "perform_invocation"
 
   require Logger
   alias HostCore.WebAssembly.Imports
@@ -242,6 +243,7 @@ defmodule HostCore.Actors.ActorModule do
                      inv["origin"]["link_name"],
                      inv["origin"]["contract_id"]
                    )
+                   |> policy_check_invocation(inv["origin"], inv["target"])
                    |> perform_invocation(
                      inv["operation"],
                      check_dechunk_inv(
@@ -405,7 +407,74 @@ defmodule HostCore.Actors.ActorModule do
     {agent, Enum.member?(caps, contract_id)}
   end
 
-  defp perform_invocation({agent, true}, operation, payload) do
+  defp policy_check_invocation({agent, false}, _, _), do: {{agent, false}, %{}}
+  # Returns a tuple in the form of {{agent, allowed?}, policy_result}
+  defp policy_check_invocation({agent, true}, source, target) do
+    with {:ok, _topic} <- HostCore.Policy.Manager.policy_topic(),
+         {:ok, {_pk, source_claims}} <-
+           HostCore.Claims.Manager.lookup_claims(source["public_key"]),
+         {:ok, {_pk, target_claims}} <-
+           HostCore.Claims.Manager.lookup_claims(target["public_key"]) do
+      {expires_at, expired} =
+        case source_claims[:exp] do
+          nil -> {nil, false}
+          # If the current UTC time is greater than the expiration time, it's expired
+          time -> {time, DateTime.utc_now() > time}
+        end
+
+      {{agent, true},
+       HostCore.Policy.Manager.evaluate_action(
+         %{
+           publicKey: source["public_key"],
+           contractId: source["contract_id"],
+           linkName: source["link_name"],
+           capabilities: source_claims[:caps],
+           issuer: source_claims[:iss],
+           issuedOn: source_claims[:iat],
+           expiresAt: expires_at,
+           expired: expired
+         },
+         %{
+           publicKey: target["public_key"],
+           contractId: target["contract_id"],
+           linkName: target["link_name"],
+           issuer: target_claims[:iss]
+         },
+         @perform_invocation
+       )}
+    else
+      # Failed to check claims for source or target, denying
+      :policy_eval_disabled -> {{agent, true}, %{permitted: true}}
+      :error -> {{agent, true}, %{permitted: false}}
+    end
+  end
+
+  # Deny invocation if actor is missing capability claims
+  defp perform_invocation({{_agent, false}, _policy_res}, operation, _payload) do
+    Logger.error("Actor does not have proper capabilities to receive this invocation",
+      operation: operation
+    )
+
+    {:error, "actor is missing capability claims"}
+  end
+
+  # Deny invocation if policy enforcer does not permit it
+  defp perform_invocation(
+         {{_agent, true}, %{permitted: false} = policy_res},
+         _operation,
+         _payload
+       ) do
+    message = Map.get(policy_res, :message, "reason not specified")
+
+    Logger.error("Policy denied invocation:",
+      message: message
+    )
+
+    {:error, "Policy denied invocation: #{message}"}
+  end
+
+  # Perform invocation if actor is allowed and policy enforcer permits
+  defp perform_invocation({{agent, true}, %{permitted: true}}, operation, payload) do
     raw_state = Agent.get(agent, fn content -> content end)
 
     Tracer.with_span "Wasm Guest Call", kind: :client do
@@ -447,14 +516,6 @@ defmodule HostCore.Actors.ActorModule do
           {:error, "GenServer call timeout/fail invoking"}
       end
     end
-  end
-
-  defp perform_invocation({_agent, false}, operation, _payload) do
-    Logger.error("Actor does not have proper capabilities to receive this invocation",
-      operation: operation
-    )
-
-    {:error, "actor is missing capability claims"}
   end
 
   defp to_guest_call_result({:ok, [res]}, agent) do

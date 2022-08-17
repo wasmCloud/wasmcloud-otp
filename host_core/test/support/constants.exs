@@ -16,6 +16,9 @@ defmodule HostCoreTest.Constants do
   @pinger_path "test/fixtures/actors/pinger_s.wasm"
   @pinger_key "MDVMDDZP7QZH2T2447DZWX2GJ4563VTTKHQ26R6GNMDYMOUBR2EP3JFL"
 
+  @policy_path "test/fixtures/actors/example_policy_s.wasm"
+  @policy_key "MCX7HXCVATHJQRQLCCKV57R34V726FYRTDQL2QKPHXLYFWGOUE2LWRE3"
+
   # Provider related constants
   @httpserver_contract "wasmcloud:httpserver"
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
@@ -24,6 +27,9 @@ defmodule HostCoreTest.Constants do
   @keyvalue_contract "wasmcloud:keyvalue"
   @redis_key "VAZVC4RX54J2NVCMCW7BPCAHGGG5XZXDBXFUMDUXGESTMQEJLC3YVZWB"
   @redis_path "test/fixtures/providers/kvredis.par.gz"
+
+  @nats_key "VADNMSIML2XGO2X4TPIONTIC55R2UUQGPPDZPAVSC2QD7E76CR77SPW7"
+  @nats_ociref "wasmcloud.azurecr.io/nats_messaging:0.14.2"
 
   # Other related constants
   @default_link "default"
@@ -44,6 +50,8 @@ defmodule HostCoreTest.Constants do
   def kvcounter_unpriv_path, do: @kvcounter_unpriv_path
   def pinger_path, do: @pinger_path
   def pinger_key, do: @pinger_key
+  def policy_path, do: @policy_path
+  def policy_key, do: @policy_key
 
   # Provider accessor methods
   def httpserver_contract, do: @httpserver_contract
@@ -53,6 +61,8 @@ defmodule HostCoreTest.Constants do
   def keyvalue_contract, do: @keyvalue_contract
   def redis_key, do: @redis_key
   def redis_path, do: @redis_path
+  def nats_key, do: @nats_key
+  def nats_ociref, do: @nats_ociref
 
   # Other accessor methods
   def default_link, do: @default_link
