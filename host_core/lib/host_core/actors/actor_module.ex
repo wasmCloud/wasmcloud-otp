@@ -415,21 +415,29 @@ defmodule HostCore.Actors.ActorModule do
            HostCore.Claims.Manager.lookup_claims(source["public_key"]),
          {:ok, {_pk, target_claims}} <-
            HostCore.Claims.Manager.lookup_claims(target["public_key"]) do
+      {expires_at, expired} =
+        case source_claims[:exp] do
+          nil -> {nil, false}
+          # If the current UTC time is greater than the expiration time, it's expired
+          time -> {time, DateTime.utc_now() > time}
+        end
+
       {{agent, true},
        HostCore.Policy.Manager.evaluate_action(
          %{
-           public_key: source["public_key"],
-           contract_id: source["contract_id"],
-           link_name: source["link_name"],
+           publicKey: source["public_key"],
+           contractId: source["contract_id"],
+           linkName: source["link_name"],
            capabilities: source_claims[:caps],
            issuer: source_claims[:iss],
-           issued_on: source_claims[:iat],
-           expires_in_mins: source_claims[:exp]
+           issuedOn: source_claims[:iat],
+           expiresAt: expires_at,
+           expired: expired
          },
          %{
-           public_key: target["public_key"],
-           contract_id: target["contract_id"],
-           link_name: target["link_name"],
+           publicKey: target["public_key"],
+           contractId: target["contract_id"],
+           linkName: target["link_name"],
            issuer: target_claims[:iss]
          },
          @perform_invocation

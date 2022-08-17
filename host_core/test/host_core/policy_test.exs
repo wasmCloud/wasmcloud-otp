@@ -40,17 +40,18 @@ defmodule HostCore.PolicyTest do
   end
 
   @source_provider %{
-    public_key: "VD4NYOOHH5ZP7VJUGQ5E5JO2BEALBZAR6OPIRQFGIKVLU6UJQYWCDP63",
-    contract_id: "wasmcloud:test",
-    link_name: "default",
+    publicKey: "VD4NYOOHH5ZP7VJUGQ5E5JO2BEALBZAR6OPIRQFGIKVLU6UJQYWCDP63",
+    contractId: "wasmcloud:test",
+    linkName: "default",
     capabilities: [],
     issuer: "ADT2YUKCRQUGXXM73BBWVI33E4QLQX2LWRCMSC3ZUSCVKBZ6KQMJNU3L",
-    issued_on: "September 21",
-    expires_in_mins: 60
+    issuedOn: "September 21",
+    expiresAt: DateTime.utc_now() |> DateTime.add(60),
+    expired: false
   }
 
   @target_actor %{
-    public_key: "MD7OKVK3BJQSS43CPGX2GGQ36RHGMEYSKD3OHSW2WWLWTZJYEQM4IIGU",
+    publicKey: "MD7OKVK3BJQSS43CPGX2GGQ36RHGMEYSKD3OHSW2WWLWTZJYEQM4IIGU",
     issuer: "ADT2YUKCRQUGXXM73BBWVI33E4QLQX2LWRCMSC3ZUSCVKBZ6KQMJNU3L"
   }
 
@@ -64,7 +65,7 @@ defmodule HostCore.PolicyTest do
            ) == %{
              permitted: true,
              message: "Policy evaluation disabled, allowing action",
-             request_id: ""
+             requestId: ""
            }
   end
 
@@ -84,7 +85,7 @@ defmodule HostCore.PolicyTest do
              permitted: false,
              message: "Policy request timed out",
              # Request ID is generated during evaluation, so grab it for comparison
-             request_id: decision.request_id
+             requestId: decision.requestId
            }
 
     decision_same =
@@ -98,7 +99,7 @@ defmodule HostCore.PolicyTest do
              permitted: false,
              message: "Policy request timed out",
              # Request ID is generated during evaluation, so grab it for comparison
-             request_id: decision_same.request_id
+             requestId: decision_same.requestId
            }
   end
 
@@ -108,15 +109,15 @@ defmodule HostCore.PolicyTest do
                  policy_topic: fn -> {:ok, "foo.bar"} end do
     invalid_source =
       HostCore.Policy.Manager.evaluate_action(
-        @source_provider |> Map.delete(:public_key),
+        @source_provider |> Map.delete(:publicKey),
         @target_actor,
         @perform_invocation
       )
 
     assert invalid_source == %{
              permitted: false,
-             message: "Invalid source argument, missing required fields: public_key",
-             request_id: invalid_source.request_id
+             message: "Invalid source argument, missing required fields: publicKey",
+             requestId: invalid_source.requestId
            }
 
     invalid_target =
@@ -129,7 +130,7 @@ defmodule HostCore.PolicyTest do
     assert invalid_target == %{
              permitted: false,
              message: "Invalid target argument, missing required fields: issuer",
-             request_id: invalid_target.request_id
+             requestId: invalid_target.requestId
            }
 
     invalid_action =
@@ -142,7 +143,7 @@ defmodule HostCore.PolicyTest do
     assert invalid_action == %{
              permitted: false,
              message: "Invalid action argument, action was not a string",
-             request_id: invalid_action.request_id
+             requestId: invalid_action.requestId
            }
   end
 
@@ -158,24 +159,25 @@ defmodule HostCore.PolicyTest do
 
     source = %{
       capabilities: "",
-      contract_id: "wasmcloud:messaging",
-      expires_in_mins: nil,
-      issued_on: nil,
+      contractId: "wasmcloud:messaging",
+      expiresAt: nil,
+      expired: false,
+      issuedOn: nil,
       issuer: "ACOJJN6WUP4ODD75XEBKKTCCUJJCY5ZKQ56XVKYK4BEJWGVAOOQHZMCW",
-      link_name: "default",
-      public_key: "VADNMSIML2XGO2X4TPIONTIC55R2UUQGPPDZPAVSC2QD7E76CR77SPW7"
+      linkName: "default",
+      publicKey: "VADNMSIML2XGO2X4TPIONTIC55R2UUQGPPDZPAVSC2QD7E76CR77SPW7"
     }
 
     target = %{
-      contract_id: "",
+      contractId: "",
       issuer: "ADANTQNWB7RCDOITC7Y3NJ3I7NPEJH6L5PRVG4TPYZXI45Z3K22VHMTY",
-      link_name: "",
-      public_key: "MCX7HXCVATHJQRQLCCKV57R34V726FYRTDQL2QKPHXLYFWGOUE2LWRE3"
+      linkName: "",
+      publicKey: "MCX7HXCVATHJQRQLCCKV57R34V726FYRTDQL2QKPHXLYFWGOUE2LWRE3"
     }
 
     :ets.insert(
       :policy_table,
-      {{source, target, action}, %{permitted: true, request_id: UUID.uuid4(), message: "shhhhhh"}}
+      {{source, target, action}, %{permitted: true, requestId: UUID.uuid4(), message: "shhhhhh"}}
     )
 
     {:error,

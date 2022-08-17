@@ -54,15 +54,15 @@ defmodule HostCore.Policy.Manager do
       request_id = UUID.uuid4()
 
       %{
-        request_id: request_id,
+        requestId: request_id,
         source: source,
         target: target,
         action: action,
         host: %{
-          public_key: HostCore.Host.host_key(),
-          lattice_id: HostCore.Host.lattice_prefix(),
+          publicKey: HostCore.Host.host_key(),
+          latticeId: HostCore.Host.lattice_prefix(),
           labels: HostCore.Host.host_labels(),
-          cluster_issuers: HostCore.Host.cluster_issuers()
+          clusterIssuers: HostCore.Host.cluster_issuers()
         }
       }
       |> evaluate(topic)
@@ -96,21 +96,21 @@ defmodule HostCore.Policy.Manager do
               {:error, _decode} ->
                 {default_decision(
                    "Policy response failed to decode",
-                   req |> Map.get(:request_id, "not supplied")
+                   req |> Map.get(:requestId, "not supplied")
                  ), false}
             end
 
           {:error, :timeout} ->
             {default_decision(
                "Policy request timed out",
-               req |> Map.get(:request_id, "not supplied")
+               req |> Map.get(:requestId, "not supplied")
              ), false}
         end
 
       {:error, e} ->
         Logger.error("Could not JSON encode request, #{e}")
 
-        {default_decision("", req |> Map.get(:request_id, "not supplied")), false}
+        {default_decision("", req |> Map.get(:requestId, "not supplied")), false}
     end
   end
 
@@ -144,7 +144,7 @@ defmodule HostCore.Policy.Manager do
            %{
              permitted: permitted,
              message: message,
-             request_id: request_id
+             requestId: request_id
            }}
         )
 
@@ -157,11 +157,12 @@ defmodule HostCore.Policy.Manager do
   # Basic validation of source, target, and action ensuring required fields are present
   ##
   defp validate_source(%{
-         public_key: _public_key,
+         publicKey: _public_key,
          capabilities: _caps,
          issuer: _issuer,
-         issued_on: _issued_on,
-         expires_in_mins: _expires
+         issuedOn: _issued_on,
+         expired: _expired,
+         expiresAt: _expires_at
        }) do
     :ok
   end
@@ -169,7 +170,7 @@ defmodule HostCore.Policy.Manager do
   defp validate_source(source) when is_map(source) do
     # Narrow down missing fields by removing present fields from the list
     missing_fields =
-      [:public_key, :capabilities, :issuer, :issued_on, :expires_in_mins]
+      [:publicKey, :capabilities, :issuer, :issuedOn, :expired, :expiresAt]
       |> Enum.filter(fn required_field -> Map.get(source, required_field) == nil end)
       |> Enum.join(", ")
 
@@ -179,7 +180,7 @@ defmodule HostCore.Policy.Manager do
   defp validate_source(_), do: {:error, "Invalid source argument, source was not a map"}
 
   defp validate_target(%{
-         public_key: _public_key,
+         publicKey: _public_key,
          issuer: _issuer
        }) do
     :ok
@@ -188,7 +189,7 @@ defmodule HostCore.Policy.Manager do
   defp validate_target(target) when is_map(target) do
     # Narrow down missing fields by removing present fields from the list
     missing_fields =
-      [:public_key, :issuer]
+      [:publicKey, :issuer]
       |> Enum.reject(fn required_field -> Map.get(target, required_field) != nil end)
       |> Enum.join(", ")
 
@@ -206,7 +207,7 @@ defmodule HostCore.Policy.Manager do
     %{
       permitted: true,
       message: message,
-      request_id: request_id
+      requestId: request_id
     }
   end
 
@@ -215,7 +216,7 @@ defmodule HostCore.Policy.Manager do
     %{
       permitted: @default_permit,
       message: message,
-      request_id: request_id
+      requestId: request_id
     }
   end
 

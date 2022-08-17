@@ -27,19 +27,20 @@ defmodule HostCore.Providers.ProviderSupervisor do
     with %{permitted: true} <-
            HostCore.Policy.Manager.evaluate_action(
              %{
-               public_key: "",
-               contract_id: "",
-               link_name: "",
+               publicKey: "",
+               contractId: "",
+               linkName: "",
                capabilities: [],
                issuer: "",
-               issued_on: "",
-               expires_in_mins: 1
+               issuedOn: "",
+               expiresAt: DateTime.utc_now() |> DateTime.add(60),
+               expired: false
              },
              %{
-               public_key: claims.public_key,
+               publicKey: claims.public_key,
                issuer: claims.issuer,
-               link_name: link_name,
-               contract_id: contract_id
+               linkName: link_name,
+               contractId: contract_id
              },
              @start_provider
            ),
