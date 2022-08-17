@@ -33,7 +33,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
                capabilities: [],
                issuer: "",
                issuedOn: "",
-               expiresAt: DateTime.utc_now() |> DateTime.add(60),
+               expiresAt: DateTime.utc_now() |> DateTime.add(60) |> DateTime.to_unix(),
                expired: false
              },
              %{
