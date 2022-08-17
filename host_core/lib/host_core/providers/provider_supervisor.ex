@@ -51,7 +51,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
          {:executable, path, claims, link_name, contract_id, oci, config_json, annotations}}
       )
     else
-      %{permitted: false, message: message, request_id: request_id} ->
+      %{permitted: false, message: message, requestId: request_id} ->
         Tracer.set_status(:error, "Policy denied starting provider, request: #{request_id}")
         {:error, "Starting provider #{claims.public_key} denied: #{message}"}
 
