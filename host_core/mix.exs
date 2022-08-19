@@ -38,15 +38,13 @@ defmodule HostCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:wasmex, "~> 0.7.0"},
+      {:wasmex, "~> 0.7.1"},
       {:msgpax, "~> 2.3"},
-      {:rustler, "~> 0.24.0"},
+      {:rustler, "~> 0.25.0"},
       {:timex, "~> 3.7"},
       {:jason, "~> 1.2.2"},
       {:gnat, "~> 1.5.2"},
-      # erlavro isn't used, but this version upgrades dependency of cloudevents 0.4.0 to use rebar3
-      {:erlavro, "~> 2.9.7", override: true, manager: :rebar3},
-      {:cloudevents, "~> 0.4.0"},
+      {:cloudevents, "~> 0.6.1"},
       {:uuid, "~> 1.1"},
       {:opentelemetry_api, "~> 1.0"},
       {:opentelemetry, "~> 1.0", application: false},

@@ -41,7 +41,7 @@ deps: ## Fetch mix dependencies
 	mix deps.get
 
 release-prod: build
-	cd ../host_core && copy-nif
+	cd ../host_core && make copy-nif
 	MIX_ENV=release_prod SECRET_KEY_BASE=$(SECRET_KEY_BASE) mix distillery.release --executable --verbose
 
 esbuild:
