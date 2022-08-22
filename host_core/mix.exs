@@ -15,8 +15,24 @@ defmodule HostCore.MixProject do
           mode: if(Mix.env() == :dev, do: :debug, else: :release)
         ]
       ],
+      # 🌯
       releases: [
-        host_core: []
+        host_core: [
+          steps: [:assemble, &Burrito.wrap/1],
+          burrito: [
+            targets: [
+              # Officially supported
+              macos: [os: :darwin, cpu: :x86_64],
+              linux: [os: :linux, cpu: :x86_64],
+              linux_musl: [os: :linux_musl, cpu: :x86_64],
+              windows: [os: :windows, cpu: :x86_64],
+              # Needs custom erts
+              macos_m1: [os: :darwin, cpu: :arm64],
+              linux_arm64: [os: :linux, cpu: :arm64],
+              linux_musl_arm64: [os: :linux_musl, cpu: :arm64]
+            ]
+          ]
+        ]
       ],
       dialyzer: [plt_add_deps: :apps_direct]
     ]
@@ -65,6 +81,9 @@ defmodule HostCore.MixProject do
       {:json, "~> 1.4", only: [:test]},
       {:benchee, "~> 1.0", only: :test},
       {:mock, "~> 0.3.0", only: :test},
+      {:burrito, github: "burrito-elixir/burrito"},
+      # TODO: just contribute 0.3.0 to burrito
+      {:typed_struct, "~> 0.3.0", override: true},
       {:distillery, "~> 2.1"}
     ]
   end

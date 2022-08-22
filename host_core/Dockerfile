@@ -12,19 +12,23 @@ WORKDIR /opt/app
 COPY ./ ./
 
 # Install necessary system dependencies
-RUN apk add bash git curl build-base
+RUN apk add bash git curl build-base xz
+
+# Get Zig for bundling the burrito
+RUN wget https://ziglang.org/download/0.9.1/zig-linux-aarch64-0.9.1.tar.xz && \
+    tar -xf zig-linux-aarch64-0.9.1.tar.xz
 
 # Get Rust for building NIFs (wasmex + hostcore_wasmcloud_native)
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-# Set PATH to include Rust toolchain, enable static compilation
-ENV PATH="/root/.cargo/bin:${PATH}" \
+# Set PATH to include Zig, Rust toolchain, enable static compilation
+ENV PATH="/opt/app/zig-linux-aarch64-0.9.1:/root/.cargo/bin:${PATH}" \
     RUSTFLAGS="-C target-feature=-crt-static"
 
 # This step installs all the build tools we'll need
 RUN mix local.rebar --force && \
   mix local.hex --force && \
   mix deps.get && \
-  mix release host_core --path /opt/built
+  mix release --path /opt/built
 
 # ##
 # # STEP 2: Build distillery release
@@ -94,13 +98,14 @@ RUN mix local.rebar --force && \
 # 
 # # Release image should be the same as the _base container image_ used for the builder.
 # # E.g. `elixir:1.13.3-alpine`'s base container image is `alpine:3.15.4'
-FROM alpine:3.16
+#TODO: uncomment
+# FROM alpine:3.16
 
-WORKDIR /opt/app
-# Required for the erlang VM
-RUN apk add ncurses libgcc libstdc++
+# WORKDIR /opt/app
+# # Required for the erlang VM
+# RUN apk add ncurses libgcc libstdc++
 
-COPY --from=builder /opt/built/ .
+# COPY --from=builder /opt/built/ .
 
 # 
 # ARG APP_NAME
@@ -125,13 +130,14 @@ COPY --from=builder /opt/built/ .
 # # Prevents unnecessary warning messages about language encoding
 # ENV LC_ALL=en_US.UTF-8
 # 
+#TODO: uncomment
 # # NATS connection is required and can be overridden
 # # Default configuration assumes a NATS container is running named `nats` and available over port 4222
-ARG WASMCLOUD_RPC_HOST=nats
-ARG WASMCLOUD_PROV_RPC_HOST=nats
-ARG WASMCLOUD_CTL_HOST=nats
-ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
-    WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
-    WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
+# ARG WASMCLOUD_RPC_HOST=nats
+# ARG WASMCLOUD_PROV_RPC_HOST=nats
+# ARG WASMCLOUD_CTL_HOST=nats
+# ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
+#     WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
+#     WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
 
-CMD ["/opt/app/bin/host_core", "start"]
+# CMD ["/opt/app/bin/host_core", "start"]
