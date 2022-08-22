@@ -42,7 +42,7 @@ deps: ## Fetch mix dependencies
 
 release-prod: build
 	cd ../host_core && copy-nif
-	MIX_ENV=release_prod SECRET_KEY_BASE=$(SECRET_KEY_BASE) mix distillery.release --executable --verbose
+	MIX_ENV=release_prod SECRET_KEY_BASE=$(SECRET_KEY_BASE) mix distillery.release --verbose
 
 esbuild:
 	mix sass default assets/css/app.scss priv/static/assets/app.css

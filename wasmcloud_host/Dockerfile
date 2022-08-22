@@ -1,3 +1,4 @@
+#Goal: use docker to build container, pull tarball out of container
 # NOTE: This docker image must be built from the root of this repository in order to copy `host_core`.
 # Use the Makefile target `build-image` for best results.
 

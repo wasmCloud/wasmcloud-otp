@@ -28,6 +28,9 @@ help:  ## Display this help
 build: deps ## Compile host_core
 	mix compile
 
+docker-build: ## Compile host_core docker image
+	docker build -t host_core:alpine .
+
 deps: ## Fetch mix dependencies
 	mix deps.get
 
