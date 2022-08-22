@@ -9,8 +9,9 @@ on:
 
 jobs:
   compile-native-nif:
+    #TODO: revert revert
     # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     name: Compile wasmcloud_host_core Native NIF
     env:
       working-directory: ./host_core/native/hostcore_wasmcloud_native
@@ -188,7 +189,8 @@ jobs:
           path: ${{env.working-directory}}/${{ matrix.distillery-filename }}
 
   release-docker:
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    #TODO: revert revert
+    # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs: compile-native-nif
     name: Release Linux Docker Image
     runs-on: ubuntu-latest
@@ -262,7 +264,8 @@ jobs:
         with:
           context: .
           builder: ${{ steps.buildx-builder.outputs.name }}
-          push: true
+          # TODO REVERT REVERT
+          push: false
           file: ${{env.working-directory}}/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
@@ -277,9 +280,21 @@ jobs:
             wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version }}
             wasmcloud/wasmcloud_host:latest
 
+      - name: Retrieve aarch64 tarball
+        run: |
+          docker run --rm -p linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/wasmcloud_host:${{ env.wasmcloud_host_version}} sh -s <<EOF
+          tar -czvf aarch64-linux.tar.gz bin erts-*/ lib/ releases/
+          cp aarch64-linux.tar.gz /aarch64temp/
+          EOF
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: aarch64-linux.tar.gz
+          path: aarch64-linux.tar.gz
+
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    needs: [build-distillery-executable]
+    needs: [build-distillery-executable, release-docker]
     runs-on: ubuntu-latest
     steps:
       - name: Download Release Tarballs

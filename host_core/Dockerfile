@@ -1,10 +1,9 @@
-# Goal, use docker to build container, pull tarball out of container, voila
 ##
 # STEP 1: Retrieve dependencies (must happen before NIF compilation)
 ##
-FROM elixir:1.13.4-otp-25-alpine AS builder
+FROM elixir:1.13.3-alpine AS builder
 
-ARG MIX_ENV=prod
+ARG MIX_ENV=release_prod
 ENV MIX_ENV=${MIX_ENV} \
     WASMEX_BUILD=true
 
@@ -14,7 +13,13 @@ COPY ./ ./
 # Install necessary system dependencies
 RUN apk add bash git curl build-base
 
-# Get Rust for building NIFs (wasmex + hostcore_wasmcloud_native)
+# COPY ./priv/built/x86_64/libhostcore_wasmcloud_native.so ./priv/built/x86_64/libhostcore_wasmcloud_native.so
+COPY ./priv/built/aarch64/libhostcore_wasmcloud_native.so ./priv/built/aarch64/libhostcore_wasmcloud_native.so
+# Grab platform-specific NIF
+RUN cp ./priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./priv/built/libhostcore_wasmcloud_native.so 
+RUN rm -rf priv/built priv/native
+
+# Get Rust for building NIFs (wasmex)
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 # Set PATH to include Rust toolchain, enable static compilation
 ENV PATH="/root/.cargo/bin:${PATH}" \
@@ -24,53 +29,10 @@ ENV PATH="/root/.cargo/bin:${PATH}" \
 RUN mix local.rebar --force && \
   mix local.hex --force && \
   mix deps.get && \
-  mix release host_core --path /opt/built
+  mix distillery.release --verbose && \
+  mkdir -p /opt/built && \
+  tar -xzf _build/release_prod/rel/host_core/releases/0.56.0/host_core.tar.gz -C /opt/built
 
-# ##
-# # STEP 2: Build distillery release
-# ##
-# FROM ${BUILDER_IMAGE} AS builder
-# # The name of your application/release (required)
-# ARG APP_NAME
-# # The version of the application we are building (required)
-# ARG APP_VSN
-# # The environment to build with
-# ARG MIX_ENV=release_prod
-# # Set this to true if this release is not a Phoenix app
-# ARG SKIP_PHOENIX=false
-# # Secret key is required
-# ARG SECRET_KEY_BASE
-# # Flag to include elixir runtime assets
-# ARG INCLUDE_ERTS=true
-# 
-# ENV SKIP_PHOENIX=${SKIP_PHOENIX} \
-#     APP_NAME=${APP_NAME} \
-#     APP_VSN=${APP_VSN} \
-#     MIX_ENV=${MIX_ENV} \
-#     SECRET_KEY_BASE=${SECRET_KEY_BASE} \
-#     INCLUDE_ERTS=${INCLUDE_ERTS}
-# 
-# # By convention, /opt is typically used for applications
-# WORKDIR /opt/app
-# 
-# # This copies our app source code into the build container (including compiled NIFs)
-# COPY --from=deps-builder /opt/app /opt/app
-# 
-# # Install dependencies for build container. This may be packages like `curl`, `bash`,
-# # or even elixir and erlang depending on the base container
-# RUN apt update && \
-#   DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
-#   curl \
-#   git \
-#   ca-certificates \
-#   libssl-dev \
-#   pkg-config \
-#   inotify-tools \
-#   build-essential
-# 
-# # This step installs all the build tools we'll need
-# RUN mix local.rebar --force && \
-#   mix local.hex --force
 # 
 # RUN ls -R ./host_core/priv/built
 # COPY ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so
@@ -79,54 +41,23 @@ RUN mix local.rebar --force && \
 # RUN cp ./host_core/priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./host_core/priv/built/libhostcore_wasmcloud_native.so 
 # WORKDIR ./wasmcloud_host
 # RUN mix do deps.compile, compile
-# 
-# RUN mkdir -p /opt/built && \
-#   mix distillery.release --verbose && \
-#   cp _build/${MIX_ENV}/rel/${APP_NAME}/releases/${APP_VSN}/${APP_NAME}.tar.gz /opt/built && \
-#   cd /opt/built && \
-#   tar -xzf ${APP_NAME}.tar.gz && \
-#   mkdir -p /opt/rel && \
-#   mv ${APP_NAME}.tar.gz /opt/rel
-# 
-# ##
-# # STEP 3: Build optimized final release image
-# ##
-# 
-# # Release image should be the same as the _base container image_ used for the builder.
-# # E.g. `elixir:1.13.3-alpine`'s base container image is `alpine:3.15.4'
+
+##
+# STEP 3: Build optimized final release image
+##
+
+# Release image should be the same as the _base container image_ used for the builder.
+# E.g. `elixir:1.13.3-alpine`'s base container image is `alpine:3.15.4'
 FROM alpine:3.16
 
 WORKDIR /opt/app
 # Required for the erlang VM
-RUN apk add ncurses libgcc libstdc++
+RUN apk add bash ncurses libgcc libstdc++
 
 COPY --from=builder /opt/built/ .
 
-# 
-# ARG APP_NAME
-# ENV REPLACE_OS_VARS=true
-# 
-# 
-# # Install release image dependencies (e.g. `bash` is required to run the script and a `libc` installation is required for the NIFs)
-# RUN apt update && \
-#   DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
-#   ca-certificates \
-#   curl \
-#   locales \
-#   libssl-dev \
-#   inotify-tools \
-#   procps && \
-#   export LANG=en_US.UTF-8 && \
-#     echo $LANG UTF-8 > /etc/locale.gen && \
-#     locale-gen && \
-#     update-locale LANG=$LANG && \
-#     rm -rf /var/lib/apt/lists/*
-# 
-# # Prevents unnecessary warning messages about language encoding
-# ENV LC_ALL=en_US.UTF-8
-# 
-# # NATS connection is required and can be overridden
-# # Default configuration assumes a NATS container is running named `nats` and available over port 4222
+# NATS connection is required and can be overridden
+# Default configuration assumes a NATS container is running named `nats` and available over port 4222
 ARG WASMCLOUD_RPC_HOST=nats
 ARG WASMCLOUD_PROV_RPC_HOST=nats
 ARG WASMCLOUD_CTL_HOST=nats
@@ -134,4 +65,4 @@ ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
     WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
     WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
 
-CMD ["/opt/app/bin/host_core", "start"]
+CMD ["/opt/app/bin/host_core", "foreground"]

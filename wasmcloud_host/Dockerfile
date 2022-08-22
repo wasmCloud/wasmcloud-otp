@@ -83,11 +83,11 @@ RUN apt update && \
 RUN mix local.rebar --force && \
   mix local.hex --force
 
-RUN ls -R ./host_core/priv/built
 COPY ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so
 COPY ./host_core/priv/built/aarch64/libhostcore_wasmcloud_native.so ./host_core/priv/built/aarch64/libhostcore_wasmcloud_native.so
 # Grab platform-specific NIF
 RUN cp ./host_core/priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./host_core/priv/built/libhostcore_wasmcloud_native.so 
+RUN rm -rf ./host_core/priv/built/x86_64 ./host_core/priv/built/aarch64 ./host_core/priv/native
 WORKDIR ./wasmcloud_host
 RUN mix do deps.compile, compile
 

@@ -15,9 +15,6 @@ defmodule HostCore.MixProject do
           mode: if(Mix.env() == :dev, do: :debug, else: :release)
         ]
       ],
-      releases: [
-        host_core: []
-      ],
       dialyzer: [plt_add_deps: :apps_direct]
     ]
   end
