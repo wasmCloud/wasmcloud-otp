@@ -13,6 +13,7 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
   http: [:inet6, port: System.get_env("PORT") || 4000],
   # This is critical for ensuring web-sockets properly authorize.
   url: [host: "localhost", port: System.get_env("PORT")],
+  check_origin: false,
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
