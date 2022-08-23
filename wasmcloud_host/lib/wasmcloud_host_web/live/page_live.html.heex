@@ -1,6 +1,11 @@
 <script>
    // Custom function that can be called to create a CoreUI tooltip
    var createTooltip = (element) => {
+      if (!element) {
+         // The element does not exist, skip
+         return
+      }
+
       if (window.TooltipCreate === undefined) {
          setTimeout(() => createTooltip(element), 200)
       } else if (element.dataset.toggle = "tooltip") {

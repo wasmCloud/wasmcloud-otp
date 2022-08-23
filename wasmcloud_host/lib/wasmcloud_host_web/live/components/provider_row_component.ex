@@ -51,7 +51,6 @@ defmodule ProviderRowComponent do
     </tr>
     <script>
       createTooltip(document.getElementById("copy_provider_id_<%= @provider %>_<%= @link_name %>_<%= @host_id %>"))
-      createTooltip(document.getElementById("copy_host_id_<%= @provider %>_<%= @link_name %>_<%= @host_id %>"))
       createTooltip(document.getElementById("delete_provider_<%= @provider %>_<%= @link_name %>_<%= @host_id %>"))
     </script>
     """
