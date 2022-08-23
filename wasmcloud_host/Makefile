@@ -20,17 +20,18 @@ help:  ## Display this help
 build-image: build esbuild ## Build docker image for running, testing, or distribution
 	cd ../ && \
 	docker build $(BASE_ARGS) \
-		--build-arg BUILDER_IMAGE=elixir:1.13.3-slim \
+		--build-arg BUILDER_IMAGE=elixir:1.13.4-otp-25-slim \
 		--build-arg RELEASE_IMAGE=debian:bullseye-slim  \
 		$(BASE_TAGS) \
 		-f $(DOCKERFILE) \
 		.
 
-build-arm-image: build esbuild ## Build arm64 docker image for running, testing, or distribution
+build-arm-image: #build esbuild ## Build arm64 docker image for running, testing, or distribution
 	cd ../ && \
 	docker buildx build $(BASE_ARGS) \
-		--build-arg BUILDER_IMAGE=elixir:1.13.3-slim \
+		--build-arg BUILDER_IMAGE=elixir:1.13.4-otp-25-slim \
 		--build-arg RELEASE_IMAGE=debian:bullseye-slim \
+		--build-arg MIX_ENV=prod \
 		-t wasmcloud_host:arm64 \
 		--platform linux/arm64 \
 		--load \
@@ -40,11 +41,7 @@ build-arm-image: build esbuild ## Build arm64 docker image for running, testing,
 deps: ## Fetch mix dependencies
 	mix deps.get
 
-release-prod: build
-	cd ../host_core && copy-nif
-	MIX_ENV=release_prod SECRET_KEY_BASE=$(SECRET_KEY_BASE) mix distillery.release --verbose
-
-esbuild:
+esbuild: deps
 	mix sass default assets/css/app.scss priv/static/assets/app.css
 	mix assets.deploy
 	cp -r assets/static/* priv/static/

@@ -7,5 +7,5 @@
 */Makefile
 */README*
 */test/
-*/target/debug/
-*/target/release/
+*/*/*/target/debug/
+*/*/*/target/release/

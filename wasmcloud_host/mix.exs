@@ -1,7 +1,7 @@
 defmodule WasmcloudHost.MixProject do
   use Mix.Project
 
-  @app_vsn "0.56.0"
+  @app_vsn "0.57.0"
 
   def project do
     [
@@ -12,6 +12,9 @@ defmodule WasmcloudHost.MixProject do
       compilers: [:phoenix] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
+      releases: [
+        wasmcloud_host: []
+      ],
       deps: deps()
     ]
   end
@@ -49,7 +52,6 @@ defmodule WasmcloudHost.MixProject do
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
       {:host_core, path: "../host_core"},
-      {:distillery, "~> 2.1"},
       {:file_system, "~> 0.2"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false}

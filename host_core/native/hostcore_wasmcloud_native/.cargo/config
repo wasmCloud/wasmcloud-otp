@@ -9,3 +9,8 @@ rustflags = [
   "-C", "link-arg=-undefined",
   "-C", "link-arg=dynamic_lookup",
 ]
+
+[target.aarch64-unknown-linux-musl]
+rustflags = [
+    "-C", "target-feature=-crt-static"
+]
