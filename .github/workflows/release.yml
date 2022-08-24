@@ -13,7 +13,7 @@ env:
 jobs:
   compile-native-nif:
     # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     name: Compile NIFs
     env:
       working-directory: ./host_core/native/hostcore_wasmcloud_native
@@ -50,7 +50,7 @@ jobs:
 
   create-mix-releases:
     # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     needs: compile-native-nif
     name: Mix release
     strategy:
@@ -171,7 +171,7 @@ jobs:
           path: ${{env.working-directory}}/${{ matrix.release-tarball }}
 
   release-hostcore-docker:
-    # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs: compile-native-nif
     name: Release Image (host_core)
     runs-on: ubuntu-22.04
@@ -254,7 +254,7 @@ jobs:
   #
   # So, sorry about the code duplication, perhaps in the future we'll find a way to make this happen
   release-wasmcloud-docker:
-    # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs: compile-native-nif
     name: Release Image (wasmcloud_host)
     runs-on: ubuntu-22.04
