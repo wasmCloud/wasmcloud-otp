@@ -10,178 +10,169 @@ env:
   otp-version: 25
   elixir-version: 1.13.4
 
-# Steps:
-# 1.  Compile the NIF in parallel
-# 2a. Build mix release, copying NIF into the correct location
-# 2b. Build docker image, copying NIF into the container
-# 3.  Create GH release with artifacts
 jobs:
-  # compile-native-nif:
-  #   #TODO: revert revert
-  #   # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-  #   # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-  #   name: Compile NIFs
-  #   env:
-  #     working-directory: ./host_core/native/hostcore_wasmcloud_native
-  #     artifact-name: hostcore_wasmcloud_native
-  #   strategy:
-  #     matrix:
-  #       target:
-  #         - x86_64-unknown-linux-gnu
-  #         - aarch64-unknown-linux-gnu
-  #         - aarch64-unknown-linux-musl
-  #         - x86_64-apple-darwin
-  #         - x86_64-pc-windows-gnu
-  #   runs-on: ubuntu-20.04
-  #   steps:
-  #     - uses: actions/checkout@v3
+  compile-native-nif:
+    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
+    # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    name: Compile NIFs
+    env:
+      working-directory: ./host_core/native/hostcore_wasmcloud_native
+      artifact-name: hostcore_wasmcloud_native
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-gnu
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
 
-  #     - name: Build native nif
-  #       run: |
-  #         wget https://github.com/cross-rs/cross/releases/download/v0.2.4/cross-x86_64-unknown-linux-gnu.tar.gz
-  #         tar -xf cross-x86_64-unknown-linux-gnu.tar.gz
-  #         chmod +x cross
-  #         ./cross build --release --target ${{ matrix.target }}
-  #       working-directory: ${{ env.working-directory }}
+      - name: Build native nif
+        run: |
+          wget https://github.com/cross-rs/cross/releases/download/v0.2.4/cross-x86_64-unknown-linux-gnu.tar.gz
+          tar -xf cross-x86_64-unknown-linux-gnu.tar.gz
+          chmod +x cross
+          ./cross build --release --target ${{ matrix.target }}
+        working-directory: ${{ env.working-directory }}
 
-  #     - name: Upload nif to GH Actions
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: ${{ matrix.target }}
-  #         if-no-files-found: error
-  #         path: |
-  #           ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.so
-  #           ${{ env.working-directory }}/target/${{ matrix.target }}/release/${{ env.artifact-name }}.dll
-  #           ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.dylib
+      - name: Upload nif to GH Actions
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.so
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/${{ env.artifact-name }}.dll
+            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.dylib
 
-  # create-mix-releases:
-  #   # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-  #   # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-  #   needs: compile-native-nif
-  #   name: Mix release
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [ubuntu-20.04, windows-2019, macos-11]
-  #       working-directory: [wasmcloud_host, host_core]
-  #       include:
-  #         - os: ubuntu-20.04
-  #           rust-target: x86_64-unknown-linux-gnu
-  #           release-tarball: x86_64-linux.tar.gz
-  #           working-directory: wasmcloud_host
-  #         - os: windows-2019
-  #           rust-target: x86_64-pc-windows-gnu
-  #           release-tarball: x86_64-windows.tar.gz
-  #           working-directory: wasmcloud_host
-  #         - os: macos-11
-  #           rust-target: x86_64-apple-darwin
-  #           release-tarball: x86_64-macos.tar.gz
-  #           working-directory: wasmcloud_host
-  #         - os: ubuntu-20.04
-  #           rust-target: x86_64-unknown-linux-gnu
-  #           release-tarball: x86_64-linux-core.tar.gz
-  #           working-directory: host_core
-  #         - os: windows-2019
-  #           rust-target: x86_64-pc-windows-gnu
-  #           release-tarball: x86_64-windows-core.tar.gz
-  #           working-directory: host_core
-  #         - os: macos-11
-  #           rust-target: x86_64-apple-darwin
-  #           release-tarball: x86_64-macos-core.tar.gz
-  #           working-directory: host_core
-  #   runs-on: ${{ matrix.os }}
-  #   env:
-  #     working-directory: ${{ matrix.working-directory }}
-  #     MIX_ENV: release_prod
-  #     SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+  create-mix-releases:
+    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
+    # if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    needs: compile-native-nif
+    name: Mix release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, windows-2019, macos-11]
+        working-directory: [wasmcloud_host, host_core]
+        include:
+          - os: ubuntu-20.04
+            rust-target: x86_64-unknown-linux-gnu
+            release-tarball: x86_64-linux.tar.gz
+            working-directory: wasmcloud_host
+          - os: windows-2019
+            rust-target: x86_64-pc-windows-gnu
+            release-tarball: x86_64-windows.tar.gz
+            working-directory: wasmcloud_host
+          - os: macos-11
+            rust-target: x86_64-apple-darwin
+            release-tarball: x86_64-macos.tar.gz
+            working-directory: wasmcloud_host
+          - os: ubuntu-20.04
+            rust-target: x86_64-unknown-linux-gnu
+            release-tarball: x86_64-linux-core.tar.gz
+            working-directory: host_core
+          - os: windows-2019
+            rust-target: x86_64-pc-windows-gnu
+            release-tarball: x86_64-windows-core.tar.gz
+            working-directory: host_core
+          - os: macos-11
+            rust-target: x86_64-apple-darwin
+            release-tarball: x86_64-macos-core.tar.gz
+            working-directory: host_core
+    runs-on: ${{ matrix.os }}
+    env:
+      working-directory: ${{ matrix.working-directory }}
+      MIX_ENV: release_prod
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
 
-  #   steps:
-  #     - uses: actions/checkout@v3
+    steps:
+      - uses: actions/checkout@v3
 
-  #     # Install erlang/OTP and elixir
-  #     - name: Install erlang and elixir
-  #       if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
-  #       uses: erlef/setup-beam@v1
-  #       with:
-  #         otp-version: "=${{ env.otp-version }}"
-  #         elixir-version: "${{ env.elixir-version }}"
-  #         install-hex: true
-  #         install-rebar: true
-  #     - name: Install erlang and elixir
-  #       if: ${{ startswith(matrix.os, 'macos') }}
-  #       run: |
-  #         brew install erlang
-  #         brew install elixir
+      # Install erlang/OTP and elixir
+      - name: Install erlang and elixir
+        if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "=${{ env.otp-version }}"
+          elixir-version: "${{ env.elixir-version }}"
+          install-hex: true
+          install-rebar: true
+      - name: Install erlang and elixir
+        if: ${{ startswith(matrix.os, 'macos') }}
+        run: |
+          brew install erlang
+          brew install elixir
 
-  #     - name: Retrieve Mix Dependencies Cache
-  #       if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
-  #       uses: actions/cache@v2
-  #       id: mix-cache #id to use in retrieve action
-  #       with:
-  #         path: |
-  #           ${{ env.working-directory }}/deps
-  #         key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('${{ env.working-directory }}/mix.exs', '${{ env.working-directory }}/mix.lock') }}
+      - name: Retrieve Mix Dependencies Cache
+        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
+        uses: actions/cache@v2
+        id: mix-cache #id to use in retrieve action
+        with:
+          path: |
+            ${{ env.working-directory }}/deps
+          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('${{ env.working-directory }}/mix.exs', '${{ env.working-directory }}/mix.lock') }}
 
-  #     - name: Install Mix Dependencies
-  #       working-directory: ${{env.working-directory}}
-  #       shell: bash
-  #       run: |
-  #         mix local.rebar --force
-  #         mix local.hex --force
-  #         mix deps.get
+      - name: Install Mix Dependencies
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        run: |
+          mix local.rebar --force
+          mix local.hex --force
+          mix deps.get
 
-  #     # Download the NIF in the path that Rustler expects
-  #     - uses: actions/download-artifact@v3
-  #       with:
-  #         path: ./host_core/priv/built
-  #         name: ${{ matrix.rust-target }}
-  #     # Rustler looks for .so, even on Mac
-  #     - name: Rename NIF to shared object
-  #       if: ${{ startswith(matrix.os, 'macos') }}
-  #       working-directory: ./host_core/priv/built
-  #       run: |
-  #         mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.so
-  #     # Rustler looks for .dll on Windows
-  #     - name: Rename NIF to shared object
-  #       if: ${{ startswith(matrix.os, 'windows') }}
-  #       working-directory: ./host_core/priv/built
-  #       run: |
-  #         mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.dll
+      # Download the NIF in the path that Rustler expects
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built
+          name: ${{ matrix.rust-target }}
+      # Rustler looks for .so, even on Mac
+      - name: Rename NIF to shared object
+        if: ${{ startswith(matrix.os, 'macos') }}
+        working-directory: ./host_core/priv/built
+        run: |
+          mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.so
+      # Rustler looks for .dll on Windows
+      - name: Rename NIF to shared object
+        if: ${{ startswith(matrix.os, 'windows') }}
+        working-directory: ./host_core/priv/built
+        run: |
+          mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.dll
 
-  #     - name: Compile Elixir
-  #       working-directory: ${{env.working-directory}}
-  #       shell: bash
-  #       run: |
-  #         mix compile
+      - name: Compile Elixir
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        run: |
+          mix compile
 
-  #     - name: Compile Phoenix Assets
-  #       if: ${{ env.working-directory == 'wasmcloud_host' }}
-  #       working-directory: ${{env.working-directory}}
-  #       shell: bash
-  #       run: |
-  #         make esbuild
+      - name: Compile Phoenix Assets
+        if: ${{ env.working-directory == 'wasmcloud_host' }}
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        run: |
+          make esbuild
 
-  #     - name: Create Mix Release
-  #       working-directory: ${{env.working-directory}}
-  #       shell: bash
-  #       run: |
-  #         mix release
-  #         cd _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}
-  #         ls -lah
-  #         tar -czvf ${{ matrix.release-tarball }} bin erts-* lib releases
-  #         ls -lah
-  #         mv ${{ matrix.release-tarball }} ../../../../
+      - name: Create Mix Release
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        run: |
+          mix release
+          cd _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}
+          tar -czvf ${{ matrix.release-tarball }} bin erts-* lib releases
+          mv ${{ matrix.release-tarball }} ../../../../
 
-  #     - name: Upload artifact
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: ${{ matrix.release-tarball }}
-  #         path: ${{env.working-directory}}/${{ matrix.release-tarball }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.release-tarball }}
+          path: ${{env.working-directory}}/${{ matrix.release-tarball }}
 
   release-hostcore-docker:
-    #TODO: revert revert
     # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    # needs: compile-native-nif
+    needs: compile-native-nif
     name: Release Image (host_core)
     runs-on: ubuntu-22.04
     env:
@@ -190,7 +181,7 @@ jobs:
       SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
       app-name: host_core
       arm-tarball: aarch64-linux-musl-core.tar.gz
-      builder-image: elixir:1.13.4-otp-25-alpine
+      builder-image: elixir:1.13.4-alpine
       release-image: alpine:3.16
     steps:
       - uses: actions/checkout@v3
@@ -198,15 +189,15 @@ jobs:
         run: echo "app-version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
 
       # Download the NIF in the path that Docker expects for x86
-      # - uses: actions/download-artifact@v3
-      #   with:
-      #     path: ./host_core/priv/built/x86_64
-      #     name: x86_64-unknown-linux-gnu
-      # # Download the NIF in the path that Docker expects for aarch64
-      # - uses: actions/download-artifact@v3
-      #   with:
-      #     path: ./host_core/priv/built/aarch64
-      #     name: aarch64-unknown-linux-gnu
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built/x86_64
+          name: x86_64-unknown-linux-gnu
+      # Download the NIF in the path that Docker expects for aarch64
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built/aarch64
+          name: aarch64-unknown-linux-gnu
 
       - name: Login to AzureCR
         uses: azure/docker-login@v1
@@ -261,9 +252,8 @@ jobs:
   #
   # So, sorry about the code duplication, perhaps in the future we'll find a way to make this happen
   release-wasmcloud-docker:
-    #TODO: revert revert
     # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    # needs: compile-native-nif
+    needs: compile-native-nif
     name: Release Image (wasmcloud_host)
     runs-on: ubuntu-22.04
     env:
@@ -299,15 +289,15 @@ jobs:
           make esbuild
 
       # Download the NIF in the path that Docker expects for x86
-      # - uses: actions/download-artifact@v3
-      #   with:
-      #     path: ./host_core/priv/built/x86_64
-      #     name: x86_64-unknown-linux-gnu
-      # # Download the NIF in the path that Docker expects for aarch64
-      # - uses: actions/download-artifact@v3
-      #   with:
-      #     path: ./host_core/priv/built/aarch64
-      #     name: aarch64-unknown-linux-gnu
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built/x86_64
+          name: x86_64-unknown-linux-gnu
+      # Download the NIF in the path that Docker expects for aarch64
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built/aarch64
+          name: aarch64-unknown-linux-gnu
 
       - name: Login to AzureCR
         uses: azure/docker-login@v1
@@ -358,7 +348,8 @@ jobs:
 
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    # needs: [create-mix-releases, release-hostcore-docker, release-wasmcloud-docker]
+    needs:
+      [create-mix-releases, release-hostcore-docker, release-wasmcloud-docker]
     runs-on: ubuntu-latest
     steps:
       - name: Download Release Tarballs
