@@ -15,8 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, windows-2019, macos-10.15]
-        elixir: [1.13.4]
-        otp: [24, 25]
+        elixir: [1.13.3]
+        otp: [24.3, 25]
 
     name: Build and test
     runs-on: ${{ matrix.os }}

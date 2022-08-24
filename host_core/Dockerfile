@@ -16,7 +16,7 @@ COPY ./ ./
 RUN apk add bash git curl build-base
 
 # Grab platform-specific NIF if building with release_prod, otherwise build NIF manually
-RUN if [ "$MIX_ENV" = "release_prod"] ; then cp ./priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./priv/built/libhostcore_wasmcloud_native.so ; else echo "not grabbing" ; fi
+RUN if [ "$MIX_ENV" = "release_prod" ] ; then cp ./priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./priv/built/libhostcore_wasmcloud_native.so ; else echo "not grabbing" ; fi
 # Ensure intermediate artifacts don't get bundled into the final release
 RUN rm -rf priv/built/aarch64 priv/built/x86_64 priv/native
 
