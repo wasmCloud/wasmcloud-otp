@@ -19,9 +19,6 @@ WORKDIR /opt/app
 COPY ./host_core ./host_core
 COPY ./wasmcloud_host ./wasmcloud_host
 
-RUN cat /etc/os-release
-RUN uname -a
-
 # Install necessary system dependencies
 RUN apt update && \
   DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
