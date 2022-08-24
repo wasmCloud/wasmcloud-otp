@@ -58,8 +58,3 @@ run-image: ## Run the docker compose with specified image tag
 
 run-interactive: build ## Run development wasmcloud_host with iex
 	iex -S mix phx.server
-
-      # wasmcloud.azurecr.io/${{ matrix.app-name }}:${{ env.app-version }}
-      # wasmcloud.azurecr.io/${{ matrix.app-name }}:latest
-      # wasmcloud/${{ matrix.app-name }}:${{ env.app-version }}
-      # wasmcloud/${{ matrix.app-name }}:latest

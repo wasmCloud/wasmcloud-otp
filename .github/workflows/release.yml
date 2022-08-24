@@ -230,12 +230,14 @@ jobs:
             APP_VSN=${{ env.app-version }}
             MIX_ENV=${{ env.MIX_ENV }}
           tags: |
-            wasmcloud.azurecr.io/strictlytesting${{ env.app-name }}:${{ env.app-version }}
+            wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}
+            wasmcloud.azurecr.io/${{ env.app-name }}:latest
+            wasmcloud/${{ env.app-name }}:${{ env.app-version }}
+            wasmcloud/${{ env.app-name }}:latest
 
-      # docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version}} sh -s <<EOF
       - name: Retrieve aarch64 tarball from Docker
         run: |
-          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud.azurecr.io/strictlytesting${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
+          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version}} sh -s <<EOF
           tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
           cp ${{ env.arm-tarball }} /aarch64temp/
           EOF
@@ -331,12 +333,14 @@ jobs:
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
             MIX_ENV=release_prod
           tags: |
-            wasmcloud.azurecr.io/strictlytesting${{ env.app-name }}:${{ env.app-version }}
+            wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}
+            wasmcloud.azurecr.io/${{ env.app-name }}:latest
+            wasmcloud/${{ env.app-name }}:${{ env.app-version }}
+            wasmcloud/${{ env.app-name }}:latest
 
-      # docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version}} sh -s <<EOF
       - name: Retrieve aarch64 tarball from Docker
         run: |
-          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud.azurecr.io/strictlytesting${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
+          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version}} sh -s <<EOF
           tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
           cp ${{ env.arm-tarball }} /aarch64temp/
           EOF
