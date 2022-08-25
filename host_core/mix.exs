@@ -1,7 +1,7 @@
 defmodule HostCore.MixProject do
   use Mix.Project
 
-  @app_vsn "0.56.0"
+  @app_vsn "0.57.0"
 
   def project do
     [
@@ -14,6 +14,9 @@ defmodule HostCore.MixProject do
         hostcore_wasmcloud_native: [
           mode: if(Mix.env() == :dev, do: :debug, else: :release)
         ]
+      ],
+      releases: [
+        host_core: []
       ],
       dialyzer: [plt_add_deps: :apps_direct]
     ]
@@ -44,9 +47,7 @@ defmodule HostCore.MixProject do
       {:timex, "~> 3.7"},
       {:jason, "~> 1.2.2"},
       {:gnat, "~> 1.5.2"},
-      # erlavro isn't used, but this version upgrades dependency of cloudevents 0.4.0 to use rebar3
-      {:erlavro, "~> 2.9.7", override: true, manager: :rebar3},
-      {:cloudevents, "~> 0.4.0"},
+      {:cloudevents, "~> 0.6.1"},
       {:uuid, "~> 1.1"},
       {:opentelemetry_api, "~> 1.0"},
       {:opentelemetry, "~> 1.0", application: false},
@@ -63,8 +64,7 @@ defmodule HostCore.MixProject do
       {:httpoison, "~> 1.8", only: [:test]},
       {:json, "~> 1.4", only: [:test]},
       {:benchee, "~> 1.0", only: :test},
-      {:mock, "~> 0.3.0", only: :test},
-      {:distillery, "~> 2.1"}
+      {:mock, "~> 0.3.0", only: :test}
     ]
   end
 end

@@ -8,8 +8,8 @@ The use of the [Makefile](./Makefile) is preferred for building and running this
 
 ## Prerequisites
 
-- [Elixir installation](https://elixir-lang.org/install.html), minimum `v1.12.0`
-- [Erlang/OTP installation](https://elixir-lang.org/install.html#installing-erlang), minimum `OTP 22`
+- [Elixir installation](https://elixir-lang.org/install.html), minimum `v1.13.4`
+- [Erlang/OTP installation](https://elixir-lang.org/install.html#installing-erlang), minimum `OTP 25`
 - [NATS installation](https://docs.nats.io/nats-server/installation), minimum `v2.7.2`
 
 ## Installation and Running

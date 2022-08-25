@@ -3,14 +3,13 @@
 
 ARG BUILDER_IMAGE
 ARG RELEASE_IMAGE
+ARG MIX_ENV=prod
+ARG SECRET_KEY_BASE
 
 ##
 # STEP 1: Retrieve dependencies (must happen before NIF compilation)
 ##
 FROM ${BUILDER_IMAGE} AS deps-builder
-
-ARG MIX_ENV=release_prod
-ARG SECRET_KEY_BASE
 
 ENV MIX_ENV=${MIX_ENV} \
   SECRET_KEY_BASE=${SECRET_KEY_BASE}
@@ -82,21 +81,19 @@ RUN apt update && \
 RUN mix local.rebar --force && \
   mix local.hex --force
 
-RUN ls -R ./host_core/priv/built
-COPY ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so ./host_core/priv/built/x86_64/libhostcore_wasmcloud_native.so
-COPY ./host_core/priv/built/aarch64/libhostcore_wasmcloud_native.so ./host_core/priv/built/aarch64/libhostcore_wasmcloud_native.so
-# Grab platform-specific NIF
-RUN cp ./host_core/priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./host_core/priv/built/libhostcore_wasmcloud_native.so 
+# Grab platform-specific NIF if building with release_prod, otherwise install rust for building the NIF manually
+RUN if [ "$MIX_ENV" = "release_prod" ] ; then cp ./host_core/priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./host_core/priv/built/libhostcore_wasmcloud_native.so ; else curl https://sh.rustup.rs -sSf | bash -s -- -y ; fi
+# Ensure intermediate artifacts don't get bundled into the final release
+RUN rm -rf host_core/priv/built/aarch64 host_core/priv/built/x86_64 host_core/priv/native
+# Set PATH to include Rust toolchain
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 WORKDIR ./wasmcloud_host
 RUN mix do deps.compile, compile
 
 RUN mkdir -p /opt/built && \
-  mix distillery.release --verbose && \
-  cp _build/${MIX_ENV}/rel/${APP_NAME}/releases/${APP_VSN}/${APP_NAME}.tar.gz /opt/built && \
-  cd /opt/built && \
-  tar -xzf ${APP_NAME}.tar.gz && \
-  mkdir -p /opt/rel && \
-  mv ${APP_NAME}.tar.gz /opt/rel
+  mix release && \
+  cp -r _build/${MIX_ENV}/rel/${APP_NAME}/* /opt/built
 
 ##
 # STEP 3: Build optimized final release image
@@ -139,4 +136,4 @@ ENV WASMCLOUD_RPC_HOST=${WASMCLOUD_RPC_HOST} \
     WASMCLOUD_CTL_HOST=${WASMCLOUD_CTL_HOST} \
     WASMCLOUD_PROV_RPC_HOST=${WASMCLOUD_PROV_RPC_HOST}
 
-CMD ["/opt/app/bin/wasmcloud_host", "foreground"]
+CMD ["/opt/app/bin/wasmcloud_host", "start"]
