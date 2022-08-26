@@ -51,7 +51,6 @@ defmodule ActorRowComponent do
         <script>
           createTooltip(document.getElementById("scale_actor_button_<%= @actor %>_<%= @host_id %>"))
           createTooltip(document.getElementById("copy_actor_id_<%= @actor %>_<%= @host_id %>"))
-          createTooltip(document.getElementById("copy_host_id_<%= @actor %>_<%= @host_id %>"))
           createTooltip(document.getElementById("stop_hotwatch_button_<%= @actor %>_<%= @host_id %>"))
         </script>
       </td>
