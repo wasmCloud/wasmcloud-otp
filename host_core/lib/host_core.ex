@@ -67,21 +67,25 @@ defmodule HostCore do
            connection_name: :control_nats,
            module: HostCore.ControlInterface.Server,
            subscription_topics: [
-             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.registries.put"},
-             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.cmd.#{config.host_key}.*"},
-             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.ping.hosts"},
+             %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.registries.put"},
              %{
-               topic: "wasmbus.ctl.#{config.lattice_prefix}.linkdefs.*",
-               queue_group: "wasmbus.ctl.#{config.lattice_prefix}"
+               topic:
+                 "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.cmd.#{config.host_key}.*"
+             },
+             %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.ping.hosts"},
+             %{
+               topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.linkdefs.*",
+               queue_group: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}"
              },
              %{
-               topic: "wasmbus.ctl.#{config.lattice_prefix}.get.*",
-               queue_group: "wasmbus.ctl.#{config.lattice_prefix}"
+               topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.get.*",
+               queue_group: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}"
              },
              %{
-               topic: "wasmbus.ctl.#{config.lattice_prefix}.get.#{config.host_key}.inv"
+               topic:
+                 "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.get.#{config.host_key}.inv"
              },
-             %{topic: "wasmbus.ctl.#{config.lattice_prefix}.auction.>"}
+             %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.auction.>"}
            ]
          }},
         id: :latticectl_consumer_supervisor
