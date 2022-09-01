@@ -22,6 +22,7 @@ jobs:
       matrix:
         target:
           - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-gnu
           - aarch64-unknown-linux-musl
           - x86_64-apple-darwin
@@ -192,12 +193,12 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           path: ./host_core/priv/built/x86_64
-          name: x86_64-unknown-linux-gnu
+          name: x86_64-unknown-linux-musl
       # Download the NIF in the path that Docker expects for aarch64
       - uses: actions/download-artifact@v3
         with:
           path: ./host_core/priv/built/aarch64
-          name: aarch64-unknown-linux-gnu
+          name: aarch64-unknown-linux-musl
 
       - name: Login to AzureCR
         uses: azure/docker-login@v1
