@@ -6,8 +6,8 @@
   <%# Modal template, replace body depending on desired modal to display %>
   <%= if @open_modal != nil do %>
   <% modal_id = String.to_atom(Map.get(@open_modal, "id")) %>
-  <div class="phoenix-modal phoenix-modal-open show fade" id={modal_id} tabindex="-1" role="dialog"
-    aria-labelledby={"#{modal_id}-modal"} aria-hidden="true">
+  <div class="phoenix-modal phoenix-modal-open show fade" id={modal_id} tabindex="-1" role="dialog" 
+    aria-labelledby={"#{modal_id}-modal"} aria-hidden="true" phx-window-keydown="hide_modal" phx-key="escape">
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
