@@ -8,6 +8,10 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     {:ok, evt_watcher} =
       GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
 
+    on_exit(fn ->
+      HostCore.Linkdefs.Manager.del_link_definition(@kvcounter_key, @redis_contract, @redis_link)
+    end)
+
     [
       evt_watcher: evt_watcher
     ]
@@ -73,5 +77,24 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     assert Map.get(kvcounter_redis_link, "provider_id") == @redis_key
     assert Map.get(kvcounter_redis_link, "contract_id") == @redis_contract
     assert Map.get(kvcounter_redis_link, "link_name") == @redis_link
+  end
+
+  test "cannot cache multiple linkdefs" do
+    assert :ok =
+      HostCore.Linkdefs.Manager.put_link_definition(
+        @kvcounter_key,
+        @redis_contract,
+        @redis_link,
+        @redis_key,
+        %{URL: "redis://127.0.0.1:6379"}
+      )
+
+    assert {:error, {:duplicate_key, {@kvcounter_key, @redis_contract, @redis_link}}} = HostCore.Linkdefs.Manager.put_link_definition(
+        @kvcounter_key,
+        @redis_contract,
+        @redis_link,
+        @redis_key,
+        %{URL: "redis://127.0.0.1:6379"}
+      )
   end
 end

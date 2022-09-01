@@ -5,7 +5,9 @@ defmodule HostCore.E2E.EchoTest do
   setup do
     {:ok, evt_watcher} =
       GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
-
+    on_exit(fn ->
+      :ets.delete_all_objects(:linkdef_table)
+    end)
     [
       evt_watcher: evt_watcher
     ]
@@ -110,15 +112,6 @@ defmodule HostCore.E2E.EchoTest do
         @httpserver_link,
         @httpserver_key
       )
-
-    # For now, okay to put a link definition without proper claims
-    assert HostCore.Linkdefs.Manager.put_link_definition(
-             @echo_unpriv_key,
-             @httpserver_contract,
-             @httpserver_link,
-             @httpserver_key,
-             %{PORT: "8884"}
-           ) == :ok
 
     {:ok, _okay} = HTTPoison.start()
     {:ok, resp} = request_http("http://localhost:8884/foobar", 10)

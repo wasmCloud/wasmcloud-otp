@@ -143,22 +143,24 @@ defmodule HostCore.ControlInterface.Server do
   # Put a link definition
   # This will first store the link definition in memory, then publish it to the stream
   # then publish it directly to the relevant provider via the RPC channel
+  @put_linkdef_keys ["actor_id", "contract_id", "link_name", "provider_id", "values"]
   defp handle_request({"linkdefs", "put"}, body, _reply_to) do
     Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
-           true <-
-             ["actor_id", "contract_id", "link_name", "provider_id"]
-             |> Enum.all?(&Map.has_key?(ld, &1)) do
-        HostCore.Linkdefs.Manager.put_link_definition(
-          ld["actor_id"],
-          ld["contract_id"],
-          ld["link_name"],
-          ld["provider_id"],
-          ld["values"] || %{}
-        )
-
+           true <- has_keys?(@put_linkdef_keys, ld),
+           :ok <-
+             HostCore.Linkdefs.Manager.put_link_definition(
+               ld["actor_id"],
+               ld["contract_id"],
+               ld["link_name"],
+               ld["provider_id"],
+               ld["values"] || %{}
+             ) do
         {:reply, success_ack()}
       else
+        {:error, {:duplicate_key, {_, _, link_name}}} ->
+          {:reply, failure_ack("Duplicate link definition entry for '#{link_name}'")}
+
         _ ->
           {:reply, failure_ack("Invalid link definition put request")}
       end
@@ -169,12 +171,11 @@ defmodule HostCore.ControlInterface.Server do
   # This will first remove the link definition from memory, then publish the removal
   # message to the stream, then publish the removal directly to the relevant provider via the
   # RPC channel
+  @del_linkdef_keys ["actor_id", "contract_id", "link_name"]
   defp handle_request({"linkdefs", "del"}, body, _reply_to) do
     Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
-           true <-
-             ["actor_id", "contract_id", "link_name"]
-             |> Enum.all?(&Map.has_key?(ld, &1)) do
+           true <- has_keys?(@del_linkdef_keys, ld) do
         HostCore.Linkdefs.Manager.del_link_definition(
           ld["actor_id"],
           ld["contract_id"],
@@ -585,5 +586,9 @@ defmodule HostCore.ControlInterface.Server do
       accepted: false,
       error: error
     })
+  end
+
+  defp has_keys?(keys, request) do
+    Enum.all?(keys, &Map.has_key?(request, &1))
   end
 end

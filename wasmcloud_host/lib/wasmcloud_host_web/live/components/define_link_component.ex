@@ -55,7 +55,8 @@ defmodule DefineLinkComponent do
                  values_map
                ) do
             :ok -> nil
-            _any -> "Error publishing link definition"
+            {:error, ""} -> "Error publishing link definition"
+            {:error, message} -> message
           end
       end
 

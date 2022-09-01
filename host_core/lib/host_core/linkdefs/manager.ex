@@ -24,7 +24,11 @@ defmodule HostCore.Linkdefs.Manager do
       id: ldid
     }
 
-    :ets.insert(:linkdef_table, {key, map})
+    if :ets.insert_new(:linkdef_table, {key, map}) do
+      :ok
+    else
+      {:error, {:duplicate_key, key}}
+    end
   end
 
   def uncache_link_definition(actor, contract_id, link_name) do
@@ -34,19 +38,20 @@ defmodule HostCore.Linkdefs.Manager do
 
   def put_link_definition(actor, contract_id, link_name, provider_key, values) do
     ldid = UUID.uuid4()
-    cache_link_definition(ldid, actor, contract_id, link_name, provider_key, values)
 
-    ld = %{
-      id: ldid,
-      actor_id: actor,
-      provider_id: provider_key,
-      link_name: link_name,
-      contract_id: contract_id,
-      values: values,
-      deleted: false
-    }
+    with :ok <- cache_link_definition(ldid, actor, contract_id, link_name, provider_key, values) do
+      ld = %{
+        id: ldid,
+        actor_id: actor,
+        provider_id: provider_key,
+        link_name: link_name,
+        contract_id: contract_id,
+        values: values,
+        deleted: false
+      }
 
-    publish_link_definition(ld)
+      publish_link_definition(ld)
+    end
   end
 
   def del_link_definition(actor, contract_id, link_name) do
