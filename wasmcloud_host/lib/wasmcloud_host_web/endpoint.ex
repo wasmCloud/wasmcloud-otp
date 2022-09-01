@@ -52,7 +52,7 @@ defmodule WasmcloudHostWeb.Endpoint do
 
   def init(_key, config) do
     host = System.get_env("WASMCLOUD_DASHBOARD_HOST")
-    port = System.get_env("WASMCLOUD_DASHBOARD_PORT") |> String.to_integer()
+    port = System.get_env("WASMCLOUD_DASHBOARD_PORT", "4000") |> String.to_integer()
 
     case {host, port} do
       {nil, nil} ->
