@@ -147,14 +147,14 @@ defmodule HostCore.ControlInterface.Server do
     Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
            true <-
-             ["actor_id", "contract_id", "link_name", "provider_id", "values"]
+             ["actor_id", "contract_id", "link_name", "provider_id"]
              |> Enum.all?(&Map.has_key?(ld, &1)) do
         HostCore.Linkdefs.Manager.put_link_definition(
           ld["actor_id"],
           ld["contract_id"],
           ld["link_name"],
           ld["provider_id"],
-          ld["values"]
+          ld["values"] || %{}
         )
 
         {:reply, success_ack()}
@@ -207,7 +207,7 @@ defmodule HostCore.ControlInterface.Server do
 
         Tracer.with_span "Handle Launch Actor Request (ctl)", kind: :server do
           count = Map.get(start_actor_command, "count", 1)
-          annotations = Map.get(start_actor_command, "annotations", %{})
+          annotations = Map.get(start_actor_command, "annotations") || %{}
 
           Tracer.set_attribute("count", count)
 
@@ -256,7 +256,7 @@ defmodule HostCore.ControlInterface.Server do
         HostCore.Actors.ActorSupervisor.terminate_actor(
           stop_actor_command["actor_ref"],
           stop_actor_command["count"],
-          Map.get(stop_actor_command, "annotations", %{})
+          Map.get(stop_actor_command, "annotations") || %{}
         )
 
         {:reply, success_ack()}
@@ -321,7 +321,7 @@ defmodule HostCore.ControlInterface.Server do
           Tracer.set_current_span(ctx)
 
           Tracer.with_span "Handle Launch Provider Request (ctl)", kind: :server do
-            annotations = Map.get(start_provider_command, "annotations", %{})
+            annotations = Map.get(start_provider_command, "annotations") || %{}
 
             res =
               if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
