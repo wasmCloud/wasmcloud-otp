@@ -48,6 +48,11 @@ buildx-cross-image: build esbuild ## Compile wasmcloud_host docker image using b
 		-f $(DOCKERFILE) \
 		.
 
+release: build ## Creates a mix release with a generated secret key base
+	@SECRET_KEY_BASE=$(shell mix phx.gen.secret) \
+		MIX_ENV=prod \
+		mix release
+
 run: build ## Run development wasmcloud_host
 	mix phx.server
 

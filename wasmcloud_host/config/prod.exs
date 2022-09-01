@@ -10,9 +10,10 @@ import Config
 # which you should run after static files are built and
 # before starting your production server.
 config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
-  http: [:inet6, port: System.get_env("PORT") || 4000],
+  # The host/port can be configured by WASMCLOUD_DASBOARD_HOST/PORT, check endpoint.ex for implementation
+  http: [:inet6, port: 4000],
   # This is critical for ensuring web-sockets properly authorize.
-  url: [host: "localhost", port: System.get_env("PORT")],
+  url: [host: "localhost", port: 4000],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
