@@ -81,20 +81,21 @@ defmodule HostCore.E2E.ControlInterfaceTest do
 
   test "cannot cache multiple linkdefs" do
     assert :ok =
-      HostCore.Linkdefs.Manager.put_link_definition(
-        @kvcounter_key,
-        @redis_contract,
-        @redis_link,
-        @redis_key,
-        %{URL: "redis://127.0.0.1:6379"}
-      )
+             HostCore.Linkdefs.Manager.put_link_definition(
+               @kvcounter_key,
+               @redis_contract,
+               @redis_link,
+               @redis_key,
+               %{URL: "redis://127.0.0.1:6379"}
+             )
 
-    assert {:error, {:duplicate_key, {@kvcounter_key, @redis_contract, @redis_link}}} = HostCore.Linkdefs.Manager.put_link_definition(
-        @kvcounter_key,
-        @redis_contract,
-        @redis_link,
-        @redis_key,
-        %{URL: "redis://127.0.0.1:6379"}
-      )
+    assert {:error, {:duplicate_key, {@kvcounter_key, @redis_contract, @redis_link}}} =
+             HostCore.Linkdefs.Manager.put_link_definition(
+               @kvcounter_key,
+               @redis_contract,
+               @redis_link,
+               @redis_key,
+               %{URL: "redis://127.0.0.1:6379"}
+             )
   end
 end

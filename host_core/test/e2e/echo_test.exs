@@ -5,9 +5,9 @@ defmodule HostCore.E2E.EchoTest do
   setup do
     {:ok, evt_watcher} =
       GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
-    on_exit(fn ->
-      :ets.delete_all_objects(:linkdef_table)
-    end)
+
+    on_exit(fn -> HostCore.Host.purge() end)
+
     [
       evt_watcher: evt_watcher
     ]
@@ -23,7 +23,6 @@ defmodule HostCore.E2E.EchoTest do
   @httpserver_contract HostCoreTest.Constants.httpserver_contract()
 
   test "echo roundtrip", %{:evt_watcher => evt_watcher} do
-    on_exit(fn -> HostCore.Host.purge() end)
     {:ok, bytes} = File.read(@echo_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
 
@@ -78,8 +77,6 @@ defmodule HostCore.E2E.EchoTest do
   end
 
   test "unprivileged actor cannot receive undeclared invocations", %{:evt_watcher => evt_watcher} do
-    on_exit(fn -> HostCore.Host.purge() end)
-
     {:ok, bytes} = File.read(@echo_unpriv_path)
     {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_unpriv_key)

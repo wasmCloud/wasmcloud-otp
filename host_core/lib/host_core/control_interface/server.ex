@@ -158,8 +158,11 @@ defmodule HostCore.ControlInterface.Server do
              ) do
         {:reply, success_ack()}
       else
-        {:error, {:duplicate_key, {_, _, link_name}}} ->
-          {:reply, failure_ack("Duplicate link definition entry for '#{link_name}'")}
+        {:error, {:duplicate_key, {actor_id, contract_id, link_name}}} ->
+          {:reply,
+           failure_ack(
+             "Link definition for #{actor_id} on contract #{contract_id} and link #{link_name} already exists and must be deleted first"
+           )}
 
         _ ->
           {:reply, failure_ack("Invalid link definition put request")}
@@ -588,7 +591,9 @@ defmodule HostCore.ControlInterface.Server do
     })
   end
 
-  defp has_keys?(keys, request) do
+  defp has_keys?(keys, request) when is_map(request) do
     Enum.all?(keys, &Map.has_key?(request, &1))
   end
+
+  def has_keys(_keys, _request), do: false
 end
