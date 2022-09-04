@@ -156,25 +156,36 @@ defmodule HostCore.WebAssembly.Imports do
       Tracer.set_attribute("payload_size", byte_size(payload))
 
       res =
-        %{
-          payload: payload,
-          binding: binding,
-          namespace: namespace,
-          operation: operation,
-          seed: seed,
-          claims: claims,
-          prefix: prefix,
-          state: state,
-          agent: agent,
-          source_actor: actor,
-          target: nil,
-          authorized: false,
-          verified: false
-        }
-        |> identify_target()
-        |> verify_link()
-        |> authorize_call()
-        |> invoke()
+        with {:ok, token} <-
+               identify_target(%{
+                 payload: payload,
+                 binding: binding,
+                 namespace: namespace,
+                 operation: operation,
+                 seed: seed,
+                 claims: claims,
+                 prefix: prefix,
+                 state: state,
+                 agent: agent,
+                 source_actor: actor,
+                 target: nil,
+                 authorized: false,
+                 verified: false
+               }) do
+          verify_link(token)
+          |> authorize_call()
+          |> invoke()
+        else
+          {:error, :alias_not_found, _token = %{namespace: namespace, prefix: prefix}} ->
+            Agent.update(agent, fn state ->
+              %State{
+                state
+                | host_error: "Call alias not found: #{namespace} on #{prefix}"
+              }
+            end)
+
+            0
+        end
 
       if res == 1 do
         Tracer.set_status(:ok, "")
@@ -216,7 +227,11 @@ defmodule HostCore.WebAssembly.Imports do
           end
       end
 
-    %{token | target: target}
+    if target == :unknown do
+      {:error, :alias_not_found, token}
+    else
+      {:ok, Map.put(token, :target, target)}
+    end
   end
 
   # Built-in Providers do not have link definitions
