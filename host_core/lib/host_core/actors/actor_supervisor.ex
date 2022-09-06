@@ -132,7 +132,11 @@ defmodule HostCore.Actors.ActorSupervisor do
         {:error, err} ->
           Tracer.add_event("OCI image fetch failed", reason: "#{inspect(err)}")
           Tracer.set_status(:error, "#{inspect(err)}")
-          Logger.error("Failed to download OCI bytes for #{oci}: #{inspect(err)}", oci_ref: oci)
+
+          Logger.error("Failed to download OCI bytes from \"#{oci}\": #{inspect(err)}",
+            oci_ref: oci
+          )
+
           {:error, err}
 
         {:ok, bytes} ->
