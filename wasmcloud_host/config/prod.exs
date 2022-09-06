@@ -15,7 +15,7 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
   url: [host: "localhost", port: System.get_env("PORT")],
   check_origin: [
     "//localhost:#{System.get_env("PORT") || 4000}",
-    System.get_env("ORIGIN") || "//127.0.0.1:#{System.get_env("PORT") || 4000}"
+    "//127.0.0.1:#{System.get_env("PORT") || 4000}"
   ],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
