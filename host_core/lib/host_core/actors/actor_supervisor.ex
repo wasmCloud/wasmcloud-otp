@@ -26,12 +26,17 @@ defmodule HostCore.Actors.ActorSupervisor do
     Tracer.with_span "Starting Actor" do
       Tracer.set_attribute("actor_ref", oci)
       Tracer.set_attribute("byte_size", byte_size(bytes))
-      Logger.debug("Start actor request received", oci_ref: oci)
+      Logger.debug("Start actor request received for #{oci}", oci_ref: oci)
 
       case HostCore.WasmCloud.Native.extract_claims(bytes) do
         {:error, err} ->
           Tracer.set_status(:error, "#{inspect(err)}")
-          Logger.error("Failed to extract claims from WebAssembly module", oci_ref: oci)
+
+          Logger.error(
+            "Failed to extract claims from WebAssembly module, an actor must be signed with valid capability claims.",
+            oci_ref: oci
+          )
+
           {:error, err}
 
         {:ok, claims} ->
@@ -101,7 +106,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def handle_info({:EXIT, _pid, reason}, state) do
-    Logger.debug("Actor supervisor child terminated: #{inspect(reason)}")
+    Logger.debug("Actor #{state.claims.public_key} terminated: #{inspect(reason)}")
 
     {:noreply, state}
   end

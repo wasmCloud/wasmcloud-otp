@@ -103,7 +103,7 @@ defmodule HostCore.Host do
   @impl true
   def handle_continue(:load_supp_config, state) do
     topic = "wasmbus.cfg.#{state.lattice_prefix}"
-    Logger.debug("Requesting supplemental host configuration via topic '#{topic}'")
+    Logger.debug("Requesting supplemental host configuration via topic '#{topic}'.")
 
     state =
       with {:ok, supp_config} <-
@@ -114,7 +114,7 @@ defmodule HostCore.Host do
         %State{state | supplemental_config: supp_config}
       else
         {:error, e} ->
-          Logger.warn("Failed to obtain supplemental configuration: #{inspect(e)}")
+          Logger.warn("Failed to obtain supplemental configuration: #{inspect(e)}.")
           state
       end
 
@@ -142,7 +142,9 @@ defmodule HostCore.Host do
       autostart_providers
       |> Enum.each(fn prov ->
         if !Map.has_key?(prov, "imageReference") || !Map.has_key?(prov, "linkName") do
-          Logger.error("Not enough information on auto-start provider configuration. Bypassing.")
+          Logger.error(
+            "Bypassing provider that did not include image reference and link name: #{inspect(prov)}"
+          )
         else
           if String.starts_with?(prov["imageReference"], "bindle://") do
             HostCore.Providers.ProviderSupervisor.start_provider_from_bindle(
@@ -173,7 +175,7 @@ defmodule HostCore.Host do
 
   @impl true
   def terminate(reason, state) do
-    Logger.debug("Host termination requested: #{inspect(reason)}", reason: reason)
+    Logger.debug("Host termination requested: #{inspect(reason)}.", reason: reason)
     publish_host_stopped(state.labels)
     purge()
     :timer.sleep(300)
@@ -383,7 +385,7 @@ defmodule HostCore.Host do
   end
 
   def purge() do
-    Logger.info("Host purge requested")
+    Logger.info("Host purge requested, terminating all actors and providers.")
     HostCore.Actors.ActorSupervisor.terminate_all()
     HostCore.Providers.ProviderSupervisor.terminate_all()
   end

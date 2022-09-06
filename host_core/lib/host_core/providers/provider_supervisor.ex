@@ -20,9 +20,9 @@ defmodule HostCore.Providers.ProviderSupervisor do
          claims,
          link_name,
          contract_id,
-         oci \\ "",
-         config_json \\ "",
-         annotations \\ %{}
+         oci,
+         config_json,
+         annotations
        ) do
     with %{permitted: true} <-
            HostCore.Policy.Manager.evaluate_action(
@@ -187,14 +187,14 @@ defmodule HostCore.Providers.ProviderSupervisor do
           {:error, err}
 
         err ->
-          Logger.error("Error starting provider from file", link_name: link_name)
+          Logger.error("Error starting provider from file: #{err}", link_name: link_name)
           {:error, err}
       end
     end
   end
 
   def handle_info(msg, state) do
-    Logger.error("Supervisor received unexpected message: #{inspect(msg)}")
+    Logger.warn("Supervisor received unexpected message: #{inspect(msg)}")
     {:noreply, state}
   end
 
@@ -252,7 +252,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
           ProviderModule.halt(pid)
 
         [] ->
-          Logger.warn("No provider is running with that public key and link name",
+          Logger.warn(
+            "No provider is running with public key #{public_key} and link name \"#{link_name}\"",
             provider_id: public_key,
             link_name: link_name
           )

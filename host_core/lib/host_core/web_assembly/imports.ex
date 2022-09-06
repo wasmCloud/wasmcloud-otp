@@ -105,7 +105,7 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp suppress_fdwrite() do
-    Logger.debug("Suppressed actor module call to WASI fd_write")
+    Logger.warn("Suppressed actor module call to WASI fd_write (unsupported)")
   end
 
   defp console_log(_api_type, context, ptr, len) do
@@ -140,7 +140,7 @@ defmodule HostCore.WebAssembly.Imports do
     namespace = Wasmex.Memory.read_string(context.memory, ns_ptr, ns_len)
     operation = Wasmex.Memory.read_string(context.memory, op_ptr, op_len)
 
-    Logger.debug("host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
+    Logger.debug("Host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
 
     seed = HostCore.Host.cluster_seed()
     prefix = HostCore.Host.lattice_prefix()
