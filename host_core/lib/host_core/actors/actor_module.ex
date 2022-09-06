@@ -464,11 +464,11 @@ defmodule HostCore.Actors.ActorModule do
     name = Agent.get(agent, fn content -> content.claims.name end)
 
     Logger.error(
-      "Actor #{name} does not have the capability to receive an #{operation} invocation",
+      "Actor #{name} does not have the capability to receive the \"#{operation}\" invocation",
       operation: operation
     )
 
-    {:error, "Actor is missing the capability claim for #{operation}"}
+    {:error, "Actor is missing the capability claim for \"#{operation}\""}
   end
 
   # Deny invocation if policy enforcer does not permit it
