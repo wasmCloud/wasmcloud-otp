@@ -230,7 +230,7 @@ defmodule HostCore.WebAssembly.Imports do
     if target == :unknown do
       {:error, :alias_not_found, token}
     else
-      {:ok, Map.put(token, :target, target)}
+      {:ok, %{token | target: target}}
     end
   end
 
