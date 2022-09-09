@@ -3,7 +3,7 @@ defmodule HostCore.ControlInterface.ACL do
 
   def all_actors() do
     HostCore.Actors.ActorSupervisor.all_actors()
-    |> Enum.flat_map(fn {id, pids} ->
+    |> Enum.map(fn {id, pids} ->
       name = get_name(id)
       revision = get_revision(id)
 
@@ -17,15 +17,12 @@ defmodule HostCore.ControlInterface.ACL do
           }
         end)
 
-      pids
-      |> Enum.map(fn pid ->
-        %{
-          id: id,
-          image_ref: HostCore.Actors.ActorModule.ociref(pid),
-          name: name,
-          instances: instances
-        }
-      end)
+      %{
+        id: id,
+        image_ref: HostCore.Actors.ActorModule.ociref(Enum.at(pids, 0)),
+        name: name,
+        instances: instances
+      }
     end)
   end
 
