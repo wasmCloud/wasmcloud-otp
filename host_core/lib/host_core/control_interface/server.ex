@@ -161,9 +161,7 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"linkdefs", "put"}, body, _reply_to) do
     Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
-           true <-
-             ["actor_id", "contract_id", "link_name", "provider_id"]
-             |> Enum.all?(&Map.has_key?(ld, &1)) do
+           true <- has_values(ld, ["actor_id", "contract_id", "link_name", "provider_id"]) do
         HostCore.Linkdefs.Manager.put_link_definition(
           ld["actor_id"],
           ld["contract_id"],
@@ -187,9 +185,7 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"linkdefs", "del"}, body, _reply_to) do
     Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
-           true <-
-             ["actor_id", "contract_id", "link_name"]
-             |> Enum.all?(&Map.has_key?(ld, &1)) do
+           true <- has_values(ld, ["actor_id", "contract_id", "link_name"]) do
         HostCore.Linkdefs.Manager.del_link_definition(
           ld["actor_id"],
           ld["contract_id"],
@@ -213,8 +209,7 @@ defmodule HostCore.ControlInterface.Server do
   # %{"actor_ref" => "bindle://example.com/echo/0.12.0", "host_id" => "Nxxxx", "count" => 4}
   defp handle_request({"cmd", _host_id, "la"}, body, _reply_to) do
     with {:ok, start_actor_command} <- Jason.decode(body),
-         true <-
-           Map.has_key?(start_actor_command, "actor_ref") do
+         actor_ref <- Map.get(start_actor_command, "actor_ref") do
       ctx = Tracer.current_span_ctx()
 
       Task.start(fn ->
@@ -227,29 +222,29 @@ defmodule HostCore.ControlInterface.Server do
           Tracer.set_attribute("count", count)
 
           res =
-            if String.starts_with?(start_actor_command["actor_ref"], "bindle://") do
-              start_actor_from_bindle(start_actor_command["actor_ref"], count, annotations)
+            if String.starts_with?(actor_ref, "bindle://") do
+              start_actor_from_bindle(actor_ref, count, annotations)
             else
-              start_actor_from_oci(start_actor_command["actor_ref"], count, annotations)
+              start_actor_from_oci(actor_ref, count, annotations)
             end
 
           case res do
             {:ok, _pid} ->
-              Logger.debug("Completed request to start actor #{start_actor_command["actor_ref"]}",
-                actor_ref: start_actor_command["actor_ref"]
+              Logger.debug("Completed request to start actor #{actor_ref}",
+                actor_ref: actor_ref
               )
 
               Tracer.set_status(:ok, "")
 
             {:error, e} ->
               Logger.error(
-                "Failed to start actor #{start_actor_command["actor_ref"]}, #{inspect(e)}",
-                actor_ref: start_actor_command["actor_ref"]
+                "Failed to start actor #{actor_ref}, #{inspect(e)}",
+                actor_ref: actor_ref
               )
 
               Tracer.set_status(:error, "Failed to start actor")
 
-              publish_actor_start_failed(start_actor_command["actor_ref"], inspect(e))
+              publish_actor_start_failed(actor_ref, inspect(e))
           end
         end
       end)
@@ -265,9 +260,7 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"cmd", _host_id, "sa"}, body, _reply_to) do
     Tracer.with_span "Handle Stop Actor Request (ctl)", kind: :server do
       with {:ok, stop_actor_command} <- Jason.decode(body),
-           true <-
-             ["actor_ref", "count"]
-             |> Enum.all?(&Map.has_key?(stop_actor_command, &1)) do
+           true <- has_values(stop_actor_command, ["actor_ref", "count"]) do
         HostCore.Actors.ActorSupervisor.terminate_actor(
           stop_actor_command["actor_ref"],
           stop_actor_command["count"],
@@ -286,9 +279,7 @@ defmodule HostCore.ControlInterface.Server do
   # input: #{"actor_id" => "...", "actor_ref" => "...", "count" => 5}
   defp handle_request({"cmd", host_id, "scale"}, body, _reply_to) do
     with {:ok, scale_request} <- Jason.decode(body),
-         true <-
-           ["actor_id", "actor_ref", "count"]
-           |> Enum.all?(&Map.has_key?(scale_request, &1)) do
+         true <- has_values(scale_request, ["actor_id", "actor_ref", "count"]) do
       if host_id == HostCore.Host.host_key() do
         actor_id = scale_request["actor_id"]
         actor_ref = scale_request["actor_ref"]
@@ -323,9 +314,7 @@ defmodule HostCore.ControlInterface.Server do
   # Launch Provider
   defp handle_request({"cmd", _host_id, "lp"}, body, _reply_to) do
     with {:ok, start_provider_command} <- Jason.decode(body),
-         true <-
-           ["provider_ref", "link_name"]
-           |> Enum.all?(&Map.has_key?(start_provider_command, &1)) do
+         true <- has_values(start_provider_command, ["provider_ref", "link_name"]) do
       if !HostCore.Providers.ProviderSupervisor.provider_running?(
            start_provider_command["provider_ref"],
            start_provider_command["link_name"]
@@ -343,14 +332,14 @@ defmodule HostCore.ControlInterface.Server do
                 start_provider_from_bindle(
                   start_provider_command["provider_ref"],
                   start_provider_command["link_name"],
-                  Map.get(start_provider_command, "configuration", ""),
+                  Map.get(start_provider_command, "configuration") || "",
                   annotations
                 )
               else
                 start_provider_from_oci(
                   start_provider_command["provider_ref"],
                   start_provider_command["link_name"],
-                  Map.get(start_provider_command, "configuration", ""),
+                  Map.get(start_provider_command, "configuration") || "",
                   annotations
                 )
               end
@@ -392,11 +381,9 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"cmd", _host_id, "sp"}, body, _reply_to) do
     Tracer.with_span "Handle Stop Provider Request (ctl)", kind: :server do
       with {:ok, stop_provider_command} <- Jason.decode(body),
-           true <-
-             ["provider_ref", "link_name"]
-             |> Enum.all?(&Map.has_key?(stop_provider_command, &1)) do
+           true <- has_values(stop_provider_command, ["provider_ref", "link_name"]) do
         Tracer.set_attribute("provider_ref", stop_provider_command["provider_ref"])
-        Tracer.set_attribute("link_name", stop_provider_command["link_name"] || "default")
+        Tracer.set_attribute("link_name", stop_provider_command["link_name"])
 
         HostCore.Providers.ProviderSupervisor.terminate_provider(
           stop_provider_command["provider_ref"],
@@ -416,7 +403,7 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"cmd", _host_id, "upd"}, body, _reply_to) do
     Tracer.with_span "Handle Live Update Request (ctl)", kind: :server do
       with {:ok, update_actor_command} = Jason.decode(body),
-           true <- Map.has_key?(update_actor_command, "new_actor_ref") do
+           true <- has_values(update_actor_command, ["new_actor_ref"]) do
         # Note to the curious - we can update existing actors using nothing but the new ref (e.g. we don't need the old)
         # because a precondition is that the new ref must have the same public key as the running actor
         Tracer.set_attribute("new_actor_ref", update_actor_command["new_actor_ref"])
@@ -499,16 +486,14 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"auction", "actor"}, body, _reply_to) do
     Tracer.with_span "Handle Actor Auction Request (ctl)", kind: :server do
       with {:ok, auction_request} <- Jason.decode(body),
-           true <-
-             ["constraints", "actor_ref"]
-             |> Enum.all?(&Map.has_key?(auction_request, &1)) do
+           true <- has_values(auction_request, ["actor_ref"]) do
         host_labels = HostCore.Host.host_labels()
-        required_labels = auction_request["constraints"]
+        required_labels = auction_request["constraints"] || %{}
 
         if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) do
           ack = %{
             actor_ref: auction_request["actor_ref"],
-            constraints: auction_request["constraints"],
+            constraints: required_labels,
             host_id: HostCore.Host.host_key()
           }
 
@@ -529,11 +514,9 @@ defmodule HostCore.ControlInterface.Server do
   defp handle_request({"auction", "provider"}, body, _reply_to) do
     Tracer.with_span "Handle Provider Auction Request (ctl)", kind: :server do
       with {:ok, auction_request} <- Jason.decode(body),
-           true <-
-             ["constraints", "provider_ref"]
-             |> Enum.all?(&Map.has_key?(auction_request, &1)) do
+           true <- has_values(auction_request, ["provider_ref"]) do
         host_labels = HostCore.Host.host_labels()
-        required_labels = auction_request["constraints"]
+        required_labels = auction_request["constraints"] || %{}
         provider_ref = auction_request["provider_ref"]
         link_name = Map.get(auction_request, "link_name", "default")
 
@@ -542,7 +525,7 @@ defmodule HostCore.ControlInterface.Server do
           ack = %{
             provider_ref: provider_ref,
             link_name: link_name,
-            constraints: auction_request["constraints"],
+            constraints: required_labels,
             host_id: HostCore.Host.host_key()
           }
 
@@ -609,5 +592,10 @@ defmodule HostCore.ControlInterface.Server do
       accepted: false,
       error: error
     })
+  end
+
+  # returns true if all keys have non-nil values in the map
+  defp has_values(m, keys) when is_map(m) and is_list(keys) do
+    Enum.all?(keys, &Map.get(m, &1))
   end
 end
