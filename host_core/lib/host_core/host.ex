@@ -198,7 +198,11 @@ defmodule HostCore.Host do
     credsmap =
       credsmap
       |> Enum.filter(fn {_k, v} ->
-        Map.has_key?(v, "username") || Map.has_key?(v, "password") || Map.has_key?(v, "token")
+        Map.has_key?(v, "registryType") &&
+          (Map.has_key?(v, "username") || Map.has_key?(v, "password") || Map.has_key?(v, "token"))
+      end)
+      |> Enum.map(fn {k, v} ->
+        {extract_server(v["registryType"] |> String.to_existing_atom(), k), v}
       end)
       |> Enum.into(%{})
 
@@ -221,39 +225,36 @@ defmodule HostCore.Host do
   end
 
   @impl true
-  def handle_call({:get_creds, ref}, _from, state) do
-    nref = ref |> normalize_prefix()
+  def handle_cast({:clear_credsmap}, state) do
+    case Map.get(state, :supplemental_config) do
+      nil ->
+        {:noreply, state}
 
+      supp_config ->
+        new_state = %State{
+          state
+          | supplemental_config: Map.put(supp_config, "registryCredentials", %{})
+        }
+
+        {:noreply, new_state}
+    end
+  end
+
+  @impl true
+  def handle_call({:get_creds, type, ref}, _from, state) do
     if state.supplemental_config == nil do
       {:reply, nil, state}
     else
-      res =
-        if String.contains?(nref, "@") do
-          # extract server from bindle://invoice@server, look for
-          # credentials in map equal to bindle://server
-          server = nref |> extract_bindle_server()
+      server_name = extract_server(type, ref)
 
-          if server != nil do
-            Map.get(state.supplemental_config, "registryCredentials", %{})
-            |> Enum.find(fn {k, _v} ->
-              k == "bindle://#{server}"
-            end)
-          else
-            nil
-          end
-        else
-          Map.get(state.supplemental_config, "registryCredentials", %{})
-          |> Enum.find(fn {k, _v} ->
-            String.starts_with?(nref, k)
-          end)
-        end
-
-      {:reply,
-       if res != nil do
-         elem(res, 1)
-       else
-         nil
-       end, state}
+      with creds_map <- Map.get(state.supplemental_config, "registryCredentials", %{}),
+           creds <- Map.get(creds_map, server_name, %{}),
+           true <- Map.get(creds, "registryType") == type |> Atom.to_string() do
+        {:reply, creds, state}
+      else
+        _ ->
+          {:reply, nil, state}
+      end
     end
   end
 
@@ -324,6 +325,10 @@ defmodule HostCore.Host do
     GenServer.cast(__MODULE__, {:put_credsmap, credsmap})
   end
 
+  def clear_credsmap() do
+    GenServer.cast(__MODULE__, {:clear_credsmap})
+  end
+
   def lattice_prefix() do
     case :ets.lookup(:config_table, :config) do
       [config: config_map] -> config_map[:lattice_prefix]
@@ -345,8 +350,8 @@ defmodule HostCore.Host do
     end
   end
 
-  def get_creds(ref) do
-    GenServer.call(__MODULE__, {:get_creds, ref})
+  def get_creds(type, ref) do
+    GenServer.call(__MODULE__, {:get_creds, type, ref})
   end
 
   def friendly_name() do
@@ -447,21 +452,21 @@ defmodule HostCore.Host do
 
   defp to_bool(_), do: false
 
-  defp normalize_prefix("bindle://" <> _str = s) do
-    s
+  defp strip_scheme(s) do
+    # remove scheme prefixes
+    ["bindle", "oci", "http", "https"]
+    |> Enum.reduce(s, fn scheme, acc ->
+      String.split(acc, scheme <> "://") |> Enum.at(-1)
+    end)
   end
 
-  defp normalize_prefix("oci://" <> _str = s) do
-    s
+  defp extract_server(:bindle, s) do
+    tail = strip_scheme(s)
+    String.split(tail, "@", trim: true) |> Enum.at(-1)
   end
 
-  defp normalize_prefix(str) do
-    "oci://#{str}"
+  defp extract_server(:oci, s) do
+    tail = strip_scheme(s)
+    String.split(tail, "/") |> Enum.at(0)
   end
-
-  defp extract_bindle_server("bindle://" <> trailing) do
-    trailing |> String.split("@", trim: true) |> Enum.at(-1)
-  end
-
-  defp extract_bindle_server(other), do: other
 end

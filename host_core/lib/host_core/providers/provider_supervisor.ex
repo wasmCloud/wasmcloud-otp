@@ -60,16 +60,16 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  def start_provider_from_oci(oci, link_name, config_json \\ "", annotations \\ %{}) do
+  def start_provider_from_oci(ref, link_name, config_json \\ "", annotations \\ %{}) do
     Tracer.with_span "Start Provider from OCI" do
-      creds = HostCore.Host.get_creds(oci)
-      Tracer.set_attribute("oci_ref", oci)
+      creds = HostCore.Host.get_creds(:oci, ref)
+      Tracer.set_attribute("oci_ref", ref)
       Tracer.set_attribute("link_name", link_name)
 
       with {:ok, path} <-
              HostCore.WasmCloud.Native.get_oci_path(
                creds,
-               oci,
+               ref,
                HostCore.Oci.allow_latest(),
                HostCore.Oci.allowed_insecure()
              ),
@@ -90,14 +90,14 @@ defmodule HostCore.Providers.ProviderSupervisor do
           par.claims,
           link_name,
           par.contract_id,
-          oci,
+          ref,
           config_json,
           annotations
         )
       else
         {:error, err} ->
           Logger.error("Error starting provider from OCI: #{err}",
-            oci_ref: oci,
+            oci_ref: ref,
             link_name: link_name
           )
 
@@ -107,7 +107,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
         err ->
           Tracer.set_status(:error, "#{inspect(err)}")
-          Logger.error("Error starting provider from OCI: #{inspect(err)}", oci_ref: oci)
+          Logger.error("Error starting provider from OCI: #{inspect(err)}", oci_ref: ref)
           {:error, "Error starting provider from OCI"}
       end
     end
@@ -115,7 +115,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
   def start_provider_from_bindle(bindle_id, link_name, config_json \\ "", annotations \\ %{}) do
     Tracer.with_span "Start Provider from Bindle" do
-      creds = HostCore.Host.get_creds(bindle_id)
+      creds = HostCore.Host.get_creds(:bindle, bindle_id)
       Tracer.set_attribute("bindle_id", bindle_id)
       Tracer.set_attribute("link_name", link_name)
 
