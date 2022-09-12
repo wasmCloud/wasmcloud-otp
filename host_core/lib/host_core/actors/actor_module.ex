@@ -131,7 +131,6 @@ defmodule HostCore.Actors.ActorModule do
       {:ok, stdout} = Wasmex.Pipe.create()
       {:ok, stderr} = Wasmex.Pipe.create()
 
-
       wasi = %{
         args: [],
         env: %{},
