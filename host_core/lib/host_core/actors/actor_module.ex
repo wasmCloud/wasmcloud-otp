@@ -122,15 +122,30 @@ defmodule HostCore.Actors.ActorModule do
 
       imports = %{
         wapc: Imports.wapc_imports(agent),
-        wasmbus: Imports.wasmbus_imports(agent),
-        wasi_snapshot_preview1: Imports.fake_wasi(agent)
+        wasmbus: Imports.wasmbus_imports(agent)
+      }
+
+      # TODO - in the future, poll these so we can forward the err/out pipes
+      # to our logger
+      {:ok, stdin} = Wasmex.Pipe.create()
+      {:ok, stdout} = Wasmex.Pipe.create()
+      {:ok, stderr} = Wasmex.Pipe.create()
+
+
+      wasi = %{
+        args: [],
+        env: %{},
+        preopen: %{},
+        stdin: stdin,
+        stdout: stdout,
+        stderr: stderr
       }
 
       # shut down the previous Wasmex instance to avoid orphaning it
       old_instance = Agent.get(agent, fn content -> content.instance end)
       GenServer.stop(old_instance, :normal)
 
-      case Wasmex.start_link(%{bytes: bytes, imports: imports})
+      case Wasmex.start_link(%{bytes: bytes, imports: imports, wasi: wasi})
            |> prepare_module(agent, oci, false) do
         {:ok, new_agent} ->
           Logger.info("Replaced and restarted underlying wasm module")
@@ -372,11 +387,26 @@ defmodule HostCore.Actors.ActorModule do
 
     imports = %{
       wapc: Imports.wapc_imports(agent),
-      wasmbus: Imports.wasmbus_imports(agent),
-      wasi_snapshot_preview1: Imports.fake_wasi(agent)
+      wasmbus: Imports.wasmbus_imports(agent)
     }
 
-    case Wasmex.start_link(%{bytes: bytes, imports: imports}) |> prepare_module(agent, oci) do
+    # TODO - in the future, poll these so we can forward the err/out pipes
+    # to our logger
+    {:ok, stdin} = Wasmex.Pipe.create()
+    {:ok, stdout} = Wasmex.Pipe.create()
+    {:ok, stderr} = Wasmex.Pipe.create()
+
+    wasi = %{
+      args: [],
+      env: %{},
+      preopen: %{},
+      stdin: stdin,
+      stdout: stdout,
+      stderr: stderr
+    }
+
+    case Wasmex.start_link(%{bytes: bytes, imports: imports, wasi: wasi})
+         |> prepare_module(agent, oci) do
       {:ok, agent} ->
         Agent.update(agent, fn state ->
           %State{state | ociref: oci}
