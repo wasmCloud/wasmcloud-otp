@@ -120,6 +120,8 @@ defmodule HostCore.Actors.ActorModule do
       instance_id = Agent.get(agent, fn content -> content.instance_id end)
       Tracer.set_attribute("instance_id", instance_id)
 
+      {:ok, module} = Wasmex.Module.compile(bytes)
+
       imports = %{
         wapc: Imports.wapc_imports(agent),
         wasmbus: Imports.wasmbus_imports(agent)
@@ -140,11 +142,18 @@ defmodule HostCore.Actors.ActorModule do
         stderr: stderr
       }
 
+      opts =
+        if imports_wasi?(Wasmex.Module.imports(module)) do
+          %{module: module, imports: imports, wasi: wasi}
+        else
+          %{module: module, imports: imports}
+        end
+
       # shut down the previous Wasmex instance to avoid orphaning it
       old_instance = Agent.get(agent, fn content -> content.instance end)
       GenServer.stop(old_instance, :normal)
 
-      case Wasmex.start_link(%{bytes: bytes, imports: imports, wasi: wasi})
+      case Wasmex.start_link(opts)
            |> prepare_module(agent, oci, false) do
         {:ok, new_agent} ->
           Logger.info("Replaced and restarted underlying wasm module")
@@ -389,6 +398,8 @@ defmodule HostCore.Actors.ActorModule do
       wasmbus: Imports.wasmbus_imports(agent)
     }
 
+    {:ok, module} = Wasmex.Module.compile(bytes)
+
     # TODO - in the future, poll these so we can forward the err/out pipes
     # to our logger
     {:ok, stdin} = Wasmex.Pipe.create()
@@ -404,7 +415,14 @@ defmodule HostCore.Actors.ActorModule do
       stderr: stderr
     }
 
-    case Wasmex.start_link(%{bytes: bytes, imports: imports, wasi: wasi})
+    opts =
+      if imports_wasi?(Wasmex.Module.imports(module)) do
+        %{module: module, imports: imports, wasi: wasi}
+      else
+        %{module: module, imports: imports}
+      end
+
+    case Wasmex.start_link(opts)
          |> prepare_module(agent, oci) do
       {:ok, agent} ->
         Agent.update(agent, fn state ->
@@ -419,6 +437,10 @@ defmodule HostCore.Actors.ActorModule do
         HostCore.ControlInterface.Server.publish_actor_start_failed(claims.public_key, inspect(e))
         {:error, e}
     end
+  end
+
+  defp imports_wasi?(imports_map) do
+    imports_map |> Map.keys() |> Enum.find(fn ns -> String.contains?(ns, "wasi") end) != nil
   end
 
   # Actor-to-actor calls are always allowed
