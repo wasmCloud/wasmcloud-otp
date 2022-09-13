@@ -1,7 +1,8 @@
 defmodule HostCoreTest.Constants do
   # Actor related constants
   @echo_key "MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5"
-  @echo_wasi_key "MCUXITMGLSPAFIMNHQVCC6DLXS6CHJN3NTER2NPP3F6QLR4QHR2SSPCW" # fixture key, not stored in OCI
+  # fixture key, not stored in OCI
+  @echo_wasi_key "MCUXITMGLSPAFIMNHQVCC6DLXS6CHJN3NTER2NPP3F6QLR4QHR2SSPCW"
   @echo_ociref "wasmcloud.azurecr.io/echo:0.3.1"
   @echo_ociref_updated "wasmcloud.azurecr.io/echo:0.3.1-liveupdate"
   @echo_path "test/fixtures/actors/echo.wasm"
