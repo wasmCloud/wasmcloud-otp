@@ -1,9 +1,11 @@
 defmodule HostCoreTest.Constants do
   # Actor related constants
   @echo_key "MBCFOPM6JW2APJLXJD3Z5O4CN7CPYJ2B4FTKLJUR5YR5MITIU7HD3WD5"
+  @echo_wasi_key "MCUXITMGLSPAFIMNHQVCC6DLXS6CHJN3NTER2NPP3F6QLR4QHR2SSPCW" # fixture key, not stored in OCI
   @echo_ociref "wasmcloud.azurecr.io/echo:0.3.1"
   @echo_ociref_updated "wasmcloud.azurecr.io/echo:0.3.1-liveupdate"
   @echo_path "test/fixtures/actors/echo.wasm"
+  @echo_wasi_path "test/fixtures/actors/echo_wasi.wasm"
   @echo_unpriv_key "MCRACEYKJLCP7NLVMUTO2SCQ26JFL3Z4TBIXPXDE7KPBI2GEH5DA57L5"
   @echo_unpriv_path "test/fixtures/actors/echo_unpriv_s.wasm"
 
@@ -38,7 +40,9 @@ defmodule HostCoreTest.Constants do
 
   # Actor accessor methods
   def echo_key, do: @echo_key
+  def echo_wasi_key, do: @echo_wasi_key
   def echo_path, do: @echo_path
+  def echo_wasi_path, do: @echo_wasi_path
   def echo_ociref, do: @echo_ociref
   def echo_ociref_updated, do: @echo_ociref_updated
   def echo_unpriv_key, do: @echo_unpriv_key
