@@ -358,9 +358,12 @@ defmodule HostCore.ControlInterface.Server do
           end
         end)
       else
-        Logger.warn(
+        warning =
           "Ignoring request to start provider, #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]}) is already running"
-        )
+
+        Logger.warn(warning)
+
+        publish_provider_start_failed(start_provider_command, warning)
       end
 
       {:reply, success_ack()}
