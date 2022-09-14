@@ -5,6 +5,8 @@ defmodule HostCore do
   require Logger
   use Application
 
+  @host_config_file "host_config.json"
+
   def start(_type, _args) do
     config = Vapor.load!(HostCore.ConfigPlan)
     config = post_process_config(config)
@@ -120,7 +122,7 @@ defmodule HostCore do
 
           {:error, _err} ->
             Logger.error(
-              "Failed to obtain host public key from seed: (#{config.host_seed}). Using new host key."
+              "Failed to obtain host public key from seed: (#{config.host_seed}). Generating a new host key instead."
             )
 
             HostCore.WasmCloud.Native.generate_key(:server)
@@ -170,7 +172,9 @@ defmodule HostCore do
         Logger.debug("Configured invocation chunking object store (NATS)")
 
       {:error, e} ->
-        Logger.error("Failed to configure invocation chunking object store (NATS): #{inspect(e)}")
+        Logger.error(
+          "Failed to configure invocation chunking object store (NATS): #{inspect(e)}. Any chunked invocations will fail."
+        )
     end
 
     # we're generating the key, so we know this is going to work
@@ -200,7 +204,7 @@ defmodule HostCore do
 
           {:error, err} ->
             Logger.error(
-              "Invalid cluster seed '#{config.cluster_seed}': #{err}, falling back to ad hoc cluster key"
+              "Invalid cluster seed '#{config.cluster_seed}': #{err}, generating a new cluster seed instead."
             )
 
             %{
@@ -219,14 +223,16 @@ defmodule HostCore do
   end
 
   defp write_config(config) do
-    write_json(config, "./host_config.json")
+    write_json(config, @host_config_file)
 
     case System.user_home() do
       nil ->
-        Logger.warn("Can't check for ~/.wash host config - no user home available")
+        Logger.warn(
+          "Can't write ~/.wash/#{@host_config_file}: could not determine user's home directory."
+        )
 
       h ->
-        write_json(config, Path.join([h, "/.wash/", "host_config.json"]))
+        write_json(config, Path.join([h, "/.wash/", @host_config_file]))
     end
   end
 
@@ -234,7 +240,7 @@ defmodule HostCore do
     with :ok <- File.mkdir_p(Path.dirname(file)) do
       case File.write(file, Jason.encode!(remove_extras(config))) do
         {:error, reason} -> Logger.error("Failed to write configuration file #{file}: #{reason}")
-        :ok -> Logger.info("Wrote #{inspect(file)}")
+        :ok -> Logger.info("Wrote configuration file #{file}")
       end
     else
       {:error, posix} ->

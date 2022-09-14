@@ -46,7 +46,7 @@ pub(crate) async fn fetch_oci_path(
 ) -> Result<PathBuf, Box<dyn std::error::Error + Sync + Send>> {
     if !allow_latest && img.ends_with(":latest") {
         return Err(
-            "Fetching images tagged 'latest' is currently prohibited in this host. This option can be overridden".into());
+            "Fetching images tagged 'latest' is currently prohibited in this host. This option can be overridden with WASMCLOUD_OCI_ALLOW_LATEST".into());
     }
     let cf = cached_file(img).await?;
     if tokio::fs::metadata(&cf).await.is_err() {

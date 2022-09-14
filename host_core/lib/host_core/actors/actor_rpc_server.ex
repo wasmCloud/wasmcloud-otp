@@ -25,7 +25,7 @@ defmodule HostCore.Actors.ActorRpcServer do
             {:reply, resp}
 
           _ ->
-            Logger.error("Failed to handle actor RPC call")
+            Logger.error("Failed to invoke actor with incoming RPC, actor may not be running")
             :ok
         end
     end

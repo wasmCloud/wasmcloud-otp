@@ -73,7 +73,7 @@ defmodule HostCore.Providers.ProviderModule do
 
   @impl true
   def init({:executable, path, claims, link_name, contract_id, oci, config_json, annotations}) do
-    Logger.info("Starting executable capability provider at  '#{path}'",
+    Logger.info("Starting executable capability provider from '#{path}'",
       provider_id: claims.public_key,
       link_name: link_name,
       contract_id: contract_id
@@ -200,7 +200,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   def handle_info({:DOWN, _ref, :port, _port, :normal}, state) do
-    Logger.debug("Received DOWN message from port (executable stopped normally)",
+    Logger.debug("Received DOWN message from port (provider stopped normally)",
       provider_id: state.public_key,
       link_name: state.link_name,
       contract_id: state.contract_id
@@ -218,7 +218,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   def handle_info({:DOWN, _ref, :port, _port, reason}, state) do
-    Logger.error("Received DOWN message from port (executable stopped) - #{reason}",
+    Logger.error("Received DOWN message from port (provider stopped) - #{reason}",
       provider_id: state.public_key,
       link_name: state.link_name,
       contract_id: state.contract_id

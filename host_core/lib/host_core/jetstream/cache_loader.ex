@@ -26,24 +26,32 @@ defmodule HostCore.Jetstream.CacheLoader do
   end
 
   def handle_request({"linkdefs", key}, body) do
-    ld = body |> Jason.decode!() |> atomize
+    case Jason.decode(body, keys: :atoms) do
+      {:ok, %{deleted: true} = ld} ->
+        HostCore.Linkdefs.Manager.uncache_link_definition(
+          ld.actor_id,
+          ld.contract_id,
+          ld.link_name
+        )
 
-    if ld.deleted == true do
-      HostCore.Linkdefs.Manager.uncache_link_definition(ld.actor_id, ld.contract_id, ld.link_name)
-      Logger.debug("Removed link definition #{key} from #{ld.actor_id} to #{ld.provider_id}")
-      broadcast_event(:linkdef_removed, ld)
-    else
-      HostCore.Linkdefs.Manager.cache_link_definition(
-        key,
-        ld.actor_id,
-        ld.contract_id,
-        ld.link_name,
-        ld.provider_id,
-        ld.values
-      )
+        Logger.debug("Removed link definition #{key} from #{ld.actor_id} to #{ld.provider_id}")
+        broadcast_event(:linkdef_removed, ld)
 
-      Logger.debug("Cached link definition #{key} from #{ld.actor_id} to #{ld.provider_id}")
-      broadcast_event(:linkdef_added, ld)
+      {:ok, ld} ->
+        HostCore.Linkdefs.Manager.cache_link_definition(
+          key,
+          ld.actor_id,
+          ld.contract_id,
+          ld.link_name,
+          ld.provider_id,
+          ld.values
+        )
+
+        Logger.debug("Cached link definition #{key} from #{ld.actor_id} to #{ld.provider_id}")
+        broadcast_event(:linkdef_added, ld)
+
+      {:error, e} ->
+        Logger.error("Unable to parse incoming link command: #{e}")
     end
   end
 

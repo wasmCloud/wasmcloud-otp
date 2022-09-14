@@ -71,7 +71,7 @@ defmodule HostCore.Nats do
       trace_context = :otel_propagator_text_map.inject([])
       Gnat.pub(process_name, topic, msg, headers: trace_context)
     else
-      Logger.warn("Publication on #{topic} aborted - connection #{process_name} is down",
+      Logger.error("Publication on #{topic} aborted - connection #{process_name} is down",
         nats_topic: topic
       )
     end
