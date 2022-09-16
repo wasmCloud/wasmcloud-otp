@@ -209,7 +209,8 @@ defmodule HostCore.ControlInterface.Server do
   # %{"actor_ref" => "bindle://example.com/echo/0.12.0", "host_id" => "Nxxxx", "count" => 4}
   defp handle_request({"cmd", _host_id, "la"}, body, _reply_to) do
     with {:ok, start_actor_command} <- Jason.decode(body),
-         actor_ref <- Map.get(start_actor_command, "actor_ref") do
+         actor_ref <- Map.get(start_actor_command, "actor_ref"),
+         true <- actor_ref != nil do
       ctx = Tracer.current_span_ctx()
 
       Task.start(fn ->
