@@ -57,18 +57,21 @@ defmodule HostCore.ControlInterface.Server do
         |> Timex.Duration.from_seconds()
         |> Timex.Format.Duration.Formatters.Humanized.format()
 
-      {js_domain, ctl_host, prov_rpc_host, rpc_host, lattice_prefix} =
+      {js_domain, ctl_host, prov_rpc_host, rpc_host, lattice_prefix, cluster_key} =
         case :ets.lookup(:config_table, :config) do
           [config: config_map] ->
             {config_map.js_domain, config_map.ctl_host, config_map.prov_rpc_host,
-             config_map.rpc_host, config_map.lattice_prefix}
+             config_map.rpc_host, config_map.lattice_prefix, config_map.cluster_key}
 
           _ ->
-            {nil, "localhost", "localhost", "localhost", "default"}
+            # We would only ever hit this branch if something is horribly wrong with ETS and our
+            # startup routine
+            {nil, "localhost", "localhost", "localhost", "config-failure", ""}
         end
 
       res = %{
         id: HostCore.Host.host_key(),
+        issuer: cluster_key,
         labels: HostCore.Host.host_labels(),
         friendly_name: HostCore.Host.friendly_name(),
         uptime_seconds: ut_seconds,
@@ -120,9 +123,21 @@ defmodule HostCore.ControlInterface.Server do
   # Retrieves the inventory of the current host
   defp handle_request({"get", host_id, "inv"}, _body, _reply_to) do
     Tracer.with_span "Handle Inventory Request (ctl)", kind: :server do
+      {host_key, cluster_key} =
+        case :ets.lookup(:config_table, :config) do
+          [config: config_map] ->
+            {config_map.host_key, config_map.cluster_key}
+
+          _ ->
+            # We would only ever hit this branch if something is horribly wrong with ETS and our
+            # startup routine
+            {"none", "none", []}
+        end
+
       if host_id == HostCore.Host.host_key() do
         res = %{
-          host_id: HostCore.Host.host_key(),
+          host_id: host_key,
+          issuer: cluster_key,
           labels: HostCore.Host.host_labels(),
           friendly_name: HostCore.Host.friendly_name(),
           actors: ACL.all_actors(),

@@ -46,6 +46,7 @@ defmodule HostCore.Host do
     friendly_name = HostCore.Namegen.generate()
 
     Logger.info("Host #{opts.host_key} (#{friendly_name}) started.")
+    Logger.info("Host issuer public key: #{opts.cluster_key}")
     Logger.info("Valid cluster signers: #{opts.cluster_issuers}")
 
     if opts.cluster_adhoc do
@@ -337,6 +338,13 @@ defmodule HostCore.Host do
     end
   end
 
+  def issuer() do
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:cluster_key]
+      _ -> ""
+    end
+  end
+
   def get_creds(ref) do
     GenServer.call(__MODULE__, {:get_creds, ref})
   end
@@ -391,12 +399,13 @@ defmodule HostCore.Host do
   end
 
   def generate_hostinfo_for(provider_key, link_name, instance_id, config_json) do
-    {url, jwt, seed, tls, timeout, enable_structured_logging} =
+    {url, jwt, seed, tls, timeout, enable_structured_logging, js_domain} =
       case :ets.lookup(:config_table, :config) do
         [config: config_map] ->
           {"#{config_map[:prov_rpc_host]}:#{config_map[:prov_rpc_port]}",
            config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed], config_map[:prov_rpc_tls],
-           config_map[:rpc_timeout_ms], config_map[:enable_structured_logging]}
+           config_map[:rpc_timeout_ms], config_map[:enable_structured_logging],
+           config_map[:js_domain]}
 
         _ ->
           {"127.0.0.1:4222", "", "", 2000, false}
@@ -425,6 +434,7 @@ defmodule HostCore.Host do
       default_rpc_timeout_ms: timeout,
       cluster_issuers: cluster_issuers(),
       invocation_seed: cluster_seed(),
+      js_domain: js_domain,
       # In case providers want to be aware of this for their own logging
       enable_structured_logging: to_bool(enable_structured_logging)
     }

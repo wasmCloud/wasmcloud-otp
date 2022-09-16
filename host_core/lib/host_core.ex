@@ -196,8 +196,7 @@ defmodule HostCore do
 
             %{
               config
-              | cluster_seed: config.cluster_seed,
-                cluster_key: config.cluster_key,
+              | cluster_key: pk,
                 cluster_issuers: issuers,
                 cluster_adhoc: false
             }
