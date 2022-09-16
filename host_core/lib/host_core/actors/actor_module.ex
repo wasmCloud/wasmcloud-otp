@@ -432,7 +432,7 @@ defmodule HostCore.Actors.ActorModule do
       end
 
     case Wasmex.start_link(opts)
-         |> prepare_module(agent, oci, false) do
+         |> prepare_module(agent, oci, true) do
       {:ok, agent} ->
         Agent.update(agent, fn state ->
           %State{state | ociref: oci}
