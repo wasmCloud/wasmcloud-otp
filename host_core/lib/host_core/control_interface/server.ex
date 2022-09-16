@@ -333,14 +333,14 @@ defmodule HostCore.ControlInterface.Server do
                 start_provider_from_bindle(
                   start_provider_command["provider_ref"],
                   start_provider_command["link_name"],
-                  Map.get(start_provider_command, "configuration") || "",
+                  Map.get(start_provider_command, "configuration", ""),
                   annotations
                 )
               else
                 start_provider_from_oci(
                   start_provider_command["provider_ref"],
                   start_provider_command["link_name"],
-                  Map.get(start_provider_command, "configuration") || "",
+                  Map.get(start_provider_command, "configuration", ""),
                   annotations
                 )
               end
