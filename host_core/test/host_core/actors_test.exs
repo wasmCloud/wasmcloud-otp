@@ -16,7 +16,9 @@ defmodule HostCore.ActorsTest do
   end
 
   @echo_key HostCoreTest.Constants.echo_key()
+  @echo_wasi_key HostCoreTest.Constants.echo_wasi_key()
   @echo_path HostCoreTest.Constants.echo_path()
+  @echo_wasi_path HostCoreTest.Constants.echo_wasi_path()
   @echo_old_oci_reference HostCoreTest.Constants.echo_ociref()
   @echo_oci_reference HostCoreTest.Constants.echo_ociref_updated()
   @kvcounter_path HostCoreTest.Constants.kvcounter_path()
@@ -190,6 +192,62 @@ defmodule HostCore.ActorsTest do
 
     assert payload["header"] == %{}
     assert payload["statusCode"] == 200
+  end
+
+  # This doesn't exercise any WASI-specific functionality, only proves that a WASI-compiled
+  # module can run properly in the host
+  test "can invoke the echo actor (WASI)", %{:evt_watcher => _evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
+    :ets.delete(:refmap_table, @echo_oci_reference)
+    :ets.delete(:refmap_table, @echo_old_oci_reference)
+    {:ok, bytes} = File.read(@echo_wasi_path)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    req =
+      %{
+        body: "hello",
+        header: %{},
+        path: "/",
+        queryString: "",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    seed = HostCore.Host.cluster_seed()
+
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HttpServer.HandleRequest",
+        req
+      )
+
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@echo_wasi_key}"
+
+    res =
+      case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+        {:ok, %{body: body}} -> body
+        {:error, :timeout} -> :fail
+      end
+
+    assert res != :fail
+    HostCore.Actors.ActorSupervisor.terminate_actor(@echo_wasi_key, 1, %{})
+
+    ir = res |> Msgpax.unpack!()
+
+    payload = ir["msg"] |> Msgpax.unpack!()
+
+    assert payload["header"] == %{}
+    assert payload["statusCode"] == 200
+
+    assert payload["body"] ==
+             "{\"body\":[104,101,108,108,111],\"method\":\"GET\",\"path\":\"/\",\"query_string\":\"\"}"
   end
 
   test "can invoke the echo actor", %{:evt_watcher => _evt_watcher} do
