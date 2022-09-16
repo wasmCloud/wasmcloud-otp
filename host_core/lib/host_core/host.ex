@@ -338,6 +338,13 @@ defmodule HostCore.Host do
     end
   end
 
+  def issuer() do
+    case :ets.lookup(:config_table, :config) do
+      [config: config_map] -> config_map[:cluster_key]
+      _ -> ""
+    end
+  end
+
   def get_creds(ref) do
     GenServer.call(__MODULE__, {:get_creds, ref})
   end

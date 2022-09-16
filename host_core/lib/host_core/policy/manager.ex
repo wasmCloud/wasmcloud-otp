@@ -60,6 +60,7 @@ defmodule HostCore.Policy.Manager do
         action: action,
         host: %{
           publicKey: HostCore.Host.host_key(),
+          issuer: HostCore.Host.issuer(),
           latticeId: HostCore.Host.lattice_prefix(),
           labels: HostCore.Host.host_labels(),
           clusterIssuers: HostCore.Host.cluster_issuers()
