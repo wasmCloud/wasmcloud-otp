@@ -28,7 +28,7 @@ defmodule HostCore.Refmaps.Manager do
   end
 
   def publish_refmap(oci_url, public_key) do
-    Logger.debug("Publishing ref map for #{inspect(oci_url)}")
+    Logger.debug("Publishing OCI ref map for #{inspect(oci_url)}")
     prefix = HostCore.Host.lattice_prefix()
     topic = "lc.#{prefix}.refmap.#{HostCore.Nats.sanitize_for_topic(oci_url)}"
     event_topic = "wasmbus.evt.#{prefix}"

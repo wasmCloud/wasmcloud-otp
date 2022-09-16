@@ -156,11 +156,11 @@ defmodule HostCore.Actors.ActorModule do
       case Wasmex.start_link(opts)
            |> prepare_module(agent, oci, false) do
         {:ok, new_agent} ->
-          Logger.info("Replaced and restarted underlying wasm module")
+          Logger.debug("Replaced and restarted underlying wasm module")
           Tracer.set_status(:ok, "")
           publish_actor_updated(claims.public_key, claims.revision, instance_id)
 
-          Logger.debug("Actor #{claims.public_key} live update complete",
+          Logger.info("Actor #{claims.public_key} live update complete",
             actor_id: claims.public_key,
             oci_ref: oci
           )
@@ -168,8 +168,12 @@ defmodule HostCore.Actors.ActorModule do
           {:reply, :ok, new_agent}
 
         {:error, e} ->
-          Logger.error("Failed to replace wasm module: #{inspect(e)}")
-          Tracer.set_status(:error, "Failed to start replacement wasm module: #{inspect(e)}")
+          error_msg =
+            "Failed to live update #{claims.public_key}, couldn't replace wasm module: #{inspect(e)}"
+
+          Logger.error(error_msg)
+
+          Tracer.set_status(:error, error_msg)
           publish_actor_update_failed(claims.public_key, claims.revision, instance_id, inspect(e))
 
           # failing to update won't crash the process, it emits errors and stays on the old version
@@ -206,9 +210,14 @@ defmodule HostCore.Actors.ActorModule do
   @impl true
   def handle_call(:halt_and_cleanup, _from, agent) do
     # Add cleanup if necessary here...
-    public_key = Agent.get(agent, fn content -> content.claims.public_key end)
-    Logger.debug("Actor instance termination requested", actor_id: public_key)
-    instance_id = Agent.get(agent, fn content -> content.instance_id end)
+    {public_key, name, instance_id} =
+      Agent.get(agent, fn content ->
+        {content.claims.public_key, content.claims.name, content.instance_id}
+      end)
+
+    Logger.debug("Terminating instance of actor #{public_key} (#{name})",
+      actor_id: public_key
+    )
 
     publish_actor_stopped(public_key, instance_id)
 
@@ -501,12 +510,15 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   # Deny invocation if actor is missing capability claims
-  defp perform_invocation({{_agent, false}, _policy_res}, operation, _payload) do
-    Logger.error("Actor does not have proper capabilities to receive this invocation",
+  defp perform_invocation({{agent, false}, _policy_res}, operation, _payload) do
+    name = Agent.get(agent, fn content -> content.claims.name end)
+
+    Logger.error(
+      "Actor #{name} does not have the capability to receive the \"#{operation}\" invocation",
       operation: operation
     )
 
-    {:error, "actor is missing capability claims"}
+    {:error, "Actor is missing the capability claim for \"#{operation}\""}
   end
 
   # Deny invocation if policy enforcer does not permit it
@@ -516,10 +528,6 @@ defmodule HostCore.Actors.ActorModule do
          _payload
        ) do
     message = Map.get(policy_res, :message, "reason not specified")
-
-    Logger.error("Policy denied invocation:",
-      message: message
-    )
 
     {:error, "Policy denied invocation: #{message}"}
   end
@@ -532,7 +540,7 @@ defmodule HostCore.Actors.ActorModule do
       Tracer.set_attribute("operation", operation)
       Tracer.set_attribute("payload_size", byte_size(payload))
 
-      Logger.debug("performing invocation #{operation}",
+      Logger.debug("Performing invocation #{operation}",
         operation: operation,
         actor_id: raw_state.claims.public_key
       )
@@ -563,8 +571,8 @@ defmodule HostCore.Actors.ActorModule do
         |> to_guest_call_result(agent)
       catch
         :exit, value ->
-          Logger.error("GenServer wasmex call failure: #{inspect(value)}")
-          {:error, "GenServer call timeout/fail invoking"}
+          Logger.error("Wasmex failed to invoke Wasm guest: #{inspect(value)}")
+          {:error, "Wasmex failed to invoke Wasm guest: #{inspect(value)}"}
       end
     end
   end
@@ -589,7 +597,7 @@ defmodule HostCore.Actors.ActorModule do
 
   defp prepare_module({:error, e}, _agent, _oci, _first_time), do: {:error, e}
 
-  defp prepare_module({:ok, instance}, agent, oci, first_time \\ true) do
+  defp prepare_module({:ok, instance}, agent, oci, first_time) do
     api_version =
       case Wasmex.call_function(instance, :__wasmbus_rpc_version, []) do
         {:ok, [v]} -> v

@@ -70,13 +70,13 @@ defmodule HostCore.Actors.ActorRpcSupervisor do
 
           {:error, e} ->
             Logger.error(
-              "Failed to restart consumer supervisor for actor RPC #{claims.public_key}: #{inspect(e)}"
+              "Failed to restart consumer supervisor for actor RPC #{claims.public_key}: #{inspect(e)}. Invocations for this actor may not be handled."
             )
         end
 
       {:error, e} ->
         Logger.error(
-          "Failed to start consumer supervisor for actor RPC #{claims.public_key}: #{inspect(e)}"
+          "Failed to start consumer supervisor for actor RPC #{claims.public_key}: #{inspect(e)}. Invocations for this actor may not be handled."
         )
     end
   end

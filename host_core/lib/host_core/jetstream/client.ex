@@ -106,7 +106,10 @@ defmodule HostCore.Jetstream.Client do
         handle_consumer_create_response(body |> Jason.decode!())
 
       {:error, :timeout} ->
-        Logger.error("Failed to receive create consumer ACK from JetStream within timeout.")
+        Logger.error(
+          "Failed to receive create consumer ACK from JetStream within timeout. Ensure JetStream is enabled on your NATS server."
+        )
+
         false
     end
 

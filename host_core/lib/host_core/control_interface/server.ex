@@ -228,7 +228,7 @@ defmodule HostCore.ControlInterface.Server do
 
             {:error, e} ->
               Logger.error(
-                "Failed to start actor #{start_actor_command["actor_ref"]} per remote call",
+                "Failed to start actor #{start_actor_command["actor_ref"]}, #{inspect(e)}",
                 actor_ref: start_actor_command["actor_ref"]
               )
 
@@ -287,7 +287,7 @@ defmodule HostCore.ControlInterface.Server do
           Tracer.with_span "Handle Scale Actor Request (ctl)", kind: :server do
             case HostCore.Actors.ActorSupervisor.scale_actor(actor_id, count, actor_ref) do
               {:error, err} ->
-                Logger.error("Error scaling actor: #{err}", actor_id: actor_id)
+                Logger.error("Error scaling actor #{actor_id}: #{err}", actor_id: actor_id)
 
               _ ->
                 :ok
@@ -342,19 +342,28 @@ defmodule HostCore.ControlInterface.Server do
 
             case res do
               {:ok, _pid} ->
-                Logger.debug("Completed request to start provider")
+                Logger.debug(
+                  "Successfully started provider #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]})"
+                )
 
               {:error, e} ->
                 Tracer.set_status(:error, inspect(e))
-                Logger.error("#{inspect(e)}")
+
+                Logger.error(
+                  "Failed to start provider #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]}: #{inspect(e)}"
+                )
+
                 publish_provider_start_failed(start_provider_command, inspect(e))
             end
           end
         end)
       else
-        Logger.warn(
-          "Ignoring request to start provider, provider #{start_provider_command["provider_ref"]}/#{start_provider_command["link_name"]} is already running"
-        )
+        warning =
+          "Ignoring request to start provider, #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]}) is already running"
+
+        Logger.warn(warning)
+
+        publish_provider_start_failed(start_provider_command, warning)
       end
 
       {:reply, success_ack()}
@@ -460,8 +469,8 @@ defmodule HostCore.ControlInterface.Server do
         {:reply, success_ack()}
       else
         _ ->
-          Logger.error("failed to update registry credential map")
-          {:reply, failure_ack("failed to update registry credential map")}
+          Logger.error("Failed to update registry credential map")
+          {:reply, failure_ack("Failed to update registry credential map")}
       end
     end
   end
