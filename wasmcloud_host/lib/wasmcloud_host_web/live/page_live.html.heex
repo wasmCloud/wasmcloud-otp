@@ -180,6 +180,7 @@
                            <tr>
                               <th>Link Name</th>
                               <th>Contract ID</th>
+                              <th>Values</th>
                               <th>Actor ID</th>
                               <th>Provider ID</th>
                               <th>Actions</th>
@@ -187,7 +188,7 @@
                         </thead>
                         <tbody>
                            <%= for { {actor_id, contract_id, link_name},v} <- @linkdefs do %>
-                           <%= live_component LinkRowComponent, id: "#{actor_id} (#{link_name}) (#{contract_id})", link_name: link_name, contract_id: contract_id, actor_id: actor_id, provider_key: v.provider_key %>
+                           <%= live_component LinkRowComponent, id: "#{actor_id} (#{link_name}) (#{contract_id})", link_name: link_name, contract_id: contract_id, values: v.values, actor_id: actor_id, provider_key: v.provider_key %>
                            <% end %>
                         </tbody>
                      </table>

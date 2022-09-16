@@ -19,6 +19,7 @@ defmodule LinkRowComponent do
     <tr>
       <td><%= @link_name %></td>
       <td><%= @contract_id %></td>
+      <td><%= str_values(@values) %></td>
       <td><button class="btn btn-primary btn-sm id-monospace" type="button"
           onClick="navigator.clipboard.writeText('<%= @actor_id %>')" data-toggle="popover" data-trigger="focus" title=""
           data-content="Copied!">
@@ -49,5 +50,11 @@ defmodule LinkRowComponent do
       </td>
     </tr>
     """
+  end
+
+  defp str_values(value) do
+    value
+    |> Enum.map(fn {a, b} -> "#{a}=#{b}" end)
+    |> Enum.join(",")
   end
 end
