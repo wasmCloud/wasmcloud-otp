@@ -599,4 +599,6 @@ defmodule HostCore.ControlInterface.Server do
   defp has_values(m, keys) when is_map(m) and is_list(keys) do
     Enum.all?(keys, &Map.get(m, &1))
   end
+
+  defp has_values(_m, _keys), do: false
 end
