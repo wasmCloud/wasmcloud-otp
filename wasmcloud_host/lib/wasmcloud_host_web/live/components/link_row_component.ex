@@ -19,7 +19,15 @@ defmodule LinkRowComponent do
     <tr>
       <td><%= @link_name %></td>
       <td><%= @contract_id %></td>
-      <td><%= str_values(@values) %></td>
+      <td><%= if map_size(@values) > 0 do %><button class="btn btn-primary btn-sm id-monospace" type="button"
+          onClick="navigator.clipboard.writeText('<%= str_values(@values) %>')" data-toggle="popover" data-trigger="focus" title=""
+          data-content="Copied!">
+          <svg class="c-icon">
+            <use xlink:href="/coreui/free.svg#cil-copy"></use>
+          </svg>
+        </button>
+        <%= end %>
+      </td>
       <td><button class="btn btn-primary btn-sm id-monospace" type="button"
           onClick="navigator.clipboard.writeText('<%= @actor_id %>')" data-toggle="popover" data-trigger="focus" title=""
           data-content="Copied!">
