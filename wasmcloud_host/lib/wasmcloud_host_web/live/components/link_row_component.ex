@@ -46,8 +46,28 @@ defmodule LinkRowComponent do
             <use xlink:href="/coreui/free.svg#cil-trash"></use>
           </svg>
         </button>
+        <%= if map_size(@values) > 0 do %>
+        <button class="btn btn-primary btn-sm" type="button"
+          id="copy_linkdef_value_<%= @actor_id %>_<%= @link_name %>_<%= @contract_id %>"
+          onClick="navigator.clipboard.writeText('<%= str_values(@values) %>')" data-toggle="tooltip"
+          data-placement="top" title data-original-title="Copy Link Definition Values">
+          <svg class="c-icon">
+            <use xlink:href="/coreui/free.svg#cil-copy"></use>
+          </svg>
+        </button>
+        <%= end %>
       </td>
     </tr>
+    <script>
+      createTooltip(document.getElementById("delete_linkdef_<%= @actor_id %>_<%= @link_name %>_<%= @contract_id %>"))
+      createTooltip(document.getElementById("copy_linkdef_value_<%= @actor_id %>_<%= @link_name %>_<%= @contract_id %>"))
+    </script>
     """
+  end
+
+  defp str_values(value) do
+    value
+    |> Enum.map(fn {a, b} -> "#{a}=#{b}" end)
+    |> Enum.join(",")
   end
 end
