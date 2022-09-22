@@ -29,6 +29,8 @@ defmodule HostCore.ActorsTest do
   @httpserver_link HostCoreTest.Constants.default_link()
 
   @pinger_key HostCoreTest.Constants.pinger_key()
+  @randogenlogger_key HostCoreTest.Constants.randogenlogger_key()
+  @randogenlogger_path HostCoreTest.Constants.randogenlogger_path()
 
   test "live update same revision fails", %{:evt_watcher => _evt_watcher} do
     on_exit(fn -> HostCore.Host.purge() end)
@@ -532,5 +534,56 @@ defmodule HostCore.ActorsTest do
 
     assert res != :fail
     HostCore.Actors.ActorSupervisor.terminate_actor(@echo_key, 0, %{})
+  end
+
+  test "can support builtin logging and numbergen invocations", %{:evt_watcher => _evt_watcher} do
+    on_exit(fn -> HostCore.Host.purge() end)
+    {:ok, bytes} = File.read(@randogenlogger_path)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+
+    seed = HostCore.Host.cluster_seed()
+
+    req =
+      %{
+        body: "hello",
+        header: %{},
+        path: "/",
+        queryString: "",
+        method: "GET"
+      }
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
+
+    inv =
+      HostCore.WasmCloud.Native.generate_invocation_bytes(
+        seed,
+        "system",
+        :provider,
+        @httpserver_key,
+        @httpserver_contract,
+        @httpserver_link,
+        "HttpServer.HandleRequest",
+        req
+      )
+
+    topic = "wasmbus.rpc.#{HostCore.Host.lattice_prefix()}.#{@randogenlogger_key}"
+
+    res =
+      case HostCore.Nats.safe_req(:lattice_nats, topic, inv, receive_timeout: 2_000) do
+        {:ok, %{body: body}} -> body
+        {:error, :timeout} -> :fail
+      end
+
+    assert res != :fail
+    HostCore.Actors.ActorSupervisor.terminate_actor(@randogenlogger_key, 1, %{})
+
+    ir = res |> Msgpax.unpack!()
+    payload = ir["msg"] |> Msgpax.unpack!()
+
+    assert payload["header"] == %{}
+    assert payload["statusCode"] == 200
+
+    assert payload["body"] ==
+             "I did it"
   end
 end

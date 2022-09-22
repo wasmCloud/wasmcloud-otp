@@ -22,6 +22,10 @@ defmodule HostCoreTest.Constants do
   @policy_path "test/fixtures/actors/example_policy_s.wasm"
   @policy_key "MCX7HXCVATHJQRQLCCKV57R34V726FYRTDQL2QKPHXLYFWGOUE2LWRE3"
 
+  @randogenlogger_path "test/fixtures/actors/randogenlogger_s.wasm"
+  # 100% completely coincidence the pubkey is MCLOG and I love it
+  @randogenlogger_key "MCLOGOFFRJ4WK5XC6Z6WM7A3SAVHPHKDAVG6OMZVOOC6RQCN5IOKPTQL"
+
   # Provider related constants
   @httpserver_contract "wasmcloud:httpserver"
   @httpserver_key "VAG3QITQQ2ODAOWB5TTQSDJ53XK3SHBEIFNK4AYJ5RKAX2UNSCAPHA5M"
@@ -57,6 +61,8 @@ defmodule HostCoreTest.Constants do
   def pinger_key, do: @pinger_key
   def policy_path, do: @policy_path
   def policy_key, do: @policy_key
+  def randogenlogger_path, do: @randogenlogger_path
+  def randogenlogger_key, do: @randogenlogger_key
 
   # Provider accessor methods
   def httpserver_contract, do: @httpserver_contract
