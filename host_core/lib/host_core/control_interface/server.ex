@@ -362,6 +362,8 @@ defmodule HostCore.ControlInterface.Server do
             end
           end
         end)
+
+        {:reply, success_ack()}
       else
         warning =
           "Ignoring request to start provider, #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]}) is already running"
@@ -369,9 +371,8 @@ defmodule HostCore.ControlInterface.Server do
         Logger.warn(warning)
 
         publish_provider_start_failed(start_provider_command, warning)
+        {:reply, failure_ack("Provider with that link name is already running on this host")}
       end
-
-      {:reply, success_ack()}
     else
       _ ->
         {:reply, failure_ack("Improperly formed start provider command JSON")}
