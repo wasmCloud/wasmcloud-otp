@@ -55,7 +55,7 @@ defmodule LinkRowComponent do
             <use xlink:href="/coreui/free.svg#cil-copy"></use>
           </svg>
         </button>
-        <%= end %>
+        <% end %>
       </td>
     </tr>
     <script>

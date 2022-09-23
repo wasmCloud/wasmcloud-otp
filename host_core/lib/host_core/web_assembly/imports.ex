@@ -197,6 +197,24 @@ defmodule HostCore.WebAssembly.Imports do
     end
   end
 
+  # Logging is a builtin and does not need a target
+  defp identify_target(
+         token = %{
+           namespace: @wasmcloud_logging
+         }
+       ) do
+    {:ok, token}
+  end
+
+  # Numbergen is a builtin and does not need a target
+  defp identify_target(
+         token = %{
+           namespace: @wasmcloud_numbergen
+         }
+       ) do
+    {:ok, token}
+  end
+
   defp identify_target(
          token = %{
            namespace: namespace,
