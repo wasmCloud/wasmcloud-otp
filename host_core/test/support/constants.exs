@@ -38,6 +38,10 @@ defmodule HostCoreTest.Constants do
   @nats_key "VADNMSIML2XGO2X4TPIONTIC55R2UUQGPPDZPAVSC2QD7E76CR77SPW7"
   @nats_ociref "wasmcloud.azurecr.io/nats_messaging:0.14.2"
 
+  # Registry related constants
+  @private_oci_registry_url "private.azurecr.io"
+  @private_bindle_registry_url "private.bindle.com"
+
   # Other related constants
   @default_link "default"
   @wasmcloud_issuer "ACOJJN6WUP4ODD75XEBKKTCCUJJCY5ZKQ56XVKYK4BEJWGVAOOQHZMCW"
@@ -74,6 +78,10 @@ defmodule HostCoreTest.Constants do
   def redis_path, do: @redis_path
   def nats_key, do: @nats_key
   def nats_ociref, do: @nats_ociref
+
+  # Registry accessor methods
+  def private_oci_registry_url, do: @private_oci_registry_url
+  def private_bindle_registry_url, do: @private_bindle_registry_url
 
   # Other accessor methods
   def default_link, do: @default_link

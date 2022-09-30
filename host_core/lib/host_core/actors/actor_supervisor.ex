@@ -119,13 +119,13 @@ defmodule HostCore.Actors.ActorSupervisor do
     |> length() > 0
   end
 
-  def start_actor_from_oci(oci, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_oci(ref, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from OCI", kind: :server do
-      creds = HostCore.Host.get_creds(oci)
+      creds = HostCore.Host.get_creds(:oci, ref)
 
       case HostCore.WasmCloud.Native.get_oci_bytes(
              creds,
-             oci,
+             ref,
              HostCore.Oci.allow_latest(),
              HostCore.Oci.allowed_insecure()
            ) do
@@ -133,22 +133,22 @@ defmodule HostCore.Actors.ActorSupervisor do
           Tracer.add_event("OCI image fetch failed", reason: "#{inspect(err)}")
           Tracer.set_status(:error, "#{inspect(err)}")
 
-          Logger.error("Failed to download OCI bytes from \"#{oci}\": #{inspect(err)}",
-            oci_ref: oci
+          Logger.error("Failed to download OCI bytes from \"#{ref}\": #{inspect(err)}",
+            oci_ref: ref
           )
 
           {:error, err}
 
         {:ok, bytes} ->
           Tracer.add_event("OCI image fetched", byte_size: length(bytes))
-          start_actor(bytes |> IO.iodata_to_binary(), oci, count, annotations)
+          start_actor(bytes |> IO.iodata_to_binary(), ref, count, annotations)
       end
     end
   end
 
   def start_actor_from_bindle(bindle_id, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from Bindle", kind: :server do
-      creds = HostCore.Host.get_creds(bindle_id)
+      creds = HostCore.Host.get_creds(:bindle, bindle_id)
 
       case HostCore.WasmCloud.Native.get_actor_bindle(
              creds,
@@ -171,13 +171,13 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
-  def live_update(oci, span_ctx \\ nil) do
-    creds = HostCore.Host.get_creds(oci)
+  def live_update(ref, span_ctx \\ nil) do
+    creds = HostCore.Host.get_creds(:oci, ref)
 
     with {:ok, bytes} <-
            HostCore.WasmCloud.Native.get_oci_bytes(
              creds,
-             oci,
+             ref,
              HostCore.Oci.allow_latest(),
              HostCore.Oci.allowed_insecure()
            ),
@@ -186,12 +186,12 @@ defmodule HostCore.Actors.ActorSupervisor do
          {:ok, old_claims} <- HostCore.Claims.Manager.lookup_claims(new_claims.public_key),
          :ok <- validate_actor_for_update(old_claims, new_claims) do
       HostCore.Claims.Manager.put_claims(new_claims)
-      HostCore.Refmaps.Manager.put_refmap(oci, new_claims.public_key)
+      HostCore.Refmaps.Manager.put_refmap(ref, new_claims.public_key)
       targets = find_actor(new_claims.public_key)
 
       Logger.info("Performing live update on #{length(targets)} instances",
         actor_id: new_claims.public_key,
-        oci_ref: oci
+        oci_ref: ref
       )
 
       # Each spawned function is a new process, therefore a new root trace
@@ -203,7 +203,7 @@ defmodule HostCore.Actors.ActorSupervisor do
           pid,
           bytes |> IO.iodata_to_binary(),
           new_claims,
-          oci,
+          ref,
           span_ctx
         )
       end)
