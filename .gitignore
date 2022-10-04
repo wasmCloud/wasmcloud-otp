@@ -54,7 +54,7 @@ npm-debug.log
 *.tar
 
 host_config.json
-.vscode/
+# .vscode/
 .DS_STORE
 
 # rebar lock file
