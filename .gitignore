@@ -59,3 +59,6 @@ host_config.json
 
 # rebar lock file
 rebar.lock
+
+# ignore the mem leak script
+mem.sh
