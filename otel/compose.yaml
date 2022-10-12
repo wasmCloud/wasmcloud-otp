@@ -1,10 +1,11 @@
 services:
   grafana:
-    image: grafana/grafana:8.1.2
+    image: grafana/grafana:9.2.0
     ports:
       - 5050:3000
     volumes:
       - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./grafana.ini:/etc/grafana/grafana.ini
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -12,10 +13,10 @@ services:
     depends_on:
       - tempo  
   tempo:
-    image: grafana/tempo:1.1.0
+    image: grafana/tempo:1.5.0
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml
     ports:
       - 8000:8000 # tempo
-      - 55681:55681 # otlp http  
+      - 55681:4318 # otlp http
