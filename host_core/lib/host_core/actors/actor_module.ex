@@ -263,7 +263,7 @@ defmodule HostCore.Actors.ActorModule do
               Tracer.set_status(:error, "Anti-forgery check failed #{msg}")
 
               {%{
-                 msg: nil,
+                 msg: <<>>,
                  invocation_id: inv["id"],
                  error: msg,
                  instance_id: iid
@@ -301,7 +301,7 @@ defmodule HostCore.Actors.ActorModule do
                   Tracer.set_status(:error, "Invocation failure: #{error}")
 
                   {%{
-                     msg: nil,
+                     msg: <<>>,
                      error: error,
                      invocation_id: inv["id"],
                      instance_id: iid
@@ -313,7 +313,7 @@ defmodule HostCore.Actors.ActorModule do
             Tracer.set_status(:error, "Failed to deserialize msgpack invocation")
 
             {%{
-               msg: nil,
+               msg: <<>>,
                invocation_id: "",
                error: "Failed to deserialize msgpack invocation",
                instance_id: iid
