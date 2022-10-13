@@ -38,7 +38,7 @@ defmodule HostCore.Actors.ActorRpcServer do
     Logger.error("Actor RPC handler failure: #{inspect(error)}")
 
     ir = %{
-      msg: nil,
+      msg: <<>>,
       invocation_id: "",
       error: "Failed to handle actor RPC: #{inspect(error)}",
       instance_id: ""
