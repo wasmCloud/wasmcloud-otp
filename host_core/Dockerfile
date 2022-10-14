@@ -24,7 +24,12 @@ RUN rm -rf priv/built/aarch64 priv/built/x86_64 priv/native
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 # Set PATH to include Rust toolchain, enable static compilation
 ENV PATH="/root/.cargo/bin:${PATH}" \
-    RUSTFLAGS="-C target-feature=-crt-static"
+    RUSTFLAGS="-C target-feature=-crt-static" \
+    CARGO_HTTP_DEBUG="true" \
+    CARGO_LOG="cargo::ops::registry=debug"
+
+# Remove any cargo registry things
+RUN rm -rf ~/.cargo/registry/*
 
 # This step installs all the build tools we'll need
 RUN mix local.rebar --force && \
