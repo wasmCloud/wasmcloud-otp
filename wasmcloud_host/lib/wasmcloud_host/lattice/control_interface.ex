@@ -21,6 +21,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
           {:error, Map.get(resp, "error", "")}
         end
 
+      {:error, :no_responders} ->
+        {:error, "No responders to actor start request"}
+
       {:error, :timeout} ->
         {:error, "Request to start actor timed out"}
     end
@@ -45,6 +48,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
           {:error, Map.get(resp, "error", "")}
         end
 
+      {:error, :no_responders} ->
+        {:error, "No responders to start provider request"}
+
       {:error, :timeout} ->
         {:error, "Request to start provider timed out"}
     end
@@ -68,6 +74,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         else
           {:error, Map.get(resp, "error", "")}
         end
+
+      {:error, :no_responders} ->
+        {:error, "No responders to stop provider request"}
 
       {:error, :timeout} ->
         {:error, "Request to stop provider timed out"}
@@ -94,6 +103,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
           {:error, "Auction response did not contain Host ID"}
         end
 
+      {:error, :no_responders} ->
+        {:error, "No responders to actor auction"}
+
       {:error, :timeout} ->
         {:error, "Auction request timed out, no suitable hosts found"}
     end
@@ -119,6 +131,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         else
           {:error, "Auction response did not contain Host ID"}
         end
+
+      {:error, :no_responders} ->
+        {:error, "No responders to provider auction"}
 
       {:error, :timeout} ->
         {:error, "Auction request timed out, no suitable hosts found"}
@@ -153,8 +168,11 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
           {:error, Map.get(resp, "error", "")}
         end
 
+      {:error, :no_responders} ->
+        {:error, "No responders to put link definition"}
+
       {:error, :timeout} ->
-        {:error, "Request to stop provider timed out"}
+        {:error, "Request to put link definition timed out"}
     end
   end
 
@@ -178,8 +196,11 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
           {:error, Map.get(resp, "error", "")}
         end
 
+      {:error, :no_responders} ->
+        {:error, "No responders to linkdef delete"}
+
       {:error, :timeout} ->
-        {:error, "Request to stop provider timed out"}
+        {:error, "Request to delete linkdef timed out"}
     end
   end
 

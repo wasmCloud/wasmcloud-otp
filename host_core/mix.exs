@@ -1,7 +1,7 @@
 defmodule HostCore.MixProject do
   use Mix.Project
 
-  @app_vsn "0.58.0"
+  @app_vsn "0.58.1"
 
   def project do
     [
@@ -46,7 +46,7 @@ defmodule HostCore.MixProject do
       {:rustler, "~> 0.24.0"},
       {:timex, "~> 3.7"},
       {:jason, "~> 1.2.2"},
-      {:gnat, "~> 1.5.2"},
+      {:gnat, "~> 1.6.0"},
       {:cloudevents, "~> 0.6.1"},
       {:uuid, "~> 1.1"},
       {:opentelemetry_api, "~> 1.0"},

@@ -56,6 +56,11 @@ defmodule HostCore.Jetstream.Client do
         {:ok, %{body: body}} ->
           handle_stream_create_response(body |> Jason.decode!())
 
+        {:error, :no_responders} ->
+          Logger.error(
+            "No responders to create stream. Is JetStream enabled/configured properly?"
+          )
+
         {:error, :timeout} ->
           Logger.error(
             "Failed to receive create stream ACK from JetStream within timeout. Is JetStream enabled?"
@@ -104,6 +109,11 @@ defmodule HostCore.Jetstream.Client do
     case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
       {:ok, %{body: body}} ->
         handle_consumer_create_response(body |> Jason.decode!())
+
+      {:error, :no_responders} ->
+        Logger.error(
+          "No responders to attempt to create JS consumer. Is JetStream enabled/configured properly?"
+        )
 
       {:error, :timeout} ->
         Logger.error(

@@ -308,6 +308,10 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
             {:ok, msg} ->
               Map.get(Jason.decode!(msg.body), "labels", %{})
 
+            {:error, :no_responders} ->
+              Logger.error("No responders to host inventory request")
+              %{}
+
             {:error, :timeout} ->
               %{}
           end

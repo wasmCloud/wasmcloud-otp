@@ -13,6 +13,7 @@ defmodule HostCore.Nats do
           %{
             host: opts.rpc_host,
             port: opts.rpc_port,
+            no_responders: true,
             tls: opts.rpc_tls == 1,
             tcp_opts: determine_ipv6(opts.enable_ipv6)
           },
@@ -34,6 +35,7 @@ defmodule HostCore.Nats do
             host: opts.ctl_host,
             port: opts.ctl_port,
             tls: opts.ctl_tls == 1,
+            no_responders: true,
             tcp_opts: determine_ipv6(opts.enable_ipv6)
           },
           determine_auth_method(opts.ctl_seed, opts.ctl_jwt, "control interface")

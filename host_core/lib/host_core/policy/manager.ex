@@ -101,6 +101,12 @@ defmodule HostCore.Policy.Manager do
                  ), false}
             end
 
+          {:error, :no_responders} ->
+            {default_decision(
+               "No responders to policy request (policy server not listening?)",
+               req |> Map.get(:requestId, "not supplied")
+             ), false}
+
           {:error, :timeout} ->
             {default_decision(
                "Policy request timed out",

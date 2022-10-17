@@ -243,8 +243,15 @@ defmodule HostCore.Providers.ProviderSupervisor do
                  "",
                  receive_timeout: 2000
                ) do
-            {:ok, _msg} -> :ok
-            {:error, :timeout} -> :error
+            {:ok, _msg} ->
+              :ok
+
+            {:error, :no_responders} ->
+              Logger.error("No responders to request to terminate provider")
+              :error
+
+            {:error, :timeout} ->
+              :error
           end
 
           # Pause for n milliseconds between shutdown request and forceful termination

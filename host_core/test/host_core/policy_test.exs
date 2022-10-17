@@ -83,7 +83,8 @@ defmodule HostCore.PolicyTest do
 
     assert decision == %{
              permitted: false,
-             message: "Policy request timed out",
+             # as of Gnat 1.6.0 we get support for quick abort due to no responders
+             message: "No responders to policy request (policy server not listening?)",
              # Request ID is generated during evaluation, so grab it for comparison
              requestId: decision.requestId
            }
@@ -97,7 +98,7 @@ defmodule HostCore.PolicyTest do
 
     assert decision_same == %{
              permitted: false,
-             message: "Policy request timed out",
+             message: "No responders to policy request (policy server not listening?)",
              # Request ID is generated during evaluation, so grab it for comparison
              requestId: decision_same.requestId
            }
