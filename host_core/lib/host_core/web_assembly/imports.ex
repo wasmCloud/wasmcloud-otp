@@ -514,7 +514,13 @@ defmodule HostCore.WebAssembly.Imports do
           Tracer.set_status(:ok, "")
           body
 
+        {:error, :no_responders} ->
+          Logger.error("No responders for RPC invocation")
+          Tracer.set_status(:error, "No responders")
+          :fail
+
         {:error, :timeout} ->
+          Logger.error("Timeout attempting to perform RPC invocation")
           Tracer.set_status(:error, "timeout")
           :fail
       end
