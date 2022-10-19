@@ -171,7 +171,9 @@ defmodule HostCore.Jetstream.Client do
           "description" => "stream name already in use with a different configuration"
         }
       }) do
-    Logger.info("Lattice cache stream name already in use, assuming previously-configured stream")
+    Logger.info(
+      "Lattice cache stream name already in use with different configuration, using previously-configured stream"
+    )
   end
 
   def handle_stream_create_response(%{
@@ -187,7 +189,7 @@ defmodule HostCore.Jetstream.Client do
   end
 
   def handle_stream_create_response(body) do
-    Logger.error(
+    Logger.warn(
       "Received unexpected response from NATS when attempting to create cache stream: #{inspect(body)}"
     )
   end
