@@ -51,29 +51,20 @@ defmodule HostCore.Jetstream.Client do
       }
       |> Jason.encode!()
 
-    cont =
-      case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
-        {:ok, %{body: body}} ->
-          handle_stream_create_response(body |> Jason.decode!())
+    case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
+      {:ok, %{body: body}} ->
+        handle_stream_create_response(body |> Jason.decode!())
 
-        {:error, :no_responders} ->
-          Logger.error(
-            "No responders to create stream. Is JetStream enabled/configured properly?"
-          )
+      {:error, :no_responders} ->
+        Logger.error("No responders to create stream. Is JetStream enabled/configured properly?")
 
-        {:error, :timeout} ->
-          Logger.error(
-            "Failed to receive create stream ACK from JetStream within timeout. Is JetStream enabled?"
-          )
-
-          false
-      end
-
-    if cont do
-      {:noreply, state, {:continue, :create_eph_consumer}}
-    else
-      {:noreply, state}
+      {:error, :timeout} ->
+        Logger.error(
+          "Failed to receive create stream ACK from JetStream within timeout. Is JetStream enabled?"
+        )
     end
+
+    {:noreply, state, {:continue, :create_eph_consumer}}
   end
 
   @impl true
@@ -119,8 +110,6 @@ defmodule HostCore.Jetstream.Client do
         Logger.error(
           "Failed to receive create consumer ACK from JetStream within timeout. Ensure JetStream is enabled on your NATS server."
         )
-
-        false
     end
 
     {:noreply, state}
@@ -151,8 +140,6 @@ defmodule HostCore.Jetstream.Client do
     Logger.info(
       "Lattice cache stream created or verified as existing (#{state["consumer_count"]} consumers)."
     )
-
-    true
   end
 
   def handle_stream_create_response(%{
@@ -163,7 +150,6 @@ defmodule HostCore.Jetstream.Client do
         }
       }) do
     Logger.info("Lattice cache stream name already in use, assuming previously-configured stream")
-    true
   end
 
   # This is almost identical to above, but for some reason when the stream has multiple replicas,
@@ -176,7 +162,16 @@ defmodule HostCore.Jetstream.Client do
         }
       }) do
     Logger.info("Lattice cache stream name already in use, assuming previously-configured stream")
-    true
+  end
+
+  def handle_stream_create_response(%{
+        "type" => "io.nats.jetstream.api.v1.stream_create_response",
+        "error" => %{
+          "code" => 400,
+          "description" => "stream name already in use with a different configuration"
+        }
+      }) do
+    Logger.info("Lattice cache stream name already in use, assuming previously-configured stream")
   end
 
   def handle_stream_create_response(%{
@@ -189,15 +184,11 @@ defmodule HostCore.Jetstream.Client do
     Logger.info(
       "Lattice cache stream subjects already configured, assuming previously-configured stream"
     )
-
-    true
   end
 
   def handle_stream_create_response(body) do
     Logger.error(
       "Received unexpected response from NATS when attempting to create cache stream: #{inspect(body)}"
     )
-
-    false
   end
 end
