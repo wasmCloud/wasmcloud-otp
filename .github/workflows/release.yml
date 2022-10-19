@@ -354,7 +354,7 @@ jobs:
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs:
-      [create-mix-releases, release-hostcore-docker, release-wasmcloud-docker]
+      [create-mix-releases, release-wasmcloud-docker]
     runs-on: ubuntu-latest
     steps:
       - name: Download Release Tarballs
