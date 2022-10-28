@@ -160,7 +160,7 @@ defmodule HostCore.Providers.ProviderModule do
       "normal"
     )
 
-    {:stop, :normal, :ok, state}
+    {:stop, :shutdown, :ok, state}
   end
 
   @impl true
@@ -214,7 +214,7 @@ defmodule HostCore.Providers.ProviderModule do
       "normal"
     )
 
-    {:stop, :normal, state}
+    {:stop, :shutdown, state}
   end
 
   def handle_info({:DOWN, _ref, :port, _port, reason}, state) do
