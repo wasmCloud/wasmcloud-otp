@@ -221,7 +221,11 @@ defmodule HostCore.Actors.ActorModule do
 
     publish_actor_stopped(public_key, instance_id)
 
-    {:stop, :normal, :ok, agent}
+    # PRO TIP - if you return :normal here as the stop reason, the GenServer will NOT auto-terminate
+    # all of its children. If you want all children established via start_link to be terminated here,
+    # you -have- to use :shutdown as the reason.
+    # That's right, the stop reason :normal automatically results in orphaned processes.
+    {:stop, :shutdown, :ok, agent}
   end
 
   @impl true
