@@ -411,7 +411,13 @@ defmodule HostCore.Actors.ActorModule do
       wasmbus: Imports.wasmbus_imports(agent)
     }
 
-    {:ok, module} = Wasmex.Module.compile(bytes)
+    module = case :ets.lookup(:module_cache, claims.public_key) do
+      [{_, cached_mod}] -> cached_mod
+      [] ->
+        {:ok, mod} = Wasmex.Module.compile(bytes)
+        :ets.insert(:module_cache, {claims.public_key, mod})
+        mod
+    end
 
     # TODO - in the future, poll these so we can forward the err/out pipes
     # to our logger
