@@ -411,11 +411,13 @@ defmodule HostCore.Actors.ActorModule do
       wasmbus: Imports.wasmbus_imports(agent)
     }
 
-    module = case :ets.lookup(:module_cache, claims.public_key) do
-      [{_, cached_mod}] -> cached_mod
+    key = :crypto.hash(:sha256, bytes) |> Base.encode16() # we consider a hash of bytes as a unique key
+    module = case :ets.lookup(:module_cache, key) do
+      [{_, cached_mod}] ->
+        cached_mod
       [] ->
         {:ok, mod} = Wasmex.Module.compile(bytes)
-        :ets.insert(:module_cache, {claims.public_key, mod})
+        :ets.insert(:module_cache, {key, mod})
         mod
     end
 
