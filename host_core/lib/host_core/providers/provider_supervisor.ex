@@ -240,7 +240,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
           case HostCore.Nats.safe_req(
                  :lattice_nats,
                  "wasmbus.rpc.#{prefix}.#{public_key}.#{link_name}.shutdown",
-                 "",
+                 Jason.encode!(%{host_id: HostCore.Host.host_key()}),
                  receive_timeout: 2000
                ) do
             {:ok, _msg} ->
@@ -251,6 +251,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
               :error
 
             {:error, :timeout} ->
+              Logger.error("No capability providers responded to shutdown request")
               :error
           end
 
