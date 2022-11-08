@@ -150,7 +150,7 @@ defmodule HostCore.Actors.ActorSupervisor do
     Tracer.with_span "Starting Actor from lattice object store", kind: :server do
       case HostCore.WasmCloud.Native.get_actor_localobject(pk) do
         {:error, error} ->
-          Tracer.add_event("Fetch from lattice object store failed", reason: "#{inspect(err)}")
+          Tracer.add_event("Fetch from lattice object store failed", reason: "#{inspect(error)}")
           Logger.error("Failed to download actor (#{pk}) from lattice object store")
 
           {:error, error}
