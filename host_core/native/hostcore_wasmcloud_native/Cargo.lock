@@ -1127,9 +1127,9 @@ dependencies = [
 
 [[package]]
 name = "nats"
-version = "0.20.1"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25a916657662da9799246f1ac8dda022c48c4d1c97a9208121ffecc658cef20f"
+checksum = "4f42b51fc2560ec17f242ca715a3ece4e97704e6d798162b91f99c3cabef8980"
 dependencies = [
  "base64",
  "base64-url",
@@ -1719,9 +1719,9 @@ dependencies = [
 
 [[package]]
 name = "rustler"
-version = "0.24.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed1d0129006c447df2939ea2d370a31cd1c1a5103c2777545b14da9aefd656df"
+checksum = "d61e8ddf75de20513455d7b6f17241a595abbb01b53a6340cecc798a1b13422d"
 dependencies = [
  "lazy_static",
  "rustler_codegen",
@@ -1730,9 +1730,9 @@ dependencies = [
 
 [[package]]
 name = "rustler_codegen"
-version = "0.24.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ed0335f95feb990dc7eebb69cfc29cc93cbbe813b3d7dc1edb915c59e4079a6"
+checksum = "baa2e45c0165272070f80ce93bcd7dd5407a3c84a1ef73ab9900e00f00ef3d36"
 dependencies = [
  "heck",
  "proc-macro2",

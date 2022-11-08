@@ -28,6 +28,7 @@ mod task;
 
 lazy_static! {
     static ref CHUNKING_STORE: RwLock<Option<ObjectStore>> = RwLock::new(None);
+    static ref ARTIFACT_STORE: RwLock<Option<ObjectStore>> = RwLock::new(None);
 }
 
 const CHONKY_THRESHOLD_BYTES: usize = 1024 * 700; // 700KB
@@ -114,6 +115,7 @@ rustler::init!(
         pk_from_seed,
         get_provider_bindle,
         get_actor_bindle,
+        get_actor_localobject
     ],
     load = load
 );
@@ -135,10 +137,22 @@ fn set_chunking_connection_config(config: HashMap<String, String>) -> Result<Ato
         .cloned()
         .unwrap_or_else(|| "default".to_string());
     let store = objstore::create_or_reuse_store(&js, &lattice).map_err(to_rustler_err)?;
+    let art_store = objstore::create_or_reuse_store(&js, &format!("ARTIFACT_{}", lattice))
+        .map_err(to_rustler_err)?;
 
     *CHUNKING_STORE.write().unwrap() = Some(store);
+    // For now, the artifact store will be on the same connection as the chunking store
+    *ARTIFACT_STORE.write().unwrap() = Some(art_store);
 
     Ok(atoms::ok())
+}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn get_actor_localobject(actor_id: &str) -> Result<(Atom, Vec<u8>), Error> {
+    match objstore::read_from_artifact_store(actor_id) {
+        Ok(v) => Ok((atoms::ok(), v)),
+        Err(e) => Err(e),
+    }
 }
 
 #[rustler::nif(schedule = "DirtyIo")]

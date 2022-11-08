@@ -24,6 +24,7 @@ defmodule HostCore.WasmCloud.Native do
   def dechunk_inv(_inv_id), do: error()
   def chunk_inv(_inv_id, _bytes), do: error()
 
+  def get_actor_localobject(_actor_id), do: error()
   def get_oci_bytes(_creds, _oci_ref, _allow_latest, _allowed_insecure), do: error()
   def get_oci_path(_creds, _path, _allow_latest, _allowed_insecure), do: error()
   def par_from_path(_path, _link_name), do: error()

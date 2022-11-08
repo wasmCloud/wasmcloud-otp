@@ -146,6 +146,25 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
+  def start_actor_from_localstore(pk, count \\ 1, annotations \\ %{}) do
+    Tracer.with_span "Starting Actor from lattice object store", kind: :server do
+      case HostCore.WasmCloud.Native.get_actor_localobject(pk) do
+        {:error, error} ->
+          Tracer.add_event("Fetch from lattice object store failed", reason: "#{inspect(err)}")
+          Logger.error("Failed to download actor (#{pk}) from lattice object store")
+
+          {:error, error}
+
+        {:ok, bytes} ->
+          Tracer.add_event("Actor bytes fetched from lattice object store",
+            byte_size: length(bytes)
+          )
+
+          start_actor(bytes |> IO.iodata_to_binary(), "", count, annotations)
+      end
+    end
+  end
+
   def start_actor_from_bindle(bindle_id, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from Bindle", kind: :server do
       creds = HostCore.Host.get_creds(:bindle, bindle_id)

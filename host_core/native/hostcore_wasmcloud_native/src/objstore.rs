@@ -32,6 +32,20 @@ pub(crate) fn unchonk_from_object_store(id: &str) -> Result<Vec<u8>, Error> {
     Ok(result)
 }
 
+pub(crate) fn read_from_artifact_store(id: &str) -> Result<Vec<u8>, Error> {
+    let mut result = Vec::new();
+    let store = crate::ARTIFACT_STORE.read().unwrap();
+    if let Some(ref store) = *store {
+        store
+            .get(id)
+            .map_err(to_rustler_err)?
+            .read_to_end(&mut result)
+            .map_err(to_rustler_err)?;
+    }
+
+    Ok(result)
+}
+
 pub(crate) fn create_or_reuse_store(
     js: &JetStream,
     name: &str,

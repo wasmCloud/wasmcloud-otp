@@ -8,7 +8,7 @@ defmodule HostCore.ControlInterface.Server do
   alias HostCore.CloudEvent
 
   import HostCore.Actors.ActorSupervisor,
-    only: [start_actor_from_bindle: 3, start_actor_from_oci: 3]
+    only: [start_actor_from_bindle: 3, start_actor_from_oci: 3, start_actor_from_localstore: 3]
 
   import HostCore.Providers.ProviderSupervisor,
     only: [start_provider_from_bindle: 4, start_provider_from_oci: 4]
@@ -223,10 +223,16 @@ defmodule HostCore.ControlInterface.Server do
           Tracer.set_attribute("count", count)
 
           res =
-            if String.starts_with?(actor_ref, "bindle://") do
-              start_actor_from_bindle(actor_ref, count, annotations)
-            else
-              start_actor_from_oci(actor_ref, count, annotations)
+            case actor_ref do
+              "bindle://" <> _rest ->
+                start_actor_from_bindle(actor_ref, count, annotations)
+
+              "lattice://" <> pk ->
+                start_actor_from_localstore(pk, count, annotations)
+
+              _ ->
+                # assume default is OCI
+                start_actor_from_oci(actor_ref, count, annotations)
             end
 
           case res do
