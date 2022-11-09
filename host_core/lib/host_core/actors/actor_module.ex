@@ -690,7 +690,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new(evt_type)
 
-    topic = "wasmbus.evt.#{prefix}"
+    topic = "wasmbus.rpcevt.#{prefix}"
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
