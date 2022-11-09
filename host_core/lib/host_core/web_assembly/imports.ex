@@ -7,6 +7,8 @@ defmodule HostCore.WebAssembly.Imports do
 
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
+  @event_prefix "wasmbus.evt"
+  @rpc_event_prefix "wasmbus.rpcevt"
 
   # Once a message body reaches 900kb, we will use the object
   # store to hold it and allow 15 seconds for the RPC call to
@@ -487,7 +489,7 @@ defmodule HostCore.WebAssembly.Imports do
       }
       |> CloudEvent.new(evt_type)
 
-    topic = "wasmbus.rpcevt.#{prefix}"
+    topic = "#{@rpc_event_prefix}.#{prefix}"
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
