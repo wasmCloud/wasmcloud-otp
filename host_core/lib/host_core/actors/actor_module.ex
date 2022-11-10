@@ -8,6 +8,8 @@ defmodule HostCore.Actors.ActorModule do
   @chunk_threshold 900 * 1024
   @thirty_seconds 30_000
   @perform_invocation "perform_invocation"
+  @event_prefix "wasmbus.evt"
+  @rpc_event_prefix "wasmbus.rpcevt"
 
   require Logger
   alias HostCore.WebAssembly.Imports
@@ -690,7 +692,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new(evt_type)
 
-    topic = "wasmbus.evt.#{prefix}"
+    topic = "#{@rpc_event_prefix}.#{prefix}"
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
 
@@ -718,7 +720,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new("actor_started")
 
-    topic = "wasmbus.evt.#{prefix}"
+    topic = "#{@event_prefix}.#{prefix}"
 
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
@@ -734,7 +736,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new("actor_updated")
 
-    topic = "wasmbus.evt.#{prefix}"
+    topic = "#{@event_prefix}.#{prefix}"
 
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
@@ -751,7 +753,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new("actor_update_failed")
 
-    topic = "wasmbus.evt.#{prefix}"
+    topic = "#{@event_prefix}.#{prefix}"
 
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
@@ -766,7 +768,7 @@ defmodule HostCore.Actors.ActorModule do
       }
       |> CloudEvent.new("actor_stopped")
 
-    topic = "wasmbus.evt.#{prefix}"
+    topic = "#{@event_prefix}.#{prefix}"
 
     HostCore.Nats.safe_pub(:control_nats, topic, msg)
   end
