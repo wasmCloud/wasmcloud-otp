@@ -31,7 +31,7 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
     end
   end
 
-  def start_provider(provider_ociref, link_name, host_id) do
+  def start_provider(provider_ociref, link_name, host_id, provider_configuration \\ "") do
     {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
 
     topic = "#{@wasmbus_prefix}#{prefix}.cmd.#{host_id}.lp"
@@ -39,7 +39,8 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
     payload =
       Jason.encode!(%{
         "provider_ref" => provider_ociref,
-        "link_name" => link_name
+        "link_name" => link_name,
+        "configuration" => provider_configuration
       })
 
     case ctl_request(prefix, topic, payload, 2_000) do

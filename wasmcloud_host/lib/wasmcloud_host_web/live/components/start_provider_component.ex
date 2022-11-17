@@ -59,7 +59,8 @@ defmodule StartProviderComponent do
         %{
           "provider_ociref" => provider_ociref,
           "provider_link_name" => provider_link_name,
-          "host_id" => host_id
+          "host_id" => host_id,
+          "provider_configuration" => provider_configuration
         },
         socket
       ) do
@@ -71,22 +72,23 @@ defmodule StartProviderComponent do
                %{}
              ) do
           {:ok, auction_host_id} ->
-            start_provider(provider_ociref, provider_link_name, auction_host_id, socket)
+            start_provider(provider_ociref, provider_link_name, auction_host_id, socket, provider_configuration)
 
           {:error, error} ->
             {:noreply, assign(socket, error_msg: error)}
         end
 
       host_id ->
-        start_provider(provider_ociref, provider_link_name, host_id, socket)
+        start_provider(provider_ociref, provider_link_name, host_id, socket, provider_configuration)
     end
   end
 
-  defp start_provider(provider_ociref, provider_link_name, host_id, socket) do
+  defp start_provider(provider_ociref, provider_link_name, host_id, socket, provider_configuration \\ "") do
     case ControlInterface.start_provider(
            provider_ociref,
            provider_link_name,
-           host_id
+           host_id,
+           provider_configuration
          ) do
       :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
@@ -162,6 +164,14 @@ defmodule StartProviderComponent do
             value="default" required>
         </div>
       </div>
+      <%= if assigns.id == :start_provider_ociref_modal do %>
+      <div class="form-group row">
+        <label class="col-md-3 col-form-label" for="text-input">Configuration</label>
+        <div class="col-md-9">
+          <input class="form-control" id="text-input" type="text" name="provider_configuration" placeholder="{&quot;K1&quot;:&quot;V1&quot;,&quot;K2&quot;:&quot;V2&quot;}">
+        </div>
+      </div>
+      <% end %>
       <div class="modal-footer">
         <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
         <button class="btn btn-primary" type="submit">Submit</button>
