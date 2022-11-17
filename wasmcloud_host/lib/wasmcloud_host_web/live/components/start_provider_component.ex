@@ -72,18 +72,36 @@ defmodule StartProviderComponent do
                %{}
              ) do
           {:ok, auction_host_id} ->
-            start_provider(provider_ociref, provider_link_name, auction_host_id, socket, provider_configuration)
+            start_provider(
+              provider_ociref,
+              provider_link_name,
+              auction_host_id,
+              socket,
+              provider_configuration
+            )
 
           {:error, error} ->
             {:noreply, assign(socket, error_msg: error)}
         end
 
       host_id ->
-        start_provider(provider_ociref, provider_link_name, host_id, socket, provider_configuration)
+        start_provider(
+          provider_ociref,
+          provider_link_name,
+          host_id,
+          socket,
+          provider_configuration
+        )
     end
   end
 
-  defp start_provider(provider_ociref, provider_link_name, host_id, socket, provider_configuration \\ "") do
+  defp start_provider(
+         provider_ociref,
+         provider_link_name,
+         host_id,
+         socket,
+         provider_configuration \\ ""
+       ) do
     case ControlInterface.start_provider(
            provider_ociref,
            provider_link_name,
