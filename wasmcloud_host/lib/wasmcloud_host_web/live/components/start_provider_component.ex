@@ -22,7 +22,8 @@ defmodule StartProviderComponent do
   def handle_event(
         "start_provider_file",
         %{
-          "provider_link_name" => provider_link_name
+          "provider_link_name" => provider_link_name,
+          "provider_configuration" => provider_configuration
         },
         socket
       ) do
@@ -33,7 +34,9 @@ defmodule StartProviderComponent do
         case ProviderSupervisor.start_provider_from_file(
                pk,
                path,
-               provider_link_name
+               provider_link_name,
+               %{},
+               provider_configuration
              ) do
           {:ok, _pid} -> ""
           {:error, reason} -> reason
@@ -182,14 +185,12 @@ defmodule StartProviderComponent do
             value="default" required>
         </div>
       </div>
-      <%= if assigns.id == :start_provider_ociref_modal do %>
       <div class="form-group row">
         <label class="col-md-3 col-form-label" for="text-input">Configuration</label>
         <div class="col-md-9">
           <input class="form-control" id="text-input" type="text" name="provider_configuration" placeholder="{&quot;K1&quot;:&quot;V1&quot;,&quot;K2&quot;:&quot;V2&quot;}">
         </div>
       </div>
-      <% end %>
       <div class="modal-footer">
         <button class="btn btn-secondary" type="button" phx-click="hide_modal">Close</button>
         <button class="btn btn-primary" type="submit">Submit</button>
