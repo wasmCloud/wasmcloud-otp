@@ -4,11 +4,12 @@ use bindle::{
     cache::DumbCache,
     client::{
         tokens::{HttpBasic, LongLivedToken, NoToken, TokenManager},
-        Client, Result as BindleResult,
+        Client, ClientBuilder, Result as BindleResult,
     },
     provider::file::FileProvider,
     search::NoopEngine,
     signature::{KeyRing, KeyRingLoader, KeyRingSaver},
+    SignatureRole, VerificationStrategy,
 };
 
 const BINDLE_USER_NAME_ENV: &str = "BINDLE_USER_NAME";
@@ -115,7 +116,11 @@ pub async fn get_client(
             k
         }
     };
-    let client = Client::new(&bindle_url, auth, std::sync::Arc::new(keyring))?;
+    let client = ClientBuilder::default()
+        .verification_strategy(VerificationStrategy::MultipleAttestation(vec![
+            SignatureRole::Host,
+        ]))
+        .build(&bindle_url, auth, std::sync::Arc::new(keyring))?;
     let local = FileProvider::new(bindle_dir, NoopEngine::default()).await;
     Ok(DumbCache::new(client, local))
 }

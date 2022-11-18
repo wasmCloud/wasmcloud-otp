@@ -26,7 +26,7 @@ pub(crate) fn unchonk_from_object_store(id: &str) -> Result<Vec<u8>, Error> {
             .map_err(to_rustler_err)?
             .read_to_end(&mut result)
             .map_err(to_rustler_err)?;
-        let _ = store.delete(id).map_err(to_rustler_err)?;
+        store.delete(id).map_err(to_rustler_err)?;
     }
 
     Ok(result)

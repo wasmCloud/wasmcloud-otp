@@ -486,7 +486,7 @@ fn dechunk_inv(inv_id: String) -> Result<(Atom, Vec<u8>), Error> {
 
 #[rustler::nif(schedule = "DirtyIo")]
 fn chunk_inv(inv_id: String, data: Binary) -> Result<Atom, Error> {
-    let _ = objstore::chonk_to_object_store(&inv_id, &mut data.as_slice())?;
+    objstore::chonk_to_object_store(&inv_id, &mut data.as_slice())?;
 
     Ok(atoms::ok())
 }
