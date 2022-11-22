@@ -65,68 +65,16 @@ defmodule HostCore.Application do
       {Phoenix.PubSub, name: :hostcore_pubsub},
       {Task.Supervisor, name: ControlInterfaceTaskSupervisor},
       {Task.Supervisor, name: InvocationTaskSupervisor},
-      # Supervisor.child_spec(
-      #   {Gnat.ConnectionSupervisor, HostCore.Nats.control_connection_settings(config)},
-      #   id: :control_connection_supervisor
-      # ),
-      # Supervisor.child_spec(
-      #   {Gnat.ConnectionSupervisor, HostCore.Nats.rpc_connection_settings(config)},
-      #   id: :rpc_connection_supervisor
-      # ),
       {HostCore.Actors.ActorRpcSupervisor, strategy: :one_for_one},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor,
        strategy: :one_for_one,
        allow_latest: config.allow_latest,
        allowed_insecure: config.allowed_insecure},
-      # Handle lattice control interface requests
-      # Supervisor.child_spec(
-      #   {Gnat.ConsumerSupervisor,
-      #    %{
-      #      connection_name: :control_nats,
-      #      module: HostCore.ControlInterface.Server,
-      #      subscription_topics: [
-      #        %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.registries.put"},
-      #        %{
-      #          topic:
-      #            "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.cmd.#{config.host_key}.*"
-      #        },
-      #        %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.ping.hosts"},
-      #        %{
-      #          topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.linkdefs.*",
-      #          queue_group: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}"
-      #        },
-      #        %{
-      #          topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.get.*",
-      #          queue_group: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}"
-      #        },
-      #        %{
-      #          topic:
-      #            "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.get.#{config.host_key}.inv"
-      #        },
-      #        %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.auction.>"}
-      #      ]
-      #    }},
-      #   id: :latticectl_consumer_supervisor
-      # ),
-
       {HostCore.Actors.CallCounter, nil},
       {HostCore.Lattice.LatticeRoot, nil},
       {HostCore.Vhost.VirtualHost, config}
-      # Supervisor.child_spec(
-      #  {HostCore.Vhost.VirtualHost, config},
-      #  restart: :transient
-      # ),
-      # Supervisor.child_spec(
-      #   {HostCore.Vhost.VirtualHost, config},
-      #   id: HostCore.Vhost.VirtualHost.via_tuple(config.host_key, config.lattice_prefix)
-      # )
-      # {HostCore.HeartbeatEmitter, config},
-      # {HostCore.Jetstream.Client, config}
     ]
-
-    # ++
-    #   HostCore.Policy.Manager.spec()
   end
 
   defp post_process_config(config) do

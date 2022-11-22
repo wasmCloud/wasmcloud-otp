@@ -4,12 +4,6 @@ defmodule HostCore.Jetstream.CacheLoader do
 
   alias Phoenix.PubSub
 
-  # To observe cache loader events, first add the pid of the listener (a GenServer)
-  # to the registry:
-  # Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
-  #
-  # Then define handle_casts for the pattern {:cache_load_event, :linkdef_removed | :linkdef_added | :claims_added, data}
-
   require Logger
   use Gnat.Server
 
@@ -91,9 +85,5 @@ defmodule HostCore.Jetstream.CacheLoader do
 
   defp broadcast_event(evt_type, payload, prefix) do
     PubSub.broadcast(:hostcore_pubsub, "cacheloader:#{prefix}", {:cacheloader, evt_type, payload})
-    # Registry.dispatch(Registry.EventMonitorRegistry, @cache_event_key, fn entries ->
-    #   for {pid, _} <- entries,
-    #       do: GenServer.cast(pid, {:cache_load_event, evt_type, payload, prefix})
-    # end)
   end
 end

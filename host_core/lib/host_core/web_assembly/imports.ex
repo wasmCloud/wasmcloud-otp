@@ -167,45 +167,6 @@ defmodule HostCore.WebAssembly.Imports do
       |> perform_verify()
       |> tap(&update_tracer_status/1)
 
-      # res =
-      #   with {:ok, token} <-
-      #          identify_target(%{
-      #            payload: payload,
-      #            binding: binding,
-      #            namespace: namespace,
-      #            operation: operation,
-      #            seed: config.cluster_seed,
-      #            claims: claims,
-      #            prefix: config.lattice_prefix,
-      #            state: state,
-      #            agent: agent,
-      #            source_actor: actor,
-      #            target: nil,
-      #            authorized: false,
-      #            verified: false
-      #          }) do
-      #     verify_link(token)
-      #     |> authorize_call()
-      #     |> invoke()
-      #   else
-      #     {:error, :alias_not_found, _token = %{namespace: namespace, prefix: prefix}} ->
-      #       Agent.update(agent, fn state ->
-      #         %State{
-      #           state
-      #           | host_error: "Call alias not found: #{namespace} on #{prefix}"
-      #         }
-      #       end)
-
-      #       0
-      #   end
-
-      # if res == 1 do
-      #   Tracer.set_status(:ok, "")
-      # else
-      #   Tracer.set_status(:error, "")
-      # end
-
-      # res
     end
   end
 
@@ -443,11 +404,6 @@ defmodule HostCore.WebAssembly.Imports do
     Agent.update(agent, fn state -> %State{state | host_response: res} end)
     1
   end
-
-  # defp invoke(_token = %{verified: false, agent: agent}) do
-  #   Agent.update(agent, fn state -> %State{state | host_error: "Invocation not authorized"} end)
-  #   0
-  # end
 
   defp invoke(
          _token = %{

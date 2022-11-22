@@ -323,20 +323,4 @@ defmodule HostCore.Providers.ProviderSupervisor do
     )
   end
 
-  # def provider_for_pid(pid) do
-  #   case List.first(Registry.keys(Registry.ProviderRegistry, pid)) do
-  #     {public_key, link_name} ->
-  #       {pid, public_key, link_name, lookup_contract_id(public_key, link_name),
-  #        HostCore.Providers.ProviderModule.instance_id(pid)}
-
-  #     nil ->
-  #       nil
-  #   end
-  # end
-
-  # defp lookup_contract_id(public_key, link_name) do
-  #   Registry.lookup(Registry.ProviderRegistry, {public_key, link_name})
-  #   |> Enum.map(fn {_pid, contract_id} -> contract_id end)
-  #   |> List.first()
-  # end
 end

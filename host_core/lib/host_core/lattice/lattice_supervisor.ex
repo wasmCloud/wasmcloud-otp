@@ -36,10 +36,6 @@ defmodule HostCore.Lattice.LatticeSupervisor do
              module: HostCore.ControlInterface.LatticeServer,
              subscription_topics: [
                %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.registries.put"},
-               #  %{
-               #    topic:
-               #      "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.cmd.#{config.host_key}.*"
-               #  },
                %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.ping.hosts"},
                %{
                  topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.linkdefs.*",
@@ -49,10 +45,6 @@ defmodule HostCore.Lattice.LatticeSupervisor do
                  topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.get.*",
                  queue_group: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}"
                },
-               #  %{
-               #    topic:
-               #      "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.get.#{config.host_key}.inv"
-               #  },
                %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.auction.>"}
              ]
            }},

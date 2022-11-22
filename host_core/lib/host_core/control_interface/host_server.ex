@@ -342,8 +342,6 @@ defmodule HostCore.ControlInterface.HostServer do
     |> CloudEvent.new("provider_start_failed", host_id)
     |> CloudEvent.publish(prefix)
 
-    # topic = "wasmbus.evt.#{prefix}"
 
-    # safe_pub(control_connection(prefix), topic, msg)
   end
 end
