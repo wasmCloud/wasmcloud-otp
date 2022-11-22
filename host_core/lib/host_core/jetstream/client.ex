@@ -51,7 +51,11 @@ defmodule HostCore.Jetstream.Client do
       }
       |> Jason.encode!()
 
-    case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
+    case HostCore.Nats.safe_req(
+           HostCore.Nats.control_connection(state.lattice_prefix),
+           create_topic,
+           payload_json
+         ) do
       {:ok, %{body: body}} ->
         handle_stream_create_response(body |> Jason.decode!())
 
@@ -97,7 +101,11 @@ defmodule HostCore.Jetstream.Client do
       }
       |> Jason.encode!()
 
-    case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
+    case HostCore.Nats.safe_req(
+           HostCore.Nats.control_connection(state.lattice_prefix),
+           create_topic,
+           payload_json
+         ) do
       {:ok, %{body: body}} ->
         handle_consumer_create_response(body |> Jason.decode!())
 

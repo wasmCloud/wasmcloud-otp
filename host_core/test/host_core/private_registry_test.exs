@@ -1,9 +1,12 @@
 defmodule HostCore.PrivateRegistryTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
-  setup do
-    HostCore.Host.clear_credsmap()
-  end
+  import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
+
+  setup :standard_setup
+  # setup do
+  #   HostCore.Host.clear_credsmap()
+  # end
 
   @private_oci_registry_url HostCoreTest.Constants.private_oci_registry_url()
   @private_bindle_registry_url HostCoreTest.Constants.private_bindle_registry_url()
@@ -38,41 +41,73 @@ defmodule HostCore.PrivateRegistryTest do
     @private_bindle_registry_url => @bindle_credentials
   }
 
-  test "all creds are nil when no creds have been set" do
-    assert HostCore.Host.get_creds(:oci, "foobar") == nil
+  test "all creds are nil when no creds have been set", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, "foobar") == nil
   end
 
-  test "malformed credentials are ignored" do
-    HostCore.Host.set_credsmap(@bad_credsmap)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == nil
+  test "malformed credentials are ignored", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @bad_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             nil
   end
 
-  test "credentials without a type are ignored" do
-    HostCore.Host.set_credsmap(@missing_type_credsmap)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == nil
+  test "credentials without a type are ignored", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @missing_type_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             nil
   end
 
-  test "credentials without a username/password/token are ignored" do
-    HostCore.Host.set_credsmap(@missing_username_credsmap)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == nil
+  test "credentials without a username/password/token are ignored", %{
+    :hconfig => config,
+    :host_pid => pid
+  } do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @missing_username_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             nil
   end
 
-  test "credentials can be looked up by server name" do
-    HostCore.Host.set_credsmap(@simple_credsmap)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == @simple_credentials
+  test "credentials can be looked up by server name", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             @simple_credentials
   end
 
-  test "credentials for unknown servers return nil" do
-    HostCore.Host.set_credsmap(@simple_credsmap)
-    assert HostCore.Host.get_creds(:oci, "foobar") == nil
+  test "credentials for unknown servers return nil", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap)
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, "foobar") == nil
   end
 
-  test "credentials are segmented by registry type" do
-    HostCore.Host.set_credsmap(@simple_credsmap)
-    assert HostCore.Host.get_creds(:bindle, @private_oci_registry_url) == nil
+  test "credentials are segmented by registry type", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(
+             config.host_key,
+             :bindle,
+             @private_oci_registry_url
+           ) == nil
   end
 
-  test "schemes are stripped from server names" do
+  test "schemes are stripped from server names", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
     schemes = ["bindle", "oci", "http", "https"]
 
     creds_map =
@@ -82,46 +117,86 @@ defmodule HostCore.PrivateRegistryTest do
         Map.put(acc, serverUrl, @simple_credentials)
       end)
 
-    HostCore.Host.set_credsmap(creds_map)
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, creds_map)
 
     schemes
     |> Enum.each(fn scheme ->
-      assert HostCore.Host.get_creds(:oci, scheme <> "-server") == @simple_credentials
+      assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, scheme <> "-server") ==
+               @simple_credentials
     end)
   end
 
-  test "credentials can be looked up by OCI ref" do
-    HostCore.Host.set_credsmap(@simple_credsmap)
+  test "credentials can be looked up by OCI ref", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap)
     oci_ref = @private_oci_registry_url <> "/echo:0.3.5"
-    assert HostCore.Host.get_creds(:oci, oci_ref) == @simple_credentials
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, oci_ref) ==
+             @simple_credentials
   end
 
-  test "credentials can be looked up by bindle URI" do
-    HostCore.Host.set_credsmap(@bindle_credsmap)
+  test "credentials can be looked up by bindle URI", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @bindle_credsmap)
     bindle_id = "mybindle@" <> @private_bindle_registry_url
-    assert HostCore.Host.get_creds(:bindle, bindle_id) == @bindle_credentials
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :bindle, bindle_id) ==
+             @bindle_credentials
   end
 
-  test "setting credentials is idempotent" do
-    HostCore.Host.set_credsmap(@simple_credsmap)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == @simple_credentials
-    HostCore.Host.set_credsmap(@simple_credsmap)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == @simple_credentials
+  test "setting credentials is idempotent", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             @simple_credentials
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             @simple_credentials
   end
 
-  test "credentials can be updated" do
-    HostCore.Host.set_credsmap(@simple_credsmap)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == @simple_credentials
-    HostCore.Host.set_credsmap(@simple_credsmap_updated)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == @simple_credentials_updated
+  test "credentials can be updated", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             @simple_credentials
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap_updated)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             @simple_credentials_updated
   end
 
-  test "updates for one server do not affect another" do
-    HostCore.Host.set_credsmap(@oci_and_bindle_credsmap)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == @simple_credentials
-    assert HostCore.Host.get_creds(:bindle, @private_bindle_registry_url) == @bindle_credentials
-    HostCore.Host.set_credsmap(@simple_credsmap_updated)
-    assert HostCore.Host.get_creds(:oci, @private_oci_registry_url) == @simple_credentials_updated
-    assert HostCore.Host.get_creds(:bindle, @private_bindle_registry_url) == @bindle_credentials
+  test "updates for one server do not affect another", %{:hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @oci_and_bindle_credsmap)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             @simple_credentials
+
+    assert HostCore.Vhost.VirtualHost.get_creds(
+             config.host_key,
+             :bindle,
+             @private_bindle_registry_url
+           ) == @bindle_credentials
+
+    HostCore.Vhost.VirtualHost.set_credsmap(pid, @simple_credsmap_updated)
+
+    assert HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, @private_oci_registry_url) ==
+             @simple_credentials_updated
+
+    assert HostCore.Vhost.VirtualHost.get_creds(
+             config.host_key,
+             :bindle,
+             @private_bindle_registry_url
+           ) == @bindle_credentials
   end
 end

@@ -2,6 +2,8 @@ defmodule HostCore.Providers.ProviderModule do
   @moduledoc false
   use GenServer, restart: :transient
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
+
   alias HostCore.CloudEvent
 
   @thirty_seconds 30_000
@@ -12,11 +14,13 @@ defmodule HostCore.Providers.ProviderModule do
     defstruct [
       :os_port,
       :os_pid,
+      :shutdown_delay,
       :link_name,
       :contract_id,
       :public_key,
       :lattice_prefix,
       :instance_id,
+      :host_id,
       :annotations,
       :executable_path,
       :ociref,
@@ -43,6 +47,22 @@ defmodule HostCore.Providers.ProviderModule do
     end
   end
 
+  def contract_id(pid) do
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_contract_id)
+    else
+      ""
+    end
+  end
+
+  def link_name(pid) do
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_link_name)
+    else
+      "??"
+    end
+  end
+
   def annotations(pid) do
     if Process.alive?(pid) do
       GenServer.call(pid, :get_annotations)
@@ -59,6 +79,14 @@ defmodule HostCore.Providers.ProviderModule do
     end
   end
 
+  def public_key(pid) do
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_public_key)
+    else
+      "??"
+    end
+  end
+
   def path(pid) do
     if Process.alive?(pid) do
       GenServer.call(pid, :get_path)
@@ -69,10 +97,25 @@ defmodule HostCore.Providers.ProviderModule do
 
   def halt(pid) do
     if Process.alive?(pid), do: GenServer.call(pid, :halt_cleanup)
+    :ok
   end
 
   @impl true
-  def init({:executable, path, claims, link_name, contract_id, oci, config_json, annotations}) do
+  def init(
+        {:executable,
+         %{
+           host_id: host_id,
+           lattice_prefix: lattice_prefix,
+           path: path,
+           claims: claims,
+           link_name: link_name,
+           contract_id: contract_id,
+           shutdown_delay: shutdown_delay,
+           oci: oci,
+           config_json: config_json,
+           annotations: annotations
+         }}
+      ) do
     Logger.info("Starting executable capability provider from '#{path}'",
       provider_id: claims.public_key,
       link_name: link_name,
@@ -80,16 +123,15 @@ defmodule HostCore.Providers.ProviderModule do
     )
 
     instance_id = UUID.uuid4()
-    # In case we want to know the contract ID of this provider, we can look it up as the
-    # bound value in the registry.
 
     # Store the provider pid
-    Registry.register(Registry.ProviderRegistry, {claims.public_key, link_name}, contract_id)
+    Registry.register(Registry.ProviderRegistry, {claims.public_key, link_name}, host_id)
     # Store the provider triple in an ETS table
-    HostCore.Providers.register_provider(claims.public_key, link_name, contract_id)
+    # HostCore.Providers.register_provider(claims.public_key, link_name, contract_id)
 
     host_info =
-      HostCore.Host.generate_hostinfo_for(
+      HostCore.Vhost.VirtualHost.generate_hostinfo_for_provider(
+        host_id,
         claims.public_key,
         link_name,
         instance_id,
@@ -108,11 +150,21 @@ defmodule HostCore.Providers.ProviderModule do
     # the provider's NATS topic. The provider subscribes to that directly
     # when it starts.
 
-    HostCore.Claims.Manager.put_claims(claims)
-    publish_provider_started(claims, link_name, contract_id, instance_id, oci, annotations)
+    HostCore.Claims.Manager.put_claims(lattice_prefix, claims)
+
+    publish_provider_started(
+      host_id,
+      lattice_prefix,
+      claims,
+      link_name,
+      contract_id,
+      instance_id,
+      oci,
+      annotations
+    )
 
     if oci != nil && oci != "" do
-      publish_provider_oci_map(claims.public_key, link_name, oci)
+      publish_provider_oci_map(host_id, lattice_prefix, claims.public_key, link_name, oci)
     end
 
     Process.send_after(self(), :do_health, 5_000)
@@ -126,9 +178,11 @@ defmodule HostCore.Providers.ProviderModule do
        link_name: link_name,
        contract_id: contract_id,
        instance_id: instance_id,
-       lattice_prefix: HostCore.Host.lattice_prefix(),
+       shutdown_delay: shutdown_delay,
+       lattice_prefix: lattice_prefix,
        executable_path: path,
        annotations: annotations,
+       host_id: host_id,
        # until we prove otherwise
        healthy: false,
        ociref: oci
@@ -146,21 +200,50 @@ defmodule HostCore.Providers.ProviderModule do
 
   @impl true
   def handle_call(:halt_cleanup, _from, state) do
-    # Elixir cleans up ports, but it doesn't always clean up the OS process it created
-    # for that port. TODO - find a clean, reliable way of killing these processes.
-    if state.os_pid != nil do
-      System.cmd("kill", ["-9", "#{state.os_pid}"])
+    Logger.debug("Provider termination requested manually")
+
+    Tracer.with_span "Terminate provider instance", kind: :server do
+      case HostCore.Nats.safe_req(
+             HostCore.Nats.rpc_connection(state.lattice_prefix),
+             "wasmbus.rpc.#{state.lattice_prefix}.#{state.public_key}.#{state.link_name}.shutdown",
+             Jason.encode!(%{host_id: state.host_id}),
+             receive_timeout: 2000
+           ) do
+        {:ok, _msg} ->
+          Logger.debug("Provider acknowledged shutdown request")
+
+        {:error, :no_responders} ->
+          Logger.error("No responders to RPC request to terminate provider")
+
+        {:error, :timeout} ->
+          Logger.error("No capability providers responded to RPC shutdown request")
+      end
+
+      # Pause for n milliseconds between shutdown request and forceful termination
+      # Process.sleep(state.provider_delay)
+
+      # Elixir cleans up ports, but it doesn't always clean up the OS process it created
+      # for that port. TODO - find a clean, reliable way of killing these processes.
+      if state.os_pid != nil do
+        # fun fact - if we don't do this in a spawned task, we never move execution
+        # to after the if statement. HUZZAH
+        Task.Supervisor.start_child(ControlInterfaceTaskSupervisor, fn ->
+          System.cmd("kill", ["-9", "#{state.os_pid}"])
+        end)
+      end
+
+      publish_provider_stopped(
+        state.host_id,
+        state.lattice_prefix,
+        state.public_key,
+        state.link_name,
+        state.instance_id,
+        state.contract_id,
+        "normal"
+      )
+
+      {:stop, :shutdown, :ok, state}
     end
-
-    publish_provider_stopped(
-      state.public_key,
-      state.link_name,
-      state.instance_id,
-      state.contract_id,
-      "normal"
-    )
-
-    {:stop, :shutdown, :ok, state}
   end
 
   @impl true
@@ -174,8 +257,23 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   @impl true
+  def handle_call(:get_contract_id, _from, state) do
+    {:reply, state.contract_id, state}
+  end
+
+  @impl true
   def handle_call(:get_annotations, _from, state) do
     {:reply, state.annotations, state}
+  end
+
+  @impl true
+  def handle_call(:get_link_name, _from, state) do
+    {:reply, state.link_name, state}
+  end
+
+  @impl true
+  def handle_call(:get_public_key, _from, state) do
+    {:reply, state.public_key, state}
   end
 
   @impl true
@@ -207,6 +305,8 @@ defmodule HostCore.Providers.ProviderModule do
     )
 
     publish_provider_stopped(
+      state.host_id,
+      state.lattice_prefix,
       state.public_key,
       state.link_name,
       state.instance_id,
@@ -225,6 +325,8 @@ defmodule HostCore.Providers.ProviderModule do
     )
 
     publish_provider_stopped(
+      state.host_id,
+      state.lattice_prefix,
       state.public_key,
       state.link_name,
       state.instance_id,
@@ -239,12 +341,11 @@ defmodule HostCore.Providers.ProviderModule do
   def handle_info(:do_health, state) do
     topic = "wasmbus.rpc.#{state.lattice_prefix}.#{state.public_key}.#{state.link_name}.health"
     payload = %{placeholder: true} |> Msgpax.pack!() |> IO.iodata_to_binary()
+    config = HostCore.Vhost.VirtualHost.config(state.host_id)
 
     res =
       try do
-        HostCore.Nats.safe_req(:lattice_nats, topic, payload,
-          receive_timeout: HostCore.Host.rpc_timeout()
-        )
+        HostCore.Nats.safe_req(:lattice_nats, topic, payload, receive_timeout: config.rpc_timeout)
       rescue
         _e -> {:error, "Received no response on health check topic from provider"}
       end
@@ -277,61 +378,63 @@ defmodule HostCore.Providers.ProviderModule do
     {:noreply, state}
   end
 
-  defp publish_provider_oci_map(public_key, _link_name, oci) do
-    HostCore.Refmaps.Manager.put_refmap(oci, public_key)
+  defp publish_provider_oci_map(host_id, lattice_prefix, public_key, _link_name, oci) do
+    HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, oci, public_key)
   end
 
   defp publish_health_passed(state) do
-    prefix = HostCore.Host.lattice_prefix()
+    %{
+      public_key: state.public_key,
+      link_name: state.link_name
+    }
+    |> CloudEvent.new("health_check_passed", state.host_id)
+    |> CloudEvent.publish(state.lattice_prefix)
 
-    msg =
-      %{
-        public_key: state.public_key,
-        link_name: state.link_name
-      }
-      |> CloudEvent.new("health_check_passed")
+    # topic = "wasmbus.evt.#{state.lattice_prefix}"
 
-    topic = "wasmbus.evt.#{prefix}"
-
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(state.lattice_prefix), topic, msg)
   end
 
   defp publish_health_failed(state) do
-    prefix = HostCore.Host.lattice_prefix()
+    %{
+      public_key: state.public_key,
+      link_name: state.link_name
+    }
+    |> CloudEvent.new("health_check_failed", state.host_id)
+    |> CloudEvent.publish(state.lattice_prefix)
 
-    msg =
-      %{
-        public_key: state.public_key,
-        link_name: state.link_name
-      }
-      |> CloudEvent.new("health_check_failed")
+    # topic = "wasmbus.evt.#{state.lattice_prefix}"
 
-    topic = "wasmbus.evt.#{prefix}"
-
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(state.lattice_prefix), topic, msg)
   end
 
-  @spec publish_provider_stopped(String.t(), String.t(), String.t(), String.t(), String.t()) ::
-          :ok
-  def publish_provider_stopped(public_key, link_name, instance_id, contract_id, reason) do
-    prefix = HostCore.Host.lattice_prefix()
+  def publish_provider_stopped(
+        host_id,
+        lattice_prefix,
+        public_key,
+        link_name,
+        instance_id,
+        contract_id,
+        reason
+      ) do
+    %{
+      public_key: public_key,
+      link_name: link_name,
+      contract_id: contract_id,
+      instance_id: instance_id,
+      reason: reason
+    }
+    |> CloudEvent.new("provider_stopped", host_id)
+    |> CloudEvent.publish(lattice_prefix)
 
-    msg =
-      %{
-        public_key: public_key,
-        link_name: link_name,
-        contract_id: contract_id,
-        instance_id: instance_id,
-        reason: reason
-      }
-      |> CloudEvent.new("provider_stopped")
+    # topic = "wasmbus.evt.#{lattice_prefix}"
 
-    topic = "wasmbus.evt.#{prefix}"
-
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 
   defp publish_provider_started(
+         host_id,
+         lattice_prefix,
          claims,
          link_name,
          contract_id,
@@ -339,29 +442,27 @@ defmodule HostCore.Providers.ProviderModule do
          image_ref,
          annotations
        ) do
-    prefix = HostCore.Host.lattice_prefix()
-
-    msg =
-      %{
-        public_key: claims.public_key,
-        image_ref: image_ref,
-        link_name: link_name,
-        contract_id: contract_id,
-        instance_id: instance_id,
-        annotations: annotations,
-        claims: %{
-          issuer: claims.issuer,
-          tags: claims.tags,
-          name: claims.name,
-          version: claims.version,
-          not_before_human: claims.not_before_human,
-          expires_human: claims.expires_human
-        }
+    %{
+      public_key: claims.public_key,
+      image_ref: image_ref,
+      link_name: link_name,
+      contract_id: contract_id,
+      instance_id: instance_id,
+      annotations: annotations,
+      claims: %{
+        issuer: claims.issuer,
+        tags: claims.tags,
+        name: claims.name,
+        version: claims.version,
+        not_before_human: claims.not_before_human,
+        expires_human: claims.expires_human
       }
-      |> CloudEvent.new("provider_started")
+    }
+    |> CloudEvent.new("provider_started", host_id)
+    |> CloudEvent.publish(lattice_prefix)
 
-    topic = "wasmbus.evt.#{prefix}"
+    # topic = "wasmbus.evt.#{lattice_prefix}"
 
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 end

@@ -1,15 +1,8 @@
 defmodule HostCore.E2E.EchoTest do
-  use ExUnit.Case, async: false
-  import HostCoreTest.Common, only: [request_http: 2]
+  use ExUnit.Case, async: true
+  import HostCoreTest.Common, only: [request_http: 2, cleanup: 2, standard_setup: 1]
 
-  setup do
-    {:ok, evt_watcher} =
-      GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
-
-    [
-      evt_watcher: evt_watcher
-    ]
-  end
+  setup :standard_setup
 
   @echo_key HostCoreTest.Constants.echo_key()
   @echo_path HostCoreTest.Constants.echo_path()
@@ -20,10 +13,11 @@ defmodule HostCore.E2E.EchoTest do
   @httpserver_key HostCoreTest.Constants.httpserver_key()
   @httpserver_contract HostCoreTest.Constants.httpserver_contract()
 
-  test "echo roundtrip", %{:evt_watcher => evt_watcher} do
-    on_exit(fn -> HostCore.Host.purge() end)
+  test "echo roundtrip", %{:evt_watcher => evt_watcher, :hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
     {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_key)
 
@@ -33,6 +27,7 @@ defmodule HostCore.E2E.EchoTest do
 
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
+        config.lattice_prefix,
         @echo_key,
         @httpserver_contract,
         @httpserver_link,
@@ -50,6 +45,7 @@ defmodule HostCore.E2E.EchoTest do
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+        config.host_key,
         @httpserver_path,
         @httpserver_link
       )
@@ -63,33 +59,44 @@ defmodule HostCore.E2E.EchoTest do
       )
 
     actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @echo_key)
+      Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @echo_key)
       |> length
 
     assert actor_count == 1
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
-             @httpserver_key
+    pid =
+      HostCore.Providers.ProviderSupervisor.find_provider(
+        config.host_key,
+        @httpserver_key,
+        @httpserver_link
+      )
+
+    assert pid != nil
 
     {:ok, _okay} = HTTPoison.start()
     {:ok, _resp} = request_http("http://localhost:8080/foo/bar", 5)
   end
 
-  test "unprivileged actor cannot receive undeclared invocations", %{:evt_watcher => evt_watcher} do
-    on_exit(fn -> HostCore.Host.purge() end)
+  test "unprivileged actor cannot receive undeclared invocations", %{
+    :evt_watcher => evt_watcher,
+    :hconfig => config,
+    :host_pid => pid
+  } do
+    on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@echo_unpriv_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_unpriv_key)
 
     actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(), @echo_unpriv_key)
+      Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @echo_unpriv_key)
       |> length
 
     assert actor_count == 1
 
     # OK to put link definition with no claims information
     assert HostCore.Linkdefs.Manager.put_link_definition(
+             config.lattice_prefix,
              @echo_unpriv_key,
              @httpserver_contract,
              @httpserver_link,
@@ -99,6 +106,7 @@ defmodule HostCore.E2E.EchoTest do
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+        config.host_key,
         @httpserver_path,
         @httpserver_link
       )
@@ -113,6 +121,7 @@ defmodule HostCore.E2E.EchoTest do
 
     # For now, okay to put a link definition without proper claims
     assert HostCore.Linkdefs.Manager.put_link_definition(
+             config.lattice_prefix,
              @echo_unpriv_key,
              @httpserver_contract,
              @httpserver_link,

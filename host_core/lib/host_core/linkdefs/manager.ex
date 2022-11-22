@@ -4,15 +4,24 @@ defmodule HostCore.Linkdefs.Manager do
 
   alias HostCore.CloudEvent
 
-  @spec lookup_link_definition(String.t(), String.t(), String.t()) :: :error | {:ok, map()}
-  def lookup_link_definition(actor, contract_id, link_name) do
-    case :ets.lookup(:linkdef_table, {actor, contract_id, link_name}) do
+  @spec lookup_link_definition(String.t(), String.t(), String.t(), String.t()) ::
+          :error | {:ok, map()}
+  def lookup_link_definition(lattice_prefix, actor, contract_id, link_name) do
+    case :ets.lookup(table_atom(lattice_prefix), {actor, contract_id, link_name}) do
       [{_key, ld}] -> {:ok, ld}
       [] -> :error
     end
   end
 
-  def cache_link_definition(ldid, actor, contract_id, link_name, provider_key, values) do
+  def cache_link_definition(
+        lattice_prefix,
+        ldid,
+        actor,
+        contract_id,
+        link_name,
+        provider_key,
+        values
+      ) do
     key = {actor, contract_id, link_name}
 
     map = %{
@@ -24,17 +33,26 @@ defmodule HostCore.Linkdefs.Manager do
       id: ldid
     }
 
-    :ets.insert(:linkdef_table, {key, map})
+    :ets.insert(table_atom(lattice_prefix), {key, map})
   end
 
-  def uncache_link_definition(actor, contract_id, link_name) do
+  def uncache_link_definition(lattice_prefix, actor, contract_id, link_name) do
     key = {actor, contract_id, link_name}
-    :ets.delete(:linkdef_table, key)
+    :ets.delete(table_atom(lattice_prefix), key)
   end
 
-  def put_link_definition(actor, contract_id, link_name, provider_key, values) do
+  def put_link_definition(lattice_prefix, actor, contract_id, link_name, provider_key, values) do
     ldid = UUID.uuid4()
-    cache_link_definition(ldid, actor, contract_id, link_name, provider_key, values)
+
+    cache_link_definition(
+      lattice_prefix,
+      ldid,
+      actor,
+      contract_id,
+      link_name,
+      provider_key,
+      values
+    )
 
     ld = %{
       id: ldid,
@@ -46,14 +64,14 @@ defmodule HostCore.Linkdefs.Manager do
       deleted: false
     }
 
-    publish_link_definition(ld)
+    publish_link_definition(lattice_prefix, ld)
   end
 
-  def del_link_definition(actor, contract_id, link_name) do
-    case lookup_link_definition(actor, contract_id, link_name) do
+  def del_link_definition(lattice_prefix, actor, contract_id, link_name) do
+    case lookup_link_definition(lattice_prefix, actor, contract_id, link_name) do
       {:ok, linkdef} ->
-        uncache_link_definition(actor, contract_id, link_name)
-        publish_link_definition_deleted(linkdef)
+        uncache_link_definition(lattice_prefix, actor, contract_id, link_name)
+        publish_link_definition_deleted(lattice_prefix, linkdef)
 
       :error ->
         Logger.warn(
@@ -66,26 +84,26 @@ defmodule HostCore.Linkdefs.Manager do
   end
 
   # Publishes a link definition to the lattice and the applicable provider for configuration
-  defp publish_link_definition(ld) do
-    prefix = HostCore.Host.lattice_prefix()
+  defp publish_link_definition(prefix, ld) do
     cache_topic = "lc.#{prefix}.linkdefs.#{ld.id}"
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
-    event_topic = "wasmbus.evt.#{prefix}"
 
-    evtmsg =
-      %{
-        id: ld.id,
-        actor_id: ld.actor_id,
-        provider_id: ld.provider_id,
-        link_name: ld.link_name,
-        contract_id: ld.contract_id,
-        values: ld.values
-      }
-      |> CloudEvent.new("linkdef_set")
+    %{
+      id: ld.id,
+      actor_id: ld.actor_id,
+      provider_id: ld.provider_id,
+      link_name: ld.link_name,
+      contract_id: ld.contract_id,
+      values: ld.values
+    }
+    |> CloudEvent.new("linkdef_set", "n/a")
+    |> CloudEvent.publish(prefix)
 
-    HostCore.Nats.safe_pub(:control_nats, cache_topic, Jason.encode!(ld))
-    HostCore.Nats.safe_pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
-    HostCore.Nats.safe_pub(:control_nats, event_topic, evtmsg)
+    control = HostCore.Nats.control_connection(prefix)
+    rpc = HostCore.Nats.rpc_connection(prefix)
+
+    HostCore.Nats.safe_pub(control, cache_topic, Jason.encode!(ld))
+    HostCore.Nats.safe_pub(rpc, provider_topic, Msgpax.pack!(ld))
   end
 
   # Publishes the removal of a link definition to the stream and tells the provider via RPC
@@ -93,32 +111,35 @@ defmodule HostCore.Linkdefs.Manager do
   # NOTE: publishing a linkdef removal involves re-publishing the original linkdef message
   # to its original topic with the "deleted: true" field, which will tell the cache loader
   # to uncache the item rather than cache it.
-  defp publish_link_definition_deleted(ld) do
-    prefix = HostCore.Host.lattice_prefix()
+  defp publish_link_definition_deleted(prefix, ld) do
     cache_topic = "lc.#{prefix}.linkdefs.#{ld.id}"
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.del"
-    event_topic = "wasmbus.evt.#{prefix}"
 
-    evtmsg =
-      %{
-        id: ld.id,
-        actor_id: ld.actor_id,
-        provider_id: ld.provider_id,
-        link_name: ld.link_name,
-        contract_id: ld.contract_id,
-        values: ld.values
-      }
-      |> CloudEvent.new("linkdef_deleted")
+    %{
+      id: ld.id,
+      actor_id: ld.actor_id,
+      provider_id: ld.provider_id,
+      link_name: ld.link_name,
+      contract_id: ld.contract_id,
+      values: ld.values
+    }
+    |> CloudEvent.new("linkdef_deleted", "n/a")
+    |> CloudEvent.publish(prefix)
 
-    HostCore.Nats.safe_pub(:lattice_nats, provider_topic, Msgpax.pack!(ld))
+    control = HostCore.Nats.control_connection(prefix)
+    rpc = HostCore.Nats.rpc_connection(prefix)
+    HostCore.Nats.safe_pub(rpc, provider_topic, Msgpax.pack!(ld))
+
     ld = Map.put(ld, :deleted, true)
-    HostCore.Nats.safe_pub(:control_nats, cache_topic, Jason.encode!(ld))
-    HostCore.Nats.safe_pub(:control_nats, event_topic, evtmsg)
+    HostCore.Nats.safe_pub(control, cache_topic, Jason.encode!(ld))
   end
 
-  def get_link_definitions() do
-    :ets.tab2list(:linkdef_table)
-    |> Enum.map(fn {{pk, contract, link}, %{provider_id: provider_id, values: values}} ->
+  def get_link_definitions(prefix) do
+    tbl =
+      table_atom(prefix)
+      |> :ets.tab2list()
+
+    for {{pk, contract, link}, %{provider_id: provider_id, values: values}} <- tbl do
       %{
         actor_id: pk,
         provider_id: provider_id,
@@ -126,6 +147,10 @@ defmodule HostCore.Linkdefs.Manager do
         contract_id: contract,
         values: values
       }
-    end)
+    end
+  end
+
+  def table_atom(prefix) when is_binary(prefix) do
+    String.to_atom("linkdef_#{prefix}")
   end
 end

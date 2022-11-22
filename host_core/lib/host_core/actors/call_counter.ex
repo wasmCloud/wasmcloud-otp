@@ -11,7 +11,12 @@ defmodule HostCore.Actors.CallCounter do
     {:ok, nil}
   end
 
-  def read_and_increment(pk) when is_binary(pk) do
-    :ets.update_counter(HostCore.Actors.CallCounter, pk, 1, {pk, -1})
+  def read_and_increment(pk, lattice_prefix) when is_binary(pk) and is_binary(lattice_prefix) do
+    key = key(pk, lattice_prefix)
+    :ets.update_counter(__MODULE__, key, 1, {key, -1})
+  end
+
+  defp key(pk, lattice_prefix) do
+    "#{lattice_prefix}-#{pk}"
   end
 end

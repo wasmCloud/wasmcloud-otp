@@ -22,14 +22,15 @@ defmodule HostCore.Policy.Manager do
     end
   end
 
-  def spec() do
-    case System.get_env("WASMCLOUD_POLICY_CHANGES_TOPIC") do
+  # TODO: this needs to be moved to be aware of per-lattice connections
+  def spec(lattice_prefix) do
+    case get_policy_change_topic(lattice_prefix) do
       nil ->
         []
 
       topic ->
         cs_settings = %{
-          connection_name: :control_nats,
+          connection_name: HostCore.Nats.control_connection(lattice_prefix),
           module: __MODULE__,
           subscription_topics: [
             %{topic: topic}
@@ -39,15 +40,21 @@ defmodule HostCore.Policy.Manager do
         [
           Supervisor.child_spec(
             {Gnat.ConsumerSupervisor, cs_settings},
-            id: :policy_manager
+            id: String.to_atom("polman-#{lattice_prefix}")
           )
         ]
     end
   end
 
-  def evaluate_action(source, target, action) do
-    with {:ok, topic} <- HostCore.Policy.Manager.policy_topic(),
-         nil <- cached_decision(source, target, action),
+  @spec evaluate_action(
+          host_config :: HostCore.Vhost.Configuration.t(),
+          source :: Map.t(),
+          target :: Map.t(),
+          action :: String.t()
+        ) :: Map.t()
+  def evaluate_action(host_config, source, target, action) do
+    with {:ok, topic} <- HostCore.Policy.Manager.policy_topic(host_config),
+         nil <- cached_decision(source, target, action, host_config.lattice_prefix),
          :ok <- validate_source(source),
          :ok <- validate_target(target),
          :ok <- validate_action(action) do
@@ -59,15 +66,15 @@ defmodule HostCore.Policy.Manager do
         target: target,
         action: action,
         host: %{
-          publicKey: HostCore.Host.host_key(),
-          issuer: HostCore.Host.issuer(),
-          latticeId: HostCore.Host.lattice_prefix(),
-          labels: HostCore.Host.host_labels(),
-          clusterIssuers: HostCore.Host.cluster_issuers()
+          publicKey: host_config.host_key,
+          issuer: host_config.cluster_key,
+          latticeId: host_config.lattice_prefix,
+          labels: host_config.labels,
+          clusterIssuers: host_config.cluster_issuers
         }
       }
-      |> evaluate(topic)
-      |> cache_decision(source, target, action, request_id)
+      |> evaluate(topic, host_config)
+      |> cache_decision(source, target, action, host_config.lattice_prefix, request_id)
     else
       :policy_eval_disabled ->
         allowed_action("Policy evaluation disabled, allowing action", "")
@@ -82,11 +89,19 @@ defmodule HostCore.Policy.Manager do
     end
   end
 
-  defp evaluate(req, topic) do
+  defp get_policy_change_topic(lattice_prefix) do
+    System.get_env("WASMCLOUD_POLICY_CHANGES_TOPIC_#{String.replace(lattice_prefix, "-", "_")}") ||
+      System.get_env("WASMCLOUD_POLICY_CHANGES_TOPIC")
+  end
+
+  defp evaluate(req, topic, host_config) do
     case Jason.encode(req) do
       {:ok, encoded} ->
-        case HostCore.Nats.safe_req(:control_nats, topic, encoded,
-               receive_timeout: HostCore.Policy.Manager.policy_timeout()
+        case HostCore.Nats.safe_req(
+               HostCore.Nats.control_connection(host_config.lattice_prefix),
+               topic,
+               encoded,
+               receive_timeout: HostCore.Policy.Manager.policy_timeout(host_config)
              ) do
           {:ok, %{body: body}} ->
             # Decode body with existing atom keys
@@ -122,32 +137,33 @@ defmodule HostCore.Policy.Manager do
   end
 
   # Returns nil if not present or {:ok, decision} based on previous policy decision
-  defp cached_decision(source, target, action) do
-    case :ets.lookup(@policy_table, {source, target, action}) do
-      [{{_src, _tgt, _act}, decision}] -> {:ok, decision}
+  defp cached_decision(source, target, action, lattice_prefix) do
+    case :ets.lookup(@policy_table, {source, target, action, lattice_prefix}) do
+      [{{_src, _tgt, _act, _prefix}, decision}] -> {:ok, decision}
       [] -> nil
     end
   end
 
-  defp cache_decision({decision, false}, _source, _target, _action, _request_id), do: decision
+  defp cache_decision({decision, false}, _source, _target, _action, _prefix, _request_id),
+    do: decision
 
   # Inserts a policy decision into the policy table as a nested tuple. This
   # allows future lookups to easily fetch decision based on {source,target,action}
   # Also stores the {source,target,action} under the request ID as a key for O(1) lookups
   # to invalidate
-  defp cache_decision({decision, true}, source, target, action, request_id) do
-    :ets.insert(@policy_table, {{source, target, action}, decision})
-    :ets.insert(@policy_table, {request_id, {source, target, action}})
+  defp cache_decision({decision, true}, source, target, action, prefix, request_id) do
+    :ets.insert(@policy_table, {{source, target, action, prefix}, decision})
+    :ets.insert(@policy_table, {request_id, {source, target, action, prefix}})
     decision
   end
 
   # Lookup the decision by request ID, then delete both from the policy table
   defp override_decision(request_id, permitted, message) do
     case :ets.lookup(@policy_table, request_id) do
-      [{_request_id, {source, target, action}}] ->
+      [{_request_id, {source, target, action, prefix}}] ->
         :ets.insert(
           @policy_table,
-          {{source, target, action},
+          {{source, target, action, prefix},
            %{
              permitted: permitted,
              message: message,
@@ -227,23 +243,15 @@ defmodule HostCore.Policy.Manager do
     }
   end
 
-  def policy_topic() do
-    case :ets.lookup(:config_table, :config) do
-      [config: config_map] ->
-        case config_map[:policy_topic] do
-          nil -> :policy_eval_disabled
-          topic -> {:ok, topic}
-        end
-
-      _ ->
-        :policy_eval_disabled
+  def policy_topic(config) do
+    if config.policy_topic == nil || config.policy_topic == "" do
+      :policy_eval_disabled
+    else
+      {:ok, config.policy_topic}
     end
   end
 
-  def policy_timeout() do
-    case :ets.lookup(:config_table, :config) do
-      [config: config_map] -> config_map[:policy_timeout]
-      _ -> 1_000
-    end
+  def policy_timeout(config) do
+    config.policy_timeout || 1_000
   end
 end

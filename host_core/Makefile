@@ -36,6 +36,9 @@ run: build ## Run host_core
 run-interactive: build ## Run host_core with an iex session
 	iex -S mix
 
+credo: build
+	mix credo
+
 test: build ## Run test suite, launch NATS with docker-compose
 	docker compose -f ./test/docker-compose.yml up --detach
 	MIX_ENV=test mix test $(EXTRA_TEST_ARGS)

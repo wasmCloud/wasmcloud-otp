@@ -1,15 +1,9 @@
 defmodule HostCore.ProvidersTest do
-  use ExUnit.Case, async: false
-  doctest HostCore.Providers
+  use ExUnit.Case, async: true
 
-  setup do
-    {:ok, evt_watcher} =
-      GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
+  import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
 
-    [
-      evt_watcher: evt_watcher
-    ]
-  end
+  setup :standard_setup
 
   @httpserver_path HostCoreTest.Constants.httpserver_path()
   @httpserver_key HostCoreTest.Constants.httpserver_key()
@@ -17,11 +11,16 @@ defmodule HostCore.ProvidersTest do
   @httpserver_oci HostCoreTest.Constants.httpserver_ociref()
   @httpserver_contract HostCoreTest.Constants.httpserver_contract()
 
-  test "can load provider from file", %{:evt_watcher => evt_watcher} do
-    on_exit(fn -> HostCore.Host.purge() end)
+  test "can load provider from file", %{
+    :evt_watcher => evt_watcher,
+    :hconfig => config,
+    :host_pid => pid
+  } do
+    on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+        config.host_key,
         @httpserver_path,
         @httpserver_link,
         %{
@@ -41,7 +40,7 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
-    provs = HostCore.Providers.ProviderSupervisor.all_providers()
+    provs = HostCore.Providers.ProviderSupervisor.all_providers(config.host_key)
 
     assert elem(Enum.at(provs, 0), 1) ==
              httpserver_key
@@ -49,7 +48,11 @@ defmodule HostCore.ProvidersTest do
     annotations = elem(Enum.at(provs, 0), 0) |> HostCore.Providers.ProviderModule.annotations()
     assert annotations == %{"is_testing" => "youbetcha"}
 
-    HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
+    HostCore.Providers.ProviderSupervisor.terminate_provider(
+      config.host_key,
+      httpserver_key,
+      @httpserver_link
+    )
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_stop(
@@ -58,14 +61,19 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == []
+    assert HostCore.Providers.ProviderSupervisor.all_providers(config.host_key) == []
   end
 
-  test "can load provider from OCI", %{:evt_watcher => evt_watcher} do
-    on_exit(fn -> HostCore.Host.purge() end)
+  test "can load provider from OCI", %{
+    :evt_watcher => evt_watcher,
+    :hconfig => config,
+    :host_pid => pid
+  } do
+    on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+        config.host_key,
         @httpserver_oci,
         "default"
       )
@@ -78,10 +86,17 @@ defmodule HostCore.ProvidersTest do
         @httpserver_key
       )
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
+    assert elem(
+             Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(config.host_key), 0),
+             1
+           ) ==
              @httpserver_key
 
-    HostCore.Providers.ProviderSupervisor.terminate_provider(@httpserver_key, @httpserver_link)
+    HostCore.Providers.ProviderSupervisor.terminate_provider(
+      config.host_key,
+      @httpserver_key,
+      @httpserver_link
+    )
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_stop(
@@ -90,14 +105,19 @@ defmodule HostCore.ProvidersTest do
         @httpserver_key
       )
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == []
+    assert HostCore.Providers.ProviderSupervisor.all_providers(config.host_key) == []
   end
 
-  test "prevents starting duplicate local providers", %{:evt_watcher => evt_watcher} do
-    on_exit(fn -> HostCore.Host.purge() end)
+  test "prevents starting duplicate local providers", %{
+    :evt_watcher => evt_watcher,
+    :hconfig => config,
+    :host_pid => pid
+  } do
+    on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, _pid} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+        config.host_key,
         @httpserver_path,
         @httpserver_link
       )
@@ -114,11 +134,15 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
+    assert elem(
+             Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(config.host_key), 0),
+             1
+           ) ==
              httpserver_key
 
     {:error, reason} =
       HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+        config.host_key,
         @httpserver_path,
         @httpserver_link
       )
@@ -134,10 +158,17 @@ defmodule HostCore.ProvidersTest do
 
     assert provider_started_evts == 1
 
-    assert elem(Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(), 0), 1) ==
+    assert elem(
+             Enum.at(HostCore.Providers.ProviderSupervisor.all_providers(config.host_key), 0),
+             1
+           ) ==
              httpserver_key
 
-    HostCore.Providers.ProviderSupervisor.terminate_provider(httpserver_key, @httpserver_link)
+    HostCore.Providers.ProviderSupervisor.terminate_provider(
+      config.host_key,
+      httpserver_key,
+      @httpserver_link
+    )
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_provider_stop(
@@ -146,6 +177,6 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
-    assert HostCore.Providers.ProviderSupervisor.all_providers() == []
+    assert HostCore.Providers.ProviderSupervisor.all_providers(config.host_key) == []
   end
 end

@@ -10,24 +10,40 @@ defmodule HostCore.Actors.ActorRpcServer do
           topic: topic
         } = msg
       ) do
-    pk = topic |> String.split(".") |> Enum.at(-1)
+    tokens = String.split(topic, ".")
 
-    case Registry.lookup(Registry.ActorRegistry, pk) do
-      [] ->
-        {:error, "Actor #{pk} is not running on this host. RPC call skipped."}
+    if length(tokens) != 4 do
+      # This could cause a timeout for a waiting consumer, but that's "ok" since
+      # nobody should send on a malformed RPC topic anyway
+      :ok
+    else
+      ["wasmbus", "rpc", lattice_prefix, actor_pk] = tokens
 
-      actors ->
-        next_index = CallCounter.read_and_increment(pk)
-        {pid, _value} = Enum.at(actors, rem(next_index, length(actors)))
+      host_candidates =
+        HostCore.Lattice.LatticeSupervisor.hosts_in_lattice(lattice_prefix)
+        |> Enum.map(fn {h, _pid} -> h end)
 
-        case GenServer.call(pid, {:handle_incoming_rpc, msg}) do
-          {:ok, resp} ->
-            {:reply, resp}
+      case Registry.lookup(Registry.ActorRegistry, actor_pk) do
+        [] ->
+          {:error, "Actor #{actor_pk} is not running. RPC call skipped."}
 
-          _ ->
-            Logger.error("Failed to invoke actor with incoming RPC, actor may not be running")
-            :ok
-        end
+        actors ->
+          eligible_actors =
+            Enum.filter(actors, fn {_pid, host_id} -> host_id in host_candidates end)
+
+          next_index = CallCounter.read_and_increment(actor_pk, lattice_prefix)
+          {pid, _value} = Enum.at(eligible_actors, rem(next_index, length(eligible_actors)))
+
+          case GenServer.call(pid, {:handle_incoming_rpc, msg}) do
+            {:ok, resp} ->
+              []
+              {:reply, resp}
+
+            _ ->
+              Logger.error("Failed to invoke actor with incoming RPC, actor may not be running")
+              :ok
+          end
+      end
     end
   end
 
