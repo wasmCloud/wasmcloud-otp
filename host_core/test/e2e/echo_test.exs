@@ -1,5 +1,5 @@
 defmodule HostCore.E2E.EchoTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   import HostCoreTest.Common, only: [request_http: 2, cleanup: 2, standard_setup: 1]
 
   setup :standard_setup

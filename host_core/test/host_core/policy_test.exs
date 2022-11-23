@@ -3,7 +3,7 @@ defmodule HostCore.PolicyTest do
   # at the moment, the way this test is organized, none of the NATS providers on any of the test
   # hosts will fully shut down
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Mock
   import HostCoreTest.Common, only: [sudo_make_me_a_host: 1, cleanup: 2]

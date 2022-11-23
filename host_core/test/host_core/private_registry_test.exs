@@ -1,5 +1,5 @@
 defmodule HostCore.PrivateRegistryTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
 

@@ -1,5 +1,5 @@
 defmodule HostCore.ProvidersTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
 
@@ -104,6 +104,10 @@ defmodule HostCore.ProvidersTest do
         @httpserver_link,
         @httpserver_key
       )
+
+    if HostCore.Providers.ProviderSupervisor.all_providers(config.host_key) != [] do
+      :timer.sleep(1000)
+    end
 
     assert HostCore.Providers.ProviderSupervisor.all_providers(config.host_key) == []
   end

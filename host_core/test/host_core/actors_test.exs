@@ -2,7 +2,7 @@ defmodule HostCore.ActorsTest do
   # Any test suite that relies on things like querying the actor count or the provider
   # count will need to be _synchronous_ tests so that other tests that rely on that same
   # information won't get bad/confusing results.
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
 
