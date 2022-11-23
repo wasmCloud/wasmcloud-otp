@@ -132,8 +132,12 @@ defmodule HostCore.StructuredLogger.FormatterJson do
            {time, m} <- Map.pop(m, :time),
            {registered_name, m} <- Map.pop(m, :registered_name) do
         m
-        |> put_val(:host_id, HostCore.Host.host_key())
-        |> put_val(:lattice_id, HostCore.Host.lattice_prefix())
+        # TODO: devise a reliable way we can glean the host and lattice
+        # from the logger metadata because these two singleton functions no longer
+        # exist.
+
+        # |> put_val(:host_id, HostCore.Host.host_key())
+        # |> put_val(:lattice_id, HostCore.Host.lattice_prefix())
         |> put_val(:app, app)
         |> put_val(:module, module)
         |> put_val(:function, function)
