@@ -13,9 +13,6 @@ defmodule HostCore.ControlInterface.HostServer do
   import HostCore.Providers.ProviderSupervisor,
     only: [start_provider_from_bindle: 5, start_provider_from_oci: 5]
 
-  import HostCore.Nats,
-    only: [safe_pub: 3, control_connection: 1]
-
   import HostCore.ControlInterface.LatticeServer,
     only: [
       failure_ack: 1,

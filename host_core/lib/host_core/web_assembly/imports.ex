@@ -7,7 +7,7 @@ defmodule HostCore.WebAssembly.Imports do
 
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
-  @event_prefix "wasmbus.evt"
+
   @rpc_event_prefix "wasmbus.rpcevt"
 
   # Once a message body reaches 900kb, we will use the object
@@ -222,34 +222,6 @@ defmodule HostCore.WebAssembly.Imports do
       target ->
         {:ok, %{token | target: target}}
     end
-
-    # target =
-    #   case HostCore.Linkdefs.Manager.lookup_link_definition(prefix, actor_id, namespace, binding) do
-    #     {:ok, ld} ->
-    #       Tracer.set_attribute("target_provider", ld.provider_id)
-    #       {:provider, ld.provider_id, "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{binding}"}
-
-    #     _ ->
-    #       if String.starts_with?(namespace, "M") && String.length(namespace) == 56 do
-    #         Tracer.set_attribute("target_actor", namespace)
-    #         {:actor, namespace, "wasmbus.rpc.#{prefix}.#{namespace}"}
-    #       else
-    #         case HostCore.Claims.Manager.lookup_call_alias(namespace) do
-    #           {:ok, actor_key} ->
-    #             Tracer.set_attribute("target_actor", actor_key)
-    #             {:actor, actor_key, "wasmbus.rpc.#{prefix}.#{actor_key}"}
-
-    #           :error ->
-    #             :unknown
-    #         end
-    #       end
-    #   end
-
-    # if target == :unknown do
-    #   {:error, :alias_not_found, token}
-    # else
-    #   {:ok, %{token | target: target}}
-    # end
   end
 
   defp get_target(%{
@@ -522,10 +494,7 @@ defmodule HostCore.WebAssembly.Imports do
       bytes: payload_bytes
     }
     |> CloudEvent.new(evt_type, host_id)
-    |> CloudEvent.publish(prefix)
-
-    # topic = "#{@rpc_event_prefix}.#{prefix}"
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(prefix), topic, msg)
+    |> CloudEvent.publish(prefix, @rpc_event_prefix)
   end
 
   defp perform_rpc_invoke(inv_bytes, target_subject, timeout, prefix) do

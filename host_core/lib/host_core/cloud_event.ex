@@ -20,10 +20,10 @@ defmodule HostCore.CloudEvent do
     |> Cloudevents.to_json()
   end
 
-  def publish(evt, lattice_prefix) when is_binary(evt) do
+  def publish(evt, lattice_prefix, alt_prefix \\ "wasmbus.evt") when is_binary(evt) do
     HostCore.Nats.safe_pub(
       HostCore.Nats.control_connection(lattice_prefix),
-      "wasmbus.evt.#{lattice_prefix}",
+      "#{alt_prefix}.#{lattice_prefix}",
       evt
     )
 
@@ -33,6 +33,4 @@ defmodule HostCore.CloudEvent do
 
     :ok
   end
-
-  def publish(_, _), do: :ok
 end
