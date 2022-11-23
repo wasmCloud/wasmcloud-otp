@@ -23,32 +23,6 @@ defmodule HostCoreTest.EventWatcher do
   def init(prefix) do
     PubSub.subscribe(:hostcore_pubsub, "latticeevents:#{prefix}")
     PubSub.subscribe(:hostcore_pubsub, "cacheloader:#{prefix}")
-    # purge_topic = "$JS.API.STREAM.PURGE.LATTICECACHE_#{prefix}"
-
-    # case HostCore.Nats.safe_req(:control_nats, purge_topic, []) do
-    #   {:ok, %{body: _body}} ->
-    #     Logger.debug("Purged NATS stream for events watcher")
-
-    #   {:error, :timeout} ->
-    #     Logger.error("Failed to purge NATS stream for events watcher within timeout")
-    # end
-
-    # # Purge all resources from ETS to avoid leftover information
-    # :ets.delete_all_objects(:linkdef_table)
-    # :ets.delete_all_objects(:claims_table)
-    # :ets.delete_all_objects(:refmap_table)
-    # :ets.delete_all_objects(:callalias_table)
-
-    # Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
-
-    # Subscribe to lattice events stream
-    # topic = "wasmbus.evt.#{prefix}"
-    # {:ok, sub} = Gnat.sub(HostCore.Nats.control_connection(prefix), self(), topic)
-
-    # Wait for first ping/pong
-    # This is the result of a long time of debugging, and hypothesizing that the first ping/pong must
-    # be answered successfully or the jetstream client is immediately closed.
-    # Process.sleep(2_000)
 
     {:ok, %State{prefix: prefix, events: [], claims: %{}, linkdefs: %{}, ocirefs: %{}}}
   end

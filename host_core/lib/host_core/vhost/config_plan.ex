@@ -90,7 +90,7 @@ defmodule HostCore.Vhost.ConfigPlan do
       {:ctl_topic_prefix, "ctl_topic_prefix", required: false, default: "wasmbus.ctl"},
       {:cluster_seed, "cluster_seed", required: false, default: ""},
       {:cluster_issuers, "cluster_issuers", required: false, default: []},
-      {:provider_delay, "provider_delay", required: false, default: 300},
+      {:provider_delay, "provider_delay", required: false, default: 400},
       {:allow_latest, "allow_latest", required: false, default: false},
       {:allowed_insecure, "allowed_insecure", required: false, default: []},
       {:js_domain, "js_domain", required: false, default: nil},

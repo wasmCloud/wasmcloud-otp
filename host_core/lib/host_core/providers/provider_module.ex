@@ -220,7 +220,7 @@ defmodule HostCore.Providers.ProviderModule do
       end
 
       # Pause for n milliseconds between shutdown request and forceful termination
-      # Process.sleep(state.provider_delay)
+      # Process.sleep(state.shutdown_delay)
 
       # Elixir cleans up ports, but it doesn't always clean up the OS process it created
       # for that port. TODO - find a clean, reliable way of killing these processes.
@@ -345,7 +345,9 @@ defmodule HostCore.Providers.ProviderModule do
 
     res =
       try do
-        HostCore.Nats.safe_req(:lattice_nats, topic, payload, receive_timeout: config.rpc_timeout)
+        HostCore.Nats.safe_req(HostCore.Nats.rpc_connection(state.lattice_prefix), topic, payload,
+          receive_timeout: config.rpc_timeout
+        )
       rescue
         _e -> {:error, "Received no response on health check topic from provider"}
       end
@@ -389,10 +391,6 @@ defmodule HostCore.Providers.ProviderModule do
     }
     |> CloudEvent.new("health_check_passed", state.host_id)
     |> CloudEvent.publish(state.lattice_prefix)
-
-    # topic = "wasmbus.evt.#{state.lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(state.lattice_prefix), topic, msg)
   end
 
   defp publish_health_failed(state) do
@@ -402,10 +400,6 @@ defmodule HostCore.Providers.ProviderModule do
     }
     |> CloudEvent.new("health_check_failed", state.host_id)
     |> CloudEvent.publish(state.lattice_prefix)
-
-    # topic = "wasmbus.evt.#{state.lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(state.lattice_prefix), topic, msg)
   end
 
   def publish_provider_stopped(
@@ -426,10 +420,6 @@ defmodule HostCore.Providers.ProviderModule do
     }
     |> CloudEvent.new("provider_stopped", host_id)
     |> CloudEvent.publish(lattice_prefix)
-
-    # topic = "wasmbus.evt.#{lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 
   defp publish_provider_started(
@@ -460,9 +450,5 @@ defmodule HostCore.Providers.ProviderModule do
     }
     |> CloudEvent.new("provider_started", host_id)
     |> CloudEvent.publish(lattice_prefix)
-
-    # topic = "wasmbus.evt.#{lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 end

@@ -1,5 +1,5 @@
 defmodule HostCore.E2E.KVCounterTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   import HostCoreTest.Common, only: [request_http: 2, cleanup: 2, standard_setup: 1]
 
   setup :standard_setup
@@ -118,7 +118,7 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, resp} = request_http("http://localhost:8081/foobar", 5)
     # Retrieve current count, assert next request increments by 1
     {:ok, body} = resp.body |> JSON.decode()
-    incr_count = Map.get(body, "counter") + 1
+    incr_count = Map.get(body, "counter", 0) + 1
     {:ok, resp} = request_http("http://localhost:8081/foobar", 2)
     assert resp.body == "{\"counter\":#{incr_count}}"
 
