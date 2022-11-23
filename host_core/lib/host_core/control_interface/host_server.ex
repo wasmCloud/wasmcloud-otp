@@ -341,7 +341,5 @@ defmodule HostCore.ControlInterface.HostServer do
     }
     |> CloudEvent.new("provider_start_failed", host_id)
     |> CloudEvent.publish(prefix)
-
-
   end
 end

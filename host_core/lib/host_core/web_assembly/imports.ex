@@ -166,7 +166,6 @@ defmodule HostCore.WebAssembly.Imports do
       payload
       |> perform_verify()
       |> tap(&update_tracer_status/1)
-
     end
   end
 

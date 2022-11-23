@@ -322,5 +322,4 @@ defmodule HostCore.Providers.ProviderSupervisor do
       [{{:"$1", :"$2", :"$3"}, [{:==, :"$3", host_id}], [{{:"$1", :"$2"}}]}]
     )
   end
-
 end
