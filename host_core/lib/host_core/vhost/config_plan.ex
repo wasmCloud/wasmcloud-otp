@@ -26,6 +26,7 @@ defmodule HostCore.Vhost.ConfigPlan do
       # so we don't specify them here
       %Env{
         bindings: [
+          {:host_config, "HOST_CONFIG", required: false},
           {:lattice_prefix, @prefix_var, required: false},
           {:host_seed, "WASMCLOUD_HOST_SEED", required: false},
           {:rpc_host, "WASMCLOUD_RPC_HOST", required: false},
@@ -73,6 +74,7 @@ defmodule HostCore.Vhost.ConfigPlan do
 
   defp json_bindings() do
     [
+      {:host_config, "host_config", required: false, default: nil},
       {:lattice_prefix, "lattice_prefix", required: false, default: @default_prefix},
       {:host_seed, "host_seed", required: false, default: nil},
       {:rpc_host, "rpc_host", required: false, default: "127.0.0.1"},
