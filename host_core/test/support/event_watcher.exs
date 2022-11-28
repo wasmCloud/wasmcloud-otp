@@ -53,15 +53,6 @@ defmodule HostCoreTest.EventWatcher do
     {:noreply, %State{state | linkdefs: linkdefs}}
   end
 
-  # @impl true
-  # # Receives events from wasmbus.evt.prefix and stores them for later processing
-  # def handle_info({:msg, %{body: body}}, state) do
-  #   evt = Jason.decode!(body)
-  #   events = [evt | state.events]
-
-  #   {:noreply, %State{state | events: events}}
-  # end
-
   @impl true
   def handle_info({:cacheloader, :linkdef_added, ld}, state) do
     key = {ld.actor_id, ld.contract_id, ld.link_name}

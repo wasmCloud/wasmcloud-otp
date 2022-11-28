@@ -126,8 +126,6 @@ defmodule HostCore.Providers.ProviderModule do
 
     # Store the provider pid
     Registry.register(Registry.ProviderRegistry, {claims.public_key, link_name}, host_id)
-    # Store the provider triple in an ETS table
-    # HostCore.Providers.register_provider(claims.public_key, link_name, contract_id)
 
     host_info =
       HostCore.Vhost.VirtualHost.generate_hostinfo_for_provider(
@@ -218,9 +216,6 @@ defmodule HostCore.Providers.ProviderModule do
         {:error, :timeout} ->
           Logger.error("No capability providers responded to RPC shutdown request")
       end
-
-      # Pause for n milliseconds between shutdown request and forceful termination
-      # Process.sleep(state.shutdown_delay)
 
       # Elixir cleans up ports, but it doesn't always clean up the OS process it created
       # for that port. TODO - find a clean, reliable way of killing these processes.

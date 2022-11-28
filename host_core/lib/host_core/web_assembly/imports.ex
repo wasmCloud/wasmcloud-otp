@@ -270,10 +270,6 @@ defmodule HostCore.WebAssembly.Imports do
     %{token | verified: true}
   end
 
-  # defp verify_link(token = %{target: :unknown}) do
-  #   %{token | verified: false}
-  # end
-
   defp verify_link(token = %{target: {:actor, _, _}}) do
     %{token | verified: true}
   end

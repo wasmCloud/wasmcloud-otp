@@ -108,6 +108,10 @@ defmodule HostCore.Vhost.ConfigPlan do
     s |> String.trim() |> String.downcase() |> String.to_existing_atom()
   end
 
+  defp string_to_bool(nil) do
+    false
+  end
+
   defp string_to_bool(s) do
     String.upcase(s) in ["TRUE", "YES", "ENABLED", "ENABLE"]
   end

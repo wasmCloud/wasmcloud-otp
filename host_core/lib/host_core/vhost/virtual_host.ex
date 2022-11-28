@@ -268,18 +268,6 @@ defmodule HostCore.Vhost.VirtualHost do
   def generate_hostinfo_for_provider(host_id, provider_key, link_name, instance_id, config_json) do
     config = config(host_id)
 
-    # {url, jwt, seed, tls, timeout, enable_structured_logging, js_domain} =
-    #   case :ets.lookup(:config_table, :config) do
-    #     [config: config_map] ->
-    #       {"#{config_map[:prov_rpc_host]}:#{config_map[:prov_rpc_port]}",
-    #        config_map[:prov_rpc_jwt], config_map[:prov_rpc_seed], config_map[:prov_rpc_tls],
-    #        config_map[:rpc_timeout_ms], config_map[:enable_structured_logging],
-    #        config_map[:js_domain]}
-
-    #     _ ->
-    #       {"127.0.0.1:4222", "", "", 2000, false}
-    #   end
-
     lds =
       HostCore.Linkdefs.Manager.get_link_definitions(config.lattice_prefix)
       |> Enum.filter(fn %{link_name: ln, provider_id: prov} ->
@@ -430,19 +418,18 @@ defmodule HostCore.Vhost.VirtualHost do
   @impl true
   def handle_cast({:do_stop, _timeout_ms}, state) do
     Logger.debug("Host stop requested manually")
-    # TODO: incorporate timeout into graceful shutdown
 
     do_purge(state)
     publish_host_stopped(state)
 
-    # Give a little bit of time for the event to get sent before shutting down
-    :timer.sleep(300)
-
     if HostCore.Application.host_count() == 1 do
-      # TODO - figure out a genserver to receive the :stop_all so it can
-      # do :init.stop
+      # Give a little bit of time for the event to get sent before shutting down
+      :timer.sleep(300)
 
-      # Process.send_after(HostCore.Lattice.LatticeRoot, :stop_all, timeout_ms)
+      Task.Supervisor.start_child(
+        ControlInterfaceTaskSupervisor,
+        fn -> :init.stop() end
+      )
     end
 
     {:stop, :shutdown, state}
@@ -496,16 +483,20 @@ defmodule HostCore.Vhost.VirtualHost do
     end
   end
 
+  @impl true
+  def handle_cast(:publish_heartbeat, state) do
+    publish_heartbeat(state)
+  end
+
+  def emit_heartbeat(pid) when is_pid(pid) do
+    if Process.alive?(pid) do
+      GenServer.cast(pid, :publish_heartbeat)
+    end
+  end
+
   defp publish_heartbeat(state) do
-    # topic = "wasmbus.evt.#{state.config.lattice_prefix}"
     generate_heartbeat(state)
     |> CloudEvent.publish(state.config.lattice_prefix)
-
-    # HostCore.Nats.safe_pub(
-    #   HostCore.Nats.control_connection(state.config.lattice_prefix),
-    #   topic,
-    #   msg
-    # )
   end
 
   defp get_env_host_labels() do
@@ -543,14 +534,6 @@ defmodule HostCore.Vhost.VirtualHost do
     }
     |> CloudEvent.new("host_started", state.config.host_key)
     |> CloudEvent.publish(state.config.lattice_prefix)
-
-    # topic = "wasmbus.evt.#{state.config.lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(
-    #   HostCore.Nats.control_connection(state.config.lattice_prefix),
-    #   topic,
-    #   msg
-    # )
   end
 
   @spec publish_host_stopped(state :: State.t()) :: :ok
@@ -560,13 +543,5 @@ defmodule HostCore.Vhost.VirtualHost do
     }
     |> CloudEvent.new("host_stopped", state.config.host_key)
     |> CloudEvent.publish(state.config.lattice_prefix)
-
-    # topic = "wasmbus.evt.#{state.config.lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(
-    #   HostCore.Nats.control_connection(state.config.lattice_prefix),
-    #   topic,
-    #   msg
-    # )
   end
 end

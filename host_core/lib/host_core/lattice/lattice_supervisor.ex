@@ -9,12 +9,14 @@ defmodule HostCore.Lattice.LatticeSupervisor do
 
   require Logger
 
+  @spec start_link(HostCore.Vhost.Configuration.t()) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(config) do
     Supervisor.start_link(__MODULE__, config,
       name: HostCore.Lattice.LatticeRoot.via_tuple(config.lattice_prefix)
     )
   end
 
+  # Uses the same strongly typed host configuration as other supervisors in the hierarchy (though it only cares about the lattice info)
   @impl true
   def init(config) do
     Logger.info("Starting lattice supervisor for '#{config.lattice_prefix}'")
@@ -67,29 +69,18 @@ defmodule HostCore.Lattice.LatticeSupervisor do
         )
       ] ++ HostCore.Policy.Manager.spec(config.lattice_prefix)
 
-    ct = HostCore.Claims.Manager.claims_table_atom(config.lattice_prefix)
-    ca = HostCore.Claims.Manager.callalias_table_atom(config.lattice_prefix)
-    lt = HostCore.Linkdefs.Manager.table_atom(config.lattice_prefix)
-    rt = HostCore.Refmaps.Manager.table_atom(config.lattice_prefix)
-
-    if :ets.info(ct) == :undefined do
-      :ets.new(ct, [:named_table, :set, :public])
-    end
-
-    if :ets.info(lt) == :undefined do
-      :ets.new(lt, [:named_table, :set, :public])
-    end
-
-    if :ets.info(rt) == :undefined do
-      :ets.new(rt, [:named_table, :set, :public])
-    end
-
-    if :ets.info(ca) == :undefined do
-      :ets.new(ca, [:named_table, :set, :public])
-    end
+    ensure_ets_tables_exist(config)
 
     Supervisor.init(children, strategy: :one_for_one)
   end
+
+  # The following two functions make use of ETS selects (registries sit on top of :ets tables
+  # for more information on ETS select syntax:
+  # https://www.erlang.org/doc/man/ets.html#select-1
+  # https://elixirschool.com/en/lessons/storage/ets#data-retrieval-6
+  #
+  # tl;dr: A -{source indicators}, B - {predicates}, C - {colums/data to actually return}
+  # SELECT C from A where B
 
   def host_pids_in_lattice(lattice_prefix) do
     pids =
@@ -104,5 +95,29 @@ defmodule HostCore.Lattice.LatticeSupervisor do
     Registry.select(Registry.HostRegistry, [
       {{:"$1", :"$2", :"$3"}, [{:==, :"$3", lattice_prefix}], [{{:"$1", :"$2"}}]}
     ])
+  end
+
+  @spec ensure_ets_tables_exist(config :: HostCore.Vhost.Configuration.t()) :: nil
+  defp ensure_ets_tables_exist(config) do
+    claims = HostCore.Claims.Manager.claims_table_atom(config.lattice_prefix)
+    call_alias = HostCore.Claims.Manager.callalias_table_atom(config.lattice_prefix)
+    linkdefs = HostCore.Linkdefs.Manager.table_atom(config.lattice_prefix)
+    refmaps = HostCore.Refmaps.Manager.table_atom(config.lattice_prefix)
+
+    if :ets.info(claims) == :undefined do
+      :ets.new(claims, [:named_table, :set, :public])
+    end
+
+    if :ets.info(linkdefs) == :undefined do
+      :ets.new(linkdefs, [:named_table, :set, :public])
+    end
+
+    if :ets.info(refmaps) == :undefined do
+      :ets.new(refmaps, [:named_table, :set, :public])
+    end
+
+    if :ets.info(call_alias) == :undefined do
+      :ets.new(call_alias, [:named_table, :set, :public])
+    end
   end
 end

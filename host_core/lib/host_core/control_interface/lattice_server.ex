@@ -4,14 +4,7 @@ defmodule HostCore.ControlInterface.LatticeServer do
   require OpenTelemetry.Tracer, as: Tracer
   use Gnat.Server
 
-  alias HostCore.ControlInterface.ACL
   alias HostCore.CloudEvent
-
-  import HostCore.Actors.ActorSupervisor,
-    only: [start_actor_from_bindle: 3, start_actor_from_oci: 3]
-
-  import HostCore.Providers.ProviderSupervisor,
-    only: [start_provider_from_bindle: 4, start_provider_from_oci: 4]
 
   import HostCore.Nats,
     only: [safe_pub: 3, control_connection: 1]
@@ -55,10 +48,10 @@ defmodule HostCore.ControlInterface.LatticeServer do
       Tracer.set_attribute("lattice_id", prefix)
 
       for pid <- HostCore.Lattice.LatticeSupervisor.host_pids_in_lattice(prefix),
-          pingres = HostCore.Vhost.VirtualHost.generate_ping_reply(pid),
-          do: safe_pub(control_connection(prefix), reply_to, Jason.encode!(pingres))
-
-      # HostCore.HeartbeatEmitter.emit_heartbeat()
+          pingres = HostCore.Vhost.VirtualHost.generate_ping_reply(pid) do
+        safe_pub(control_connection(prefix), reply_to, Jason.encode!(pingres))
+        HostCore.Vhost.VirtualHost.emit_heartbeat(pid)
+      end
 
       :ok
     end

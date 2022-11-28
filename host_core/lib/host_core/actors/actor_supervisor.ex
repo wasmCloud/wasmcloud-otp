@@ -139,7 +139,6 @@ defmodule HostCore.Actors.ActorSupervisor do
       Tracer.set_attribute("host_id", host_id)
       Tracer.set_attribute("oci_ref", ref)
 
-      # creds = HostCore.Vhost.VirtualHost.get_creds(config.host_key, :oci, ref)
       creds = HostCore.Vhost.VirtualHost.get_creds(host_id, :oci, ref)
       {:ok, {pid, _prefix}} = HostCore.Vhost.VirtualHost.lookup(host_id)
       config = HostCore.Vhost.VirtualHost.config(pid)
@@ -172,7 +171,6 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   def start_actor_from_bindle(host_id, bindle_id, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from Bindle", kind: :server do
-      # creds = HostCore.Vhost.VirtualHost.get_creds(config.host_key, :bindle, bindle_id)
       creds = HostCore.Vhost.VirtualHost.get_creds(host_id, :bindle, bindle_id)
 
       case HostCore.WasmCloud.Native.get_actor_bindle(
@@ -369,15 +367,6 @@ defmodule HostCore.Actors.ActorSupervisor do
     actors = find_actor(public_key, host_id)
     halt_required_actors(host_id, public_key, annotations, length(actors))
 
-    # Registry.lookup(Registry.ActorRegistry, public_key)
-    # |> Enum.filter(fn {pid, _v} ->
-    #   existing = HostCore.Actors.ActorModule.annotations(pid)
-    #   # Property of maps - map a is contained within b if b.merge(a) == b
-    #   Map.merge(existing, annotations) == existing
-    # end)
-    # |> Enum.map(fn {pid, _v} -> pid end)
-    # |> Enum.each(fn pid -> ActorModule.halt(pid) end)
-
     HostCore.Actors.ActorRpcSupervisor.stop_rpc_subscriber(lattice_prefix, public_key)
 
     :ok
@@ -403,5 +392,3 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   defp get_annotations(pid), do: HostCore.Actors.ActorModule.annotations(pid)
 end
-
-# Registry.select(Registry.ActorRegistry, [{{:"$1", :"$2", :"$3"}, [{:==, :"$3", "NDCEHQGLMWI2VMCRYJXDNMYDK7GFSYGLLP3CV4ADH3TJJS25247NXILE"}], [{{:"$1", :"$2"}}]}])

@@ -4,9 +4,6 @@ defmodule HostCore.PrivateRegistryTest do
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
 
   setup :standard_setup
-  # setup do
-  #   HostCore.Host.clear_credsmap()
-  # end
 
   @private_oci_registry_url HostCoreTest.Constants.private_oci_registry_url()
   @private_bindle_registry_url HostCoreTest.Constants.private_bindle_registry_url()

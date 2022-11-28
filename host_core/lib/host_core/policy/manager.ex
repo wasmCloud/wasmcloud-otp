@@ -22,7 +22,6 @@ defmodule HostCore.Policy.Manager do
     end
   end
 
-  # TODO: this needs to be moved to be aware of per-lattice connections
   def spec(lattice_prefix) do
     case get_policy_change_topic(lattice_prefix) do
       nil ->
