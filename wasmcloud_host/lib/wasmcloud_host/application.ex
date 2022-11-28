@@ -32,4 +32,11 @@ defmodule WasmcloudHost.Application do
     WasmcloudHostWeb.Endpoint.config_change(changed, removed)
     :ok
   end
+
+  # returns {host public key, <pid>, lattice prefix}
+  @spec first_host() :: {String.t(), pid(), String.t()}
+  def first_host() do
+    HostCore.Application.all_hosts()
+    |> List.first()
+  end
 end

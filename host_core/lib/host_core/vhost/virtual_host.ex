@@ -117,21 +117,19 @@ defmodule HostCore.Vhost.VirtualHost do
     topic = "wasmbus.cfg.#{state.config.lattice_prefix}"
     Logger.debug("Requesting supplemental host configuration via topic '#{topic}'.")
 
-    state =
-      with {:ok, supp_config} <-
-             HostCore.ConfigServiceClient.request_configuration(
-               state.config.lattice_prefix,
-               state.labels,
-               topic
-             ) do
-        %State{state | supplemental_config: supp_config}
-      else
-        {:error, e} ->
-          Logger.warn("Failed to obtain supplemental configuration: #{inspect(e)}.")
-          state
-      end
-
-    {:noreply, state, {:continue, :process_supp_config}}
+    with {:ok, supp_config} <-
+           HostCore.ConfigServiceClient.request_configuration(
+             state.config.lattice_prefix,
+             state.labels,
+             topic
+           ) do
+      {:noreply, %State{state | supplemental_config: supp_config},
+       {:continue, :process_supp_config}}
+    else
+      {:error, e} ->
+        Logger.warn("Failed to obtain supplemental configuration: #{inspect(e)}.")
+        {:noreply, state}
+    end
   end
 
   def handle_continue(:process_supp_config, %State{supplemental_config: sc} = state) do

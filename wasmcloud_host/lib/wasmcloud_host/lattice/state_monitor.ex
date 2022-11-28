@@ -8,7 +8,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   # map AND in ETS storage under their respective manager processes.
 
   defmodule State do
-    defstruct [:linkdefs, :refmaps, :claims, :hosts]
+    defstruct [:linkdefs, :refmaps, :claims, :hosts, :lattice_prefix]
   end
 
   def start_link(opts) do
@@ -17,23 +17,25 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   @impl true
   def init(_opts) do
+    {pk, pid, prefix} = WasmcloudHost.Application.first_host()
+    labels = HostCore.Vhost.VirtualHost.labels(pid)
+
     state = %State{
+      lattice_prefix: prefix,
       linkdefs: %{},
       refmaps: %{},
       claims: %{},
       hosts: %{
-        HostCore.Host.host_key() => %{
+        pk => %{
           actors: %{},
           providers: %{},
-          labels: HostCore.Host.host_labels()
+          labels: labels
         }
       }
     }
 
-    prefix = HostCore.Host.lattice_prefix()
-
     topic = "wasmbus.evt.#{prefix}"
-    {:ok, _sub} = Gnat.sub(:control_nats, self(), topic)
+    {:ok, _sub} = Gnat.sub(HostCore.Nats.control_connection(prefix), self(), topic)
 
     Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
 
@@ -43,13 +45,13 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   @impl true
   def handle_continue(:retrieve_cache, state) do
     cmap =
-      HostCore.Claims.Manager.get_claims()
+      HostCore.Claims.Manager.get_claims(state.lattice_prefix)
       |> Enum.reduce(state.claims, fn claims, cmap ->
         Map.put(cmap, claims.sub, claims)
       end)
 
     ldefs =
-      HostCore.Linkdefs.Manager.get_link_definitions()
+      HostCore.Linkdefs.Manager.get_link_definitions(state.lattice_prefix)
       |> Enum.reduce(state.linkdefs, fn ld, linkdefs_map ->
         key = {ld.actor_id, ld.contract_id, ld.link_name}
         map = %{values: ld.values, provider_key: ld.provider_id}
@@ -300,8 +302,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
       if current_host == %{} do
         labels =
           case Gnat.request(
-                 :control_nats,
-                 "wasmbus.ctl.#{HostCore.Host.lattice_prefix()}.get.#{source_host}.inv",
+                 HostCore.Nats.control_connection(state.lattice_prefix),
+                 "wasmbus.ctl.#{state.lattice_prefix}.get.#{source_host}.inv",
                  "",
                  [{:receive_timeout, 2_000}]
                ) do

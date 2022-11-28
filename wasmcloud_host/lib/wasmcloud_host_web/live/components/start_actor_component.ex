@@ -36,11 +36,13 @@ defmodule StartActorComponent do
         %{"count" => count},
         socket
       ) do
+    {pk, _pid, _prefix} = WasmcloudHost.Application.first_host()
+
     error_msg =
       Phoenix.LiveView.consume_uploaded_entries(socket, :actor, fn %{path: path}, _entry ->
         case File.read(path) do
           {:ok, bytes} ->
-            HostCore.Actors.ActorSupervisor.start_actor(bytes, "", String.to_integer(count))
+            HostCore.Actors.ActorSupervisor.start_actor(bytes, pk, "", String.to_integer(count))
 
           {:error, reason} ->
             {:error, "Error #{reason}"}

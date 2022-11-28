@@ -45,6 +45,14 @@ defmodule HostCore.Application do
     Registry.count(Registry.HostRegistry)
   end
 
+  # Returns [{host public key, <pid>, lattice_prefix}]
+  @spec all_hosts() :: [{String.t(), pid(), String.t()}]
+  def all_hosts() do
+    Registry.select(Registry.HostRegistry, [
+      {{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}
+    ])
+  end
+
   defp create_ets_tables() do
     :ets.new(:vhost_table, [:named_table, :set, :public])
     :ets.new(:policy_table, [:named_table, :set, :public])
