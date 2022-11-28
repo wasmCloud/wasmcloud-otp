@@ -116,6 +116,14 @@ defmodule HostCore.Providers.ProviderModule do
            annotations: annotations
          }}
       ) do
+    Logger.metadata(
+      host_id: host_id,
+      lattice_prefix: lattice_prefix,
+      provider_id: claims.public_key,
+      link_name: link_name,
+      contract_id: contract_id
+    )
+
     Logger.info("Starting executable capability provider from '#{path}'",
       provider_id: claims.public_key,
       link_name: link_name,

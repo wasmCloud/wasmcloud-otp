@@ -18,6 +18,7 @@ defmodule HostCore.Vhost.VirtualHost do
     @type t :: %State{
             config: Configuration.t(),
             friendly_name: String.t(),
+            labels: Map.t(),
             start_time: integer(),
             supplemental_config: Map.t()
           }
@@ -92,10 +93,13 @@ defmodule HostCore.Vhost.VirtualHost do
 
     {wclock, _} = :erlang.statistics(:wall_clock)
 
+    Logger.metadata(host_id: config.host_key, lattice_prefix: config.lattice_prefix)
+
     state = %State{
       config: Map.put(config, :labels, labels),
       friendly_name: friendly_name,
-      start_time: wclock
+      start_time: wclock,
+      labels: labels
     }
 
     :timer.send_interval(@thirty_seconds, self(), :publish_heartbeat)
@@ -356,7 +360,7 @@ defmodule HostCore.Vhost.VirtualHost do
 
   @impl true
   def handle_call(:get_labels, _from, state) do
-    {:reply, state.config.labels, state}
+    {:reply, state.labels, state}
   end
 
   @impl true

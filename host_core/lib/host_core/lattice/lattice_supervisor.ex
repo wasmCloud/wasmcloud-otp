@@ -19,6 +19,8 @@ defmodule HostCore.Lattice.LatticeSupervisor do
   # Uses the same strongly typed host configuration as other supervisors in the hierarchy (though it only cares about the lattice info)
   @impl true
   def init(config) do
+    Logger.metadata(lattice_prefix: config.lattice_prefix)
+
     Logger.info("Starting lattice supervisor for '#{config.lattice_prefix}'")
 
     children =

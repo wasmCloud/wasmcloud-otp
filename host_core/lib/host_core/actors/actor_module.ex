@@ -16,8 +16,6 @@ defmodule HostCore.Actors.ActorModule do
   @chunk_threshold 900 * 1024
   @thirty_seconds 30_000
   @perform_invocation "perform_invocation"
-  @event_prefix "wasmbus.evt"
-  @rpc_event_prefix "wasmbus.rpcevt"
 
   require Logger
   alias HostCore.WebAssembly.Imports
@@ -604,7 +602,14 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp start_actor(lattice_prefix, host_id, claims, bytes, oci, annotations) do
-    Logger.info("Starting actor #{claims.public_key}", actor_id: claims.public_key, oci_ref: oci)
+    Logger.metadata(
+      lattice_prefix: lattice_prefix,
+      host_id: host_id,
+      actor_id: claims.public_key,
+      oci_ref: oci
+    )
+
+    Logger.info("Starting actor #{claims.public_key}")
 
     Registry.register(Registry.ActorRegistry, claims.public_key, host_id)
 
