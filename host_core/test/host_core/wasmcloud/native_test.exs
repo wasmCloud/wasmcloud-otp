@@ -139,4 +139,12 @@ defmodule HostCore.WasmCloud.NativeTest do
     assert claims.issuer == @official_issuer
     assert claims.revision == 1_631_625_045
   end
+
+  test "references containing capital letters are transparently converted to lowercase" do
+    # e.g. "FoO.AzUrEcR.Io/oCiReF:0.1.2"
+    spongebob_case_ref = String.graphemes(@echo_oci) |> Enum.map_every(2, fn c -> String.upcase(c) end) |> Enum.join("")
+    {:ok, path} = HostCore.WasmCloud.Native.get_oci_path(nil, spongebob_case_ref, false, [])
+    filename = String.split(path, "/") |> Enum.at(-1)
+    assert String.graphemes(filename) |> Enum.all?(fn c -> String.downcase(c) == c end)
+  end
 end
