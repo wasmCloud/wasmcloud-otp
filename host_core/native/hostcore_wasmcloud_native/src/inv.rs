@@ -21,7 +21,7 @@ pub(crate) const SYSTEM_ACTOR: &str = "system";
 pub(crate) const OP_HALT: &str = "__halt";
 
 /// An immutable representation of an invocation within wasmcloud
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[doc(hidden)]
 pub struct Invocation {
     pub origin: WasmCloudEntity,
@@ -234,7 +234,7 @@ impl WasmCloudEntity {
 /// A link definition is the description of a connection between an actor
 /// and a capability provider, along with the set of configuration values
 /// that belong to that connection
-#[derive(Debug, PartialEq, Deserialize, Serialize, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Default, Clone)]
 pub struct LinkDefinition {
     pub actor_id: String,
     pub provider_id: String,
@@ -243,7 +243,7 @@ pub struct LinkDefinition {
     pub values: std::collections::HashMap<String, String>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Default, Clone)]
 pub struct LinkDefinitionList {
     pub link_definitions: Vec<LinkDefinition>,
 }
@@ -255,14 +255,14 @@ pub struct ClaimsList {
 }
 
 /// A mapping of an alias (OCI or call alias) to a target entity
-#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 pub struct ReferenceMap {
     pub kind: ReferenceType,
     pub target: WasmCloudEntity,
 }
 
 /// Indicates the type of reference map (alias)
-#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 pub enum ReferenceType {
     Oci(String),
     CallAlias(String),
