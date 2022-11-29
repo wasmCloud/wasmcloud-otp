@@ -1,6 +1,10 @@
 defmodule HostCore.Vhost.ConfigPlan do
   @moduledoc """
-  `ConfigPlan` provide configuration options.
+  `ConfigPlan` provides configuration options. This plan defines the configuration sources in the following priority:
+
+  1. `.env` file and its variants
+  2. Configuration loaded from the `host_config.json` file
+  3. Environment variables, which can override the JSON settings
   """
   @behaviour Vapor.Plan
 
@@ -113,6 +117,6 @@ defmodule HostCore.Vhost.ConfigPlan do
   end
 
   defp string_to_bool(s) do
-    String.upcase(s) in ["TRUE", "YES", "ENABLED", "ENABLE"]
+    String.upcase(s) in ["1", "TRUE", "YES", "Y", "ENABLED", "ENABLE"]
   end
 end

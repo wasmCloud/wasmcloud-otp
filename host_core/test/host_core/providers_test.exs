@@ -61,6 +61,10 @@ defmodule HostCore.ProvidersTest do
         httpserver_key
       )
 
+    if HostCore.Providers.ProviderSupervisor.all_providers(config.host_key) != [] do
+      :timer.sleep(1000)
+    end
+
     assert HostCore.Providers.ProviderSupervisor.all_providers(config.host_key) == []
   end
 

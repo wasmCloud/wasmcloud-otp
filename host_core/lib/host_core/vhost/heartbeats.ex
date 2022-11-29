@@ -1,4 +1,8 @@
 defmodule HostCore.Vhost.Heartbeats do
+  @moduledoc """
+  Responsible for the generation of heartbeats. Note that publication of heartbeats is done by the
+  virtual host from which the heartbeat eminates.
+  """
   alias HostCore.CloudEvent
 
   def generate_heartbeat(state) do

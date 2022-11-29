@@ -1,4 +1,7 @@
 defmodule HostCore.Actors.ActorRpcSupervisor do
+  @moduledoc """
+  Supervisor module that is responsible for managing all of the RPC supervisors for all actors.
+  """
   require Logger
   use Supervisor
 

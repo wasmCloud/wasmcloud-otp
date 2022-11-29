@@ -1,5 +1,11 @@
 defmodule HostCore.Providers.ProviderModule do
-  @moduledoc false
+  @moduledoc """
+  The provider module is an OTP process designed to manage a single instance of a capability provider within a single virtual
+  host. At the moment, capability providers are native OS binaries and, as such, this process is designed to spawn a running
+  child process of that binary and manage the interaction with it. Unlike actors, capability providers are responsible for subscribing
+  to their RPC topics on their own.
+  """
+
   use GenServer, restart: :transient
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
@@ -31,6 +37,22 @@ defmodule HostCore.Providers.ProviderModule do
   @doc """
   Starts the provider module assuming it is an executable file
   """
+
+  @spec start_link(
+          opts ::
+            {:executable,
+             %{
+               host_id: String.t(),
+               lattice_prefix: String.t(),
+               path: String.t(),
+               link_name: String.t(),
+               contract_id: String.t(),
+               shutdown_delay: non_neg_integer(),
+               oci: String.t(),
+               config_json: map(),
+               annotations: map()
+             }}
+        ) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end

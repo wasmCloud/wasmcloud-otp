@@ -1,6 +1,13 @@
 defmodule HostCore.Vhost.VirtualHost do
   @moduledoc """
-  Virtual host
+  The _Virtual Host_ is a unit of containment for resources such as actors and capability providers. It is launched immediately
+  upon application startup using the configuration supplied by the configuration plan pipeline and the setting of appropriate defaults.
+  Each virtual host also subscribes to the following topic patterns:
+
+  * {ctl_prefix}.{lattice_prefix}.cmd.{host_key}.*
+  * {ctl_prefix}.{lattice_prefix}.get.{host_key}.inv
+
+  Lattices are managed in the `HostCore.Lattice.LatticeSupervisor`, with one being started for each lattice obtained through configuration
   """
 
   use GenServer, restart: :transient
@@ -19,8 +26,8 @@ defmodule HostCore.Vhost.VirtualHost do
             config: Configuration.t(),
             friendly_name: String.t(),
             labels: Map.t(),
-            start_time: integer(),
-            supplemental_config: Map.t()
+            start_time: non_neg_integer(),
+            supplemental_config: Map.t() | nil
           }
     defstruct [:config, :friendly_name, :start_time, :labels, :supplemental_config]
   end
@@ -36,8 +43,9 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   @impl true
-  @spec init(config :: Configuration.t()) ::
-          {:ok, State.t()} | {:ok, State.t(), {:continue, atom()}}
+  @spec init(config :: HostCore.Vhost.Configuration.t()) ::
+          {:ok, HostCore.Vhost.VirtualHost.State.t(),
+           {:continue, :load_supp_config | :publish_started}}
   def init(config) do
     Process.flag(:trap_exit, true)
 
@@ -103,12 +111,11 @@ defmodule HostCore.Vhost.VirtualHost do
     }
 
     :timer.send_interval(@thirty_seconds, self(), :publish_heartbeat)
-    Process.send_after(self(), :publish_started, 500)
 
     if config.config_service_enabled do
       {:ok, state, {:continue, :load_supp_config}}
     else
-      {:ok, state}
+      {:ok, state, {:continue, :publish_started}}
     end
   end
 
@@ -128,7 +135,7 @@ defmodule HostCore.Vhost.VirtualHost do
     else
       {:error, e} ->
         Logger.warn("Failed to obtain supplemental configuration: #{inspect(e)}.")
-        {:noreply, state}
+        {:noreply, state, {:continue, :publish_started}}
     end
   end
 
@@ -174,6 +181,11 @@ defmodule HostCore.Vhost.VirtualHost do
       end)
     end)
 
+    {:noreply, {:continue, :publish_started}}
+  end
+
+  def handle_continue(:publish_started, state) do
+    publish_host_started(state)
     {:noreply, state}
   end
 
@@ -184,12 +196,6 @@ defmodule HostCore.Vhost.VirtualHost do
   @impl true
   def handle_info(:publish_heartbeat, state) do
     publish_heartbeat(state)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info(:publish_started, state) do
-    publish_host_started(state)
     {:noreply, state}
   end
 

@@ -1,4 +1,8 @@
 defmodule HostCore.ConfigServiceClient do
+  @moduledoc """
+  This module is a client that consumes a configuration service over the appropriate configuration service topic. All configuration
+  service calls occur over NATS and the topic can be overridden in virtual host configuration
+  """
   require Logger
 
   def request_configuration(lattice_prefix, labels, topic)

@@ -1,5 +1,9 @@
 defmodule HostCore.Providers.ProviderSupervisor do
-  @moduledoc false
+  @moduledoc """
+  The provider supervisor is the owner of provider processes. You should never attempt to start or stop individual `HostCore.Providers.ProviderModule` processes
+  on your own. Instead you should use the appropriate start and stop functions on this supervisor. Additionally, if you need to obtain a list of running
+  provider modules based on some criteria, you should use functions exposed by this supervisor rather than attempting to query the appropriate registry yourself
+  """
   use DynamicSupervisor
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
@@ -15,6 +19,18 @@ defmodule HostCore.Providers.ProviderSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
+  @doc """
+  Starts a capability provider from an OCI reference. This function requires you to pass the appropriate virtual host
+  ID on which the provider will be started, along with the link name, startup configuration, and optional annotations typically
+  used by wadm
+  """
+  @spec start_provider_from_oci(
+          host_id :: String.t(),
+          ref :: String.t(),
+          link_name :: String.t(),
+          config_json :: String.t(),
+          annotations :: map()
+        ) :: DynamicSupervisor.on_start_child()
   def start_provider_from_oci(host_id, ref, link_name, config_json \\ "", annotations \\ %{}) do
     Tracer.with_span "Start Provider from OCI" do
       creds = HostCore.Vhost.VirtualHost.get_creds(host_id, :oci, ref)
@@ -72,6 +88,18 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
+  @doc """
+  Starts a capability provider from a bindle reference. Requires the public key of the virtual host on which
+  the provider will be started as well as basic information like the bindle ID/reference, link name, startup configuration,
+  and an optional map of annotations
+  """
+  @spec start_provider_from_bindle(
+          host_id :: String.t(),
+          bindle_id :: String.t(),
+          link_name :: String.t(),
+          config_json :: String.t(),
+          annotations :: map()
+        ) :: DynamicSupervisor.on_start_child()
   def start_provider_from_bindle(
         host_id,
         bindle_id,
@@ -132,6 +160,16 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
+  @doc """
+  Starts a capability provider from a local file. This function should only ever be invoked when the consumer is local, such as the washboard
+  container application. This is never to be performed in production scenarios unless specific exceptions are made in the code.
+  """
+  @spec start_provider_from_file(
+          host_id :: String.t(),
+          path :: String.t(),
+          link_name :: String.t(),
+          annotations :: map()
+        ) :: DynamicSupervisor.on_start_child()
   def start_provider_from_file(host_id, path, link_name, annotations \\ %{}) do
     Tracer.with_span "Start Provider from File" do
       with {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path, link_name) do
@@ -162,6 +200,10 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
+  @doc """
+  Used to query whether a capability provider identified by the public key, a reference URL (bindle/OCI), link name is
+  running on the given virtual host
+  """
   def provider_running?(host_id, reference, link_name, public_key) do
     lattice_prefix =
       case HostCore.Vhost.VirtualHost.lookup(host_id) do
@@ -296,7 +338,6 @@ defmodule HostCore.Providers.ProviderSupervisor do
   def all_providers(host_id) do
     # $1 - {pk, link_name}
     # $2 - pid
-    # $3 - host_id
     providers_on_host = providers_on_host(host_id)
 
     providers_on_host

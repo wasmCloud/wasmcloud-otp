@@ -1,12 +1,14 @@
 defmodule HostCore.Vhost.Configuration do
   @moduledoc """
-  Configuration
+  The virtual host configuration is a collection of settings that configure a virtual host's ability to communicate
+  with NATS and with the rest of a wasmCloud lattice by virtue of cluster signers, user JWTs and seed, etc. Additional
+  options and parameters are also available in this stucture.
   """
 
   alias __MODULE__
 
   @typedoc """
-  configuration
+  The configuration structure for a virtual host
   """
   @type t :: %Configuration{
           prov_rpc_host: String.t(),

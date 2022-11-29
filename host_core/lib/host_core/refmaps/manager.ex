@@ -1,5 +1,10 @@
 defmodule HostCore.Refmaps.Manager do
-  @moduledoc false
+  @moduledoc """
+  The reference maps manager is responsible for managing the association of public keys with the repository address references
+  which can be OCI refereences or bindle references. You can look up a reference by its OCI/bindle URL as well as obtain a list
+  of reference maps for a given public key. When multiple versions of the same wasm module have been published to the same lattice,
+  that lattice reference maps cache can contain multiple reference URLs for a single key
+  """
   require Logger
 
   alias HostCore.CloudEvent

@@ -1,5 +1,9 @@
 defmodule HostCore.Actors.ActorSupervisor do
-  @moduledoc false
+  @moduledoc """
+  The supervisor module for actor modules. It is responsible for starting, stopping, restarting, and all other aspects
+  of managing actor (wasm component) instances. Do not attempt to start or stop the actor modules on your own, always
+  go through this module to ensure consistent behavior.
+  """
   use DynamicSupervisor
 
   require OpenTelemetry.Tracer, as: Tracer

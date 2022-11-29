@@ -1,4 +1,11 @@
 defmodule HostCore.Actors.ActorRpcServer do
+  @moduledoc """
+  The actor RPC server is a Gnat.Server process that is listening to incoming messages on an actor's RPC subscription
+  topic, which is a queue subscription derived from the actor's public key. This server will attempt to deliver inbound
+  messages to multiple instances of the same actor on the same virtual host in round robin fashion.
+
+  This consumer is started when an actor starts and is stopped when the _last instance_ of that actor terminates.
+  """
   require Logger
   alias HostCore.Actors.CallCounter
   use Gnat.Server

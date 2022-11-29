@@ -1,4 +1,9 @@
 defmodule HostCore.Actors.CallCounter do
+  @moduledoc """
+  Simple incrementing counter process. The only real difference between this process and
+  a standard counter is that this one has a specific key that corresponds to an actor's public
+  key and the lattice where that actor is running.
+  """
   use GenServer
 
   def start_link(_opts) do
@@ -17,6 +22,6 @@ defmodule HostCore.Actors.CallCounter do
   end
 
   defp key(pk, lattice_prefix) do
-    "#{lattice_prefix}-#{pk}"
+    "#{pk}-#{lattice_prefix}"
   end
 end

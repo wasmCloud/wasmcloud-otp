@@ -1,5 +1,13 @@
 defmodule HostCore.Nats do
-  @moduledoc false
+  @moduledoc """
+  The NATS module provides a few special utility functions. The main functions in this module allow consumers to obtain the
+  appropriate atom for a given RPC or control connection. Note that while there is a finite limit on atoms in a BEAM, the limit
+  is often in the millions and if we have hundreds of thousands of lattices running inside a single OTP application, we have other
+  problems to worry about.
+
+  In addition to obtaining the appropriate connection atom, this module also exposes the `safe_pub` and `safe_req` wrappers around
+  core Gnat functionality.
+  """
   require Logger
 
   def rpc_connection_settings(opts) do
