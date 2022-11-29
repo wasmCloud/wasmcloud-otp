@@ -150,7 +150,7 @@ defmodule HostCore.ControlInterface.HostServer do
 
       ctx = Tracer.current_span_ctx()
 
-      Task.start(fn ->
+      Task.Supervisor.start_child(ControlInterfaceTaskSupervisor, fn ->
         Tracer.set_current_span(ctx)
 
         Tracer.with_span "Handle Scale Actor Request (ctl)", kind: :server do
@@ -256,7 +256,7 @@ defmodule HostCore.ControlInterface.HostServer do
       else
         ctx = Tracer.current_span_ctx()
 
-        Task.start(fn ->
+        Task.Supervisor.start_child(ControlInterfaceTaskSupervisor, fn ->
           Tracer.set_current_span(ctx)
 
           Tracer.with_span "Handle Launch Provider Request (ctl)", kind: :server do

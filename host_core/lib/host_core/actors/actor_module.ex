@@ -470,7 +470,7 @@ defmodule HostCore.Actors.ActorModule do
           inv_res: %{
             msg: <<>>,
             invocation_id: token.invocation["id"],
-            error: "Invocation source does not have the required claim #{contract_id}",
+            error: "Invocation source does not have the required capability claim #{contract_id}",
             instance_id: token.iid
           }
       }
