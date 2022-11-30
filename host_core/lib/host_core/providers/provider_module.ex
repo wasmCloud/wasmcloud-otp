@@ -370,10 +370,11 @@ defmodule HostCore.Providers.ProviderModule do
     res =
       try do
         HostCore.Nats.safe_req(HostCore.Nats.rpc_connection(state.lattice_prefix), topic, payload,
-          receive_timeout: config.rpc_timeout
+          receive_timeout: config.rpc_timeout_ms
         )
       rescue
-        _e -> {:error, "Received no response on health check topic from provider"}
+        _e ->
+          {:error, "Received no response on health check topic from provider"}
       end
 
     # Only publish health check pass/fail when state changes

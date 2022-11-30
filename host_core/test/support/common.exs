@@ -104,7 +104,7 @@ defmodule HostCoreTest.Common do
       enable_ipv6: false,
       policy_topic: nil,
       policy_changes_topic: nil,
-      policy_timeout: 1_000
+      policy_timeout_ms: 1_000
     }
   end
 end

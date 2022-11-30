@@ -251,6 +251,6 @@ defmodule HostCore.Policy.Manager do
   end
 
   def policy_timeout(config) do
-    config.policy_timeout || 1_000
+    config.policy_timeout_ms || 1_000
   end
 end

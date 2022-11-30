@@ -64,7 +64,7 @@ defmodule HostCore.Vhost.ConfigPlan do
           {:enable_ipv6, "WASMCLOUD_ENABLE_IPV6", required: false, map: &string_to_bool/1},
           {:policy_topic, "WASMCLOUD_POLICY_TOPIC", required: false},
           {:policy_changes_topic, "WASMCLOUD_POLICY_CHANGES_TOPIC", required: false},
-          {:policy_timeout, "WASMCLOUD_POLICY_TIMEOUT",
+          {:policy_timeout_ms, "WASMCLOUD_POLICY_TIMEOUT",
            required: false, map: &String.to_integer/1}
         ]
       }
@@ -104,7 +104,7 @@ defmodule HostCore.Vhost.ConfigPlan do
       {:enable_ipv6, "enable_ipv6", required: false, default: false},
       {:policy_topic, "policy_topic", required: false},
       {:policy_changes_topic, "policy_changes_topic", required: false},
-      {:policy_timeout, "policy_timeout", required: false, default: 1_000}
+      {:policy_timeout_ms, "policy_timeout_ms", required: false, default: 1_000}
     ]
   end
 
