@@ -37,7 +37,6 @@ defmodule HostCore.Providers.ProviderModule do
   @doc """
   Starts the provider module assuming it is an executable file
   """
-
   @spec start_link(
           opts ::
             {:executable,

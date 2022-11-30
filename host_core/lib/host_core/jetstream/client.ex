@@ -21,8 +21,11 @@ defmodule HostCore.Jetstream.Client do
 
   @impl true
   def handle_continue(:ensure_stream, state) do
-    # TODO get rid of this
-    Process.sleep(100)
+    for _i <- 0..3 do
+      if Process.whereis(HostCore.Nats.control_connection(state.lattice_prefix)) == nil do
+        Process.sleep(200)
+      end
+    end
 
     create_topic =
       if state.domain == nil do
