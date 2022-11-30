@@ -102,9 +102,9 @@ jobs:
           KERL_CONFIGURE_OPTIONS: '--with-ssl=/usr/local/ssl --disable-dynamic-ssl-lib'
         run: |
           # Apt
-          apt update
-          apt upgrade -y
-          apt install curl build-essential pkg-config libz-dev git automake autoconf libncurses5-dev wget vim -y
+          sudo apt update
+          sudo apt upgrade -y
+          sudo apt install curl build-essential pkg-config libz-dev git automake autoconf libncurses5-dev wget vim -y
 
           # Install openssl for static compilation
           curl -fLO https://www.openssl.org/source/openssl-1.1.1s.tar.gz
