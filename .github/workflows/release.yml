@@ -99,7 +99,7 @@ jobs:
         shell: bash
         env:
           DEBIAN_FRONTEND: noninteractive
-          KERL_CONFIGURE_OPTIONS: '--with-ssl=/usr/local/ssl --disable-dynamic-ssl-lib'
+          KERL_CONFIGURE_OPTIONS: '--with-ssl=/tmp/ssl --disable-dynamic-ssl-lib'
         run: |
           # Apt
           sudo apt update
@@ -110,7 +110,7 @@ jobs:
           curl -fLO https://www.openssl.org/source/openssl-1.1.1s.tar.gz
           tar -xf openssl-1.1.1s.tar.gz
           cd openssl-1.1.1s
-          ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl shared zlib --static -static
+          ./config --prefix=/tmp/ssl --openssldir=/tmp/ssl shared zlib --static -static
           make
           make test
           make install
