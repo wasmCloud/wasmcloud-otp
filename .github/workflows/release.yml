@@ -27,7 +27,7 @@ jobs:
           - aarch64-unknown-linux-musl
           - x86_64-apple-darwin
           - x86_64-pc-windows-gnu
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
 
@@ -60,7 +60,7 @@ jobs:
         os: [ubuntu-22.04, windows-2019, macos-11]
         working-directory: [wasmcloud_host, host_core]
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             rust-target: x86_64-unknown-linux-gnu
             release-tarball: x86_64-linux.tar.gz
             working-directory: wasmcloud_host
@@ -72,7 +72,7 @@ jobs:
             rust-target: x86_64-apple-darwin
             release-tarball: x86_64-macos.tar.gz
             working-directory: wasmcloud_host
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             rust-target: x86_64-unknown-linux-gnu
             release-tarball: x86_64-linux-core.tar.gz
             working-directory: host_core
