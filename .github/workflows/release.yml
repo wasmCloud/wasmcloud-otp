@@ -57,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-11]
+        os: [ubuntu-22.04, windows-2019, macos-11]
         working-directory: [wasmcloud_host, host_core]
         include:
           - os: ubuntu-20.04
