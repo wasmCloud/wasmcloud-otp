@@ -99,7 +99,7 @@ jobs:
         shell: bash
         env:
           DEBIAN_FRONTEND: noninteractive
-          KERL_CONFIGURE_OPTIONS: '--with-ssl=/tmp/ssl --disable-dynamic-ssl-lib'
+          KERL_CONFIGURE_OPTIONS: '--with-ssl=/tmp/ssl'
         run: |
           # Apt
           sudo apt update
@@ -114,6 +114,7 @@ jobs:
           make
           make test
           make install
+          ls -lah /tmp/ssl
 
           # Install kerl to install Erlang
           curl -O https://raw.githubusercontent.com/kerl/kerl/master/kerl
