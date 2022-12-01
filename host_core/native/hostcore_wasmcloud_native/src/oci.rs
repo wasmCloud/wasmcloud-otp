@@ -44,6 +44,7 @@ pub(crate) async fn fetch_oci_path(
     allowed_insecure: Vec<String>,
     creds_override: Option<HashMap<String, String>>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Sync + Send>> {
+    let img = &img.to_lowercase(); // the OCI spec does not allow for capital letters in references
     if !allow_latest && img.ends_with(":latest") {
         return Err(
             "Fetching images tagged 'latest' is currently prohibited in this host. This option can be overridden with WASMCLOUD_OCI_ALLOW_LATEST".into());
