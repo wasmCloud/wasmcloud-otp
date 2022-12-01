@@ -1,17 +1,12 @@
 defmodule HostCore.E2E.ControlInterfaceTest do
   use ExUnit.Case, async: false
 
+  import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
+
   require OpenTelemetry.Tracer, as: Tracer
   require Logger
 
-  setup do
-    {:ok, evt_watcher} =
-      GenServer.start_link(HostCoreTest.EventWatcher, HostCore.Host.lattice_prefix())
-
-    [
-      evt_watcher: evt_watcher
-    ]
-  end
+  setup :standard_setup
 
   @echo_key HostCoreTest.Constants.echo_key()
   @echo_path HostCoreTest.Constants.echo_path()
@@ -20,19 +15,22 @@ defmodule HostCore.E2E.ControlInterfaceTest do
   @redis_link HostCoreTest.Constants.default_link()
   @redis_contract HostCoreTest.Constants.keyvalue_contract()
 
-  test "can get claims", %{:evt_watcher => _evt_watcher} do
-    on_exit(fn -> HostCore.Host.purge() end)
-    {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes)
+  test "can get claims", %{:evt_watcher => _evt_watcher, :hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
 
-    prefix = HostCore.Host.lattice_prefix()
+    {:ok, bytes} = File.read(@echo_path)
+    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+
+    prefix = config.lattice_prefix
     topic = "wasmbus.ctl.#{prefix}.get.claims"
 
     Tracer.with_span "Make claims request", kind: :client do
       Logger.debug("Making claims request")
 
       {:ok, %{body: body}} =
-        HostCore.Nats.safe_req(:control_nats, topic, [], receive_timeout: 2_000)
+        HostCore.Nats.safe_req(HostCore.Nats.control_connection(config.lattice_prefix), topic, [],
+          receive_timeout: 2_000
+        )
 
       echo_claims =
         body
@@ -44,9 +42,12 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     end
   end
 
-  test "can get linkdefs", %{:evt_watcher => _evt_watcher} do
+  test "can get linkdefs", %{:evt_watcher => _evt_watcher, :hconfig => config, :host_pid => pid} do
+    on_exit(fn -> cleanup(pid, config) end)
+
     :ok =
       HostCore.Linkdefs.Manager.put_link_definition(
+        config.lattice_prefix,
         @kvcounter_key,
         @redis_contract,
         @redis_link,
@@ -54,11 +55,13 @@ defmodule HostCore.E2E.ControlInterfaceTest do
         %{URL: "redis://127.0.0.1:6379"}
       )
 
-    prefix = HostCore.Host.lattice_prefix()
+    prefix = config.lattice_prefix
     topic = "wasmbus.ctl.#{prefix}.get.links"
 
     {:ok, %{body: body}} =
-      HostCore.Nats.safe_req(:control_nats, topic, [], receive_timeout: 2_000)
+      HostCore.Nats.safe_req(HostCore.Nats.control_connection(config.lattice_prefix), topic, [],
+        receive_timeout: 2_000
+      )
 
     kvcounter_redis_link =
       body

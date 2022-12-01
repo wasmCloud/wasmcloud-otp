@@ -8,7 +8,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   # map AND in ETS storage under their respective manager processes.
 
   defmodule State do
-    defstruct [:linkdefs, :refmaps, :claims, :hosts]
+    defstruct [:linkdefs, :refmaps, :claims, :hosts, :lattice_prefix]
   end
 
   def start_link(opts) do
@@ -17,25 +17,25 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
   @impl true
   def init(_opts) do
+    {pk, pid, prefix} = WasmcloudHost.Application.first_host()
+    labels = HostCore.Vhost.VirtualHost.labels(pid)
+
     state = %State{
+      lattice_prefix: prefix,
       linkdefs: %{},
       refmaps: %{},
       claims: %{},
       hosts: %{
-        HostCore.Host.host_key() => %{
+        pk => %{
           actors: %{},
           providers: %{},
-          labels: HostCore.Host.host_labels()
+          labels: labels
         }
       }
     }
 
-    prefix = HostCore.Host.lattice_prefix()
-
-    topic = "wasmbus.evt.#{prefix}"
-    {:ok, _sub} = Gnat.sub(:control_nats, self(), topic)
-
-    Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
+    PubSub.subscribe(:hostcore_pubsub, "latticeevents:#{prefix}")
+    PubSub.subscribe(:hostcore_pubsub, "cacheloader:#{prefix}")
 
     {:ok, state, {:continue, :retrieve_cache}}
   end
@@ -43,13 +43,13 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   @impl true
   def handle_continue(:retrieve_cache, state) do
     cmap =
-      HostCore.Claims.Manager.get_claims()
+      HostCore.Claims.Manager.get_claims(state.lattice_prefix)
       |> Enum.reduce(state.claims, fn claims, cmap ->
         Map.put(cmap, claims.sub, claims)
       end)
 
     ldefs =
-      HostCore.Linkdefs.Manager.get_link_definitions()
+      HostCore.Linkdefs.Manager.get_link_definitions(state.lattice_prefix)
       |> Enum.reduce(state.linkdefs, fn ld, linkdefs_map ->
         key = {ld.actor_id, ld.contract_id, ld.link_name}
         map = %{values: ld.values, provider_key: ld.provider_id}
@@ -87,21 +87,6 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     {:reply, state.refmaps, state}
   end
 
-  @impl true
-  def handle_info(
-        {:msg, %{body: body, topic: topic}},
-        state
-      ) do
-    Logger.debug("StateMonitor handle info #{topic}")
-
-    state =
-      if String.starts_with?(topic, "wasmbus.evt.") do
-        handle_event(state, body)
-      end
-
-    {:noreply, state}
-  end
-
   def get_hosts() do
     GenServer.call(:state_monitor, :hosts_query)
   end
@@ -127,7 +112,14 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :linkdef_removed, ld}, state) do
+  def handle_info({:lattice_event, event}, state) do
+    state = handle_event(state, event)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:cacheloader, :linkdef_removed, ld}, state) do
     linkdefs = delete_linkdef(state.linkdefs, ld.actor_id, ld.contract_id, ld.link_name)
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:linkdefs, linkdefs})
@@ -135,7 +127,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :linkdef_added, ld}, state) do
+  def handle_info({:cacheloader, :linkdef_added, ld}, state) do
     linkdefs =
       add_linkdef(
         state.linkdefs,
@@ -151,7 +143,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :claims_added, claims}, state) do
+  def handle_info({:cacheloader, :claims_added, claims}, state) do
     cmap = Map.put(state.claims, claims.sub, claims)
 
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:claims, cmap})
@@ -159,17 +151,21 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :refmap_added, refmap}, state) do
+  def handle_info({:cacheloader, :refmap_added, refmap}, state) do
     ocirefs = add_refmap(state.refmaps, refmap.oci_url, refmap.public_key)
     {:noreply, %State{state | refmaps: ocirefs}}
   end
 
   defp handle_event(state, body) do
-    evt =
-      body
-      |> Cloudevents.from_json!()
+    case Cloudevents.from_json(body) do
+      {:ok, evt} ->
+        process_event(state, evt)
 
-    process_event(state, evt)
+      # No-op
+      _ ->
+        Logger.warning("Received event that couldn't be parsed as a Cloudevent, ignoring")
+        state
+    end
   end
 
   defp process_event(
@@ -300,8 +296,8 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
       if current_host == %{} do
         labels =
           case Gnat.request(
-                 :control_nats,
-                 "wasmbus.ctl.#{HostCore.Host.lattice_prefix()}.get.#{source_host}.inv",
+                 HostCore.Nats.control_connection(state.lattice_prefix),
+                 "wasmbus.ctl.#{state.lattice_prefix}.get.#{source_host}.inv",
                  "",
                  [{:receive_timeout, 2_000}]
                ) do

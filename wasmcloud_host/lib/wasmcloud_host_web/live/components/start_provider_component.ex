@@ -20,9 +20,12 @@ defmodule StartProviderComponent do
         },
         socket
       ) do
+    {pk, _pid, _prefix} = WasmcloudHost.Application.first_host()
+
     error_msg =
       Phoenix.LiveView.consume_uploaded_entries(socket, :provider, fn %{path: path}, _entry ->
         case HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+               pk,
                path,
                provider_link_name
              ) do

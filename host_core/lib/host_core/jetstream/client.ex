@@ -21,8 +21,11 @@ defmodule HostCore.Jetstream.Client do
 
   @impl true
   def handle_continue(:ensure_stream, state) do
-    # TODO get rid of this
-    Process.sleep(100)
+    for _i <- 0..3 do
+      if Process.whereis(HostCore.Nats.control_connection(state.lattice_prefix)) == nil do
+        Process.sleep(200)
+      end
+    end
 
     create_topic =
       if state.domain == nil do
@@ -51,7 +54,11 @@ defmodule HostCore.Jetstream.Client do
       }
       |> Jason.encode!()
 
-    case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
+    case HostCore.Nats.safe_req(
+           HostCore.Nats.control_connection(state.lattice_prefix),
+           create_topic,
+           payload_json
+         ) do
       {:ok, %{body: body}} ->
         handle_stream_create_response(body |> Jason.decode!())
 
@@ -97,7 +104,11 @@ defmodule HostCore.Jetstream.Client do
       }
       |> Jason.encode!()
 
-    case HostCore.Nats.safe_req(:control_nats, create_topic, payload_json) do
+    case HostCore.Nats.safe_req(
+           HostCore.Nats.control_connection(state.lattice_prefix),
+           create_topic,
+           payload_json
+         ) do
       {:ok, %{body: body}} ->
         handle_consumer_create_response(body |> Jason.decode!())
 

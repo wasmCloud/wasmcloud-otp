@@ -51,16 +51,10 @@ defmodule WasmcloudHostWeb.Endpoint do
   plug(WasmcloudHostWeb.Router)
 
   def init(_key, config) do
-    host = System.get_env("WASMCLOUD_DASHBOARD_HOST")
+    host = System.get_env("WASMCLOUD_DASHBOARD_HOST", nil)
     port = System.get_env("WASMCLOUD_DASHBOARD_PORT", "4000") |> String.to_integer()
 
     case {host, port} do
-      {nil, nil} ->
-        {:ok, config}
-
-      {host, nil} ->
-        {:ok, config |> Keyword.put(:url, host: host)}
-
       {nil, port} ->
         {:ok, config |> Keyword.put(:url, port: port) |> Keyword.put(:http, port: port)}
 

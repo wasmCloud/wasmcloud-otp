@@ -7,6 +7,8 @@ defmodule WasmcloudHostWeb.PageLive do
     WasmcloudHostWeb.Endpoint.subscribe("lattice:state")
     WasmcloudHostWeb.Endpoint.subscribe("frontend")
 
+    {pk, _pid, _prefix} = WasmcloudHost.Application.first_host()
+
     {:ok,
      socket
      |> assign(
@@ -15,8 +17,18 @@ defmodule WasmcloudHostWeb.PageLive do
        ocirefs: WasmcloudHost.Lattice.StateMonitor.get_ocirefs(),
        claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
        open_modal: nil,
-       selected_host: HostCore.Host.host_key()
+       selected_host: pk
      )}
+  end
+
+  def first_host_key() do
+    {pk, _pid, _prefix} = WasmcloudHost.Application.first_host()
+    pk
+  end
+
+  def first_host_prefix() do
+    {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
+    prefix
   end
 
   @impl true

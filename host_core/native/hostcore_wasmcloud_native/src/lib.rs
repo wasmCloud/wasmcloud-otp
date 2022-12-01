@@ -412,9 +412,9 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
                 "No claims found in source module",
             )));
         }
-        Err(_e) => {
+        Err(e) => {
             return Err(rustler::Error::Term(Box::new(
-                "Failed to extract claims from module",
+                format!("Failed to extract claims from module: {}", e)
             )));
         }
     };

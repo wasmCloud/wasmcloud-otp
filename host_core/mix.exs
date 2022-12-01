@@ -1,7 +1,7 @@
 defmodule HostCore.MixProject do
   use Mix.Project
 
-  @app_vsn "0.59.0"
+  @app_vsn "0.60.0"
 
   def project do
     [
@@ -34,7 +34,7 @@ defmodule HostCore.MixProject do
         :opentelemetry_exporter,
         :opentelemetry
       ],
-      mod: {HostCore, []}
+      mod: {HostCore.Application, []}
     ]
   end
 
@@ -53,6 +53,7 @@ defmodule HostCore.MixProject do
       {:opentelemetry, "~> 1.0", application: false},
       {:opentelemetry_exporter, "~> 1.0", application: false},
       {:opentelemetry_logger_metadata, "~> 0.1.0"},
+      {:phoenix_pubsub, "~> 2.1.1"},
 
       # {:vapor, "~> 0.10.0"},
       # TODO: switch to new version of vapor once PR is merged

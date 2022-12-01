@@ -32,7 +32,7 @@
                               <button class="btn btn-secondary dropdown-toggle" id="dropdownActorsMenuButton" type="button"
                                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start Actor</button>
                               <div class="dropdown-menu" aria-labelledby="dropdownActorsMenuButton">
-                                 <%= if @selected_host == HostCore.Host.host_key() do %>
+                                 <%= if @selected_host == first_host_key() do %>
                                  <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Actor from File" phx-value-component="StartActorComponent"
                                     phx-value-id="start_actor_file_modal">
@@ -100,7 +100,7 @@
                                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Start
                                  Provider</button>
                               <div class="dropdown-menu" aria-labelledby="dropdownProvidersMenuButton">
-                                 <%= if @selected_host == HostCore.Host.host_key() do %>
+                                 <%= if @selected_host == first_host_key() do %>
                                  <button class="dropdown-item" phx-click="show_modal"
                                     phx-value-title="Start Provider from File"
                                     phx-value-component="StartProviderComponent"
@@ -222,7 +222,7 @@
                                  phx-click="select_host" phx-value-host={host_id}"
                                  style="padding-top: 5px; padding-bottom: 5px">
                                  <svg class="c-icon">
-                                    <%= if host_id == HostCore.Host.host_key() do %>
+                                    <%= if host_id == first_host_key() do %>
                                     <use xlink:href="/coreui/free.svg#cil-laptop"></use>
                                     <% else %>
                                     <use xlink:href="/coreui/free.svg#cil-lan"></use>
@@ -250,10 +250,10 @@
                         <tbody>
                            <tr>
                               <td>
-                                 <%= HostCore.Host.lattice_prefix() %>
+                                 <%= first_host_prefix() %>
                               </td>
                               <td>
-                                 <%= host_id == HostCore.Host.host_key() %>
+                                 <%= host_id == first_host_key() %>
                               </td>
                               <td>
                                  <%= Map.get(@hosts, host_id, %{})

@@ -1,4 +1,4 @@
-defmodule HostCore.FilesConfigProvider do
+defmodule HostCore.Vhost.FilesConfigProvider do
   defstruct paths: [], bindings: []
 
   defimpl Vapor.Provider do

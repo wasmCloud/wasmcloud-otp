@@ -2,7 +2,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
   @wasmbus_prefix "wasmbus.ctl."
 
   def scale_actor(actor_id, actor_ref, desired_count, host_id) do
-    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.cmd.#{host_id}.scale"
+    {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
+
+    topic = "#{@wasmbus_prefix}#{prefix}.cmd.#{host_id}.scale"
 
     payload =
       Jason.encode!(%{
@@ -11,7 +13,7 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         "count" => desired_count
       })
 
-    case ctl_request(topic, payload, 2_000) do
+    case ctl_request(prefix, topic, payload, 2_000) do
       {:ok, %{body: body}} ->
         resp = Jason.decode!(body)
 
@@ -30,7 +32,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
   end
 
   def start_provider(provider_ociref, link_name, host_id) do
-    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.cmd.#{host_id}.lp"
+    {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
+
+    topic = "#{@wasmbus_prefix}#{prefix}.cmd.#{host_id}.lp"
 
     payload =
       Jason.encode!(%{
@@ -38,7 +42,7 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         "link_name" => link_name
       })
 
-    case ctl_request(topic, payload, 2_000) do
+    case ctl_request(prefix, topic, payload, 2_000) do
       {:ok, %{body: body}} ->
         resp = Jason.decode!(body)
 
@@ -57,7 +61,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
   end
 
   def stop_provider(provider_id, link_name, host_id) do
-    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.cmd.#{host_id}.sp"
+    {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
+
+    topic = "#{@wasmbus_prefix}#{prefix}.cmd.#{host_id}.sp"
 
     payload =
       Jason.encode!(%{
@@ -65,7 +71,7 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         "link_name" => link_name
       })
 
-    case ctl_request(topic, payload, 2_000) do
+    case ctl_request(prefix, topic, payload, 2_000) do
       {:ok, %{body: body}} ->
         resp = Jason.decode!(body)
 
@@ -84,7 +90,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
   end
 
   def auction_actor(actor_ociref, _constraints) do
-    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.auction.actor"
+    {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
+
+    topic = "#{@wasmbus_prefix}#{prefix}.auction.actor"
 
     payload =
       Jason.encode!(%{
@@ -92,7 +100,7 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         "actor_ref" => actor_ociref
       })
 
-    case ctl_request(topic, payload, 2_000) do
+    case ctl_request(prefix, topic, payload, 2_000) do
       {:ok, %{body: body}} ->
         resp = Jason.decode!(body)
         host_id = Map.get(resp, "host_id", nil)
@@ -112,7 +120,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
   end
 
   def auction_provider(provider_ociref, link_name, _constraints) do
-    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.auction.provider"
+    {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
+
+    topic = "#{@wasmbus_prefix}#{prefix}.auction.provider"
 
     payload =
       Jason.encode!(%{
@@ -121,7 +131,7 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         "link_name" => link_name
       })
 
-    case ctl_request(topic, payload, 2_000) do
+    case ctl_request(prefix, topic, payload, 2_000) do
       {:ok, %{body: body}} ->
         resp = Jason.decode!(body)
         host_id = Map.get(resp, "host_id", nil)
@@ -147,7 +157,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         provider_id,
         values
       ) do
-    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.linkdefs.put"
+    {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
+
+    topic = "#{@wasmbus_prefix}#{prefix}.linkdefs.put"
 
     payload =
       Jason.encode!(%{
@@ -158,7 +170,7 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         "values" => values
       })
 
-    case ctl_request(topic, payload, 2_000) do
+    case ctl_request(prefix, topic, payload, 2_000) do
       {:ok, %{body: body}} ->
         resp = Jason.decode!(body)
 
@@ -177,7 +189,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
   end
 
   def delete_linkdef(actor_id, contract_id, link_name) do
-    topic = "#{@wasmbus_prefix}#{HostCore.Host.lattice_prefix()}.linkdefs.del"
+    {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
+
+    topic = "#{@wasmbus_prefix}#{prefix}.linkdefs.del"
 
     payload =
       Jason.encode!(%{
@@ -186,7 +200,7 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
         "link_name" => link_name
       })
 
-    case ctl_request(topic, payload, 2_000) do
+    case ctl_request(prefix, topic, payload, 2_000) do
       {:ok, %{body: body}} ->
         resp = Jason.decode!(body)
 
@@ -204,7 +218,9 @@ defmodule WasmcloudHost.Lattice.ControlInterface do
     end
   end
 
-  defp ctl_request(topic, payload, timeout) do
-    Gnat.request(:control_nats, topic, payload, request_timeout: timeout)
+  defp ctl_request(prefix, topic, payload, timeout) do
+    Gnat.request(HostCore.Nats.control_connection(prefix), topic, payload,
+      request_timeout: timeout
+    )
   end
 end

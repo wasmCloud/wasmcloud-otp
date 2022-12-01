@@ -1,6 +1,14 @@
 defmodule HostCore.Actors.ActorModule do
-  @moduledoc false
-  # Do not automatically restart this process
+  @moduledoc """
+  The actor module is a layer of encapsulation around a single instance of a running WebAssembly module. Each
+  actor module carries with it the information used to start it, as well as runtime-augmented metadata like
+  its instance ID (a guid).
+
+  You should not start actors manually using `start_link`, and instead use `HostCore.Actors.ActorSupervisor.start_actor_from_bindle/4`
+  or `HostCore.Actors.ActorSupervisor.start_actor_from_oci/4`
+  """
+
+  # Do not automatically restart this process unless it stopped due to crash
   use GenServer, restart: :transient
   alias HostCore.CloudEvent
   require OpenTelemetry.Tracer, as: Tracer
@@ -8,14 +16,15 @@ defmodule HostCore.Actors.ActorModule do
   @chunk_threshold 900 * 1024
   @thirty_seconds 30_000
   @perform_invocation "perform_invocation"
-  @event_prefix "wasmbus.evt"
-  @rpc_event_prefix "wasmbus.rpcevt"
 
   require Logger
   alias HostCore.WebAssembly.Imports
 
   defmodule State do
-    @moduledoc false
+    @moduledoc """
+    Represents the running state of an actor module. This struct is kept as the contents of an agent and is _not_
+    used as the raw value of the GenServer state.
+    """
 
     defstruct [
       :guest_request,
@@ -31,7 +40,9 @@ defmodule HostCore.Actors.ActorModule do
       :claims,
       :ociref,
       :healthy,
-      :parent_span
+      :parent_span,
+      :host_id,
+      :lattice_prefix
     ]
   end
 
@@ -41,7 +52,23 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   @doc """
-  Starts the Actor module
+  Starts the Actor module with a map containing the following fields:
+
+  ```
+  %{
+      claims: claims,
+      bytes: bytes,
+      oci: oci,
+      annotations: annotations,
+      host_id: host_id
+  }
+  ```
+
+  * `claims` - A map containing claims extracted from the wasm file
+  * `bytes` - The raw bytes of the signed module
+  * `oci` - An oci (or bindle) reference accompanying this actor
+  * `annotations` - Annotations map used for tagging instances for wadm
+  * `host_id` - The virtual host on which the actor will be started. Must be a running host.
   """
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
@@ -87,17 +114,37 @@ defmodule HostCore.Actors.ActorModule do
     end
   end
 
+  @doc """
+  Halts the actor module corresponding to the supplied process ID. This will attempt a graceful termination
+  and will try and emit an `actor_stopped` event.
+  """
   def halt(pid) do
     if Process.alive?(pid), do: GenServer.call(pid, :halt_and_cleanup)
   end
 
-  def live_update(pid, bytes, claims, oci, span_ctx \\ nil) do
-    GenServer.call(pid, {:live_update, bytes, claims, oci, span_ctx}, @thirty_seconds)
+  @doc """
+  Triggers a live update, replacing the WebAssembly module of the process at the given pid with the raw
+  bytes supplied. This is a blocking operation on the actor's mailbox, so no messages/invocations will be
+  handled while the module swap takes place
+  """
+  def live_update(config, pid, bytes, claims, oci, span_ctx \\ nil) do
+    GenServer.call(pid, {:live_update, config, bytes, claims, oci, span_ctx}, @thirty_seconds)
   end
 
+  @doc """
+  GenServer callback initializing the actor module.
+  """
   @impl true
-  def init({claims, bytes, oci, annotations}) do
-    case start_actor(claims, bytes, oci, annotations) do
+  def init(%{
+        claims: claims,
+        bytes: bytes,
+        oci: oci,
+        annotations: annotations,
+        host_id: host_id
+      }) do
+    lattice_prefix = HostCore.Vhost.VirtualHost.get_lattice_for_host(host_id)
+
+    case start_actor(lattice_prefix, host_id, claims, bytes, oci, annotations) do
       {:ok, agent} ->
         {:ok, agent}
 
@@ -107,7 +154,13 @@ defmodule HostCore.Actors.ActorModule do
     end
   end
 
-  def handle_call({:live_update, bytes, claims, oci, span_ctx}, _from, agent) do
+  @impl GenServer
+  def handle_info(_, state) do
+    # drain unmatched messages to avoid box overflow
+    {:noreply, state}
+  end
+
+  def handle_call({:live_update, config, bytes, claims, oci, span_ctx}, _from, agent) do
     ctx = span_ctx || OpenTelemetry.Ctx.new()
 
     Tracer.with_span ctx, "Perform Live Update", kind: :server do
@@ -160,7 +213,14 @@ defmodule HostCore.Actors.ActorModule do
         {:ok, new_agent} ->
           Logger.debug("Replaced and restarted underlying wasm module")
           Tracer.set_status(:ok, "")
-          publish_actor_updated(claims.public_key, claims.revision, instance_id)
+
+          publish_actor_updated(
+            config.lattice_prefix,
+            config.host_key,
+            claims.public_key,
+            claims.revision,
+            instance_id
+          )
 
           Logger.info("Actor #{claims.public_key} live update complete",
             actor_id: claims.public_key,
@@ -176,13 +236,23 @@ defmodule HostCore.Actors.ActorModule do
           Logger.error(error_msg)
 
           Tracer.set_status(:error, error_msg)
-          publish_actor_update_failed(claims.public_key, claims.revision, instance_id, inspect(e))
+
+          publish_actor_update_failed(
+            config.lattice_prefix,
+            config.host_key,
+            claims.public_key,
+            claims.revision,
+            instance_id,
+            inspect(e)
+          )
 
           # failing to update won't crash the process, it emits errors and stays on the old version
           {:reply, :ok, agent}
       end
     end
   end
+
+  # A handful of individual query calls to pull information from the agent state
 
   def handle_call(:get_api_ver, _from, agent) do
     {:reply, Agent.get(agent, fn content -> content.api_version end), agent}
@@ -212,16 +282,18 @@ defmodule HostCore.Actors.ActorModule do
   @impl true
   def handle_call(:halt_and_cleanup, _from, agent) do
     # Add cleanup if necessary here...
-    {public_key, name, instance_id} =
-      Agent.get(agent, fn content ->
-        {content.claims.public_key, content.claims.name, content.instance_id}
-      end)
+    contents = Agent.get(agent, fn content -> content end)
+    public_key = contents.claims.public_key
+    name = contents.claims.name
+    instance_id = contents.instance_id
+    lattice_prefix = contents.lattice_prefix
+    host_id = contents.host_id
 
     Logger.debug("Terminating instance of actor #{public_key} (#{name})",
       actor_id: public_key
     )
 
-    publish_actor_stopped(public_key, instance_id)
+    publish_actor_stopped(host_id, lattice_prefix, public_key, instance_id)
 
     # PRO TIP - if you return :normal here as the stop reason, the GenServer will NOT auto-terminate
     # all of its children. If you want all children established via start_link to be terminated here,
@@ -230,6 +302,7 @@ defmodule HostCore.Actors.ActorModule do
     {:stop, :shutdown, :ok, agent}
   end
 
+  # Triggered when the actor RPC server receives an inbound message on wasmbus.rpc.{lattice}.{actor}
   @impl true
   def handle_call(
         {
@@ -246,91 +319,221 @@ defmodule HostCore.Actors.ActorModule do
     reconstitute_trace_context(Map.get(msg, :headers))
 
     Tracer.with_span "Handle Invocation", kind: :server do
-      Logger.debug("Received invocation on #{topic}")
-      iid = Agent.get(agent, fn content -> content.instance_id end)
-      public_key = Agent.get(agent, fn content -> content.claims.public_key end)
+      Logger.debug("Actor received invocation on #{topic}")
+
+      %{
+        instance_id: iid,
+        host_id: host_id,
+        claims: %{public_key: public_key}
+      } = Agent.get(agent, & &1)
+
+      config = HostCore.Vhost.VirtualHost.config(host_id)
+      cluster_issuers = config.cluster_issuers
+      lattice_prefix = config.lattice_prefix
 
       Tracer.set_attribute("instance_id", iid)
       Tracer.set_attribute("public_key", public_key)
 
-      {ir, inv} =
-        with {:ok, inv} <- Msgpax.unpack(body) do
-          Tracer.set_attribute("invocation_id", inv["id"])
+      token = %{
+        iid: iid,
+        invocation: nil,
+        inv_res: nil,
+        anti_forgery: false,
+        source_target: false,
+        policy: false
+      }
 
-          case HostCore.WasmCloud.Native.validate_antiforgery(
-                 body,
-                 HostCore.Host.cluster_issuers()
-               ) do
-            {:error, msg} ->
-              Logger.error("Invocation failed anti-forgery validation check: #{msg}",
-                invocation_id: inv["id"]
-              )
+      {token, ir} =
+        token
+        |> unpack_body(body)
+        |> validate_anti_forgery(body, cluster_issuers)
+        |> validate_invocation_source_target(agent)
+        |> policy_check(agent)
+        |> check_dechunk_inv()
+        |> perform_invocation(agent)
 
-              Tracer.set_status(:error, "Anti-forgery check failed #{msg}")
-
-              {%{
-                 msg: <<>>,
-                 invocation_id: inv["id"],
-                 error: msg,
-                 instance_id: iid
-               }, inv}
-
-            _ ->
-              case validate_invocation(
-                     agent,
-                     inv["origin"]["link_name"],
-                     inv["origin"]["contract_id"]
-                   )
-                   |> policy_check_invocation(inv["origin"], inv["target"])
-                   |> perform_invocation(
-                     inv["operation"],
-                     check_dechunk_inv(
-                       inv["id"],
-                       inv["content_length"],
-                       Map.get(inv, "msg", <<>>)
-                     )
-                     |> IO.iodata_to_binary()
-                   ) do
-                {:ok, response} ->
-                  Tracer.set_status(:ok, "")
-
-                  {%{
-                     msg: response,
-                     invocation_id: inv["id"],
-                     instance_id: iid,
-                     content_length: byte_size(response)
-                   }
-                   |> chunk_inv_response(), inv}
-
-                {:error, error} ->
-                  Logger.error("Invocation failure: #{error}", invocation_id: inv["id"])
-                  Tracer.set_status(:error, "Invocation failure: #{error}")
-
-                  {%{
-                     msg: <<>>,
-                     error: error,
-                     invocation_id: inv["id"],
-                     instance_id: iid
-                   }, inv}
-              end
-          end
-        else
-          _ ->
-            Tracer.set_status(:error, "Failed to deserialize msgpack invocation")
-
-            {%{
-               msg: <<>>,
-               invocation_id: "",
-               error: "Failed to deserialize msgpack invocation",
-               instance_id: iid
-             }, nil}
-        end
-
-      Task.start(fn ->
-        publish_invocation_result(inv, ir)
-      end)
+      publish_invocation_result(host_id, lattice_prefix, token.invocation, ir)
 
       {:reply, {:ok, ir |> Msgpax.pack!() |> IO.iodata_to_binary()}, agent}
+    end
+  end
+
+  defp unpack_body(%{} = token, body) do
+    case Msgpax.unpack(body) do
+      {:ok, inv} ->
+        Tracer.set_attribute("invocation_id", inv["id"])
+
+        %{token | invocation: inv}
+
+      _ ->
+        Tracer.set_status(:error, "Failed to deserialize msgpack invocation")
+
+        %{
+          token
+          | inv_res: %{
+              msg: <<>>,
+              invocation_id: "",
+              error: "Failked to deserialize invocation",
+              instance_id: token.iid
+            }
+        }
+    end
+  end
+
+  defp validate_anti_forgery(%{invocation: nil} = token, _body, _issuers) do
+    %{token | anti_forgery: false}
+  end
+
+  defp validate_anti_forgery(%{invocation: inv} = token, body, issuers) do
+    case HostCore.WasmCloud.Native.validate_antiforgery(
+           body,
+           issuers
+         ) do
+      {:error, msg} ->
+        Logger.error("Invocation failed anti-forgery validation check: #{msg}",
+          invocation_id: inv["id"]
+        )
+
+        Tracer.set_status(:error, "Anti-forgery check failed #{msg}")
+
+        %{
+          token
+          | anti_forgery: false,
+            inv_res: %{
+              msg: <<>>,
+              invocation_id: token.invocation["id"],
+              error: "Anti-forgery check failed: #{msg}",
+              instance_id: token.iid
+            }
+        }
+
+      _ ->
+        %{token | anti_forgery: true}
+    end
+  end
+
+  defp validate_invocation_source_target(%{anti_forgery: false} = token, _agent) do
+    %{token | source_target: false}
+  end
+
+  defp validate_invocation_source_target(
+         %{
+           anti_forgery: true,
+           invocation: %{
+             "origin" => %{
+               "link_name" => nil,
+               "contract_id" => nil
+             }
+           }
+         } = token,
+         _agent
+       ) do
+    %{token | source_target: true}
+  end
+
+  defp validate_invocation_source_target(
+         %{
+           anti_forgery: true,
+           invocation: %{
+             "origin" => %{
+               "link_name" => "",
+               "contract_id" => ""
+             }
+           }
+         } = token,
+         _agent
+       ) do
+    %{token | source_target: true}
+  end
+
+  defp validate_invocation_source_target(
+         %{
+           anti_forgery: true,
+           invocation: %{
+             "origin" => %{
+               "link_name" => _,
+               "contract_id" => contract_id
+             }
+           }
+         } = token,
+         agent
+       ) do
+    caps = Agent.get(agent, fn contents -> contents.claims.caps end)
+    res = Enum.member?(caps, contract_id)
+
+    if res do
+      %{token | source_target: true}
+    else
+      %{
+        token
+        | source_target: false,
+          inv_res: %{
+            msg: <<>>,
+            invocation_id: token.invocation["id"],
+            error: "Invocation source does not have the required capability claim #{contract_id}",
+            instance_id: token.iid
+          }
+      }
+    end
+  end
+
+  defp policy_check(%{source_target: false} = token, _agent) do
+    %{token | policy: false}
+  end
+
+  defp policy_check(%{source_target: true} = token, agent) do
+    lattice_prefix = Agent.get(agent, fn contents -> contents.lattice_prefix end)
+    host_id = Agent.get(agent, fn contents -> contents.host_id end)
+    config = HostCore.Vhost.VirtualHost.config(host_id)
+    origin = token.invocation["origin"]
+    target = token.invocation["target"]
+
+    decision =
+      with {:ok, _topic} <- HostCore.Policy.Manager.policy_topic(config),
+           {:ok, source_claims} <-
+             HostCore.Claims.Manager.lookup_claims(lattice_prefix, origin["public_key"]),
+           {:ok, _target_claims} <-
+             HostCore.Claims.Manager.lookup_claims(lattice_prefix, target["public_key"]) do
+        expired =
+          case source_claims[:exp] do
+            nil -> false
+            # If the current UTC time is greater than the expiration time, it's expired
+            time -> DateTime.utc_now() > time
+          end
+
+        if expired do
+          %{permitted: false}
+        else
+          config = HostCore.Vhost.VirtualHost.config(host_id)
+
+          HostCore.Policy.Manager.evaluate_action(
+            config,
+            origin,
+            target,
+            @perform_invocation
+          )
+        end
+      else
+        # Failed to check claims for source or target, denying
+        :policy_eval_disabled -> %{permitted: true}
+        :error -> %{permitted: false}
+      end
+
+    case decision do
+      %{permitted: false} ->
+        %{
+          token
+          | policy: false,
+            inv_res: %{
+              msg: <<>>,
+              invocation_id: token.invocation["id"],
+              error: "Policy evaluation rejected invocation attempt",
+              instance_id: token.iid
+            }
+        }
+
+      _ ->
+        %{token | policy: true}
     end
   end
 
@@ -367,36 +570,51 @@ defmodule HostCore.Actors.ActorModule do
 
   defp chunk_inv_response(map), do: map
 
-  defp check_dechunk_inv(_, nil, bytes), do: bytes
+  defp check_dechunk_inv(%{policy: false} = token), do: token
 
-  # Check if we need to download an artifact from the object store
-  # which will be when the content-length of an invocation is > 0 and
-  # the size of the `msg` binary is 0
-  defp check_dechunk_inv(inv_id, content_length, bytes) do
-    if content_length > byte_size(bytes) do
-      Logger.debug("Dechunking #{content_length} from object store for #{inv_id}",
-        invocation_id: inv_id
-      )
+  defp check_dechunk_inv(%{policy: true} = token) do
+    content_length = Map.get(token.invocation, "content_length", 0)
+    bytes = Map.get(token.invocation, "msg", <<>>)
 
-      case HostCore.WasmCloud.Native.dechunk_inv(inv_id) do
-        {:ok, bytes} ->
-          bytes
+    bytes =
+      if content_length > byte_size(bytes) do
+        Logger.debug(
+          "Dechunking #{content_length} from object store for #{token.invocation["id"]}",
+          invocation_id: token.invocation["id"]
+        )
 
-        {:error, e} ->
-          Logger.error("Failed to dechunk invocation response: #{inspect(e)}")
+        case HostCore.WasmCloud.Native.dechunk_inv(token.invocation["id"]) do
+          {:ok, bytes} ->
+            bytes
 
-          <<>>
+          {:error, e} ->
+            Logger.error("Failed to dechunk invocation:  #{inspect(e)}")
+
+            <<>>
+        end
+      else
+        bytes
       end
-    else
-      bytes
-    end
+
+    inv = token.invocation
+    inv = Map.put(inv, "msg", bytes)
+    %{token | invocation: inv}
   end
 
-  defp start_actor(claims, bytes, oci, annotations) do
-    Logger.info("Starting actor #{claims.public_key}", actor_id: claims.public_key, oci_ref: oci)
-    Registry.register(Registry.ActorRegistry, claims.public_key, claims)
-    HostCore.Claims.Manager.put_claims(claims)
-    HostCore.Actors.ActorRpcSupervisor.start_or_reuse_consumer_supervisor(claims)
+  defp start_actor(lattice_prefix, host_id, claims, bytes, oci, annotations) do
+    Logger.metadata(
+      lattice_prefix: lattice_prefix,
+      host_id: host_id,
+      actor_id: claims.public_key,
+      oci_ref: oci
+    )
+
+    Logger.info("Starting actor #{claims.public_key}")
+
+    Registry.register(Registry.ActorRegistry, claims.public_key, host_id)
+
+    HostCore.Claims.Manager.put_claims(lattice_prefix, claims)
+    HostCore.Actors.ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
 
     {:ok, agent} =
       Agent.start_link(fn ->
@@ -404,7 +622,9 @@ defmodule HostCore.Actors.ActorModule do
           claims: claims,
           instance_id: UUID.uuid4(),
           healthy: false,
-          annotations: annotations
+          annotations: annotations,
+          lattice_prefix: lattice_prefix,
+          host_id: host_id
         }
       end)
 
@@ -456,12 +676,19 @@ defmodule HostCore.Actors.ActorModule do
           %State{state | ociref: oci}
         end)
 
-        publish_oci_map(oci, claims.public_key)
+        publish_oci_map(host_id, lattice_prefix, oci, claims.public_key)
         {:ok, agent}
 
       {:error, e} ->
         Logger.error("Failed to start actor: #{inspect(e)}", actor_id: claims.public_key)
-        HostCore.ControlInterface.Server.publish_actor_start_failed(claims.public_key, inspect(e))
+
+        HostCore.ControlInterface.LatticeServer.publish_actor_start_failed(
+          host_id,
+          lattice_prefix,
+          claims.public_key,
+          inspect(e)
+        )
+
         {:error, e}
     end
   end
@@ -470,129 +697,84 @@ defmodule HostCore.Actors.ActorModule do
     imports_map |> Map.keys() |> Enum.find(fn ns -> String.contains?(ns, "wasi") end) != nil
   end
 
-  # Actor-to-actor calls are always allowed
-  defp validate_invocation(agent, "", "") do
-    {agent, true}
-  end
+  defp perform_invocation(%{policy: false} = token, _agent), do: {token, token.inv_res}
 
-  # Actor-to-actor calls are always allowed
-  defp validate_invocation(agent, nil, nil) do
-    {agent, true}
-  end
+  defp perform_invocation(token, agent) do
+    operation = token.invocation["operation"]
+    payload = token.invocation["msg"] |> IO.iodata_to_binary()
 
-  defp validate_invocation(agent, _link_name, contract_id) do
-    caps = Agent.get(agent, fn contents -> contents.claims.caps end)
-    {agent, Enum.member?(caps, contract_id)}
-  end
-
-  defp policy_check_invocation({agent, false}, _, _), do: {{agent, false}, %{}}
-  # Returns a tuple in the form of {{agent, allowed?}, policy_result}
-  defp policy_check_invocation({agent, true}, source, target) do
-    with {:ok, _topic} <- HostCore.Policy.Manager.policy_topic(),
-         {:ok, {_pk, source_claims}} <-
-           HostCore.Claims.Manager.lookup_claims(source["public_key"]),
-         {:ok, {_pk, target_claims}} <-
-           HostCore.Claims.Manager.lookup_claims(target["public_key"]) do
-      {expires_at, expired} =
-        case source_claims[:exp] do
-          nil -> {nil, false}
-          # If the current UTC time is greater than the expiration time, it's expired
-          time -> {time, DateTime.utc_now() > time}
-        end
-
-      {{agent, true},
-       HostCore.Policy.Manager.evaluate_action(
-         %{
-           publicKey: source["public_key"],
-           contractId: source["contract_id"],
-           linkName: source["link_name"],
-           capabilities: source_claims[:caps],
-           issuer: source_claims[:iss],
-           issuedOn: source_claims[:iat],
-           expiresAt: expires_at,
-           expired: expired
-         },
-         %{
-           publicKey: target["public_key"],
-           contractId: target["contract_id"],
-           linkName: target["link_name"],
-           issuer: target_claims[:iss]
-         },
-         @perform_invocation
-       )}
-    else
-      # Failed to check claims for source or target, denying
-      :policy_eval_disabled -> {{agent, true}, %{permitted: true}}
-      :error -> {{agent, true}, %{permitted: false}}
-    end
-  end
-
-  # Deny invocation if actor is missing capability claims
-  defp perform_invocation({{agent, false}, _policy_res}, operation, _payload) do
-    name = Agent.get(agent, fn content -> content.claims.name end)
-
-    Logger.error(
-      "Actor #{name} does not have the capability to receive the \"#{operation}\" invocation",
-      operation: operation
-    )
-
-    {:error, "Actor is missing the capability claim for \"#{operation}\""}
-  end
-
-  # Deny invocation if policy enforcer does not permit it
-  defp perform_invocation(
-         {{_agent, true}, %{permitted: false} = policy_res},
-         _operation,
-         _payload
-       ) do
-    message = Map.get(policy_res, :message, "reason not specified")
-
-    {:error, "Policy denied invocation: #{message}"}
-  end
-
-  # Perform invocation if actor is allowed and policy enforcer permits
-  defp perform_invocation({{agent, true}, %{permitted: true}}, operation, payload) do
     raw_state = Agent.get(agent, fn content -> content end)
 
-    Tracer.with_span "Wasm Guest Call", kind: :client do
-      Tracer.set_attribute("operation", operation)
-      Tracer.set_attribute("payload_size", byte_size(payload))
+    ir =
+      Tracer.with_span "Wasm Guest Call", kind: :client do
+        Tracer.set_attribute("operation", operation)
+        Tracer.set_attribute("payload_size", byte_size(payload))
 
-      Logger.debug("Performing invocation #{operation}",
-        operation: operation,
-        actor_id: raw_state.claims.public_key
-      )
+        Logger.debug("Performing invocation #{operation}",
+          operation: operation,
+          actor_id: raw_state.claims.public_key
+        )
 
-      span_ctx = Tracer.current_span_ctx()
+        span_ctx = Tracer.current_span_ctx()
 
-      raw_state = %State{
-        raw_state
-        | guest_response: nil,
-          guest_request: nil,
-          guest_error: nil,
-          host_response: nil,
-          host_error: nil,
-          parent_span: span_ctx,
-          invocation: %Invocation{operation: operation, payload: payload}
-      }
+        raw_state = %State{
+          raw_state
+          | guest_response: nil,
+            guest_request: nil,
+            guest_error: nil,
+            host_response: nil,
+            host_error: nil,
+            parent_span: span_ctx,
+            invocation: %Invocation{operation: operation, payload: payload}
+        }
 
-      Agent.update(agent, fn _content -> raw_state end)
+        Agent.update(agent, fn _content -> raw_state end)
 
-      # invoke __guest_call
-      # if it fails, set guest_error, return 1
-      # if it succeeeds, set guest_response, return 0
-      try do
-        Wasmex.call_function(raw_state.instance, :__guest_call, [
-          byte_size(operation),
-          byte_size(payload)
-        ])
-        |> to_guest_call_result(agent)
-      catch
-        :exit, value ->
-          Logger.error("Wasmex failed to invoke Wasm guest: #{inspect(value)}")
-          {:error, "Wasmex failed to invoke Wasm guest: #{inspect(value)}"}
+        # invoke __guest_call
+        # if it fails, set guest_error, return 1
+        # if it succeeeds, set guest_response, return 0
+        try do
+          res =
+            Wasmex.call_function(raw_state.instance, :__guest_call, [
+              byte_size(operation),
+              byte_size(payload)
+            ])
+            |> to_guest_call_result(agent)
+
+          case res do
+            {:ok, msg} ->
+              %{
+                msg: msg,
+                invocation_id: token.invocation["id"],
+                instance_id: token.iid,
+                content_length: byte_size(msg)
+              }
+              |> chunk_inv_response()
+
+            {:error, msg} ->
+              %{
+                msg: <<>>,
+                error: msg,
+                invocation_id: token.invocation["id"],
+                instance_id: token.iid,
+                content_length: 0
+              }
+          end
+        catch
+          :exit, value ->
+            Logger.error("WebAssembly runtime failed to invoke Wasm guest: #{inspect(value)}")
+
+            %{
+              msg: <<>>,
+              error: "WebAssembly runtime failed to invoke Wasm guest: #{inspect(value)}",
+              invocation_id: token.invocation["id"],
+              instance_id: token.iid,
+              content_length: 0
+            }
+        end
       end
-    end
+
+    {token, ir}
   end
 
   defp to_guest_call_result({:ok, [res]}, agent) do
@@ -622,9 +804,13 @@ defmodule HostCore.Actors.ActorModule do
         _ -> 0
       end
 
-    claims = Agent.get(agent, fn content -> content.claims end)
-    instance_id = Agent.get(agent, fn content -> content.instance_id end)
-    annotations = Agent.get(agent, fn content -> content.annotations end)
+    agent_state = Agent.get(agent, fn contents -> contents end)
+
+    claims = agent_state.claims
+    instance_id = agent_state.instance_id
+    annotations = agent_state.annotations
+    host_id = agent_state.host_id
+    lattice_prefix = agent_state.lattice_prefix
 
     if Wasmex.function_exists(instance, :start) do
       Wasmex.call_function(instance, :start, [])
@@ -644,27 +830,39 @@ defmodule HostCore.Actors.ActorModule do
     end)
 
     if first_time do
-      publish_actor_started(claims, api_version, instance_id, oci, annotations)
+      publish_actor_started(
+        host_id,
+        lattice_prefix,
+        claims,
+        api_version,
+        instance_id,
+        oci,
+        annotations
+      )
     end
 
     {:ok, agent}
   end
 
-  def publish_oci_map("", _pk) do
+  def publish_oci_map(_host_id, _lattice_prefix, "", _pk) do
     # No Op
   end
 
-  def publish_oci_map(nil, _pk) do
+  def publish_oci_map(_host_id, _lattice_prefix, nil, _pk) do
     # No Op
   end
 
-  def publish_oci_map(oci, pk) do
-    HostCore.Refmaps.Manager.put_refmap(oci, pk)
+  def publish_oci_map(host_id, lattice_prefix, oci, pk) do
+    HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, oci, pk)
   end
 
-  defp publish_invocation_result(inv, inv_r) do
-    prefix = HostCore.Host.lattice_prefix()
-
+  @spec publish_invocation_result(
+          host_id :: String.t(),
+          lattice_prefix :: String.t(),
+          inv :: map(),
+          inv_r :: map()
+        ) :: :ok
+  defp publish_invocation_result(host_id, lattice_prefix, inv, inv_r) do
     origin = inv["origin"]
     target = inv["target"]
 
@@ -675,101 +873,98 @@ defmodule HostCore.Actors.ActorModule do
         "invocation_failed"
       end
 
-    msg =
-      %{
-        source: %{
-          public_key: origin["public_key"],
-          contract_id: Map.get(origin, "contract_id"),
-          link_name: Map.get(origin, "link_name")
-        },
-        dest: %{
-          public_key: target["public_key"],
-          contract_id: Map.get(target, "contract_id"),
-          link_name: Map.get(target, "link_name")
-        },
-        operation: inv["operation"],
-        bytes: byte_size(Map.get(inv, "msg", ""))
-      }
-      |> CloudEvent.new(evt_type)
-
-    topic = "#{@rpc_event_prefix}.#{prefix}"
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    %{
+      source: %{
+        public_key: origin["public_key"],
+        contract_id: Map.get(origin, "contract_id"),
+        link_name: Map.get(origin, "link_name")
+      },
+      dest: %{
+        public_key: target["public_key"],
+        contract_id: Map.get(target, "contract_id"),
+        link_name: Map.get(target, "link_name")
+      },
+      operation: inv["operation"],
+      bytes: byte_size(Map.get(inv, "msg", "") |> IO.iodata_to_binary())
+    }
+    |> CloudEvent.new(evt_type, host_id)
+    |> CloudEvent.publish(lattice_prefix)
   end
 
-  def publish_actor_started(claims, api_version, instance_id, oci, annotations) do
-    prefix = HostCore.Host.lattice_prefix()
-
-    msg =
-      %{
-        public_key: claims.public_key,
-        image_ref: oci,
-        api_version: api_version,
-        instance_id: instance_id,
-        annotations: annotations,
-        claims: %{
-          call_alias: claims.call_alias,
-          caps: claims.caps,
-          issuer: claims.issuer,
-          tags: claims.tags,
-          name: claims.name,
-          version: claims.version,
-          revision: claims.revision,
-          not_before_human: claims.not_before_human,
-          expires_human: claims.expires_human
-        }
+  def publish_actor_started(
+        host_id,
+        lattice_prefix,
+        claims,
+        api_version,
+        instance_id,
+        oci,
+        annotations
+      ) do
+    %{
+      public_key: claims.public_key,
+      image_ref: oci,
+      api_version: api_version,
+      instance_id: instance_id,
+      annotations: annotations,
+      claims: %{
+        call_alias: claims.call_alias,
+        caps: claims.caps,
+        issuer: claims.issuer,
+        tags: claims.tags,
+        name: claims.name,
+        version: claims.version,
+        revision: claims.revision,
+        not_before_human: claims.not_before_human,
+        expires_human: claims.expires_human
       }
-      |> CloudEvent.new("actor_started")
+    }
+    |> CloudEvent.new("actor_started", host_id)
+    |> CloudEvent.publish(lattice_prefix)
 
-    topic = "#{@event_prefix}.#{prefix}"
+    # topic = "#{@event_prefix}.#{lattice_prefix}"
 
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 
-  def publish_actor_updated(actor_pk, revision, instance_id) do
-    prefix = HostCore.Host.lattice_prefix()
+  def publish_actor_updated(prefix, host_id, actor_pk, revision, instance_id) do
+    %{
+      public_key: actor_pk,
+      revision: revision,
+      instance_id: instance_id
+    }
+    |> CloudEvent.new("actor_updated", host_id)
+    |> CloudEvent.publish(prefix)
 
-    msg =
-      %{
-        public_key: actor_pk,
-        revision: revision,
-        instance_id: instance_id
-      }
-      |> CloudEvent.new("actor_updated")
+    # topic = "#{@event_prefix}.#{prefix}"
 
-    topic = "#{@event_prefix}.#{prefix}"
-
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(prefix), topic, msg)
   end
 
-  def publish_actor_update_failed(actor_pk, revision, instance_id, reason) do
-    prefix = HostCore.Host.lattice_prefix()
+  def publish_actor_update_failed(prefix, host_id, actor_pk, revision, instance_id, reason) do
+    %{
+      public_key: actor_pk,
+      revision: revision,
+      instance_id: instance_id,
+      reason: reason
+    }
+    |> CloudEvent.new("actor_update_failed", host_id)
+    |> CloudEvent.publish(prefix)
 
-    msg =
-      %{
-        public_key: actor_pk,
-        revision: revision,
-        instance_id: instance_id,
-        reason: reason
-      }
-      |> CloudEvent.new("actor_update_failed")
+    # topic = "#{@event_prefix}.#{prefix}"
 
-    topic = "#{@event_prefix}.#{prefix}"
-
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(prefix), topic, msg)
   end
 
-  def publish_actor_stopped(actor_pk, instance_id) do
-    prefix = HostCore.Host.lattice_prefix()
+  def publish_actor_stopped(host_id, lattice_prefix, actor_pk, instance_id) do
+    %{
+      public_key: actor_pk,
+      instance_id: instance_id
+    }
+    |> CloudEvent.new("actor_stopped", host_id)
+    |> CloudEvent.publish(lattice_prefix)
 
-    msg =
-      %{
-        public_key: actor_pk,
-        instance_id: instance_id
-      }
-      |> CloudEvent.new("actor_stopped")
+    # topic = "#{@event_prefix}.#{lattice_prefix}"
 
-    topic = "#{@event_prefix}.#{prefix}"
-
-    HostCore.Nats.safe_pub(:control_nats, topic, msg)
+    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 end

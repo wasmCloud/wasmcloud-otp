@@ -1,7 +1,11 @@
 defmodule HostCore.ConfigServiceClient do
+  @moduledoc """
+  This module is a client that consumes a configuration service over the appropriate configuration service topic. All configuration
+  service calls occur over NATS and the topic can be overridden in virtual host configuration
+  """
   require Logger
 
-  def request_configuration(labels, topic)
+  def request_configuration(lattice_prefix, labels, topic)
       when is_binary(topic) do
     topic = "#{topic}.req"
 
@@ -11,7 +15,7 @@ defmodule HostCore.ConfigServiceClient do
       }
       |> Jason.encode!()
 
-    with {:ok, message} <- api_request(topic, payload),
+    with {:ok, message} <- api_request(lattice_prefix, topic, payload),
          {:ok, decoded} <- Jason.decode(message.body) do
       {:ok, decoded}
     else
@@ -20,9 +24,9 @@ defmodule HostCore.ConfigServiceClient do
     end
   end
 
-  defp api_request(topic, payload, timeout \\ 2_000) do
+  defp api_request(prefix, topic, payload, timeout \\ 2_000) do
     HostCore.Nats.safe_req(
-      :control_nats,
+      HostCore.Nats.control_connection(prefix),
       topic,
       payload,
       receive_timeout: timeout

@@ -1,6 +1,16 @@
-defmodule HostCore do
+defmodule HostCore.Application do
   @moduledoc """
-  `HostCore` Application.
+  The `HostCore` Application. This is the main entry point for the wasmCloud OTP host process supervision tree. At the
+  application root level, the following supervisors will always be present:
+
+  * ControlInterfaceTaskSupervisor - a task supervisor logically associated with control interface/operations tasks
+  * InvocationTaskSupervisor - a task supervisor logically associated with performing remote procedure calls and invoking Wasm components
+  * ActorRpcSupervisor - the root owner of all actor RPC subscriptions, with one _queue_ subscription per public key
+  * ProviderSupervisor - the root ovwner of all capability providers running inside this OTP application
+  * ActorSupervisor - the root owner of all actors (webassembly components) running inside this OTP application
+  * CallCounter - a per-actor call count incrementer that is used to ensure that the same actor is never invoked twice for RPC in a row (unless it's the only instance in the lattice)
+  * LatticeRoot - the root owner of all lattice supervisors
+  * VirtualHost - the first (and usually singleton) virtual host loaded into the application
   """
   require Logger
   use Application
@@ -8,14 +18,16 @@ defmodule HostCore do
   @host_config_file "host_config.json"
 
   def start(_type, _args) do
-    config = Vapor.load!(HostCore.ConfigPlan)
+    create_ets_tables()
+
+    config = Vapor.load!(HostCore.Vhost.ConfigPlan)
     config = post_process_config(config)
 
     OpentelemetryLoggerMetadata.setup()
 
     children = mount_supervisor_tree(config)
 
-    opts = [strategy: :one_for_one, name: HostCore.Supervisor]
+    opts = [strategy: :one_for_one, name: HostCore.ApplicationSupervisor]
 
     started = Supervisor.start_link(children, opts)
 
@@ -39,76 +51,48 @@ defmodule HostCore do
     started
   end
 
+  def host_count() do
+    Registry.count(Registry.HostRegistry)
+  end
+
+  # Returns [{host public key, <pid>, lattice_prefix}]
+  @spec all_hosts() :: [{String.t(), pid(), String.t()}]
+  def all_hosts() do
+    Registry.select(Registry.HostRegistry, [
+      {{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}
+    ])
+  end
+
+  defp create_ets_tables() do
+    :ets.new(:vhost_table, [:named_table, :set, :public])
+    :ets.new(:policy_table, [:named_table, :set, :public])
+    :ets.new(:module_cache, [:named_table, :set, :public])
+  end
+
   defp mount_supervisor_tree(config) do
     [
-      {Registry, keys: :unique, name: Registry.ProviderRegistry},
+      {Registry, keys: :unique, name: Registry.LatticeSupervisorRegistry},
+      {Registry, keys: :duplicate, name: Registry.ProviderRegistry},
+      {Registry, keys: :unique, name: Registry.HostRegistry},
       {Registry, keys: :duplicate, name: Registry.ActorRegistry},
       {Registry, keys: :unique, name: Registry.ActorRpcSubscribers},
       {Registry,
        keys: :duplicate,
        name: Registry.EventMonitorRegistry,
        partitions: System.schedulers_online()},
-      Supervisor.child_spec(
-        {Gnat.ConnectionSupervisor, HostCore.Nats.control_connection_settings(config)},
-        id: :control_connection_supervisor
-      ),
-      Supervisor.child_spec(
-        {Gnat.ConnectionSupervisor, HostCore.Nats.rpc_connection_settings(config)},
-        id: :rpc_connection_supervisor
-      ),
+      {Phoenix.PubSub, name: :hostcore_pubsub},
+      {Task.Supervisor, name: ControlInterfaceTaskSupervisor},
+      {Task.Supervisor, name: InvocationTaskSupervisor},
       {HostCore.Actors.ActorRpcSupervisor, strategy: :one_for_one},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor,
        strategy: :one_for_one,
        allow_latest: config.allow_latest,
        allowed_insecure: config.allowed_insecure},
-      # Handle lattice control interface requests
-      Supervisor.child_spec(
-        {Gnat.ConsumerSupervisor,
-         %{
-           connection_name: :control_nats,
-           module: HostCore.ControlInterface.Server,
-           subscription_topics: [
-             %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.registries.put"},
-             %{
-               topic:
-                 "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.cmd.#{config.host_key}.*"
-             },
-             %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.ping.hosts"},
-             %{
-               topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.linkdefs.*",
-               queue_group: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}"
-             },
-             %{
-               topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.get.*",
-               queue_group: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}"
-             },
-             %{
-               topic:
-                 "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.get.#{config.host_key}.inv"
-             },
-             %{topic: "#{config.ctl_topic_prefix}.#{config.lattice_prefix}.auction.>"}
-           ]
-         }},
-        id: :latticectl_consumer_supervisor
-      ),
-      Supervisor.child_spec(
-        {Gnat.ConsumerSupervisor,
-         %{
-           connection_name: :control_nats,
-           module: HostCore.Jetstream.CacheLoader,
-           subscription_topics: [
-             %{topic: "#{config.cache_deliver_inbox}"}
-           ]
-         }},
-        id: :cacheloader_consumer_supervisor
-      ),
       {HostCore.Actors.CallCounter, nil},
-      {HostCore.Host, config},
-      {HostCore.HeartbeatEmitter, config},
-      {HostCore.Jetstream.Client, config}
-    ] ++
-      HostCore.Policy.Manager.spec()
+      {HostCore.Lattice.LatticeRoot, nil},
+      {HostCore.Vhost.VirtualHost, config}
+    ]
   end
 
   defp post_process_config(config) do

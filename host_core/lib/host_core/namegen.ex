@@ -1,4 +1,8 @@
 defmodule HostCore.Namegen do
+  @moduledoc """
+  Generator for friendly names for hosts based on a random number. Names we pulled from a list of
+  friendly or neutral adjectives and nouns suitable for use in public and on hosts/domain names
+  """
   @adjectives ~w(
     autumn hidden bitter misty silent empty dry dark summer
     icy delicate quiet white cool spring winter patient

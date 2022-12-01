@@ -39,6 +39,8 @@ pub(crate) fn extract_target_bytes(par: &ProviderArchive) -> Result<Vec<u8>, Err
     }
 }
 
+// TODO: this should respect a host ID in the future so that cached data
+// from two different hosts can't cross over the veil
 pub(crate) fn cache_path(
     subject: &str,
     rev: i32,

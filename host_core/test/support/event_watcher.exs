@@ -4,11 +4,13 @@ defmodule HostCoreTest.EventWatcher do
 
   use GenServer
 
+  alias Phoenix.PubSub
+
   @event_wait_interval 1_000
 
   defmodule State do
     defstruct [
-      :topic,
+      :prefix,
       :sub,
       :events,
       :claims,
@@ -19,47 +21,32 @@ defmodule HostCoreTest.EventWatcher do
 
   @impl true
   def init(prefix) do
-    purge_topic = "$JS.API.STREAM.PURGE.LATTICECACHE_#{prefix}"
+    PubSub.subscribe(:hostcore_pubsub, "latticeevents:#{prefix}")
+    PubSub.subscribe(:hostcore_pubsub, "cacheloader:#{prefix}")
 
-    case HostCore.Nats.safe_req(:control_nats, purge_topic, []) do
-      {:ok, %{body: _body}} ->
-        Logger.debug("Purged NATS stream for events watcher")
-
-      {:error, :timeout} ->
-        Logger.error("Failed to purge NATS stream for events watcher within timeout")
-    end
-
-    # Purge all resources from ETS to avoid leftover information
-    :ets.delete_all_objects(:linkdef_table)
-    :ets.delete_all_objects(:claims_table)
-    :ets.delete_all_objects(:refmap_table)
-    :ets.delete_all_objects(:callalias_table)
-
-    Registry.register(Registry.EventMonitorRegistry, "cache_loader_events", [])
-
-    # Subscribe to lattice events stream
-    topic = "wasmbus.evt.#{prefix}"
-    {:ok, sub} = Gnat.sub(:control_nats, self(), topic)
-
-    # Wait for first ping/pong
-    # This is the result of a long time of debugging, and hypothesizing that the first ping/pong must
-    # be answered successfully or the jetstream client is immediately closed.
-    Process.sleep(2_000)
-
-    {:ok, %State{topic: topic, sub: sub, events: [], claims: %{}, linkdefs: %{}, ocirefs: %{}}}
+    {:ok, %State{prefix: prefix, events: [], claims: %{}, linkdefs: %{}, ocirefs: %{}}}
   end
 
   @impl true
-  # Receives events from wasmbus.evt.prefix and stores them for later processing
-  def handle_info({:msg, %{body: body}}, state) do
-    evt = Jason.decode!(body)
+  def handle_info({:lattice_event, evt}, state) do
+    evt = Jason.decode!(evt)
+
     events = [evt | state.events]
 
-    {:noreply, %State{state | events: events}}
+    case evt["type"] do
+      "com.wasmcloud.lattice.linkdef_set" ->
+        handle_info({:cacheloader, :linkdef_added, atomize(evt["data"])}, state)
+
+      "com.wasmcloud.lattice.linkdef_deleted" ->
+        handle_info({:cacheloader, :linkdef_removed, atomize(evt["data"])}, state)
+
+      _ ->
+        {:noreply, %State{state | events: events}}
+    end
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :linkdef_removed, ld}, state) do
+  def handle_info({:cacheloader, :linkdef_removed, ld}, state) do
     key = {ld.actor_id, ld.contract_id, ld.link_name}
     linkdefs = Map.delete(state.linkdefs, key)
 
@@ -67,7 +54,7 @@ defmodule HostCoreTest.EventWatcher do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :linkdef_added, ld}, state) do
+  def handle_info({:cacheloader, :linkdef_added, ld}, state) do
     key = {ld.actor_id, ld.contract_id, ld.link_name}
     map = %{values: ld.values, provider_key: ld.provider_id}
 
@@ -76,21 +63,22 @@ defmodule HostCoreTest.EventWatcher do
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :claims_added, claims}, state) do
+  def handle_info({:cacheloader, :claims_added, claims}, state) do
     cmap = Map.put(state.claims, claims.sub, claims)
 
     {:noreply, %State{state | claims: cmap}}
   end
 
   @impl true
-  def handle_cast({:cache_load_event, :refmap_added, refmap}, state) do
+  def handle_info({:cacheloader, :refmap_added, refmap}, state) do
     ocirefs = Map.put(state.ocirefs, refmap.oci_url, refmap.public_key)
     {:noreply, %State{state | ocirefs: ocirefs}}
   end
 
   @impl true
   def terminate(_reason, state) do
-    Gnat.unsub(:control_nats, state.sub)
+    Phoenix.PubSub.unsubscribe(:hostcore_pubsub, "latticeevents:#{state.prefix}")
+    Phoenix.PubSub.unsubscribe(:hostcore_pubsub, "cacheloader:#{state.prefix}")
   end
 
   @impl true
@@ -119,6 +107,10 @@ defmodule HostCoreTest.EventWatcher do
   def events_for_type(pid, type) do
     GenServer.call(pid, :events)
     |> Enum.filter(fn evt -> evt["type"] == type end)
+  end
+
+  defp atomize(map) do
+    for {key, val} <- map, into: %{}, do: {String.to_atom(key), val}
   end
 
   # Finds all events matching the specified data parameters

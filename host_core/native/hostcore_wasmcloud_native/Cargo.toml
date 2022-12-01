@@ -10,14 +10,14 @@ path = "src/lib.rs"
 crate-type = ["dylib"]
 
 [dependencies]
-rustler = "0.24.0"
+rustler = "0.26.0"
 lazy_static = "1.0"
 serde = {version = "1.0.126", features = ["derive"] }
 serde_bytes = "0.11.5"
 nkeys = "0.2.0"
 wascap = "0.8.0"
 ring = "0.16.20"
-uuid = {version = "0.8.2", features = ["v4"]}
+uuid = {version = "1.2.1", features = ["v4"]}
 data-encoding = "2.3.2"
 rmp = "0.8.10"
 rmp-serde = "1.0.0"
@@ -32,4 +32,4 @@ tokio-stream = "0.1"
 bindle = { version = "0.8", git = "https://github.com/deislabs/bindle", rev = "7a5f11ca9986837f8ee54e8d577204ec520b6764", default-features = false, features = ["client", "caching", "rustls-tls"] }
 async-trait = "0.1"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
-nats = "0.20.1"
+nats = "0.23.1"

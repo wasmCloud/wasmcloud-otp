@@ -1,11 +1,19 @@
 defmodule HostCore.Nats do
-  @moduledoc false
+  @moduledoc """
+  The NATS module provides a few special utility functions. The main functions in this module allow consumers to obtain the
+  appropriate atom for a given RPC or control connection. Note that while there is a finite limit on atoms in a BEAM, the limit
+  is often in the millions and if we have hundreds of thousands of lattices running inside a single OTP application, we have other
+  problems to worry about.
+
+  In addition to obtaining the appropriate connection atom, this module also exposes the `safe_pub` and `safe_req` wrappers around
+  core Gnat functionality.
+  """
   require Logger
 
   def rpc_connection_settings(opts) do
     %{
       # (required) the registered named you want to give the Gnat connection
-      name: :lattice_nats,
+      name: rpc_connection(opts.lattice_prefix),
       # number of milliseconds to wait between consecutive reconnect attempts (default: 2_000)
       backoff_period: 4_000,
       connection_settings: [
@@ -14,7 +22,7 @@ defmodule HostCore.Nats do
             host: opts.rpc_host,
             port: opts.rpc_port,
             no_responders: true,
-            tls: opts.rpc_tls == 1,
+            tls: opts.rpc_tls,
             tcp_opts: determine_ipv6(opts.enable_ipv6)
           },
           determine_auth_method(opts.rpc_seed, opts.rpc_jwt, "lattice rpc")
@@ -26,7 +34,8 @@ defmodule HostCore.Nats do
   def control_connection_settings(opts) do
     %{
       # (required) the registered named you want to give the Gnat connection
-      name: :control_nats,
+      name: control_connection(opts.lattice_prefix),
+
       # number of milliseconds to wait between consecutive reconnect attempts (default: 2_000)
       backoff_period: 4_000,
       connection_settings: [
@@ -34,7 +43,7 @@ defmodule HostCore.Nats do
           %{
             host: opts.ctl_host,
             port: opts.ctl_port,
-            tls: opts.ctl_tls == 1,
+            tls: opts.ctl_tls,
             no_responders: true,
             tcp_opts: determine_ipv6(opts.enable_ipv6)
           },
@@ -42,6 +51,12 @@ defmodule HostCore.Nats do
         )
       ]
     }
+  end
+
+  def control_connection(lattice_prefix), do: String.to_atom("#{lattice_prefix}-ctl")
+
+  def rpc_connection(lattice_prefix) do
+    String.to_atom("#{lattice_prefix}-rpc")
   end
 
   def sanitize_for_topic(input) do
@@ -60,12 +75,12 @@ defmodule HostCore.Nats do
 
       # No arguments specified that create a valid authentication method
       true ->
-        Logger.info("Connecting to #{conn_name} NATS without authentication")
+        Logger.info("Will connect to #{conn_name} NATS without authentication")
         %{}
     end
   end
 
-  defp determine_ipv6(use_ipv6) when use_ipv6 == 1, do: [:binary, :inet6]
+  defp determine_ipv6(true), do: [:binary, :inet6]
   defp determine_ipv6(_), do: [:binary]
 
   def safe_pub(process_name, topic, msg) do
