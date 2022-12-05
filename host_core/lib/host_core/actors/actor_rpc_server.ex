@@ -8,6 +8,7 @@ defmodule HostCore.Actors.ActorRpcServer do
   """
   require Logger
   alias HostCore.Actors.CallCounter
+  alias HostCore.Lattice.LatticeSupervisor
   use Gnat.Server
 
   def request(
@@ -27,7 +28,8 @@ defmodule HostCore.Actors.ActorRpcServer do
       ["wasmbus", "rpc", lattice_prefix, actor_pk] = tokens
 
       host_candidates =
-        HostCore.Lattice.LatticeSupervisor.hosts_in_lattice(lattice_prefix)
+        lattice_prefix
+        |> LatticeSupervisor.hosts_in_lattice()
         |> Enum.map(fn {h, _pid} -> h end)
 
       case Registry.lookup(Registry.ActorRegistry, actor_pk) do
