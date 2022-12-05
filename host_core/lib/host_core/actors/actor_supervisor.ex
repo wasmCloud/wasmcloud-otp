@@ -10,6 +10,9 @@ defmodule HostCore.Actors.ActorSupervisor do
   require Logger
 
   alias HostCore.Actors.ActorModule
+  alias HostCore.Actors.ActorRpcSupervisor
+  alias HostCore.Vhost.VirtualHost
+  alias HostCore.WasmCloud.Native
 
   @start_actor "start_actor"
 
@@ -37,7 +40,7 @@ defmodule HostCore.Actors.ActorSupervisor do
       Tracer.set_attribute("byte_size", byte_size(bytes))
       Logger.debug("Start actor request received for #{oci}", oci_ref: oci)
 
-      case HostCore.WasmCloud.Native.extract_claims(bytes) do
+      case Native.extract_claims(bytes) do
         {:error, err} ->
           Tracer.set_status(:error, "#{inspect(err)}")
 
@@ -67,7 +70,7 @@ defmodule HostCore.Actors.ActorSupervisor do
             linkName: nil
           }
 
-          config = HostCore.Vhost.VirtualHost.config(host_id)
+          config = VirtualHost.config(host_id)
 
           with %{permitted: true} <-
                  HostCore.Policy.Manager.evaluate_action(
@@ -78,8 +81,7 @@ defmodule HostCore.Actors.ActorSupervisor do
                  ),
                false <- other_oci_already_running?(oci, claims.public_key, host_id) do
             # Start `count` instances of this actor
-            case 1..count
-                 |> Enum.reduce_while([], fn _count, pids ->
+            case Enum.reduce_while(1..count, [], fn _count, pids ->
                    opts = %{
                      claims: claims,
                      bytes: bytes,
@@ -90,7 +92,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
                    case DynamicSupervisor.start_child(
                           __MODULE__,
-                          {HostCore.Actors.ActorModule, opts}
+                          {ActorModule, opts}
                         ) do
                      {:error, err} ->
                        {:halt, {:error, "Error: #{inspect(err)}"}}
@@ -143,11 +145,11 @@ defmodule HostCore.Actors.ActorSupervisor do
       Tracer.set_attribute("host_id", host_id)
       Tracer.set_attribute("oci_ref", ref)
 
-      creds = HostCore.Vhost.VirtualHost.get_creds(host_id, :oci, ref)
-      {:ok, {pid, _prefix}} = HostCore.Vhost.VirtualHost.lookup(host_id)
-      config = HostCore.Vhost.VirtualHost.config(pid)
+      creds = VirtualHost.get_creds(host_id, :oci, ref)
+      {:ok, {pid, _prefix}} = VirtualHost.lookup(host_id)
+      config = VirtualHost.config(pid)
 
-      case HostCore.WasmCloud.Native.get_oci_bytes(
+      case Native.get_oci_bytes(
              creds,
              ref,
              config.allow_latest,
@@ -175,9 +177,9 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   def start_actor_from_bindle(host_id, bindle_id, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from Bindle", kind: :server do
-      creds = HostCore.Vhost.VirtualHost.get_creds(host_id, :bindle, bindle_id)
+      creds = VirtualHost.get_creds(host_id, :bindle, bindle_id)
 
-      case HostCore.WasmCloud.Native.get_actor_bindle(
+      case Native.get_actor_bindle(
              creds,
              String.trim_leading(bindle_id, "bindle://")
            ) do
@@ -202,19 +204,19 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   def live_update(host_id, ref, span_ctx \\ nil) do
-    creds = HostCore.Vhost.VirtualHost.get_creds(host_id, :oci, ref)
-    {:ok, {pid, lattice_prefix}} = HostCore.Vhost.VirtualHost.lookup(host_id)
-    config = HostCore.Vhost.VirtualHost.config(pid)
+    creds = VirtualHost.get_creds(host_id, :oci, ref)
+    {:ok, {pid, lattice_prefix}} = VirtualHost.lookup(host_id)
+    config = VirtualHost.config(pid)
 
     with {:ok, bytes} <-
-           HostCore.WasmCloud.Native.get_oci_bytes(
+           Native.get_oci_bytes(
              creds,
              ref,
              config.allow_latest,
              config.allowed_insecure
            ),
          {:ok, new_claims} <-
-           HostCore.WasmCloud.Native.extract_claims(bytes |> IO.iodata_to_binary()),
+           bytes |> IO.iodata_to_binary() |> Native.extract_claims(),
          {:ok, old_claims} <-
            HostCore.Claims.Manager.lookup_claims(lattice_prefix, new_claims.public_key),
          :ok <- validate_actor_for_update(old_claims, new_claims) do
@@ -230,12 +232,11 @@ defmodule HostCore.Actors.ActorSupervisor do
       # Each spawned function is a new process, therefore a new root trace
       # this is why we pass the span context so all child updates roll up
       # to the current trace
-      targets
-      |> Enum.each(fn pid ->
-        HostCore.Actors.ActorModule.live_update(
+      Enum.each(targets, fn pid ->
+        ActorModule.live_update(
           config,
           pid,
-          bytes |> IO.iodata_to_binary(),
+          IO.iodata_to_binary(bytes),
           new_claims,
           ref,
           span_ctx
@@ -263,11 +264,12 @@ defmodule HostCore.Actors.ActorSupervisor do
   of all of the pids (running instances) of that actor.
   """
   def all_actors(host_id) do
-    Registry.select(
-      Registry.ActorRegistry,
-      [{{:"$1", :"$2", :"$3"}, [{:==, :"$3", host_id}], [{{:"$1", :"$2"}}]}]
+    Registry.ActorRegistry
+    |> Registry.select([{{:"$1", :"$2", :"$3"}, [{:==, :"$3", host_id}], [{{:"$1", :"$2"}}]}])
+    |> Enum.group_by(
+      fn {h, _p} -> h end,
+      fn {_h, p} -> p end
     )
-    |> Enum.group_by(fn {h, _p} -> h end, fn {_h, p} -> p end)
   end
 
   @doc """
@@ -286,7 +288,7 @@ defmodule HostCore.Actors.ActorSupervisor do
     Enum.map(actors_on_host, fn {pk, pid} ->
       {
         pk,
-        HostCore.Actors.ActorModule.instance_id(pid)
+        ActorModule.instance_id(pid)
       }
     end)
   end
@@ -298,7 +300,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   def host_ocirefs(host_id) do
     for {pk, pids} <- all_actors(host_id),
         pid <- pids,
-        do: {pid, pk, HostCore.Actors.ActorModule.ociref(pid)}
+        do: {pid, pk, ActorModule.ociref(pid)}
   end
 
   @spec find_actor(public_key :: String.t(), host_id :: String.t()) :: [pid()]
@@ -312,7 +314,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   """
   def scale_actor(host_id, public_key, desired_count, oci \\ "") do
     current_instances = find_actor(public_key, host_id)
-    current_count = current_instances |> Enum.count()
+    current_count = Enum.count(current_instances)
 
     # Attempt to retrieve OCI reference from running actor if not supplied
     ociref =
@@ -321,7 +323,7 @@ defmodule HostCore.Actors.ActorSupervisor do
           oci
 
         current_count >= 1 ->
-          ActorModule.ociref(current_instances |> List.first())
+          current_instances |> List.first() |> ActorModule.ociref()
 
         true ->
           ""
@@ -358,8 +360,8 @@ defmodule HostCore.Actors.ActorSupervisor do
     remaining = halt_required_actors(host_id, public_key, annotations, count)
 
     if remaining <= 0 do
-      lattice_prefix = HostCore.Vhost.VirtualHost.get_lattice_for_host(host_id)
-      HostCore.Actors.ActorRpcSupervisor.stop_rpc_subscriber(lattice_prefix, public_key)
+      lattice_prefix = VirtualHost.get_lattice_for_host(host_id)
+      ActorRpcSupervisor.stop_rpc_subscriber(lattice_prefix, public_key)
     end
 
     :ok
@@ -367,11 +369,11 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   # Terminate all instances of an actor
   def terminate_actor(host_id, public_key, 0, annotations) do
-    lattice_prefix = HostCore.Vhost.VirtualHost.get_lattice_for_host(host_id)
+    lattice_prefix = VirtualHost.get_lattice_for_host(host_id)
     actors = find_actor(public_key, host_id)
     halt_required_actors(host_id, public_key, annotations, length(actors))
 
-    HostCore.Actors.ActorRpcSupervisor.stop_rpc_subscriber(lattice_prefix, public_key)
+    ActorRpcSupervisor.stop_rpc_subscriber(lattice_prefix, public_key)
 
     :ok
   end
@@ -394,5 +396,5 @@ defmodule HostCore.Actors.ActorSupervisor do
     remaining
   end
 
-  defp get_annotations(pid), do: HostCore.Actors.ActorModule.annotations(pid)
+  defp get_annotations(pid), do: ActorModule.annotations(pid)
 end
