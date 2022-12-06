@@ -1,5 +1,8 @@
-defmodule HostCore.Jetstream.CacheLoader do
-  @moduledoc false
+defmodule HostCore.Jetstream.LegacyCacheLoader do
+  @moduledoc """
+  The legacy cache loader is responsible for loading metadata from the deprecated LATTICECACHE_{prefix} stream
+  into the in-memory caches for claims, oci refs, call aliases, and linkdefs.
+  """
 
   alias Phoenix.PubSub
 
@@ -28,9 +31,7 @@ defmodule HostCore.Jetstream.CacheLoader do
       {:ok, %{deleted: true} = ld} ->
         HostCore.Linkdefs.Manager.uncache_link_definition(
           prefix,
-          ld.actor_id,
-          ld.contract_id,
-          ld.link_name
+          ld.id
         )
 
         Logger.debug("Removed link definition #{key} from #{ld.actor_id} to #{ld.provider_id}")

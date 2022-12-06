@@ -86,6 +86,8 @@ defmodule HostCore.PolicyTest do
              message: "Policy evaluation disabled, allowing action",
              requestId: ""
            }
+
+    HostCore.Jetstream.Client.delete_kv_bucket("policyhome", nil)
   end
 
   # :passthrough enables mocking a single function from the module and still accessing said module

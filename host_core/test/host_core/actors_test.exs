@@ -5,6 +5,7 @@ defmodule HostCore.ActorsTest do
   use ExUnit.Case, async: false
 
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
+  import HostCoreTest.EventWatcher, only: [wait_for_actor_start: 2, wait_for_actor_stop: 2]
 
   @echo_key HostCoreTest.Constants.echo_key()
   @echo_wasi_key HostCoreTest.Constants.echo_wasi_key()
@@ -27,7 +28,7 @@ defmodule HostCore.ActorsTest do
     setup :standard_setup
 
     test "live update same revision fails", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -36,12 +37,14 @@ defmodule HostCore.ActorsTest do
       {:ok, _pid} =
         HostCore.Actors.ActorSupervisor.start_actor_from_oci(config.host_key, @echo_oci_reference)
 
+      wait_for_actor_start(evt_watcher, @echo_key)
+
       assert {:error, :error} ==
                HostCore.Actors.ActorSupervisor.live_update(config.host_key, @echo_oci_reference)
     end
 
     test "live update with new revision succeeds", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -52,6 +55,8 @@ defmodule HostCore.ActorsTest do
           config.host_key,
           @echo_old_oci_reference
         )
+
+      wait_for_actor_start(evt_watcher, @echo_key)
 
       assert :ok ==
                HostCore.Actors.ActorSupervisor.live_update(config.host_key, @echo_oci_reference)
@@ -117,13 +122,7 @@ defmodule HostCore.ActorsTest do
           "is_testing" => "youbetcha"
         })
 
-      :ok =
-        HostCoreTest.EventWatcher.wait_for_event(
-          evt_watcher,
-          :actor_started,
-          %{"public_key" => @kvcounter_key},
-          5
-        )
+      :ok = wait_for_actor_start(evt_watcher, @kvcounter_key)
 
       actors = HostCore.Actors.ActorSupervisor.all_actors(config.host_key)
       kv_counters = Map.get(actors, @kvcounter_key)
@@ -149,7 +148,7 @@ defmodule HostCore.ActorsTest do
     end
 
     test "can invoke the echo actor with huge payload", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -157,6 +156,7 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read(@echo_path)
       {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+      wait_for_actor_start(evt_watcher, @echo_key)
 
       req =
         %{
@@ -221,7 +221,7 @@ defmodule HostCore.ActorsTest do
     # This doesn't exercise any WASI-specific functionality, only proves that a WASI-compiled
     # module can run properly in the host
     test "can invoke the echo actor (WASI)", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -229,6 +229,7 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read(@echo_wasi_path)
       {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+      wait_for_actor_start(evt_watcher, @echo_wasi_key)
 
       req =
         %{
@@ -283,7 +284,7 @@ defmodule HostCore.ActorsTest do
     end
 
     test "can invoke the echo actor", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -291,6 +292,7 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read(@echo_path)
       {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+      wait_for_actor_start(evt_watcher, @echo_key)
 
       seed = config.cluster_seed
 
@@ -345,7 +347,7 @@ defmodule HostCore.ActorsTest do
     end
 
     test "can invoke echo via OCI reference", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -357,6 +359,8 @@ defmodule HostCore.ActorsTest do
           @echo_oci_reference,
           1
         )
+
+      wait_for_actor_start(evt_watcher, @echo_key)
 
       assert Process.alive?(pid |> List.first())
 
@@ -419,7 +423,7 @@ defmodule HostCore.ActorsTest do
     end
 
     test "can invoke via call alias", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -427,8 +431,11 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read("test/fixtures/actors/ponger_s.wasm")
       {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+
       {:ok, bytes} = File.read("test/fixtures/actors/pinger_s.wasm")
       {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+      wait_for_actor_start(evt_watcher, @pinger_key)
+
       seed = config.cluster_seed
 
       req =
@@ -482,7 +489,7 @@ defmodule HostCore.ActorsTest do
     end
 
     test "Prevents an attempt to start an actor with a conflicting OCI reference", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -498,6 +505,8 @@ defmodule HostCore.ActorsTest do
           @echo_oci_reference,
           1
         )
+
+      wait_for_actor_start(evt_watcher, @echo_key)
 
       assert Process.alive?(pid |> List.first())
 
@@ -522,13 +531,7 @@ defmodule HostCore.ActorsTest do
       {:ok, bytes} = File.read(@kvcounter_path)
       {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key, "", 5)
 
-      :ok =
-        HostCoreTest.EventWatcher.wait_for_event(
-          evt_watcher,
-          :actor_started,
-          %{"public_key" => @kvcounter_key},
-          5
-        )
+      wait_for_actor_start(evt_watcher, @kvcounter_key)
 
       actor_count =
         Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @kvcounter_key)
@@ -559,26 +562,15 @@ defmodule HostCore.ActorsTest do
       {:ok, bytes} = File.read(@echo_path)
       {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key, "", 5)
 
-      :ok =
-        HostCoreTest.EventWatcher.wait_for_event(
-          evt_watcher,
-          :actor_started,
-          %{"public_key" => @echo_key},
-          5
-        )
+      wait_for_actor_start(evt_watcher, @echo_key)
 
       HostCore.Actors.ActorSupervisor.terminate_actor(config.host_key, @echo_key, 0, %{})
 
-      :ok =
-        HostCoreTest.EventWatcher.wait_for_event(
-          evt_watcher,
-          :actor_stopped,
-          %{"public_key" => @echo_key},
-          5
-        )
+      wait_for_actor_stop(evt_watcher, @echo_key)
 
       # restart actor
       {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+      wait_for_actor_start(evt_watcher, @echo_key)
 
       seed = config.cluster_seed
 
@@ -623,7 +615,7 @@ defmodule HostCore.ActorsTest do
     end
 
     test "can support builtin logging and numbergen invocations", %{
-      :evt_watcher => _evt_watcher,
+      :evt_watcher => evt_watcher,
       :hconfig => config,
       :host_pid => pid
     } do
@@ -631,6 +623,7 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read(@randogenlogger_path)
       {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+      wait_for_actor_start(evt_watcher, @randogenlogger_key)
 
       seed = config.cluster_seed
 

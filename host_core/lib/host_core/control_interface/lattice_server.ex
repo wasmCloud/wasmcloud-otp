@@ -88,53 +88,22 @@ defmodule HostCore.ControlInterface.LatticeServer do
 
   ### LINKDEFS
   # These requests are targeted at one host per lattice, changes made as a result
-  # are emitted to the appropriate stream and cached
+  # are emitted to the appropriate stream and cached.
+  # THESE ARE NOW DEPRECATED
+  # Eventually the host will stop subscribing to these topics
 
-  # Put a link definition
-  # This will first store the link definition in memory, then publish it to the stream
-  # then publish it directly to the relevant provider via the RPC channel
-  defp handle_request({"linkdefs", "put"}, body, _reply_to, prefix) do
-    Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
-      with {:ok, ld} <- Jason.decode(body),
-           true <- has_values(ld, ["actor_id", "contract_id", "link_name", "provider_id"]) do
-        HostCore.Linkdefs.Manager.put_link_definition(
-          prefix,
-          ld["actor_id"],
-          ld["contract_id"],
-          ld["link_name"],
-          ld["provider_id"],
-          ld["values"] || %{}
-        )
-
-        {:reply, success_ack()}
-      else
-        _ ->
-          {:reply, failure_ack("Invalid link definition put request")}
-      end
-    end
+  defp handle_request({"linkdefs", "put"}, _body, _reply_to, prefix) do
+    {:reply,
+     failure_ack(
+       "Putting linkdefs through control interface is no longer supported. Please write to the WCMDCACHE_#{prefix} bucket directly"
+     )}
   end
 
-  # Remove a link definition
-  # This will first remove the link definition from memory, then publish the removal
-  # message to the stream, then publish the removal directly to the relevant provider via the
-  # RPC channel
-  defp handle_request({"linkdefs", "del"}, body, _reply_to, prefix) do
-    Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
-      with {:ok, ld} <- Jason.decode(body),
-           true <- has_values(ld, ["actor_id", "contract_id", "link_name"]) do
-        HostCore.Linkdefs.Manager.del_link_definition(
-          prefix,
-          ld["actor_id"],
-          ld["contract_id"],
-          ld["link_name"]
-        )
-
-        {:reply, success_ack()}
-      else
-        _ ->
-          {:reply, failure_ack("Invalid link definition removal request")}
-      end
-    end
+  defp handle_request({"linkdefs", "del"}, _body, _reply_to, prefix) do
+    {:reply,
+     failure_ack(
+       "Deleting linkdefs through control interface is no longer supported. Please write to the WCMDCACHE_#{prefix} bucket directly"
+     )}
   end
 
   ### COMMANDS

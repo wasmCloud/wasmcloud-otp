@@ -58,9 +58,20 @@ defmodule HostCore.Lattice.LatticeSupervisor do
           {Gnat.ConsumerSupervisor,
            %{
              connection_name: HostCore.Nats.control_connection(config.lattice_prefix),
-             module: HostCore.Jetstream.CacheLoader,
+             module: HostCore.Jetstream.LegacyCacheLoader,
              subscription_topics: [
                %{topic: "#{config.cache_deliver_inbox}"}
+             ]
+           }},
+          id: String.to_atom("#{config.lattice_prefix}-ctl-legacyloader")
+        ),
+        Supervisor.child_spec(
+          {Gnat.ConsumerSupervisor,
+           %{
+             connection_name: HostCore.Nats.control_connection(config.lattice_prefix),
+             module: HostCore.Jetstream.MetadataCacheLoader,
+             subscription_topics: [
+               %{topic: "#{config.metadata_deliver_inbox}"}
              ]
            }},
           id: String.to_atom("#{config.lattice_prefix}-ctl-cacheloader")

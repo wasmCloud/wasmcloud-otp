@@ -7,6 +7,8 @@ defmodule HostCore.Refmaps.Manager do
   """
   require Logger
 
+  import HostCore.Jetstream.MetadataCacheLoader, only: [broadcast_event: 3]
+
   alias HostCore.CloudEvent
 
   def lookup_refmap(lattice_prefix, oci_url) do
@@ -38,27 +40,27 @@ defmodule HostCore.Refmaps.Manager do
   end
 
   def publish_refmap(host_id, lattice_prefix, oci_url, public_key) do
+    config = HostCore.Vhost.VirtualHost.config(host_id)
+
+    data = %{
+      oci_url: oci_url,
+      public_key: public_key
+    }
+
     Logger.debug("Publishing OCI ref map for #{inspect(oci_url)}")
 
-    topic = "lc.#{lattice_prefix}.refmap.#{HostCore.Nats.sanitize_for_topic(oci_url)}"
-    event_topic = "wasmbus.evt.#{lattice_prefix}"
-
-    evtmsg =
-      %{
-        oci_url: oci_url,
-        public_key: public_key
-      }
-      |> CloudEvent.new("refmap_set", host_id)
-
-    conn = HostCore.Nats.control_connection(lattice_prefix)
-
-    HostCore.Nats.safe_pub(
-      conn,
-      topic,
-      Jason.encode!(%{oci_url: oci_url, public_key: public_key})
+    HostCore.Jetstream.Client.kv_put(
+      lattice_prefix,
+      config.js_domain,
+      "REFMAP_#{HostCore.Nats.sanitize_for_topic(oci_url)}",
+      Jason.encode!(data)
     )
 
-    HostCore.Nats.safe_pub(conn, event_topic, evtmsg)
+    broadcast_event(:refmap_added, data, lattice_prefix)
+
+    data
+    |> CloudEvent.new("refmap_set", host_id)
+    |> CloudEvent.publish(lattice_prefix)
   end
 
   def table_atom(prefix) when is_binary(prefix) do

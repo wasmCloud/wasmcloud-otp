@@ -218,7 +218,7 @@ defmodule HostCore.Actors.ActorSupervisor do
          {:ok, old_claims} <-
            HostCore.Claims.Manager.lookup_claims(lattice_prefix, new_claims.public_key),
          :ok <- validate_actor_for_update(old_claims, new_claims) do
-      HostCore.Claims.Manager.put_claims(lattice_prefix, new_claims)
+      HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, new_claims)
       HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, ref, new_claims.public_key)
       targets = find_actor(new_claims.public_key, host_id)
 
