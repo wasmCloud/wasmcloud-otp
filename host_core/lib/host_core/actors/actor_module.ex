@@ -616,7 +616,6 @@ defmodule HostCore.Actors.ActorModule do
 
     Registry.register(Registry.ActorRegistry, claims.public_key, host_id)
 
-
     HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, claims)
     HostCore.Actors.ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
 
