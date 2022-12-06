@@ -137,6 +137,10 @@ defmodule HostCoreTest.EventWatcher do
     assert_received?(pid, "com.wasmcloud.lattice.actor_stopped", %{"public_key" => public_key})
   end
 
+  def host_stopped?(pid, host_key) do
+    assert_received?(pid, "com.wasmcloud.lattice.host_stopped", %{"host_id" => host_key})
+  end
+
   # Returns a truthy value indicating if a provider with specified contract_id, link_name,
   # and public key has started
   def provider_started?(pid, contract_id, link_name, public_key) do
@@ -197,6 +201,15 @@ defmodule HostCoreTest.EventWatcher do
       pid,
       fn -> actor_started?(pid, public_key) end,
       "actor start",
+      timeout
+    )
+  end
+
+  def wait_for_host_stopped(pid, host_key, timeout \\ 30_000) do
+    wait_for_event_received(
+      pid,
+      fn -> host_stopped?(pid, host_key) end,
+      "host stop",
       timeout
     )
   end
