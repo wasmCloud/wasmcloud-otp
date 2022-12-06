@@ -63,7 +63,6 @@ defmodule HostCoreTest do
       |> Map.keys()
       |> length
 
-
     # Give the host a bit more time to empty the registry post-purge
     Process.sleep(500)
 
