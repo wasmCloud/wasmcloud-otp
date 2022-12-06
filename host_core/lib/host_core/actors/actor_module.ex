@@ -10,7 +10,13 @@ defmodule HostCore.Actors.ActorModule do
 
   # Do not automatically restart this process unless it stopped due to crash
   use GenServer, restart: :transient
+
+  alias HostCore.Actors.ActorRpcSupervisor
   alias HostCore.CloudEvent
+  alias HostCore.ControlInterface.LatticeServer
+  alias HostCore.Vhost.VirtualHost
+  alias HostCore.WasmCloud.Native
+
   require OpenTelemetry.Tracer, as: Tracer
 
   @chunk_threshold 900 * 1024
@@ -142,7 +148,7 @@ defmodule HostCore.Actors.ActorModule do
         annotations: annotations,
         host_id: host_id
       }) do
-    lattice_prefix = HostCore.Vhost.VirtualHost.get_lattice_for_host(host_id)
+    lattice_prefix = VirtualHost.get_lattice_for_host(host_id)
 
     case start_actor(lattice_prefix, host_id, claims, bytes, oci, annotations) do
       {:ok, agent} ->
@@ -208,8 +214,7 @@ defmodule HostCore.Actors.ActorModule do
       old_instance = Agent.get(agent, fn content -> content.instance end)
       GenServer.stop(old_instance, :normal)
 
-      case Wasmex.start_link(opts)
-           |> prepare_module(agent, oci, false) do
+      case prepare_module(Wasmex.start_link(opts), agent, oci, false) do
         {:ok, new_agent} ->
           Logger.debug("Replaced and restarted underlying wasm module")
           Tracer.set_status(:ok, "")
@@ -327,7 +332,7 @@ defmodule HostCore.Actors.ActorModule do
         claims: %{public_key: public_key}
       } = Agent.get(agent, & &1)
 
-      config = HostCore.Vhost.VirtualHost.config(host_id)
+      config = VirtualHost.config(host_id)
       cluster_issuers = config.cluster_issuers
       lattice_prefix = config.lattice_prefix
 
@@ -385,7 +390,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp validate_anti_forgery(%{invocation: inv} = token, body, issuers) do
-    case HostCore.WasmCloud.Native.validate_antiforgery(
+    case Native.validate_antiforgery(
            body,
            issuers
          ) do
@@ -484,7 +489,7 @@ defmodule HostCore.Actors.ActorModule do
   defp policy_check(%{source_target: true} = token, agent) do
     lattice_prefix = Agent.get(agent, fn contents -> contents.lattice_prefix end)
     host_id = Agent.get(agent, fn contents -> contents.host_id end)
-    config = HostCore.Vhost.VirtualHost.config(host_id)
+    config = VirtualHost.config(host_id)
     origin = token.invocation["origin"]
     target = token.invocation["target"]
 
@@ -504,7 +509,7 @@ defmodule HostCore.Actors.ActorModule do
         if expired do
           %{permitted: false}
         else
-          config = HostCore.Vhost.VirtualHost.config(host_id)
+          config = VirtualHost.config(host_id)
 
           HostCore.Policy.Manager.evaluate_action(
             config,
@@ -560,11 +565,9 @@ defmodule HostCore.Actors.ActorModule do
          } = map
        )
        when byte_size(response) > @chunk_threshold do
-    with :ok <- HostCore.WasmCloud.Native.chunk_inv("#{invid}-r", response) do
-      %{map | msg: <<>>}
-    else
-      _ ->
-        map
+    case Native.chunk_inv("#{invid}-r", response) do
+      :ok -> %{map | msg: <<>>}
+      _ -> map
     end
   end
 
@@ -583,7 +586,7 @@ defmodule HostCore.Actors.ActorModule do
           invocation_id: token.invocation["id"]
         )
 
-        case HostCore.WasmCloud.Native.dechunk_inv(token.invocation["id"]) do
+        case Native.dechunk_inv(token.invocation["id"]) do
           {:ok, bytes} ->
             bytes
 
@@ -613,6 +616,7 @@ defmodule HostCore.Actors.ActorModule do
 
     Registry.register(Registry.ActorRegistry, claims.public_key, host_id)
 
+
     HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, claims)
     HostCore.Actors.ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
 
@@ -634,7 +638,7 @@ defmodule HostCore.Actors.ActorModule do
     }
 
     # we consider a hash of bytes as a unique key
-    key = :crypto.hash(:sha256, bytes) |> Base.encode16()
+    key = :sha256 |> :crypto.hash(bytes) |> Base.encode16()
 
     module =
       case :ets.lookup(:module_cache, key) do
@@ -669,8 +673,7 @@ defmodule HostCore.Actors.ActorModule do
         %{module: module, imports: imports}
       end
 
-    case Wasmex.start_link(opts)
-         |> prepare_module(agent, oci, true) do
+    case prepare_module(Wasmex.start_link(opts), agent, oci, true) do
       {:ok, agent} ->
         Agent.update(agent, fn state ->
           %State{state | ociref: oci}
@@ -682,7 +685,7 @@ defmodule HostCore.Actors.ActorModule do
       {:error, e} ->
         Logger.error("Failed to start actor: #{inspect(e)}", actor_id: claims.public_key)
 
-        HostCore.ControlInterface.LatticeServer.publish_actor_start_failed(
+        LatticeServer.publish_actor_start_failed(
           host_id,
           lattice_prefix,
           claims.public_key,
@@ -701,7 +704,7 @@ defmodule HostCore.Actors.ActorModule do
 
   defp perform_invocation(token, agent) do
     operation = token.invocation["operation"]
-    payload = token.invocation["msg"] |> IO.iodata_to_binary()
+    payload = IO.iodata_to_binary(token.invocation["msg"])
 
     raw_state = Agent.get(agent, fn content -> content end)
 
@@ -735,7 +738,8 @@ defmodule HostCore.Actors.ActorModule do
         # if it succeeeds, set guest_response, return 0
         try do
           res =
-            Wasmex.call_function(raw_state.instance, :__guest_call, [
+            raw_state.instance
+            |> Wasmex.call_function(:__guest_call, [
               byte_size(operation),
               byte_size(payload)
             ])
@@ -743,13 +747,12 @@ defmodule HostCore.Actors.ActorModule do
 
           case res do
             {:ok, msg} ->
-              %{
+              chunk_inv_response(%{
                 msg: msg,
                 invocation_id: token.invocation["id"],
                 instance_id: token.iid,
                 content_length: byte_size(msg)
-              }
-              |> chunk_inv_response()
+              })
 
             {:error, msg} ->
               %{
@@ -885,7 +888,7 @@ defmodule HostCore.Actors.ActorModule do
         link_name: Map.get(target, "link_name")
       },
       operation: inv["operation"],
-      bytes: byte_size(Map.get(inv, "msg", "") |> IO.iodata_to_binary())
+      bytes: Map.get(inv, "msg", "") |> IO.iodata_to_binary() |> byte_size()
     }
     |> CloudEvent.new(evt_type, host_id)
     |> CloudEvent.publish(lattice_prefix)
