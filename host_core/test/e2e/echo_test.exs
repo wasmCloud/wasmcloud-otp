@@ -1,6 +1,12 @@
 defmodule HostCore.E2E.EchoTest do
   use ExUnit.Case, async: false
-  import HostCoreTest.Common, only: [request_http: 2, cleanup: 2, standard_setup: 1]
+
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.Linkdefs.Manager
+  alias HostCore.Providers.ProviderSupervisor
+
+  import HostCoreTest.Common,
+    only: [actor_count: 2, request_http: 2, cleanup: 2, standard_setup: 1]
 
   setup :standard_setup
 
@@ -17,7 +23,7 @@ defmodule HostCore.E2E.EchoTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_key)
 
@@ -26,7 +32,7 @@ defmodule HostCore.E2E.EchoTest do
     # creating linkdef subscriptions that make this a desirable order for consistent tests.
 
     :ok =
-      HostCore.Linkdefs.Manager.put_link_definition(
+      Manager.put_link_definition(
         config.lattice_prefix,
         @echo_key,
         @httpserver_contract,
@@ -44,7 +50,7 @@ defmodule HostCore.E2E.EchoTest do
       )
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+      ProviderSupervisor.start_provider_from_file(
         config.host_key,
         @httpserver_path,
         @httpserver_link
@@ -58,14 +64,12 @@ defmodule HostCore.E2E.EchoTest do
         @httpserver_key
       )
 
-    actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @echo_key)
-      |> length
+    actor_count = actor_count(config.host_key, @echo_key)
 
     assert actor_count == 1
 
     pid =
-      HostCore.Providers.ProviderSupervisor.find_provider(
+      ProviderSupervisor.find_provider(
         config.host_key,
         @httpserver_key,
         @httpserver_link
@@ -85,17 +89,15 @@ defmodule HostCore.E2E.EchoTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@echo_unpriv_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_unpriv_key)
 
-    actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @echo_unpriv_key)
-      |> length
+    actor_count = actor_count(config.host_key, @echo_unpriv_key)
 
     assert actor_count == 1
 
     # OK to put link definition with no claims information
-    assert HostCore.Linkdefs.Manager.put_link_definition(
+    assert Manager.put_link_definition(
              config.lattice_prefix,
              @echo_unpriv_key,
              @httpserver_contract,
@@ -105,7 +107,7 @@ defmodule HostCore.E2E.EchoTest do
            ) == :ok
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+      ProviderSupervisor.start_provider_from_file(
         config.host_key,
         @httpserver_path,
         @httpserver_link
@@ -120,7 +122,7 @@ defmodule HostCore.E2E.EchoTest do
       )
 
     # For now, okay to put a link definition without proper claims
-    assert HostCore.Linkdefs.Manager.put_link_definition(
+    assert Manager.put_link_definition(
              config.lattice_prefix,
              @echo_unpriv_key,
              @httpserver_contract,

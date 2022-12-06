@@ -3,6 +3,10 @@ defmodule HostCore.BenchmarkTest do
   # results if this is the only test running at the time.
   use ExUnit.Case, async: false
 
+  alias HostCore.Actors.ActorRpcServer
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.WasmCloud.Native
+
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
 
   @echo_key HostCoreTest.Constants.echo_key()
@@ -26,8 +30,7 @@ defmodule HostCore.BenchmarkTest do
       parallel = 1
       {:ok, bytes} = File.read(@echo_path)
 
-      {:ok, _pids} =
-        HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key, "", num_actors)
+      {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", num_actors)
 
       seed = config.cluster_seed
 
@@ -43,7 +46,7 @@ defmodule HostCore.BenchmarkTest do
         |> IO.iodata_to_binary()
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :provider,
@@ -55,7 +58,7 @@ defmodule HostCore.BenchmarkTest do
         )
 
       msg = %{
-        body: inv |> IO.iodata_to_binary(),
+        body: IO.iodata_to_binary(inv),
         topic: "wasmbus.rpc.#{config.lattice_prefix}.#{@echo_key}",
         reply_to: "_INBOX.thisisatest.notinterested"
       }
@@ -67,15 +70,12 @@ defmodule HostCore.BenchmarkTest do
       Benchee.run(
         %{
           "nats_echo_request" => fn ->
-            HostCore.Nats.safe_req(
-              HostCore.Nats.rpc_connection(config.lattice_prefix),
-              msg.topic,
-              inv,
-              receive_timeout: 2_000
-            )
+            config.lattice_prefix
+            |> HostCore.Nats.rpc_connection()
+            |> HostCore.Nats.safe_req(msg.topic, inv, receive_timeout: 2_000)
           end,
           "direct_echo_request" => fn ->
-            HostCore.Actors.ActorRpcServer.request(msg)
+            ActorRpcServer.request(msg)
           end
         },
         warmup: 1,

@@ -1,6 +1,11 @@
 defmodule HostCore.E2E.KVCounterTest do
   use ExUnit.Case, async: false
-  import HostCoreTest.Common, only: [request_http: 2, cleanup: 2, standard_setup: 1]
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.Linkdefs.Manager
+  alias HostCore.Providers.ProviderSupervisor
+
+  import HostCoreTest.Common,
+    only: [actor_count: 2, request_http: 2, cleanup: 2, standard_setup: 1]
 
   setup :standard_setup
 
@@ -29,7 +34,7 @@ defmodule HostCore.E2E.KVCounterTest do
     # :timer.sleep(6000)
 
     {:ok, bytes} = File.read(@kvcounter_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_key)
 
@@ -38,7 +43,7 @@ defmodule HostCore.E2E.KVCounterTest do
     # creating linkdef subscriptions that make this a desirable order for consistent tests.
 
     :ok =
-      HostCore.Linkdefs.Manager.put_link_definition(
+      Manager.put_link_definition(
         config.lattice_prefix,
         @kvcounter_key,
         @httpserver_contract,
@@ -48,7 +53,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     :ok =
-      HostCore.Linkdefs.Manager.put_link_definition(
+      Manager.put_link_definition(
         config.lattice_prefix,
         @kvcounter_key,
         @keyvalue_contract,
@@ -74,14 +79,14 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+      ProviderSupervisor.start_provider_from_file(
         config.host_key,
         @httpserver_path,
         @httpserver_link
       )
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+      ProviderSupervisor.start_provider_from_file(
         config.host_key,
         @redis_path,
         @redis_link
@@ -103,13 +108,11 @@ defmodule HostCore.E2E.KVCounterTest do
         @httpserver_key
       )
 
-    actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @kvcounter_key)
-      |> length
+    actor_count = actor_count(config.host_key, @kvcounter_key)
 
     assert actor_count == 1
 
-    ap = HostCore.Providers.ProviderSupervisor.all_providers(config.host_key)
+    ap = ProviderSupervisor.all_providers(config.host_key)
     assert length(ap) == 2
     assert Enum.any?(ap, fn {_, p, _, _, _} -> p == @httpserver_key end)
     assert Enum.any?(ap, fn {_, p, _, _, _} -> p == @redis_key end)
@@ -117,7 +120,7 @@ defmodule HostCore.E2E.KVCounterTest do
     {:ok, _okay} = HTTPoison.start()
     {:ok, resp} = request_http("http://localhost:8081/foobar", 5)
     # Retrieve current count, assert next request increments by 1
-    {:ok, body} = resp.body |> JSON.decode()
+    {:ok, body} = JSON.decode(resp.body)
     incr_count = Map.get(body, "counter", 0) + 1
     {:ok, resp} = request_http("http://localhost:8081/foobar", 2)
     assert resp.body == "{\"counter\":#{incr_count}}"
@@ -133,7 +136,7 @@ defmodule HostCore.E2E.KVCounterTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@kvcounter_unpriv_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_unpriv_key)
 
     # NOTE: Link definitions are put _before_ providers are started so that they receive
@@ -141,7 +144,7 @@ defmodule HostCore.E2E.KVCounterTest do
     # creating linkdef subscriptions that make this a desirable order for consistent tests.
 
     :ok =
-      HostCore.Linkdefs.Manager.put_link_definition(
+      Manager.put_link_definition(
         config.lattice_prefix,
         @kvcounter_unpriv_key,
         @httpserver_contract,
@@ -151,7 +154,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     :ok =
-      HostCore.Linkdefs.Manager.put_link_definition(
+      Manager.put_link_definition(
         config.lattice_prefix,
         @kvcounter_unpriv_key,
         @keyvalue_contract,
@@ -177,22 +180,20 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+      ProviderSupervisor.start_provider_from_file(
         config.host_key,
         @httpserver_path,
         @httpserver_link
       )
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+      ProviderSupervisor.start_provider_from_file(
         config.host_key,
         @redis_path,
         @redis_link
       )
 
-    actor_count =
-      Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @kvcounter_unpriv_key)
-      |> length
+    actor_count = actor_count(config.host_key, @kvcounter_unpriv_key)
 
     assert actor_count == 1
 
@@ -213,7 +214,7 @@ defmodule HostCore.E2E.KVCounterTest do
       )
 
     pid =
-      HostCore.Providers.ProviderSupervisor.find_provider(
+      ProviderSupervisor.find_provider(
         config.host_key,
         @httpserver_key,
         "default"
@@ -221,8 +222,7 @@ defmodule HostCore.E2E.KVCounterTest do
 
     assert is_pid(pid) && Process.alive?(pid)
 
-    pid =
-      HostCore.Providers.ProviderSupervisor.find_provider(config.host_key, @redis_key, "default")
+    pid = ProviderSupervisor.find_provider(config.host_key, @redis_key, "default")
 
     assert is_pid(pid) && Process.alive?(pid)
 
