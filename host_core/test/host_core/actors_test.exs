@@ -4,8 +4,13 @@ defmodule HostCore.ActorsTest do
   # information won't get bad/confusing results.
   use ExUnit.Case, async: false
 
-  import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
+
+  import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1, standard_setup: 1]
   import HostCoreTest.EventWatcher, only: [wait_for_actor_start: 2, wait_for_actor_stop: 2]
+
+  alias HostCore.Actors.ActorModule
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.WasmCloud.Native
 
   @echo_key HostCoreTest.Constants.echo_key()
   @echo_wasi_key HostCoreTest.Constants.echo_wasi_key()
@@ -34,13 +39,12 @@ defmodule HostCore.ActorsTest do
     } do
       on_exit(fn -> cleanup(pid, config) end)
 
-      {:ok, _pid} =
-        HostCore.Actors.ActorSupervisor.start_actor_from_oci(config.host_key, @echo_oci_reference)
+      {:ok, _pid} = ActorSupervisor.start_actor_from_oci(config.host_key, @echo_oci_reference)
 
       wait_for_actor_start(evt_watcher, @echo_key)
 
       assert {:error, :error} ==
-               HostCore.Actors.ActorSupervisor.live_update(config.host_key, @echo_oci_reference)
+               ActorSupervisor.live_update(config.host_key, @echo_oci_reference)
     end
 
     test "live update with new revision succeeds", %{
@@ -51,7 +55,7 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, _pid} =
-        HostCore.Actors.ActorSupervisor.start_actor_from_oci(
+        ActorSupervisor.start_actor_from_oci(
           config.host_key,
           @echo_old_oci_reference
         )
@@ -59,7 +63,7 @@ defmodule HostCore.ActorsTest do
       wait_for_actor_start(evt_watcher, @echo_key)
 
       assert :ok ==
-               HostCore.Actors.ActorSupervisor.live_update(config.host_key, @echo_oci_reference)
+               ActorSupervisor.live_update(config.host_key, @echo_oci_reference)
 
       seed = config.cluster_seed
 
@@ -75,7 +79,7 @@ defmodule HostCore.ActorsTest do
         |> IO.iodata_to_binary()
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :provider,
@@ -89,21 +93,18 @@ defmodule HostCore.ActorsTest do
       topic = "wasmbus.rpc.#{config.lattice_prefix}.#{@echo_key}"
 
       res =
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.rpc_connection(config.lattice_prefix),
-               topic,
-               inv,
-               receive_timeout: 2_000
-             ) do
+        case config.lattice_prefix
+             |> HostCore.Nats.rpc_connection()
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
 
       assert res != :fail
 
-      ir = res |> Msgpax.unpack!()
+      ir = Msgpax.unpack!(res)
 
-      payload = ir["msg"] |> Msgpax.unpack!()
+      payload = Msgpax.unpack!(ir["msg"])
 
       assert payload["header"] == %{}
       assert payload["statusCode"] == 200
@@ -118,22 +119,23 @@ defmodule HostCore.ActorsTest do
       {:ok, bytes} = File.read(@kvcounter_path)
 
       {:ok, _pids} =
-        HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key, "", 5, %{
+        ActorSupervisor.start_actor(bytes, config.host_key, "", 5, %{
           "is_testing" => "youbetcha"
         })
 
       :ok = wait_for_actor_start(evt_watcher, @kvcounter_key)
 
-      actors = HostCore.Actors.ActorSupervisor.all_actors(config.host_key)
+      actors = ActorSupervisor.all_actors(config.host_key)
       kv_counters = Map.get(actors, @kvcounter_key)
 
-      actor_count = kv_counters |> length
+      actor_count = length(kv_counters)
 
-      assert Enum.at(kv_counters, 0) |> HostCore.Actors.ActorModule.annotations() ==
-               %{"is_testing" => "youbetcha"}
+      assert kv_counters |> Enum.at(0) |> ActorModule.annotations() == %{
+               "is_testing" => "youbetcha"
+             }
 
       assert actor_count == 5
-      HostCore.Actors.ActorSupervisor.terminate_actor(config.host_key, @kvcounter_key, 5, %{})
+      ActorSupervisor.terminate_actor(config.host_key, @kvcounter_key, 5, %{})
 
       :ok =
         HostCoreTest.EventWatcher.wait_for_event(
@@ -143,8 +145,7 @@ defmodule HostCore.ActorsTest do
           5
         )
 
-      assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @kvcounter_key) ==
-               nil
+      assert config.host_key |> ActorSupervisor.all_actors() |> Map.get(@kvcounter_key) == nil
     end
 
     test "can invoke the echo actor with huge payload", %{
@@ -155,7 +156,8 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read(@echo_path)
-      {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @echo_key)
 
       req =
@@ -175,7 +177,7 @@ defmodule HostCore.ActorsTest do
       seed = config.cluster_seed
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :provider,
@@ -189,21 +191,18 @@ defmodule HostCore.ActorsTest do
       topic = "wasmbus.rpc.#{config.lattice_prefix}.#{@echo_key}"
 
       res =
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.rpc_connection(config.lattice_prefix),
-               topic,
-               inv,
-               receive_timeout: 12_000
-             ) do
+        case config.lattice_prefix
+             |> HostCore.Nats.rpc_connection()
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 12_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
 
       assert res != :fail
-      ir = res |> Msgpax.unpack!()
+      ir = Msgpax.unpack!(res)
 
       ir =
-        case HostCore.WasmCloud.Native.dechunk_inv("#{ir["invocation_id"]}-r") do
+        case Native.dechunk_inv("#{ir["invocation_id"]}-r") do
           {:ok, resp} -> Map.put(ir, "msg", resp)
           {:error, _e} -> :fail
         end
@@ -212,7 +211,7 @@ defmodule HostCore.ActorsTest do
 
       # NOTE: this is using "magic knowledge" that the HTTP server provider is using
       # msgpack to communicate with actors
-      payload = ir["msg"] |> Msgpax.unpack!()
+      payload = Msgpax.unpack!(ir["msg"])
 
       assert payload["header"] == %{}
       assert payload["statusCode"] == 200
@@ -228,7 +227,8 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read(@echo_wasi_path)
-      {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @echo_wasi_key)
 
       req =
@@ -245,7 +245,7 @@ defmodule HostCore.ActorsTest do
       seed = config.cluster_seed
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :provider,
@@ -259,22 +259,19 @@ defmodule HostCore.ActorsTest do
       topic = "wasmbus.rpc.#{config.lattice_prefix}.#{@echo_wasi_key}"
 
       res =
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.rpc_connection(config.lattice_prefix),
-               topic,
-               inv,
-               receive_timeout: 2_000
-             ) do
+        case config.lattice_prefix
+             |> HostCore.Nats.rpc_connection()
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
 
       assert res != :fail
-      HostCore.Actors.ActorSupervisor.terminate_actor(config.host_key, @echo_wasi_key, 1, %{})
+      ActorSupervisor.terminate_actor(config.host_key, @echo_wasi_key, 1, %{})
 
-      ir = res |> Msgpax.unpack!()
+      ir = Msgpax.unpack!(res)
 
-      payload = ir["msg"] |> Msgpax.unpack!()
+      payload = Msgpax.unpack!(ir["msg"])
 
       assert payload["header"] == %{}
       assert payload["statusCode"] == 200
@@ -291,7 +288,8 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read(@echo_path)
-      {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @echo_key)
 
       seed = config.cluster_seed
@@ -308,7 +306,7 @@ defmodule HostCore.ActorsTest do
         |> IO.iodata_to_binary()
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :provider,
@@ -322,22 +320,19 @@ defmodule HostCore.ActorsTest do
       topic = "wasmbus.rpc.#{config.lattice_prefix}.#{@echo_key}"
 
       res =
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.rpc_connection(config.lattice_prefix),
-               topic,
-               inv,
-               receive_timeout: 2_000
-             ) do
+        case config.lattice_prefix
+             |> HostCore.Nats.rpc_connection()
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
 
       assert res != :fail
-      HostCore.Actors.ActorSupervisor.terminate_actor(config.host_key, @echo_key, 1, %{})
+      ActorSupervisor.terminate_actor(config.host_key, @echo_key, 1, %{})
 
-      ir = res |> Msgpax.unpack!()
+      ir = Msgpax.unpack!(res)
 
-      payload = ir["msg"] |> Msgpax.unpack!()
+      payload = Msgpax.unpack!(ir["msg"])
 
       assert payload["header"] == %{}
       assert payload["statusCode"] == 200
@@ -354,19 +349,17 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, pid} =
-        HostCore.Actors.ActorSupervisor.start_actor_from_oci(
+        ActorSupervisor.start_actor_from_oci(
           config.host_key,
           @echo_oci_reference,
           1
         )
 
-      wait_for_actor_start(evt_watcher, @echo_key)
 
-      assert Process.alive?(pid |> List.first())
+      wait_for_actor_start(evt_watcher, @echo_key)    
+      assert pid |> List.first() |> Process.alive?()
 
-      actor_count =
-        Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @echo_key)
-        |> length
+      actor_count = actor_count(config.host_key, @echo_key)
 
       assert actor_count == 1
 
@@ -384,7 +377,7 @@ defmodule HostCore.ActorsTest do
         |> IO.iodata_to_binary()
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :actor,
@@ -398,22 +391,19 @@ defmodule HostCore.ActorsTest do
       topic = "wasmbus.rpc.#{config.lattice_prefix}.#{@echo_key}"
 
       res =
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.rpc_connection(config.lattice_prefix),
-               topic,
-               inv,
-               receive_timeout: 2_000
-             ) do
+        case config.lattice_prefix
+             |> HostCore.Nats.rpc_connection()
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
 
       assert res != :fail
-      HostCore.Actors.ActorSupervisor.terminate_actor(config.host_key, @echo_key, 1, %{})
+      ActorSupervisor.terminate_actor(config.host_key, @echo_key, 1, %{})
 
-      ir = res |> Msgpax.unpack!()
+      ir = Msgpax.unpack!(res)
 
-      payload = ir["msg"] |> Msgpax.unpack!()
+      payload = Msgpax.unpack!(ir["msg"])
 
       assert payload["header"] == %{}
       assert payload["statusCode"] == 200
@@ -430,10 +420,11 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read("test/fixtures/actors/ponger_s.wasm")
-      {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
 
       {:ok, bytes} = File.read("test/fixtures/actors/pinger_s.wasm")
-      {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @pinger_key)
 
       seed = config.cluster_seed
@@ -450,7 +441,7 @@ defmodule HostCore.ActorsTest do
         |> IO.iodata_to_binary()
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :actor,
@@ -464,21 +455,18 @@ defmodule HostCore.ActorsTest do
       topic = "wasmbus.rpc.#{config.lattice_prefix}.#{@pinger_key}"
 
       res =
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.rpc_connection(config.lattice_prefix),
-               topic,
-               inv,
-               receive_timeout: 2_000
-             ) do
+        case config.lattice_prefix
+             |> HostCore.Nats.rpc_connection()
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
 
       assert res != :fail
 
-      ir = res |> Msgpax.unpack!()
+      ir = Msgpax.unpack!(res)
 
-      payload = ir["msg"] |> Msgpax.unpack!()
+      payload = Msgpax.unpack!(ir["msg"])
 
       assert payload["header"] == %{}
       assert payload["status"] == "OK"
@@ -500,18 +488,18 @@ defmodule HostCore.ActorsTest do
       # the "is a valid upgrade path" check
 
       {:ok, pid} =
-        HostCore.Actors.ActorSupervisor.start_actor_from_oci(
+        ActorSupervisor.start_actor_from_oci(
           config.host_key,
           @echo_oci_reference,
           1
         )
 
-      wait_for_actor_start(evt_watcher, @echo_key)
 
-      assert Process.alive?(pid |> List.first())
+      wait_for_actor_start(evt_watcher, @echo_key)
+      assert pid |> List.first() |> Process.alive?()
 
       res =
-        HostCore.Actors.ActorSupervisor.start_actor_from_oci(
+        ActorSupervisor.start_actor_from_oci(
           config.host_key,
           "wasmcloud.azurecr.io/echo:0.3.0"
         )
@@ -529,16 +517,14 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read(@kvcounter_path)
-      {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key, "", 5)
+      {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", 5)
 
       wait_for_actor_start(evt_watcher, @kvcounter_key)
 
-      actor_count =
-        Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @kvcounter_key)
-        |> length
+      actor_count = actor_count(config.host_key, @kvcounter_key)
 
       assert actor_count == 5
-      HostCore.Actors.ActorSupervisor.terminate_actor(config.host_key, @kvcounter_key, 0, %{})
+      ActorSupervisor.terminate_actor(config.host_key, @kvcounter_key, 0, %{})
 
       :ok =
         HostCoreTest.EventWatcher.wait_for_event(
@@ -548,7 +534,7 @@ defmodule HostCore.ActorsTest do
           5
         )
 
-      assert Map.get(HostCore.Actors.ActorSupervisor.all_actors(config.host_key), @kvcounter_key) ==
+      assert config.host_key |> ActorSupervisor.all_actors() |> Map.get(@kvcounter_key) ==
                nil
     end
 
@@ -560,16 +546,17 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read(@echo_path)
-      {:ok, _pids} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key, "", 5)
+      {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", 5)
 
       wait_for_actor_start(evt_watcher, @echo_key)
 
-      HostCore.Actors.ActorSupervisor.terminate_actor(config.host_key, @echo_key, 0, %{})
+      ActorSupervisor.terminate_actor(config.host_key, @echo_key, 0, %{})
 
       wait_for_actor_stop(evt_watcher, @echo_key)
 
       # restart actor
-      {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @echo_key)
 
       seed = config.cluster_seed
@@ -586,7 +573,7 @@ defmodule HostCore.ActorsTest do
         |> IO.iodata_to_binary()
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :provider,
@@ -600,18 +587,15 @@ defmodule HostCore.ActorsTest do
       topic = "wasmbus.rpc.#{config.lattice_prefix}.#{@echo_key}"
 
       res =
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.rpc_connection(config.lattice_prefix),
-               topic,
-               inv,
-               receive_timeout: 2_000
-             ) do
+        case config.lattice_prefix
+             |> HostCore.Nats.rpc_connection()
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
 
       assert res != :fail
-      HostCore.Actors.ActorSupervisor.terminate_actor(config.host_key, @echo_key, 0, %{})
+      ActorSupervisor.terminate_actor(config.host_key, @echo_key, 0, %{})
     end
 
     test "can support builtin logging and numbergen invocations", %{
@@ -622,7 +606,8 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read(@randogenlogger_path)
-      {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @randogenlogger_key)
 
       seed = config.cluster_seed
@@ -639,7 +624,7 @@ defmodule HostCore.ActorsTest do
         |> IO.iodata_to_binary()
 
       inv =
-        HostCore.WasmCloud.Native.generate_invocation_bytes(
+        Native.generate_invocation_bytes(
           seed,
           "system",
           :provider,
@@ -653,27 +638,24 @@ defmodule HostCore.ActorsTest do
       topic = "wasmbus.rpc.#{config.lattice_prefix}.#{@randogenlogger_key}"
 
       res =
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.rpc_connection(config.lattice_prefix),
-               topic,
-               inv,
-               receive_timeout: 2_000
-             ) do
+        case config.lattice_prefix
+             |> HostCore.Nats.rpc_connection()
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
 
       assert res != :fail
 
-      HostCore.Actors.ActorSupervisor.terminate_actor(
+      ActorSupervisor.terminate_actor(
         config.host_key,
         @randogenlogger_key,
         1,
         %{}
       )
 
-      ir = res |> Msgpax.unpack!()
-      payload = ir["msg"] |> Msgpax.unpack!()
+      ir = Msgpax.unpack!(res)
+      payload = Msgpax.unpack!(ir["msg"])
 
       assert payload["header"] == %{}
       assert payload["statusCode"] == 200

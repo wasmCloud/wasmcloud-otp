@@ -1,6 +1,17 @@
 defmodule HostCoreTest.Common do
   require Logger
 
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.Vhost.VirtualHost
+  alias HostCore.WasmCloud.Native
+
+  def actor_count(host_key, counter_key) do
+    host_key
+    |> ActorSupervisor.all_actors()
+    |> Map.get(counter_key)
+    |> length
+  end
+
   def request_http(url, retries) when retries > 0 do
     case HTTPoison.get(url) do
       {:ok, resp} ->
@@ -23,7 +34,7 @@ defmodule HostCoreTest.Common do
     config = default_vhost_config()
     config = %{config | lattice_prefix: lattice_id}
 
-    HostCore.Vhost.VirtualHost.start_link(config)
+    VirtualHost.start_link(config)
   end
 
   def standard_setup(_context) do
@@ -35,16 +46,17 @@ defmodule HostCoreTest.Common do
     [
       evt_watcher: evt_watcher,
       host_pid: host_pid,
-      hconfig: HostCore.Vhost.VirtualHost.config(host_pid)
+      hconfig: VirtualHost.config(host_pid)
     ]
   end
 
   def cleanup(pid, config) do
-    HostCore.Vhost.VirtualHost.stop(pid, 300)
+    VirtualHost.stop(pid, 300)
     purge_topic = "$JS.API.STREAM.DELETE.LATTICECACHE_#{config.lattice_prefix}"
 
-    case HostCore.Nats.safe_req(
-           HostCore.Nats.control_connection(config.lattice_prefix),
+    case config.lattice_prefix
+         |> HostCore.Nats.control_connection()
+         |> HostCore.Nats.safe_req(
            purge_topic,
            []
          ) do
@@ -70,9 +82,9 @@ defmodule HostCoreTest.Common do
     end
   end
 
-  def default_vhost_config() do
-    {pk, seed} = HostCore.WasmCloud.Native.generate_key(:server)
-    {ck, cseed} = HostCore.WasmCloud.Native.generate_key(:cluster)
+  def default_vhost_config do
+    {pk, seed} = Native.generate_key(:server)
+    {ck, cseed} = Native.generate_key(:cluster)
 
     s =
       Hashids.new(

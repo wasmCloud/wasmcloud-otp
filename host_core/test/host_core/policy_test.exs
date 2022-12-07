@@ -5,6 +5,10 @@ defmodule HostCore.PolicyTest do
 
   use ExUnit.Case, async: false
 
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.Providers.ProviderSupervisor
+  alias HostCore.Vhost.VirtualHost
+
   import Mock
   import HostCoreTest.Common, only: [sudo_make_me_a_host: 1, cleanup: 2]
 
@@ -20,7 +24,7 @@ defmodule HostCore.PolicyTest do
   setup_all do
     lattice_prefix = "policyhome"
     {:ok, pid} = sudo_make_me_a_host(lattice_prefix)
-    config = HostCore.Vhost.VirtualHost.config(pid)
+    config = VirtualHost.config(pid)
 
     HostCore.Linkdefs.Manager.put_link_definition(
       lattice_prefix,
@@ -34,10 +38,10 @@ defmodule HostCore.PolicyTest do
     )
 
     {:ok, bytes} = File.read(@policy_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+      ProviderSupervisor.start_provider_from_oci(
         config.host_key,
         @nats_ociref,
         "default"
@@ -50,7 +54,7 @@ defmodule HostCore.PolicyTest do
 
   setup do
     {:ok, test_pid} = sudo_make_me_a_host(UUID.uuid4())
-    test_config = HostCore.Vhost.VirtualHost.config(test_pid)
+    test_config = VirtualHost.config(test_pid)
     [hconfig: test_config, host_pid: test_pid]
   end
 
@@ -61,7 +65,7 @@ defmodule HostCore.PolicyTest do
     capabilities: [],
     issuer: "ADT2YUKCRQUGXXM73BBWVI33E4QLQX2LWRCMSC3ZUSCVKBZ6KQMJNU3L",
     issuedOn: "September 21",
-    expiresAt: DateTime.utc_now() |> DateTime.add(60),
+    expiresAt: DateTime.add(DateTime.utc_now(), 60),
     expired: false
   }
 
@@ -146,7 +150,7 @@ defmodule HostCore.PolicyTest do
     invalid_source =
       HostCore.Policy.Manager.evaluate_action(
         config,
-        @source_provider |> Map.delete(:publicKey),
+        Map.delete(@source_provider, :publicKey),
         @target_actor,
         @perform_invocation
       )
@@ -161,7 +165,7 @@ defmodule HostCore.PolicyTest do
       HostCore.Policy.Manager.evaluate_action(
         config,
         @source_provider,
-        @target_actor |> Map.delete(:issuer),
+        Map.delete(@target_actor, :issuer),
         @perform_invocation
       )
 
@@ -229,29 +233,31 @@ defmodule HostCore.PolicyTest do
   #   )
 
   #   {:error,
-  #    "Starting actor MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW denied: Issuer was not the official wasmCloud issuer"} =
-  #     HostCore.Actors.ActorSupervisor.start_actor_from_oci(
+  #    "Starting actor MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW denied: "
+  #   <> "Issuer was not the official wasmCloud issuer"} =
+  #     ActorSupervisor.start_actor_from_oci(
   #       config.host_key,
   #       "ghcr.io/brooksmtownsend/wadice:0.1.0"
   #     )
 
   #   {:error,
-  #    "Starting provider VAHMIAAVLEZLKHF4CZJVBVBGGZTWGUUKBCH3MABLNMPPUPA6CJ2HSJCT denied: Issuer was not the official wasmCloud issuer"} =
-  #     HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
+  #    "Starting provider VAHMIAAVLEZLKHF4CZJVBVBGGZTWGUUKBCH3MABLNMPPUPA6CJ2HSJCT denied: "
+  #     <> "Issuer was not the official wasmCloud issuer"} =
+  #     ProviderSupervisor.start_provider_from_oci(
   #       config.host_key,
   #       "ghcr.io/brooksmtownsend/factorial:0.1.0",
   #       "default"
   #     )
 
   #   # Ensure the host doesn't start the actor that's denied
-  #   assert !(HostCore.Actors.ActorSupervisor.all_actors(config.host_key)
+  #   assert !(ActorSupervisor.all_actors(config.host_key)
   #            |> Map.keys()
   #            |> Enum.any?(fn public_key ->
   #              public_key == "MB2ZQB6ROOMAYBO4ZCTFYWN7YIVBWA3MTKZYAQKJMTIHE2ELLRW2E3ZW"
   #            end))
 
   #   # Ensure the host doesn't start the provider that's denied
-  #   assert !(HostCore.Providers.ProviderSupervisor.all_providers(config.host_key)
+  #   assert !(ProviderSupervisor.all_providers(config.host_key)
   #            |> Enum.any?(fn {_, public_key, _, _, _} ->
   #              public_key == "VAHMIAAVLEZLKHF4CZJVBVBGGZTWGUUKBCH3MABLNMPPUPA6CJ2HSJCT"
   #            end))
