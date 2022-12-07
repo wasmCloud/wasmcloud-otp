@@ -5,6 +5,7 @@ defmodule HostCore.ControlInterface.LatticeServer do
   use Gnat.Server
 
   alias HostCore.CloudEvent
+  alias HostCore.Linkdefs.Manager, as: LinkdefsManager
 
   import HostCore.Nats,
     only: [safe_pub: 3, control_connection: 1]
@@ -92,18 +93,42 @@ defmodule HostCore.ControlInterface.LatticeServer do
   # THESE ARE NOW DEPRECATED
   # Eventually the host will stop subscribing to these topics
 
-  defp handle_request({"linkdefs", "put"}, _body, _reply_to, prefix) do
-    {:reply,
-     failure_ack(
-       "Putting linkdefs through control interface is no longer supported. Please write to the LATTICEDATA_#{prefix} bucket directly"
-     )}
+  defp handle_request({"linkdefs", "put"}, body, _reply_to, prefix) do
+    Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
+      with {:ok, ld} <- Jason.decode(body),
+           true <- has_values(ld, ["actor_id", "contract_id", "link_name", "provider_id"]) do
+        HostCore.Linkdefs.Manager.put_link_definition(
+          prefix,
+          ld["actor_id"],
+          ld["contract_id"],
+          ld["link_name"],
+          ld["provider_id"],
+          ld["values"] || %{}
+        )
+
+        {:reply, success_ack()}
+      else
+        _ ->
+          {:reply, failure_ack("Invalid link definition put request")}
+      end
+    end
   end
 
-  defp handle_request({"linkdefs", "del"}, _body, _reply_to, prefix) do
-    {:reply,
-     failure_ack(
-       "Deleting linkdefs through control interface is no longer supported. Please write to the LATTICEDATA_#{prefix} bucket directly"
-     )}
+  defp handle_request({"linkdefs", "del"}, body, _reply_to, prefix) do
+    Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
+      with {:ok, ld} <- Jason.decode(body),
+           true <- has_values(ld, ["actor_id", "contract_id", "link_name"]) do
+        HostCore.Linkdefs.Manager.del_link_definition(
+          prefix,
+          ld["id"]
+        )
+
+        {:reply, success_ack()}
+      else
+        _ ->
+          {:reply, failure_ack("Invalid link definition removal request")}
+      end
+    end
   end
 
   ### COMMANDS

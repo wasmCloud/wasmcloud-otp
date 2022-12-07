@@ -189,6 +189,7 @@ defmodule HostCore.Jetstream.Client do
     {:noreply, state}
   end
 
+  # Make sure that where applicable `value` is already encoded as JSON because this function won't do it.
   def kv_put(lattice_prefix, "", key, value), do: kv_put(lattice_prefix, nil, key, value)
 
   def kv_put(lattice_prefix, js_domain, key, value) do

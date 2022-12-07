@@ -92,6 +92,7 @@ defmodule HostCore.Linkdefs.Manager do
     }
 
     publish_link_definition(lattice_prefix, ld)
+    write_linkdef_to_kv(lattice_prefix, ld)
   end
 
   def del_link_definition_by_triple(lattice_prefix, actor_id, contract_id, link_name) do
@@ -116,6 +117,7 @@ defmodule HostCore.Linkdefs.Manager do
   end
 
   # Publishes a link definition to the lattice and the applicable provider for configuration
+  # This does NOT write the linkdef to the kv bucket. That's a different operation
   def publish_link_definition(prefix, ld) do
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
 
@@ -135,6 +137,30 @@ defmodule HostCore.Linkdefs.Manager do
     rpc = HostCore.Nats.rpc_connection(prefix)
 
     HostCore.Nats.safe_pub(rpc, provider_topic, Msgpax.pack!(ld))
+  end
+
+  def write_linkdef_to_kv(prefix, ld) do
+    with [pid | _] <- HostCore.Lattice.LatticeSupervisor.host_pids_in_lattice(prefix),
+         config <- HostCore.Vhost.VirtualHost.config(pid) do
+      js_domain =
+        if config != nil do
+          config.js_domain
+        else
+          nil
+        end
+
+      HostCore.Jetstream.Client.kv_put(
+        prefix,
+        js_domain,
+        "LINKDEF_#{ld.id}",
+        ld |> Jason.encode!()
+      )
+    else
+      _ ->
+        Logger.error(
+          "Tried to find a virtual host running for lattice #{prefix} but there isn't one. This indicates corrupt state!"
+        )
+    end
   end
 
   # Publishes the removal of a link definition to the event stream and sends an indication
