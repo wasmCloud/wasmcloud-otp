@@ -145,8 +145,10 @@ defmodule HostCore.Jetstream.Client do
     stream_name = "LATTICECACHE_#{state.lattice_prefix}"
 
     if stream_exists?(state.lattice_prefix, stream_name, state.domain) do
+      Logger.warn("Detected deprecated lattice cache stream #{stream_name}.")
+
       Logger.warn(
-        "Detected deprecated lattice cache stream #{stream_name}. You should remove all LATTICACHE_* streams"
+        "The LATTICECACHE_#{state.lattice_prefix} stream will be removed. You should not start actors, providers, or add metadata from older hosts relying on that stream."
       )
 
       consumer_name = String.replace(state.legacy_deliver_subject, "_INBOX.", "")
