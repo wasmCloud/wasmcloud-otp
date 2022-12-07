@@ -31,16 +31,16 @@ defmodule HostCore.Jetstream.Client do
 
     {create_topic, stream_topic} =
       if state.domain == nil do
-        {"$JS.API.STREAM.CREATE.KV_WCMDCACHE_#{state.lattice_prefix}",
-         "$KV.WCMDCACHE_#{state.lattice_prefix}.>"}
+        {"$JS.API.STREAM.CREATE.KV_LATTICEDATA_#{state.lattice_prefix}",
+         "$KV.LATTICEDATA_#{state.lattice_prefix}.>"}
       else
-        {"$JS.#{state.domain}.API.STREAM.CREATE.KV_WCMDCACHE_#{state.lattice_prefix}",
-         "#{state.domain}.$KV.WCMDCACHE_#{state.lattice_prefix}.>"}
+        {"$JS.#{state.domain}.API.STREAM.CREATE.KV_LATTICEDATA_#{state.lattice_prefix}",
+         "#{state.domain}.$KV.LATTICEDATA_#{state.lattice_prefix}.>"}
       end
 
     payload_json =
       %{
-        name: "KV_WCMDCACHE_#{state.lattice_prefix}",
+        name: "KV_LATTICEDATA_#{state.lattice_prefix}",
         subjects: [stream_topic],
         retention: "limits",
         max_consumers: -1,
@@ -89,7 +89,7 @@ defmodule HostCore.Jetstream.Client do
       js_domain: state.domain
     )
 
-    stream_name = "KV_WCMDCACHE_#{state.lattice_prefix}"
+    stream_name = "KV_LATTICEDATA_#{state.lattice_prefix}"
     consumer_name = String.replace(state.metadata_deliver_subject, "_INBOX.", "")
 
     create_topic =
@@ -208,9 +208,9 @@ defmodule HostCore.Jetstream.Client do
   def kv_put(lattice_prefix, js_domain, key, value) do
     topic =
       if js_domain == nil do
-        "$KV.WCMDCACHE_#{lattice_prefix}.#{key}"
+        "$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
       else
-        "#{js_domain}.$KV.WCMDCACHE_#{lattice_prefix}.#{key}"
+        "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
       end
 
     case HostCore.Nats.safe_req(HostCore.Nats.control_connection(lattice_prefix), topic, value) do
@@ -232,7 +232,7 @@ defmodule HostCore.Jetstream.Client do
   end
 
   def delete_kv_bucket(lattice_prefix, js_domain) do
-    stream_name = "KV_WCMDCACHE_#{lattice_prefix}"
+    stream_name = "KV_LATTICEDATA_#{lattice_prefix}"
     delete_stream(stream_name, lattice_prefix, js_domain)
   end
 

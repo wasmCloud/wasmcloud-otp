@@ -95,14 +95,14 @@ defmodule HostCore.ControlInterface.LatticeServer do
   defp handle_request({"linkdefs", "put"}, _body, _reply_to, prefix) do
     {:reply,
      failure_ack(
-       "Putting linkdefs through control interface is no longer supported. Please write to the WCMDCACHE_#{prefix} bucket directly"
+       "Putting linkdefs through control interface is no longer supported. Please write to the LATTICEDATA_#{prefix} bucket directly"
      )}
   end
 
   defp handle_request({"linkdefs", "del"}, _body, _reply_to, prefix) do
     {:reply,
      failure_ack(
-       "Deleting linkdefs through control interface is no longer supported. Please write to the WCMDCACHE_#{prefix} bucket directly"
+       "Deleting linkdefs through control interface is no longer supported. Please write to the LATTICEDATA_#{prefix} bucket directly"
      )}
   end
 

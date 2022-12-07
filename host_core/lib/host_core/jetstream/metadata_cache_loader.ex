@@ -1,6 +1,6 @@
 defmodule HostCore.Jetstream.MetadataCacheLoader do
   @moduledoc """
-  The metadata cache loader is responsible for reading metadata key changes (add/remove) from the WCMDCACHE_{prefix}
+  The metadata cache loader is responsible for reading metadata key changes (add/remove) from the LATTICEDATA_{prefix}
   NATS key-value bucket.
   """
   alias HostCore.Linkdefs
@@ -15,7 +15,7 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   @operation_header "kv-operation"
   @operation_del "DEL"
 
-  @bucket_prefix "WCMDCACHE_"
+  @bucket_prefix "LATTICEDATA_"
   @claims_prefix "CLAIMS_"
   @refmap_prefix "REFMAP_"
   @linkdef_prefix "LINKDEF_"
