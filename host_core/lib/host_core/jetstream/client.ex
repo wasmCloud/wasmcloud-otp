@@ -29,14 +29,8 @@ defmodule HostCore.Jetstream.Client do
       end
     end
 
-    {create_topic, stream_topic} =
-      if state.domain == nil do
-        {"$JS.API.STREAM.CREATE.KV_LATTICEDATA_#{state.lattice_prefix}",
-         "$KV.LATTICEDATA_#{state.lattice_prefix}.>"}
-      else
-        {"$JS.#{state.domain}.API.STREAM.CREATE.KV_LATTICEDATA_#{state.lattice_prefix}",
-         "#{state.domain}.$KV.LATTICEDATA_#{state.lattice_prefix}.>"}
-      end
+    create_topic = create_bucket_topic(state.lattice_prefix, state.domain)
+    stream_topic = kv_stream_topic(state.lattice_prefix, state.domain)
 
     payload_json =
       %{
@@ -92,12 +86,7 @@ defmodule HostCore.Jetstream.Client do
     stream_name = "KV_LATTICEDATA_#{state.lattice_prefix}"
     consumer_name = String.replace(state.metadata_deliver_subject, "_INBOX.", "")
 
-    create_topic =
-      if state.domain == nil do
-        "$JS.API.CONSUMER.CREATE.#{stream_name}"
-      else
-        "$JS.#{state.domain}.API.CONSUMER.CREATE.#{stream_name}"
-      end
+    create_topic = create_consumer_topic(stream_name, state.domain)
 
     payload_json =
       %{
@@ -153,12 +142,7 @@ defmodule HostCore.Jetstream.Client do
 
       consumer_name = String.replace(state.legacy_deliver_subject, "_INBOX.", "")
 
-      create_topic =
-        if state.domain == nil do
-          "$JS.API.CONSUMER.CREATE.#{stream_name}"
-        else
-          "$JS.#{state.domain}.API.CONSUMER.CREATE.#{stream_name}"
-        end
+      create_topic = create_consumer_topic(stream_name, state.domain)
 
       payload_json =
         %{
@@ -208,12 +192,7 @@ defmodule HostCore.Jetstream.Client do
   def kv_put(lattice_prefix, "", key, value), do: kv_put(lattice_prefix, nil, key, value)
 
   def kv_put(lattice_prefix, js_domain, key, value) do
-    topic =
-      if js_domain == nil do
-        "$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
-      else
-        "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
-      end
+    topic = kv_operation_topic(lattice_prefix, key, js_domain)
 
     case HostCore.Nats.safe_req(HostCore.Nats.control_connection(lattice_prefix), topic, value) do
       {:ok, _msg} ->
@@ -239,12 +218,7 @@ defmodule HostCore.Jetstream.Client do
   end
 
   def delete_stream(stream_name, lattice_prefix, js_domain) do
-    del_topic =
-      if js_domain == nil do
-        "$JS.API.STREAM.DELETE.#{stream_name}"
-      else
-        "$JS.#{js_domain}.API.STREAM.DELETE.#{stream_name}"
-      end
+    del_topic = stream_delete_topic(stream_name, js_domain)
 
     HostCore.Nats.safe_req(
       HostCore.Nats.control_connection(lattice_prefix),
@@ -252,6 +226,33 @@ defmodule HostCore.Jetstream.Client do
       <<>>
     )
   end
+
+  defp create_bucket_topic(lattice_prefix, nil),
+    do: "$JS.API.STREAM.CREATE.KV_LATTICEDATA_#{lattice_prefix}"
+
+  defp create_bucket_topic(lattice_prefix, js_domain) when is_binary(js_domain),
+    do: "$JS.#{js_domain}.API.STREAM.CREATE.KV_LATTICEDATA_#{lattice_prefix}"
+
+  defp kv_stream_topic(lattice_prefix, nil), do: "$KV.LATTICEDATA_#{lattice_prefix}.>"
+
+  defp kv_stream_topic(lattice_prefix, js_domain) when is_binary(js_domain),
+    do: "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.>"
+
+  defp create_consumer_topic(stream_name, nil), do: "$JS.API.CONSUMER.CREATE.#{stream_name}"
+
+  defp create_consumer_topic(stream_name, js_domain) when is_binary(js_domain),
+    do: "$JS.#{js_domain}.API.CONSUMER.CREATE.#{stream_name}"
+
+  defp kv_operation_topic(lattice_prefix, key, nil),
+    do: "$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
+
+  defp kv_operation_topic(lattice_prefix, key, js_domain) when is_binary(js_domain),
+    do: "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
+
+  defp stream_delete_topic(stream_name, nil), do: "$JS.API.STREAM.DELETE.#{stream_name}"
+
+  defp stream_delete_topic(stream_name, js_domain) when is_binary(js_domain),
+    do: "$JS.#{js_domain}.API.STREAM.DELETE.#{stream_name}"
 
   # a receive loop that will drop out if no new message is received within 200ms, which is
   # an indicator that no more data is forthcoming from the legacy cache. We need the js_domain
