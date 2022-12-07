@@ -1,4 +1,6 @@
 defmodule HostCore.WasmCloud.NativeTest do
+  alias HostCore.WasmCloud.Native
+
   @kvcounter_oci HostCoreTest.Constants.kvcounter_ociref()
   @kvcounter_key HostCoreTest.Constants.kvcounter_key()
   @echo_oci HostCoreTest.Constants.echo_ociref()
@@ -15,23 +17,22 @@ defmodule HostCore.WasmCloud.NativeTest do
   use ExUnit.Case, async: false
 
   test "retrieves provider archive from OCI image" do
-    {:ok, path} = HostCore.WasmCloud.Native.get_oci_path(nil, @httpserver_oci, false, [])
+    {:ok, path} = Native.get_oci_path(nil, @httpserver_oci, false, [])
 
-    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_path(path, "default")
+    {:ok, par} = Native.ProviderArchive.from_path(path, "default")
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
     assert par.claims.version == "0.14.10"
 
     stat =
-      File.stat!(
-        HostCore.WasmCloud.Native.par_cache_path(
-          par.claims.public_key,
-          par.claims.revision,
-          par.contract_id,
-          "default"
-        )
+      par.claims.public_key
+      |> Native.par_cache_path(
+        par.claims.revision,
+        par.contract_id,
+        "default"
       )
+      |> File.stat!()
 
     assert stat.size > 1_000
     assert par.contract_id == @httpserver_contract
@@ -39,14 +40,14 @@ defmodule HostCore.WasmCloud.NativeTest do
   end
 
   test "generates seed keys" do
-    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:server)
+    {pub, seed} = Native.generate_key(:server)
 
     assert String.starts_with?(pub, "N")
     assert String.starts_with?(seed, "SN")
   end
 
   test "produces and validates invocation bytes" do
-    {pub, seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
+    {pub, seed} = Native.generate_key(:cluster)
 
     req =
       %{
@@ -59,7 +60,7 @@ defmodule HostCore.WasmCloud.NativeTest do
       |> IO.iodata_to_binary()
 
     inv =
-      HostCore.WasmCloud.Native.generate_invocation_bytes(
+      Native.generate_invocation_bytes(
         seed,
         "system",
         :provider,
@@ -70,10 +71,10 @@ defmodule HostCore.WasmCloud.NativeTest do
         req
       )
 
-    res = HostCore.WasmCloud.Native.validate_antiforgery(inv |> IO.iodata_to_binary(), [pub])
+    res = inv |> IO.iodata_to_binary() |> Native.validate_antiforgery([pub])
     assert res == :ok
 
-    decinv = inv |> Msgpax.unpack!()
+    decinv = Msgpax.unpack!(inv)
 
     # Rust struct is converted to map of strings
     assert decinv["host_id"] == pub
@@ -82,7 +83,7 @@ defmodule HostCore.WasmCloud.NativeTest do
   end
 
   test "validate antiforgery rejects bad issuer" do
-    {_pub, seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
+    {_pub, seed} = Native.generate_key(:cluster)
 
     req =
       %{
@@ -95,7 +96,7 @@ defmodule HostCore.WasmCloud.NativeTest do
       |> IO.iodata_to_binary()
 
     inv =
-      HostCore.WasmCloud.Native.generate_invocation_bytes(
+      Native.generate_invocation_bytes(
         seed,
         "system",
         :provider,
@@ -107,7 +108,9 @@ defmodule HostCore.WasmCloud.NativeTest do
       )
 
     res =
-      HostCore.WasmCloud.Native.validate_antiforgery(inv |> IO.iodata_to_binary(), [
+      inv
+      |> IO.iodata_to_binary()
+      |> Native.validate_antiforgery([
         "CMYNAMEISKEVINIAMAMALICIOUSACTOR"
       ])
 
@@ -116,25 +119,24 @@ defmodule HostCore.WasmCloud.NativeTest do
   end
 
   test "missing or zero revision is replaced with iat" do
-    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(nil, @echo_oci, false, [])
-    bytes = bytes |> IO.iodata_to_binary()
-    {:ok, claims} = HostCore.WasmCloud.Native.extract_claims(bytes)
+    {:ok, bytes} = Native.get_oci_bytes(nil, @echo_oci, false, [])
+    bytes = IO.iodata_to_binary(bytes)
+    {:ok, claims} = Native.extract_claims(bytes)
     assert claims.public_key == @echo_key
     assert claims.issuer == @official_issuer
     assert claims.revision == 4
 
-    {:ok, path} =
-      HostCore.WasmCloud.Native.get_oci_path(nil, @httpserver_zero_revision_oci, false, [])
+    {:ok, path} = Native.get_oci_path(nil, @httpserver_zero_revision_oci, false, [])
 
-    {:ok, par} = HostCore.WasmCloud.Native.ProviderArchive.from_path(path, "default")
+    {:ok, par} = Native.ProviderArchive.from_path(path, "default")
 
     assert par.claims.public_key == @httpserver_key
     assert par.claims.issuer == @official_issuer
     assert par.claims.revision == 1_631_292_694
 
-    {:ok, bytes} = HostCore.WasmCloud.Native.get_oci_bytes(nil, @kvcounter_oci, false, [])
-    bytes = bytes |> IO.iodata_to_binary()
-    {:ok, claims} = HostCore.WasmCloud.Native.extract_claims(bytes)
+    {:ok, bytes} = Native.get_oci_bytes(nil, @kvcounter_oci, false, [])
+    bytes = IO.iodata_to_binary(bytes)
+    {:ok, claims} = Native.extract_claims(bytes)
     assert claims.public_key == @kvcounter_key
     assert claims.issuer == @official_issuer
     assert claims.revision == 1_631_625_045
@@ -147,8 +149,8 @@ defmodule HostCore.WasmCloud.NativeTest do
       |> Enum.map_every(2, fn c -> String.upcase(c) end)
       |> Enum.join("")
 
-    {:ok, path} = HostCore.WasmCloud.Native.get_oci_path(nil, spongebob_case_ref, false, [])
-    filename = String.split(path, "/") |> Enum.at(-1)
-    assert String.graphemes(filename) |> Enum.all?(fn c -> String.downcase(c) == c end)
+    {:ok, path} = Native.get_oci_path(nil, spongebob_case_ref, false, [])
+    filename = path |> String.split("/") |> Enum.at(-1)
+    assert filename |> String.graphemes() |> Enum.all?(fn c -> String.downcase(c) == c end)
   end
 end

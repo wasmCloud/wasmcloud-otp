@@ -1,6 +1,9 @@
 defmodule HostCore.E2E.ControlInterfaceTest do
   use ExUnit.Case, async: false
 
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.Linkdefs.Manager
+
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
 
   require OpenTelemetry.Tracer, as: Tracer
@@ -19,7 +22,7 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
 
     prefix = config.lattice_prefix
     topic = "wasmbus.ctl.#{prefix}.get.claims"
@@ -28,9 +31,9 @@ defmodule HostCore.E2E.ControlInterfaceTest do
       Logger.debug("Making claims request")
 
       {:ok, %{body: body}} =
-        HostCore.Nats.safe_req(HostCore.Nats.control_connection(config.lattice_prefix), topic, [],
-          receive_timeout: 2_000
-        )
+        prefix
+        |> HostCore.Nats.control_connection()
+        |> HostCore.Nats.safe_req(topic, [], receive_timeout: 2_000)
 
       echo_claims =
         body
@@ -46,7 +49,7 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     :ok =
-      HostCore.Linkdefs.Manager.put_link_definition(
+      Manager.put_link_definition(
         config.lattice_prefix,
         @kvcounter_key,
         @redis_contract,
@@ -59,9 +62,9 @@ defmodule HostCore.E2E.ControlInterfaceTest do
     topic = "wasmbus.ctl.#{prefix}.get.links"
 
     {:ok, %{body: body}} =
-      HostCore.Nats.safe_req(HostCore.Nats.control_connection(config.lattice_prefix), topic, [],
-        receive_timeout: 2_000
-      )
+      prefix
+      |> HostCore.Nats.control_connection()
+      |> HostCore.Nats.safe_req(topic, [], receive_timeout: 2_000)
 
     kvcounter_redis_link =
       body

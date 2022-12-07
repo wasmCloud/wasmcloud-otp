@@ -3,6 +3,11 @@ defmodule HostCoreTest do
 
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1]
 
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.Providers.ProviderSupervisor
+  alias HostCore.Vhost.VirtualHost
+  alias HostCore.WasmCloud.Native
+
   setup :standard_setup
 
   require Logger
@@ -20,7 +25,7 @@ defmodule HostCoreTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pid} = HostCore.Actors.ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_actor_start(
@@ -29,13 +34,13 @@ defmodule HostCoreTest do
       )
 
     {:ok, _pid} =
-      HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+      ProviderSupervisor.start_provider_from_file(
         config.host_key,
         @httpserver_path,
         @httpserver_link
       )
 
-    {:ok, par} = HostCore.WasmCloud.Native.par_from_path(@httpserver_path, @httpserver_link)
+    {:ok, par} = Native.par_from_path(@httpserver_path, @httpserver_link)
     httpserver_key = par.claims.public_key
     httpserver_contract = par.contract_id
 
@@ -47,7 +52,7 @@ defmodule HostCoreTest do
         httpserver_key
       )
 
-    HostCore.Vhost.VirtualHost.purge(pid)
+    VirtualHost.purge(pid)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_stop(evt_watcher, @echo_key)
 
@@ -59,11 +64,11 @@ defmodule HostCoreTest do
       )
 
     actor_count =
-      HostCore.Actors.ActorSupervisor.all_actors(config.host_key)
+      ActorSupervisor.all_actors(config.host_key)
       |> Map.keys()
       |> length
 
     assert actor_count == 0
-    assert HostCore.Providers.ProviderSupervisor.all_providers(config.host_key) == []
+    assert ProviderSupervisor.all_providers(config.host_key) == []
   end
 end

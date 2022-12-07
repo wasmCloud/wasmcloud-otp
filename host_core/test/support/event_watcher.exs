@@ -105,7 +105,8 @@ defmodule HostCoreTest.EventWatcher do
   # Returns all events for a given event type, e.g.
   # `events_for_type(pid, "com.wasmcloud.lattice.actor_stopped")`
   def events_for_type(pid, type) do
-    GenServer.call(pid, :events)
+    pid
+    |> GenServer.call(:events)
     |> Enum.filter(fn evt -> evt["type"] == type end)
   end
 
