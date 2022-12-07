@@ -20,6 +20,9 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   @refmap_prefix "REFMAP_"
   @linkdef_prefix "LINKDEF_"
 
+  # $KV.LATTICEDATA_xxx.key
+  # {domain}.$KV.LATTICEDATA_xxx.key
+
   def request(%{topic: topic, body: body, headers: headers}) do
     tokenmap = tokenize(topic)
 
@@ -88,27 +91,31 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   end
 
   defp handle_action(action, tokenmap, _body) do
-    IO.puts(action)
-    IO.inspect(tokenmap)
+    Logger.warn(
+      "Unexpected action from metadata cache loader: #{inspect(action)} #{inspect(tokenmap)}"
+    )
   end
 
   defp tokenize(topic) when is_binary(topic) do
     tokens = String.split(topic, ".")
 
-    if length(tokens) == 3 do
-      # no JS domain
-      %{
-        key: Enum.at(tokens, 2),
-        prefix: tokens |> Enum.at(1) |> String.replace(@bucket_prefix, ""),
-        domain: nil
-      }
-    else
-      # JS domain
-      %{
-        key: Enum.at(tokens, 3),
-        prefix: tokens |> Enum.at(2) |> String.replace(@bucket_prefix, ""),
-        domain: Enum.at(tokens, 1)
-      }
+    cond do
+      length(tokens) == 3 ->
+        %{
+          key: Enum.at(tokens, 2),
+          prefix: tokens |> Enum.at(1) |> String.replace(@bucket_prefix, ""),
+          domain: nil
+        }
+
+      length(tokens) == 4 ->
+        %{
+          key: Enum.at(tokens, 3),
+          prefix: tokens |> Enum.at(2) |> String.replace(@bucket_prefix, ""),
+          domain: Enum.at(tokens, 1)
+        }
+
+      true ->
+        %{}
     end
   end
 
