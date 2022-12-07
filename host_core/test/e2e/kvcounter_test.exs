@@ -226,6 +226,9 @@ defmodule HostCore.E2E.KVCounterTest do
 
     assert is_pid(pid) && Process.alive?(pid)
 
+    # :sadpanda: sometimes on github, the HTTP server hasn't finished starting before we try and use it
+    Process.sleep(300)
+
     {:ok, _okay} = HTTPoison.start()
     {:ok, resp} = request_http("http://localhost:8082/foobar", 10)
 
