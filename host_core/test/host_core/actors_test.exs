@@ -4,7 +4,7 @@ defmodule HostCore.ActorsTest do
   # information won't get bad/confusing results.
   use ExUnit.Case, async: false
 
-  import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1, standard_setup: 1]
+  import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1, actor_count: 2]
   import HostCoreTest.EventWatcher, only: [wait_for_actor_start: 2, wait_for_actor_stop: 2]
 
   alias HostCore.Actors.ActorModule
