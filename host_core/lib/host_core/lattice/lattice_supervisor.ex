@@ -58,17 +58,6 @@ defmodule HostCore.Lattice.LatticeSupervisor do
           {Gnat.ConsumerSupervisor,
            %{
              connection_name: HostCore.Nats.control_connection(config.lattice_prefix),
-             module: HostCore.Jetstream.LegacyCacheLoader,
-             subscription_topics: [
-               %{topic: "#{config.cache_deliver_inbox}"}
-             ]
-           }},
-          id: String.to_atom("#{config.lattice_prefix}-ctl-legacyloader")
-        ),
-        Supervisor.child_spec(
-          {Gnat.ConsumerSupervisor,
-           %{
-             connection_name: HostCore.Nats.control_connection(config.lattice_prefix),
              module: HostCore.Jetstream.MetadataCacheLoader,
              subscription_topics: [
                %{topic: "#{config.metadata_deliver_inbox}"}
@@ -108,6 +97,18 @@ defmodule HostCore.Lattice.LatticeSupervisor do
     Registry.select(Registry.HostRegistry, [
       {{:"$1", :"$2", :"$3"}, [{:==, :"$3", lattice_prefix}], [{{:"$1", :"$2"}}]}
     ])
+  end
+
+  @spec config_for_lattice_prefix(lattice_prefix :: String.t()) ::
+          HostCore.Vhost.Configuration.t() | nil
+  def config_for_lattice_prefix(lattice_prefix) do
+    pids = host_pids_in_lattice(lattice_prefix)
+
+    if length(pids) > 1 do
+      HostCore.Vhost.VirtualHost.config(List.first(pids))
+    else
+      nil
+    end
   end
 
   @spec ensure_ets_tables_exist(config :: HostCore.Vhost.Configuration.t()) :: nil

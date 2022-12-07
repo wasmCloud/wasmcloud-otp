@@ -12,6 +12,8 @@ defmodule HostCore.Actors.ActorModule do
   use GenServer, restart: :transient
 
   alias HostCore.Actors.ActorRpcSupervisor
+  alias HostCore.Claims.Manager, as: ClaimsManager
+  alias HostCore.Policy.Manager, as: PolicyManager
   alias HostCore.CloudEvent
   alias HostCore.ControlInterface.LatticeServer
   alias HostCore.Vhost.VirtualHost
@@ -494,11 +496,11 @@ defmodule HostCore.Actors.ActorModule do
     target = token.invocation["target"]
 
     decision =
-      with {:ok, _topic} <- HostCore.Policy.Manager.policy_topic(config),
+      with {:ok, _topic} <- PolicyManager.policy_topic(config),
            {:ok, source_claims} <-
-             HostCore.Claims.Manager.lookup_claims(lattice_prefix, origin["public_key"]),
+             ClaimsManager.lookup_claims(lattice_prefix, origin["public_key"]),
            {:ok, _target_claims} <-
-             HostCore.Claims.Manager.lookup_claims(lattice_prefix, target["public_key"]) do
+             ClaimsManager.lookup_claims(lattice_prefix, target["public_key"]) do
         expired =
           case source_claims[:exp] do
             nil -> false
@@ -511,7 +513,7 @@ defmodule HostCore.Actors.ActorModule do
         else
           config = VirtualHost.config(host_id)
 
-          HostCore.Policy.Manager.evaluate_action(
+          PolicyManager.evaluate_action(
             config,
             origin,
             target,
@@ -616,8 +618,8 @@ defmodule HostCore.Actors.ActorModule do
 
     Registry.register(Registry.ActorRegistry, claims.public_key, host_id)
 
-    HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, claims)
-    HostCore.Actors.ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
+    ClaimsManager.put_claims(host_id, lattice_prefix, claims)
+    ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
 
     {:ok, agent} =
       Agent.start_link(fn ->

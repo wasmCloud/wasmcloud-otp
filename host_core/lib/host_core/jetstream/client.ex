@@ -20,6 +20,7 @@ defmodule HostCore.Jetstream.Client do
     {:ok, state, {:continue, :ensure_stream}}
   end
 
+  # Ensure that the metadata cache key-value bucket exists, creating a default one if it does not
   @impl true
   def handle_continue(:ensure_stream, state) do
     for _i <- 0..3 do
@@ -34,7 +35,7 @@ defmodule HostCore.Jetstream.Client do
          "$KV.WCMDCACHE_#{state.lattice_prefix}.>"}
       else
         {"$JS.#{state.domain}.API.STREAM.CREATE.KV_WCMDCACHE_#{state.lattice_prefix}",
-         "$KV.#{state.domain}.WCMDCACHE_#{state.lattice_prefix}.>"}
+         "#{state.domain}.$KV.WCMDCACHE_#{state.lattice_prefix}.>"}
       end
 
     payload_json =
@@ -81,6 +82,7 @@ defmodule HostCore.Jetstream.Client do
     {:noreply, state, {:continue, :create_eph_consumer}}
   end
 
+  # Create an ephemeral consumer on long-lived subscription listening for key changes on the metadata cache
   @impl true
   def handle_continue(:create_eph_consumer, state) do
     Logger.info("Attempting to create ephemeral consumer (metadata loader)",
@@ -136,16 +138,16 @@ defmodule HostCore.Jetstream.Client do
     {:noreply, state, {:continue, :create_legacy_eph_consumer}}
   end
 
+  # Creates an ephemeral consumer against the legacy LATTICECACHE_{prefix} if such a stream exists. This will
+  # migrate all the data from that stream into the new metadata cache and then delete it.
   @impl true
   def handle_continue(:create_legacy_eph_consumer, state) do
     stream_name = "LATTICECACHE_#{state.lattice_prefix}"
 
     if stream_exists?(state.lattice_prefix, stream_name, state.domain) do
       Logger.warn(
-        "Detected deprecated lattice cache stream #{stream_name}. Reading data from this, but will not write new data"
+        "Detected deprecated lattice cache stream #{stream_name}. You should remove all LATTICACHE_* streams"
       )
-
-      Logger.warn("It is strongly recommended that you delete this stream immediately")
 
       consumer_name = String.replace(state.legacy_deliver_subject, "_INBOX.", "")
 
@@ -162,34 +164,39 @@ defmodule HostCore.Jetstream.Client do
           name: consumer_name,
           config: %{
             description: "legacy cache loader for #{state.lattice_prefix}",
-            ack_policy: "explicit",
+            ack_policy: "none",
             filter_subject: ">",
             deliver_policy: "last_per_subject",
             deliver_subject: state.legacy_deliver_subject,
             max_ack_pending: 20_000,
-            max_deliver: -1,
+            max_deliver: 1,
             replay_policy: "instant"
           }
         }
         |> Jason.encode!()
 
-      case HostCore.Nats.safe_req(
-             HostCore.Nats.control_connection(state.lattice_prefix),
-             create_topic,
-             payload_json
-           ) do
-        {:ok, %{body: body}} ->
-          handle_consumer_create_response("legacy", body |> Jason.decode!())
+      conn = HostCore.Nats.control_connection(state.lattice_prefix)
 
-        {:error, :no_responders} ->
-          Logger.error(
-            "No responders to attempt to create JS consumer. Is JetStream enabled/configured properly?"
-          )
+      # Create a subscriber pointing at self() that we'll deal with using receive, that pulls
+      # each piece of data from the old cache and writes it to the new one
+      with {:ok, sub} <- Gnat.sub(conn, self(), state.legacy_deliver_subject),
+           {:ok, %{body: body}} <- HostCore.Nats.safe_req(conn, create_topic, payload_json),
+           {:ok, decoded} <- Jason.decode(body) do
+        if Map.has_key?(decoded, "config") do
+          # consumer created for stream
+          Logger.warn("Migrating data from legacy lattice cache to new key-value store")
+          migrate_bucket_keys(state.js_domain)
+          Gnat.unsub(conn, sub)
 
-        {:error, :timeout} ->
-          Logger.error(
-            "Failed to receive create consumer ACK from JetStream within timeout. Ensure JetStream is enabled on your NATS server."
+          delete_stream(
+            "LATTICECACHE_#{state.lattice_prefix}",
+            state.lattice_prefix,
+            state.js_domain
           )
+        end
+      else
+        _ ->
+          Logger.warn("Skipping data migration from legacy cache")
       end
     end
 
@@ -225,11 +232,16 @@ defmodule HostCore.Jetstream.Client do
   end
 
   def delete_kv_bucket(lattice_prefix, js_domain) do
+    stream_name = "KV_WCMDCACHE_#{lattice_prefix}"
+    delete_stream(stream_name, lattice_prefix, js_domain)
+  end
+
+  def delete_stream(stream_name, lattice_prefix, js_domain) do
     del_topic =
       if js_domain == nil do
-        "$JS.API.STREAM.DELETE.KV_WCMDCACHE_#{lattice_prefix}"
+        "$JS.API.STREAM.DELETE.#{stream_name}"
       else
-        "$JS.#{js_domain}.API.STREAM.DELETE.KV_WCMDCACHE_#{lattice_prefix}"
+        "$JS.#{js_domain}.API.STREAM.DELETE.#{stream_name}"
       end
 
     HostCore.Nats.safe_req(
@@ -237,6 +249,20 @@ defmodule HostCore.Jetstream.Client do
       del_topic,
       <<>>
     )
+  end
+
+  # a receive loop that will drop out if no new message is received within 200ms, which is
+  # an indicator that no more data is forthcoming from the legacy cache. We need the js_domain
+  # here to ensure the KV bucket put goes to the right place
+  defp migrate_bucket_keys(js_domain) do
+    receive do
+      {:msg, %{topic: topic, body: body}} ->
+        HostCore.Jetstream.LegacyCacheLoader.handle_legacy_request(js_domain, topic, body)
+        migrate_bucket_keys(js_domain)
+    after
+      200 ->
+        Logger.debug("Finished reading data from legacy lattice cache")
+    end
   end
 
   defp stream_exists?(lattice_prefix, stream_name, ""),
