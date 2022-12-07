@@ -129,7 +129,6 @@ defmodule HostCore.E2E.EchoTest do
         @httpserver_key
       )
 
-
     Process.sleep(300)
 
     {:ok, _okay} = HTTPoison.start()

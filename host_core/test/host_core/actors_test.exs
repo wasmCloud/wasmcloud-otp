@@ -4,7 +4,6 @@ defmodule HostCore.ActorsTest do
   # information won't get bad/confusing results.
   use ExUnit.Case, async: false
 
-
   import HostCoreTest.Common, only: [cleanup: 2, standard_setup: 1, standard_setup: 1]
   import HostCoreTest.EventWatcher, only: [wait_for_actor_start: 2, wait_for_actor_stop: 2]
 
@@ -355,8 +354,7 @@ defmodule HostCore.ActorsTest do
           1
         )
 
-
-      wait_for_actor_start(evt_watcher, @echo_key)    
+      wait_for_actor_start(evt_watcher, @echo_key)
       assert pid |> List.first() |> Process.alive?()
 
       actor_count = actor_count(config.host_key, @echo_key)
@@ -493,7 +491,6 @@ defmodule HostCore.ActorsTest do
           @echo_oci_reference,
           1
         )
-
 
       wait_for_actor_start(evt_watcher, @echo_key)
       assert pid |> List.first() |> Process.alive?()
