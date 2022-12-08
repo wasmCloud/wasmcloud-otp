@@ -2,6 +2,8 @@ defmodule HostCore.WasmCloud.Native do
   @moduledoc false
   use Rustler, otp_app: :host_core, crate: :hostcore_wasmcloud_native
 
+  alias HostCore.WasmCloud.Native
+
   def extract_claims(_bytes), do: error()
   def generate_key(_keytype), do: error()
 
@@ -28,7 +30,7 @@ defmodule HostCore.WasmCloud.Native do
   def get_oci_path(_creds, _path, _allow_latest, _allowed_insecure), do: error()
   def par_from_path(_path, _link_name), do: error()
   def par_cache_path(_subject, _rev, _contract_id, _link_name), do: error()
-  def detect_core_host_labels(), do: error()
+  def detect_core_host_labels, do: error()
   def get_actor_bindle(_creds, _bindle_id), do: error()
   def get_provider_bindle(_creds, _bindle_id, _link_name), do: error()
 
@@ -38,6 +40,6 @@ defmodule HostCore.WasmCloud.Native do
 
   defmodule ProviderArchive do
     @moduledoc false
-    def from_path(path, link_name), do: HostCore.WasmCloud.Native.par_from_path(path, link_name)
+    def from_path(path, link_name), do: Native.par_from_path(path, link_name)
   end
 end

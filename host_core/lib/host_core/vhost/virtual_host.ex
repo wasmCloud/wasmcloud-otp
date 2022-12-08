@@ -16,12 +16,28 @@ defmodule HostCore.Vhost.VirtualHost do
 
   require Logger
 
-  alias HostCore.Vhost.Configuration
+  alias HostCore.Actors.ActorSupervisor
   alias HostCore.CloudEvent
+  alias HostCore.Lattice.LatticeRoot
+  alias HostCore.Linkdefs.Manager
+  alias HostCore.Providers.ProviderSupervisor
+  alias HostCore.Vhost.Configuration
+  alias HostCore.WasmCloud.Native
+  alias Timex.Format.Duration.Formatters.Humanized
 
   @thirty_seconds 30_000
 
   defmodule State do
+    @moduledoc """
+    The state of the virtual host is a record containing the following fields:
+
+    * `config` - the configuration for the virtual host
+    * `friendly_name` - a friendly name for the virtual host
+    * `labels` - a map of labels for the virtual host
+    * `start_time` - the time at which the virtual host was started
+    * `supplemental_config` - a map of supplemental configuration for the virtual host
+    """
+
     @type t :: %State{
             config: Configuration.t(),
             friendly_name: String.t(),
@@ -49,7 +65,7 @@ defmodule HostCore.Vhost.VirtualHost do
   def init(config) do
     Process.flag(:trap_exit, true)
 
-    case HostCore.Lattice.LatticeRoot.start_lattice(config) do
+    case LatticeRoot.start_lattice(config) do
       {:ok, _pid} ->
         Logger.info("Lattice supervisor #{config.lattice_prefix} started.")
 
@@ -75,16 +91,14 @@ defmodule HostCore.Vhost.VirtualHost do
       You must also ensure the following cluster signer is in the list of valid
       signers for any new host you start:
 
-      #{config.cluster_issuers |> Enum.at(0)}
+      #{Enum.at(config.cluster_issuers, 0)}
 
       """
 
       Logger.warn(warning)
     end
 
-    labels =
-      get_env_host_labels()
-      |> Map.merge(HostCore.WasmCloud.Native.detect_core_host_labels())
+    labels = Map.merge(get_env_host_labels(), Native.detect_core_host_labels())
 
     Gnat.ConsumerSupervisor.start_link(%{
       connection_name: HostCore.Nats.control_connection(config.lattice_prefix),
@@ -124,15 +138,15 @@ defmodule HostCore.Vhost.VirtualHost do
     topic = "wasmbus.cfg.#{state.config.lattice_prefix}"
     Logger.debug("Requesting supplemental host configuration via topic '#{topic}'.")
 
-    with {:ok, supp_config} <-
-           HostCore.ConfigServiceClient.request_configuration(
-             state.config.lattice_prefix,
-             state.labels,
-             topic
-           ) do
-      {:noreply, %State{state | supplemental_config: supp_config},
-       {:continue, :process_supp_config}}
-    else
+    case HostCore.ConfigServiceClient.request_configuration(
+           state.config.lattice_prefix,
+           state.labels,
+           topic
+         ) do
+      {:ok, supp_config} ->
+        {:noreply, %State{state | supplemental_config: supp_config},
+         {:continue, :process_supp_config}}
+
       {:error, e} ->
         Logger.warn("Failed to obtain supplemental configuration: #{inspect(e)}.")
         {:noreply, state, {:continue, :publish_started}}
@@ -148,37 +162,8 @@ defmodule HostCore.Vhost.VirtualHost do
     )
 
     Task.start(fn ->
-      autostart_providers
-      |> Enum.each(fn prov ->
-        if !Map.has_key?(prov, "imageReference") || !Map.has_key?(prov, "linkName") do
-          Logger.error(
-            "Bypassing provider that did not include image reference and link name: #{inspect(prov)}"
-          )
-        else
-          if String.starts_with?(prov["imageReference"], "bindle://") do
-            HostCore.Providers.ProviderSupervisor.start_provider_from_bindle(
-              state.config.host_key,
-              prov["imageReference"],
-              prov["linkName"]
-            )
-          else
-            HostCore.Providers.ProviderSupervisor.start_provider_from_oci(
-              state.config.host_key,
-              prov["imageReference"],
-              prov["linkName"]
-            )
-          end
-        end
-      end)
-
-      autostart_actors
-      |> Enum.each(fn actor ->
-        if String.starts_with?(actor, "bindle://") do
-          HostCore.Actors.ActorSupervisor.start_actor_from_bindle(state.config.host_key, actor)
-        else
-          HostCore.Actors.ActorSupervisor.start_actor_from_oci(state.config.host_key, actor)
-        end
-      end)
+      Enum.each(autostart_providers, fn prov -> start_autostart_provider(prov, state) end)
+      Enum.each(autostart_actors, fn actor -> start_autostart_actor(actor, state) end)
     end)
 
     {:noreply, {:continue, :publish_started}}
@@ -277,7 +262,8 @@ defmodule HostCore.Vhost.VirtualHost do
     config = config(host_id)
 
     lds =
-      HostCore.Linkdefs.Manager.get_link_definitions(config.lattice_prefix)
+      config.lattice_prefix
+      |> Manager.get_link_definitions()
       |> Enum.filter(fn %{link_name: ln, provider_id: prov} ->
         ln == link_name && prov == provider_key
       end)
@@ -289,7 +275,7 @@ defmodule HostCore.Vhost.VirtualHost do
         "#{config.prov_rpc_host}:#{config.prov_rpc_port}"
       end
 
-    %{
+    Jason.encode!(%{
       host_id: host_id,
       lattice_rpc_prefix: config.lattice_prefix,
       link_name: link_name,
@@ -309,8 +295,7 @@ defmodule HostCore.Vhost.VirtualHost do
       js_domain: config.js_domain,
       # In case providers want to be aware of this for their own logging
       enable_structured_logging: config.enable_structured_logging
-    }
-    |> Jason.encode!()
+    })
   end
 
   def purge(pid) do
@@ -322,8 +307,8 @@ defmodule HostCore.Vhost.VirtualHost do
       "Host purge requested for #{state.config.host_key}, terminating all actors and providers."
     )
 
-    HostCore.Actors.ActorSupervisor.terminate_all(state.config.host_key)
-    HostCore.Providers.ProviderSupervisor.terminate_all(state.config.host_key)
+    ActorSupervisor.terminate_all(state.config.host_key)
+    ProviderSupervisor.terminate_all(state.config.host_key)
   end
 
   # Callbacks
@@ -346,8 +331,8 @@ defmodule HostCore.Vhost.VirtualHost do
        issuer: state.config.cluster_key,
        labels: state.labels,
        friendly_name: state.friendly_name,
-       actors: HostCore.Actors.ActorSupervisor.all_actors(state.config.host_key),
-       providers: HostCore.Providers.ProviderSupervisor.all_providers(state.config.host_key)
+       actors: ActorSupervisor.all_actors(state.config.host_key),
+       providers: ProviderSupervisor.all_providers(state.config.host_key)
      }, state}
   end
 
@@ -376,7 +361,7 @@ defmodule HostCore.Vhost.VirtualHost do
     ut_human =
       ut_seconds
       |> Timex.Duration.from_seconds()
-      |> Timex.Format.Duration.Formatters.Humanized.format()
+      |> Humanized.format()
 
     res = %{
       id: state.config.host_key,
@@ -385,8 +370,8 @@ defmodule HostCore.Vhost.VirtualHost do
       friendly_name: state.friendly_name,
       uptime_seconds: ut_seconds,
       uptime_human: ut_human,
-      version: Application.spec(:host_core, :vsn) |> to_string(),
-      cluster_issuers: state.config.cluster_issuers |> Enum.join(","),
+      version: :host_core |> Application.spec(:vsn) |> to_string(),
+      cluster_issuers: Enum.join(state.config.cluster_issuers, ","),
       js_domain: state.config.js_domain,
       ctl_host: state.config.ctl_host,
       prov_rpc_host: state.config.prov_rpc_host,
@@ -405,7 +390,7 @@ defmodule HostCore.Vhost.VirtualHost do
 
       with creds_map <- Map.get(state.supplemental_config, "registryCredentials", %{}),
            creds <- Map.get(creds_map, server_name, %{}),
-           true <- Map.get(creds, "registryType") == type |> Atom.to_string() do
+           true <- Map.get(creds, "registryType") == Atom.to_string(type) do
         {:reply, creds, state}
       else
         _ ->
@@ -453,7 +438,7 @@ defmodule HostCore.Vhost.VirtualHost do
           (Map.has_key?(v, "username") || Map.has_key?(v, "password") || Map.has_key?(v, "token"))
       end)
       |> Enum.map(fn {k, v} ->
-        {extract_server(v["registryType"] |> String.to_existing_atom(), k), v}
+        {extract_server(String.to_existing_atom(v["registryType"]), k), v}
       end)
       |> Enum.into(%{})
 
@@ -504,34 +489,38 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   defp publish_heartbeat(state) do
-    generate_heartbeat(state)
+    state
+    |> generate_heartbeat()
     |> CloudEvent.publish(state.config.lattice_prefix)
   end
 
-  defp get_env_host_labels() do
+  defp get_env_host_labels do
     keys =
       System.get_env() |> Map.keys() |> Enum.filter(fn k -> String.starts_with?(k, "HOST_") end)
 
     Map.new(keys, fn k ->
-      {String.slice(k, 5..999) |> String.downcase(), System.get_env(k, "")}
+      {k |> String.slice(5..999) |> String.downcase(), System.get_env(k, "")}
     end)
   end
 
   defp extract_server(:bindle, s) do
-    tail = strip_scheme(s)
-    String.split(tail, "@", trim: true) |> Enum.at(-1)
+    s
+    |> strip_scheme()
+    |> String.split("@", trim: true)
+    |> Enum.at(-1)
   end
 
   defp extract_server(:oci, s) do
-    tail = strip_scheme(s)
-    String.split(tail, "/") |> Enum.at(0)
+    s
+    |> strip_scheme()
+    |> String.split("/")
+    |> Enum.at(0)
   end
 
   defp strip_scheme(s) do
     # remove scheme prefixes
-    ["bindle", "oci", "http", "https"]
-    |> Enum.reduce(s, fn scheme, acc ->
-      String.split(acc, scheme <> "://") |> Enum.at(-1)
+    Enum.reduce(["bindle", "oci", "http", "https"], s, fn scheme, acc ->
+      acc |> String.split(scheme <> "://") |> Enum.at(-1)
     end)
   end
 
@@ -552,5 +541,35 @@ defmodule HostCore.Vhost.VirtualHost do
     }
     |> CloudEvent.new("host_stopped", state.config.host_key)
     |> CloudEvent.publish(state.config.lattice_prefix)
+  end
+
+  defp start_autostart_provider(prov, state) do
+    if !Map.has_key?(prov, "imageReference") || !Map.has_key?(prov, "linkName") do
+      Logger.error(
+        "Bypassing provider that did not include image reference and link name: #{inspect(prov)}"
+      )
+    else
+      if String.starts_with?(prov["imageReference"], "bindle://") do
+        ProviderSupervisor.start_provider_from_bindle(
+          state.config.host_key,
+          prov["imageReference"],
+          prov["linkName"]
+        )
+      else
+        ProviderSupervisor.start_provider_from_oci(
+          state.config.host_key,
+          prov["imageReference"],
+          prov["linkName"]
+        )
+      end
+    end
+  end
+
+  defp start_autostart_actor(actor, state) do
+    if String.starts_with?(actor, "bindle://") do
+      ActorSupervisor.start_actor_from_bindle(state.config.host_key, actor)
+    else
+      ActorSupervisor.start_actor_from_oci(state.config.host_key, actor)
+    end
   end
 end

@@ -7,16 +7,16 @@ defmodule HostCore.Lattice.LatticeSupervisor do
 
   use Supervisor
 
+  alias HostCore.Lattice.LatticeRoot
   require Logger
 
   @spec start_link(HostCore.Vhost.Configuration.t()) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(config) do
-    Supervisor.start_link(__MODULE__, config,
-      name: HostCore.Lattice.LatticeRoot.via_tuple(config.lattice_prefix)
-    )
+    Supervisor.start_link(__MODULE__, config, name: LatticeRoot.via_tuple(config.lattice_prefix))
   end
 
-  # Uses the same strongly typed host configuration as other supervisors in the hierarchy (though it only cares about the lattice info)
+  # Uses the same strongly typed host configuration as other supervisors in the hierarchy
+  # (though it only cares about the lattice info)
   @impl true
   def init(config) do
     Logger.metadata(lattice_prefix: config.lattice_prefix)

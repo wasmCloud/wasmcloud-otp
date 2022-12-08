@@ -6,6 +6,9 @@ defmodule HostCore.ControlInterface.LatticeServer do
 
   alias HostCore.CloudEvent
   alias HostCore.Linkdefs.Manager, as: LinkdefsManager
+  alias HostCore.Lattice.LatticeSupervisor
+  alias HostCore.Providers.ProviderSupervisor
+  alias HostCore.Vhost.VirtualHost
 
   import HostCore.Nats,
     only: [safe_pub: 3, control_connection: 1]
@@ -48,10 +51,10 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Host Ping (ctl)", kind: :server do
       Tracer.set_attribute("lattice_id", prefix)
 
-      for pid <- HostCore.Lattice.LatticeSupervisor.host_pids_in_lattice(prefix),
-          pingres = HostCore.Vhost.VirtualHost.generate_ping_reply(pid) do
+      for pid <- LatticeSupervisor.host_pids_in_lattice(prefix),
+          pingres = VirtualHost.generate_ping_reply(pid) do
         safe_pub(control_connection(prefix), reply_to, Jason.encode!(pingres))
-        HostCore.Vhost.VirtualHost.emit_heartbeat(pid)
+        VirtualHost.emit_heartbeat(pid)
       end
 
       :ok
@@ -77,7 +80,7 @@ defmodule HostCore.ControlInterface.LatticeServer do
   # Retrieves link definitions from the in-memory cache
   defp handle_request({"get", "links"}, _body, _reply_to, prefix) do
     Tracer.with_span "Handle Linkdef Request (ctl)", kind: :server do
-      links = HostCore.Linkdefs.Manager.get_link_definitions(prefix)
+      links = LinkdefsManager.get_link_definitions(prefix)
 
       res = %{
         links: links
@@ -97,7 +100,7 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
            true <- has_values(ld, ["actor_id", "contract_id", "link_name", "provider_id"]) do
-        HostCore.Linkdefs.Manager.put_link_definition(
+        LinkdefsManager.put_link_definition(
           prefix,
           ld["actor_id"],
           ld["contract_id"],
@@ -118,7 +121,7 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
            true <- has_values(ld, ["actor_id", "contract_id", "link_name"]) do
-        HostCore.Linkdefs.Manager.del_link_definition_by_triple(
+        LinkdefsManager.del_link_definition_by_triple(
           prefix,
           ld["actor_id"],
           ld["contract_id"],
@@ -142,18 +145,18 @@ defmodule HostCore.ControlInterface.LatticeServer do
   # lattice supervisor for a list of hosts to receive the registry credentials update
   defp handle_request({"registries", "put"}, body, _reply_to, prefix) do
     Tracer.with_span "Handle Registries Put (ctl)", kind: :server do
-      with {:ok, credsmap} <- Jason.decode(body) do
-        targets = HostCore.Lattice.LatticeSupervisor.host_pids_in_lattice(prefix)
+      case Jason.decode(body) do
+        {:ok, credsmap} ->
+          targets = LatticeSupervisor.host_pids_in_lattice(prefix)
 
-        targets
-        |> Enum.each(fn pid -> HostCore.Vhost.VirtualHost.set_credsmap(pid, credsmap) end)
+          Enum.each(targets, fn pid -> VirtualHost.set_credsmap(pid, credsmap) end)
 
-        Logger.debug(
-          "Replaced registry credential map, new registry count: #{length(Map.keys(credsmap))}"
-        )
+          Logger.debug(
+            "Replaced registry credential map, new registry count: #{length(Map.keys(credsmap))}"
+          )
 
-        {:reply, success_ack()}
-      else
+          {:reply, success_ack()}
+
         _ ->
           Logger.error("Failed to update registry credential map")
           {:reply, failure_ack("Failed to update registry credential map")}
@@ -171,8 +174,8 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Actor Auction Request (ctl)", kind: :server do
       with {:ok, auction_request} <- Jason.decode(body),
            true <- has_values(auction_request, ["actor_ref"]) do
-        for {host_id, pid} <- HostCore.Lattice.LatticeSupervisor.hosts_in_lattice(prefix),
-            labels = HostCore.Vhost.VirtualHost.labels(pid) do
+        for {host_id, pid} <- LatticeSupervisor.hosts_in_lattice(prefix),
+            labels = VirtualHost.labels(pid) do
           required_labels = auction_request["constraints"] || %{}
 
           if Map.equal?(labels, Map.merge(labels, required_labels)) do
@@ -200,14 +203,14 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Provider Auction Request (ctl)", kind: :server do
       with {:ok, auction_request} <- Jason.decode(body),
            true <- has_values(auction_request, ["provider_ref"]) do
-        for {host_id, pid} <- HostCore.Lattice.LatticeSupervisor.hosts_in_lattice(prefix),
-            host_labels = HostCore.Vhost.VirtualHost.labels(pid) do
+        for {host_id, pid} <- LatticeSupervisor.hosts_in_lattice(prefix),
+            host_labels = VirtualHost.labels(pid) do
           required_labels = auction_request["constraints"] || %{}
           provider_ref = auction_request["provider_ref"]
           link_name = Map.get(auction_request, "link_name", "default")
 
           if Map.equal?(host_labels, Map.merge(host_labels, required_labels)) &&
-               !HostCore.Providers.ProviderSupervisor.provider_running?(
+               !ProviderSupervisor.provider_running?(
                  host_id,
                  provider_ref,
                  link_name,
@@ -248,18 +251,23 @@ defmodule HostCore.ControlInterface.LatticeServer do
         ) :: :ok
   def publish_actor_start_failed(host, lattice_prefix, actor_ref, msg) do
     msg =
-      %{
-        actor_ref: actor_ref,
-        error: msg
-      }
-      |> CloudEvent.new("actor_start_failed", host)
+      CloudEvent.new(
+        %{
+          actor_ref: actor_ref,
+          error: msg
+        },
+        "actor_start_failed",
+        host
+      )
 
     topic = "wasmbus.evt.#{lattice_prefix}"
 
-    HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
+    lattice_prefix
+    |> HostCore.Nats.control_connection()
+    |> HostCore.Nats.safe_pub(topic, msg)
   end
 
-  def success_ack() do
+  def success_ack do
     Jason.encode!(%{
       accepted: true,
       error: ""

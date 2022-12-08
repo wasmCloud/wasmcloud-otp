@@ -7,7 +7,10 @@ defmodule HostCore.Providers.ProviderSupervisor do
   use DynamicSupervisor
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
+
   alias HostCore.Providers.ProviderModule
+  alias HostCore.Vhost.VirtualHost
+  alias HostCore.WasmCloud.Native
 
   @start_provider "start_provider"
   def start_link(init_arg) do
@@ -33,22 +36,22 @@ defmodule HostCore.Providers.ProviderSupervisor do
         ) :: DynamicSupervisor.on_start_child()
   def start_provider_from_oci(host_id, ref, link_name, config_json \\ "", annotations \\ %{}) do
     Tracer.with_span "Start Provider from OCI" do
-      creds = HostCore.Vhost.VirtualHost.get_creds(host_id, :oci, ref)
-      config = HostCore.Vhost.VirtualHost.config(host_id)
+      creds = VirtualHost.get_creds(host_id, :oci, ref)
+      config = VirtualHost.config(host_id)
 
       Tracer.set_attribute("oci_ref", ref)
       Tracer.set_attribute("link_name", link_name)
       Tracer.set_attribute("host_id", host_id)
 
       with {:ok, path} <-
-             HostCore.WasmCloud.Native.get_oci_path(
+             Native.get_oci_path(
                creds,
                ref,
                config.allow_latest,
                config.allowed_insecure
              ),
            {:ok, par} <-
-             HostCore.WasmCloud.Native.par_from_path(
+             Native.par_from_path(
                path,
                link_name
              ) do
@@ -56,7 +59,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
 
         start_executable_provider(
           host_id,
-          HostCore.WasmCloud.Native.par_cache_path(
+          Native.par_cache_path(
             par.claims.public_key,
             par.claims.revision,
             par.contract_id,
@@ -108,36 +111,36 @@ defmodule HostCore.Providers.ProviderSupervisor do
         annotations \\ %{}
       ) do
     Tracer.with_span "Start Provider from Bindle" do
-      creds = HostCore.Vhost.VirtualHost.get_creds(host_id, :bindle, bindle_id)
+      creds = VirtualHost.get_creds(host_id, :bindle, bindle_id)
 
       Tracer.set_attribute("bindle_id", bindle_id)
       Tracer.set_attribute("link_name", link_name)
       Tracer.set_attribute("host_id", host_id)
 
-      with {:ok, par} <-
-             HostCore.WasmCloud.Native.get_provider_bindle(
-               creds,
-               String.trim_leading(bindle_id, "bindle://"),
-               link_name
-             ) do
-        Tracer.add_event("Provider fetched", [])
+      case Native.get_provider_bindle(
+             creds,
+             String.trim_leading(bindle_id, "bindle://"),
+             link_name
+           ) do
+        {:ok, par} ->
+          Tracer.add_event("Provider fetched", [])
 
-        start_executable_provider(
-          host_id,
-          HostCore.WasmCloud.Native.par_cache_path(
-            par.claims.public_key,
-            par.claims.revision,
+          start_executable_provider(
+            host_id,
+            Native.par_cache_path(
+              par.claims.public_key,
+              par.claims.revision,
+              par.contract_id,
+              link_name
+            ),
+            par.claims,
+            link_name,
             par.contract_id,
-            link_name
-          ),
-          par.claims,
-          link_name,
-          par.contract_id,
-          bindle_id,
-          config_json,
-          annotations
-        )
-      else
+            bindle_id,
+            config_json,
+            annotations
+          )
+
         {:error, err} ->
           Logger.error("Error starting provider from Bindle: #{inspect(err)}",
             bindle_id: bindle_id,
@@ -172,23 +175,24 @@ defmodule HostCore.Providers.ProviderSupervisor do
         ) :: DynamicSupervisor.on_start_child()
   def start_provider_from_file(host_id, path, link_name, annotations \\ %{}) do
     Tracer.with_span "Start Provider from File" do
-      with {:ok, par} <- HostCore.WasmCloud.Native.par_from_path(path, link_name) do
-        start_executable_provider(
-          host_id,
-          HostCore.WasmCloud.Native.par_cache_path(
-            par.claims.public_key,
-            par.claims.revision,
+      case Native.par_from_path(path, link_name) do
+        {:ok, par} ->
+          start_executable_provider(
+            host_id,
+            Native.par_cache_path(
+              par.claims.public_key,
+              par.claims.revision,
+              par.contract_id,
+              link_name
+            ),
+            par.claims,
+            link_name,
             par.contract_id,
-            link_name
-          ),
-          par.claims,
-          link_name,
-          par.contract_id,
-          "",
-          "",
-          annotations
-        )
-      else
+            "",
+            "",
+            annotations
+          )
+
         {:error, err} ->
           Logger.error("Error starting provider from file: #{err}", link_name: link_name)
           {:error, err}
@@ -206,7 +210,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
   """
   def provider_running?(host_id, reference, link_name, public_key) do
     lattice_prefix =
-      case HostCore.Vhost.VirtualHost.lookup(host_id) do
+      case VirtualHost.lookup(host_id) do
         {:ok, {_pid, prefix}} -> prefix
         _ -> "default"
       end
@@ -233,7 +237,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
          config_json,
          annotations
        ) do
-    config = HostCore.Vhost.VirtualHost.config(host_id)
+    config = VirtualHost.config(host_id)
 
     source = %{
       publicKey: "",
@@ -338,12 +342,10 @@ defmodule HostCore.Providers.ProviderSupervisor do
   def all_providers(host_id) do
     # $1 - {pk, link_name}
     # $2 - pid
-    providers_on_host = providers_on_host(host_id)
-
-    providers_on_host
+    host_id
+    |> providers_on_host()
     |> Enum.map(fn {{pk, link_name}, pid} ->
-      {pid, pk, link_name, HostCore.Providers.ProviderModule.contract_id(pid),
-       HostCore.Providers.ProviderModule.instance_id(pid)}
+      {pid, pk, link_name, ProviderModule.contract_id(pid), ProviderModule.instance_id(pid)}
     end)
   end
 

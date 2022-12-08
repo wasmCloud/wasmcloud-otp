@@ -8,8 +8,8 @@ defmodule HostCore.Vhost.ConfigPlan do
   """
   @behaviour Vapor.Plan
 
-  alias Vapor.Provider.{Dotenv, Env}
   alias HostCore.Vhost.FilesConfigProvider
+  alias Vapor.Provider.{Dotenv, Env}
 
   @prefix_var "WASMCLOUD_LATTICE_PREFIX"
   @default_prefix "default"
@@ -72,7 +72,7 @@ defmodule HostCore.Vhost.ConfigPlan do
     ]
   end
 
-  defp json_bindings() do
+  defp json_bindings do
     [
       {:host_config, "host_config", required: false, default: nil},
       {:lattice_prefix, "lattice_prefix", required: false, default: @default_prefix},

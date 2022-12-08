@@ -1,6 +1,10 @@
 defmodule HostCore.ControlInterface.ACL do
   @moduledoc false
 
+  alias HostCore.Actors.ActorModule
+  alias HostCore.Claims.Manager
+  alias HostCore.Providers.ProviderModule
+
   def convert_inv_actors(inv, lattice_prefix) do
     actors =
       for {id, pids} <- inv.actors do
@@ -9,18 +13,17 @@ defmodule HostCore.ControlInterface.ACL do
         name = claims.name
 
         instances =
-          pids
-          |> Enum.map(fn pid ->
+          Enum.map(pids, fn pid ->
             %{
-              annotations: HostCore.Actors.ActorModule.annotations(pid),
-              instance_id: HostCore.Actors.ActorModule.instance_id(pid),
+              annotations: ActorModule.annotations(pid),
+              instance_id: ActorModule.instance_id(pid),
               revision: revision
             }
           end)
 
         %{
           id: id,
-          image_ref: HostCore.Actors.ActorModule.ociref(Enum.at(pids, 0)),
+          image_ref: pids |> Enum.at(0) |> ActorModule.ociref(),
           name: name,
           instances: instances
         }
@@ -38,12 +41,12 @@ defmodule HostCore.ControlInterface.ACL do
 
         %{
           id: pk,
-          image_ref: HostCore.Providers.ProviderModule.ociref(pid),
-          contract_id: HostCore.Providers.ProviderModule.contract_id(pid),
+          image_ref: ProviderModule.ociref(pid),
+          contract_id: ProviderModule.contract_id(pid),
           link_name: link,
           name: name,
           instance_id: instance_id,
-          annotations: HostCore.Providers.ProviderModule.annotations(pid),
+          annotations: ProviderModule.annotations(pid),
           revision: revision
         }
       end
@@ -56,7 +59,7 @@ defmodule HostCore.ControlInterface.ACL do
   end
 
   def find_claims_for_pk(lattice_prefix, pk) do
-    case HostCore.Claims.Manager.lookup_claims(lattice_prefix, pk) do
+    case Manager.lookup_claims(lattice_prefix, pk) do
       {:ok, %{} = c} -> c
       :error -> nil
     end
