@@ -494,6 +494,7 @@ defmodule HostCore.Vhost.VirtualHost do
   @impl true
   def handle_cast(:publish_heartbeat, state) do
     publish_heartbeat(state)
+    {:noreply, state}
   end
 
   def emit_heartbeat(pid) when is_pid(pid) do
