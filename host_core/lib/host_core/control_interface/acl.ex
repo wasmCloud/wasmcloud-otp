@@ -39,6 +39,7 @@ defmodule HostCore.ControlInterface.ACL do
         %{
           id: pk,
           image_ref: HostCore.Providers.ProviderModule.ociref(pid),
+          contract_id: HostCore.Providers.ProviderModule.contract_id(pid),
           link_name: link,
           name: name,
           instance_id: instance_id,
