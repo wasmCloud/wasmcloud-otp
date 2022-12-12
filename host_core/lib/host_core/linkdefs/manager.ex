@@ -6,7 +6,12 @@ defmodule HostCore.Linkdefs.Manager do
 
   alias HostCore.CloudEvent
 
-  @spec lookup_link_definition(String.t(), String.t(), String.t(), String.t()) :: map() | nil
+  @spec lookup_link_definition(
+          lattice_prefix :: String.t(),
+          actor :: String.t(),
+          contract_id :: String.t(),
+          link_name :: String.t()
+        ) :: map() | nil
   def lookup_link_definition(lattice_prefix, actor, contract_id, link_name) do
     predicates = [
       {:==, {:map_get, :actor_id, :"$2"}, actor},

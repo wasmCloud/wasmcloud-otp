@@ -104,7 +104,7 @@ defmodule HostCore.Lattice.LatticeSupervisor do
   def config_for_lattice_prefix(lattice_prefix) do
     pids = host_pids_in_lattice(lattice_prefix)
 
-    if length(pids) > 1 do
+    if length(pids) > 0 do
       HostCore.Vhost.VirtualHost.config(List.first(pids))
     else
       nil
