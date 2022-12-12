@@ -43,7 +43,7 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
           prefix,
           js_domain,
           "LINKDEF_#{ld.id}",
-          ld |> JSON.encode!()
+          ld |> Jason.encode!()
         )
 
         Logger.debug(
@@ -60,7 +60,13 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
   def handle_request({"claims", key}, body, prefix, js_domain) do
     case Jason.decode(body, keys: :atoms) do
       {:ok, claims} ->
-        HostCore.Jetstream.Client.kv_put(prefix, js_domain, "CLAIMS_#{key}", claims)
+        HostCore.Jetstream.Client.kv_put(
+          prefix,
+          js_domain,
+          "CLAIMS_#{key}",
+          claims |> Jason.encode!()
+        )
+
         broadcast_event(:claims_added, claims, prefix)
 
       {:error, e} ->
@@ -75,7 +81,7 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
           prefix,
           js_domain,
           "REFMAP_#{HostCore.Nats.sanitize_for_topic(refmap.oci_url)}",
-          refmap
+          refmap |> Jason.encode!()
         )
 
         broadcast_event(:refmap_added, refmap, prefix)
