@@ -150,12 +150,12 @@ defmodule HostCore.Jetstream.Client do
           name: consumer_name,
           config: %{
             description: "legacy cache loader for #{state.lattice_prefix}",
-            ack_policy: "none",
+            ack_policy: "explicit",
             filter_subject: ">",
             deliver_policy: "last_per_subject",
             deliver_subject: state.legacy_deliver_subject,
             max_ack_pending: 20_000,
-            max_deliver: 1,
+            max_deliver: -11,
             replay_policy: "instant"
           }
         }
