@@ -118,9 +118,11 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
            true <- has_values(ld, ["actor_id", "contract_id", "link_name"]) do
-        HostCore.Linkdefs.Manager.del_link_definition(
+        HostCore.Linkdefs.Manager.del_link_definition_by_triple(
           prefix,
-          ld["id"]
+          ld["actor_id"],
+          ld["contract_id"],
+          ld["link_name"]
         )
 
         {:reply, success_ack()}
