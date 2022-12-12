@@ -129,6 +129,8 @@ defmodule HostCore.Application do
       |> Map.put(:host_key, host_key)
       |> Map.put(:host_seed, host_seed)
 
+    config = ensure_booleans(config)
+
     s =
       Hashids.new(
         salt: "lc_deliver_inbox",
@@ -220,6 +222,16 @@ defmodule HostCore.Application do
     write_config(config)
 
     config
+  end
+
+  defp ensure_booleans(config) do
+    bool_keys = [:config_service_enabled, :ctl_tls, :rpc_tls, :enable_ipv6]
+
+    Enum.reduce(bool_keys, config, fn key, config ->
+      old = Map.get(config, key, nil)
+      new = HostCore.Vhost.ConfigPlan.string_to_bool(old)
+      Map.put(config, key, new)
+    end)
   end
 
   defp write_config(config) do
