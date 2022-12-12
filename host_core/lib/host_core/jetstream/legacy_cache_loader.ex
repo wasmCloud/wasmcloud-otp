@@ -39,7 +39,12 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
         )
 
       {:ok, ld} ->
-        HostCore.Jetstream.Client.kv_put(prefix, js_domain, "LINKDEF_#{ld.id}", ld)
+        HostCore.Jetstream.Client.kv_put(
+          prefix,
+          js_domain,
+          "LINKDEF_#{ld.id}",
+          ld |> JSON.encode!()
+        )
 
         Logger.debug(
           "Migrated legacy link definition #{key} from #{ld.actor_id} to #{ld.provider_id}"
