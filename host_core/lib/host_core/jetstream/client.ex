@@ -171,13 +171,13 @@ defmodule HostCore.Jetstream.Client do
         if Map.has_key?(decoded, "config") do
           # consumer created for stream
           Logger.warn("Migrating data from legacy lattice cache to new key-value store")
-          migrate_bucket_keys(state.js_domain)
+          migrate_bucket_keys(state.domain)
           Gnat.unsub(conn, sub)
 
           delete_stream(
             "LATTICECACHE_#{state.lattice_prefix}",
             state.lattice_prefix,
-            state.js_domain
+            state.domain
           )
         end
       else
