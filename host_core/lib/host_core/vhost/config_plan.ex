@@ -108,15 +108,23 @@ defmodule HostCore.Vhost.ConfigPlan do
     ]
   end
 
-  defp string_to_loglevel(s) do
+  def string_to_loglevel(s) do
     s |> String.trim() |> String.downcase() |> String.to_existing_atom()
   end
 
-  defp string_to_bool(nil) do
+  def string_to_bool(nil) do
     false
   end
 
-  defp string_to_bool(s) do
+  def string_to_bool(s) when is_binary(s) do
     String.upcase(s) in ["1", "TRUE", "YES", "Y", "ENABLED", "ENABLE"]
+  end
+
+  def string_to_bool(b) when is_boolean(b) do
+    b
+  end
+
+  def string_to_bool(_) do
+    false
   end
 end

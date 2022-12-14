@@ -231,12 +231,12 @@ defmodule HostCore.WebAssembly.Imports do
          source_actor: actor_id
        }) do
     case HostCore.Linkdefs.Manager.lookup_link_definition(prefix, actor_id, namespace, binding) do
-      {:ok, ld} ->
+      nil ->
+        check_namespace(namespace, prefix)
+
+      ld ->
         Tracer.set_attribute("target_provider", ld.provider_id)
         {:provider, ld.provider_id, "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{binding}"}
-
-      _ ->
-        check_namespace(namespace, prefix)
     end
   end
 
@@ -285,8 +285,8 @@ defmodule HostCore.WebAssembly.Imports do
        ) do
     verified =
       case HostCore.Linkdefs.Manager.lookup_link_definition(prefix, actor, namespace, binding) do
-        {:ok, _ld} -> true
-        _ -> false
+        nil -> false
+        _ -> true
       end
 
     %{token | verified: verified}

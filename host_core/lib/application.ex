@@ -16,6 +16,15 @@ defmodule HostCore.Application do
   use Application
 
   @host_config_file "host_config.json"
+  @extra_keys [
+    :cluster_adhoc,
+    :cache_deliver_inbox,
+    :metadata_deliver_inbox,
+    :host_seed,
+    :enable_structured_logging,
+    :structured_log_level,
+    :host_key
+  ]
 
   def start(_type, _args) do
     create_ets_tables()
@@ -120,14 +129,24 @@ defmodule HostCore.Application do
       |> Map.put(:host_key, host_key)
       |> Map.put(:host_seed, host_seed)
 
+    config = ensure_booleans(config)
+
     s =
       Hashids.new(
         salt: "lc_deliver_inbox",
         min_len: 2
       )
 
+    s2 =
+      Hashids.new(
+        salt: "md_deliver_inbox",
+        min_len: 2
+      )
+
     hid = Hashids.encode(s, Enum.random(1..4_294_967_295))
+    hid2 = Hashids.encode(s2, Enum.random(1..4_294_967_295))
     config = Map.put(config, :cache_deliver_inbox, "_INBOX.#{hid}")
+    config = Map.put(config, :metadata_deliver_inbox, "INBOX.#{hid2}")
 
     if config.js_domain != nil && String.valid?(config.js_domain) &&
          String.length(config.js_domain) > 1 do
@@ -205,6 +224,16 @@ defmodule HostCore.Application do
     config
   end
 
+  defp ensure_booleans(config) do
+    bool_keys = [:config_service_enabled, :ctl_tls, :rpc_tls, :enable_ipv6]
+
+    Enum.reduce(bool_keys, config, fn key, config ->
+      old = Map.get(config, key, nil)
+      new = HostCore.Vhost.ConfigPlan.string_to_bool(old)
+      Map.put(config, key, new)
+    end)
+  end
+
   defp write_config(config) do
     write_json(config, @host_config_file)
 
@@ -233,12 +262,7 @@ defmodule HostCore.Application do
 
   defp remove_extras(config) do
     config
-    |> Map.delete(:cluster_adhoc)
-    |> Map.delete(:cache_deliver_inbox)
-    |> Map.delete(:host_seed)
-    |> Map.delete(:enable_structured_logging)
-    |> Map.delete(:structured_log_level)
-    |> Map.delete(:host_key)
+    |> Map.drop(@extra_keys)
   end
 
   defp ensure_contains(list, item) do

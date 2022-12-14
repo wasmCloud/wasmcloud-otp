@@ -177,7 +177,7 @@ defmodule HostCore.Providers.ProviderModule do
     # the provider's NATS topic. The provider subscribes to that directly
     # when it starts.
 
-    HostCore.Claims.Manager.put_claims(lattice_prefix, claims)
+    HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, claims)
 
     publish_provider_started(
       host_id,

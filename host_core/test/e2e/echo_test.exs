@@ -106,6 +106,14 @@ defmodule HostCore.E2E.EchoTest do
              %{PORT: "8884"}
            ) == :ok
 
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_linkdef(
+        evt_watcher,
+        @echo_unpriv_key,
+        @httpserver_contract,
+        @httpserver_link
+      )
+
     {:ok, _pid} =
       ProviderSupervisor.start_provider_from_file(
         config.host_key,
@@ -121,15 +129,7 @@ defmodule HostCore.E2E.EchoTest do
         @httpserver_key
       )
 
-    # For now, okay to put a link definition without proper claims
-    assert Manager.put_link_definition(
-             config.lattice_prefix,
-             @echo_unpriv_key,
-             @httpserver_contract,
-             @httpserver_link,
-             @httpserver_key,
-             %{PORT: "8884"}
-           ) == :ok
+    Process.sleep(300)
 
     {:ok, _okay} = HTTPoison.start()
     {:ok, resp} = request_http("http://localhost:8884/foobar", 10)

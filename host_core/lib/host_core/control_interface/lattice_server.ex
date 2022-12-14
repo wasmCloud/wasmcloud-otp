@@ -5,6 +5,7 @@ defmodule HostCore.ControlInterface.LatticeServer do
   use Gnat.Server
 
   alias HostCore.CloudEvent
+  alias HostCore.Linkdefs.Manager, as: LinkdefsManager
 
   import HostCore.Nats,
     only: [safe_pub: 3, control_connection: 1]
@@ -88,11 +89,10 @@ defmodule HostCore.ControlInterface.LatticeServer do
 
   ### LINKDEFS
   # These requests are targeted at one host per lattice, changes made as a result
-  # are emitted to the appropriate stream and cached
+  # are emitted to the appropriate stream and cached.
+  # THESE ARE NOW DEPRECATED
+  # Eventually the host will stop subscribing to these topics
 
-  # Put a link definition
-  # This will first store the link definition in memory, then publish it to the stream
-  # then publish it directly to the relevant provider via the RPC channel
   defp handle_request({"linkdefs", "put"}, body, _reply_to, prefix) do
     Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
@@ -114,15 +114,11 @@ defmodule HostCore.ControlInterface.LatticeServer do
     end
   end
 
-  # Remove a link definition
-  # This will first remove the link definition from memory, then publish the removal
-  # message to the stream, then publish the removal directly to the relevant provider via the
-  # RPC channel
   defp handle_request({"linkdefs", "del"}, body, _reply_to, prefix) do
     Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
            true <- has_values(ld, ["actor_id", "contract_id", "link_name"]) do
-        HostCore.Linkdefs.Manager.del_link_definition(
+        HostCore.Linkdefs.Manager.del_link_definition_by_triple(
           prefix,
           ld["actor_id"],
           ld["contract_id"],

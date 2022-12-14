@@ -65,6 +65,20 @@ defmodule HostCoreTest.Common do
 
       {:error, :timeout} ->
         Logger.error("Failed to purge NATS stream for lattice cache within timeout")
+
+      {:error, :no_responders} ->
+        Logger.error("Failed to purge NATS stream for lattice cache - no responders")
+    end
+
+    case HostCore.Jetstream.Client.delete_kv_bucket(config.lattice_prefix, nil) do
+      {:ok, %{body: _body}} ->
+        Logger.debug("Deleted metadata cache for lattice")
+
+      {:error, :timeout} ->
+        Logger.error("Failed to delete metadata cache bucket within timeout")
+
+      {:error, :no_responders} ->
+        Logger.error("No responders for request to delete metadata cache bucket")
     end
   end
 
@@ -79,10 +93,12 @@ defmodule HostCoreTest.Common do
       )
 
     hid = Hashids.encode(s, Enum.random(1..4_294_967_295))
+    hid2 = Hashids.encode(s, Enum.random(1..4_294_967_295))
 
     %{
       lattice_prefix: "default",
       cache_deliver_inbox: "_INBOX.#{hid}",
+      metadata_deliver_inbox: "INBOX.#{hid2}",
       host_seed: seed,
       cluster_key: ck,
       cluster_adhoc: false,

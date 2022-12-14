@@ -2,6 +2,19 @@ defmodule HostCore.Claims.Manager do
   @moduledoc false
   require Logger
 
+  import HostCore.Jetstream.MetadataCacheLoader, only: [broadcast_event: 3]
+
+  @type cached_claimsdata :: %{
+          call_alias: String.t(),
+          iss: String.t(),
+          name: String.t(),
+          caps: String.t(),
+          rev: String.t(),
+          tags: String.t(),
+          version: String.t(),
+          sub: String.t()
+        }
+
   @spec lookup_claims(lattice_prefix :: String.t(), public_key :: String.t()) ::
           :error | {:ok, map()}
   def lookup_claims(lattice_prefix, public_key) do
@@ -11,8 +24,17 @@ defmodule HostCore.Claims.Manager do
     end
   end
 
+  @spec cache_claims(
+          lattice_prefix :: String.t(),
+          key :: String.t(),
+          claims :: cached_claimsdata()
+        ) :: any()
   def cache_claims(lattice_prefix, key, claims) do
     :ets.insert(claims_table_atom(lattice_prefix), {key, claims})
+  end
+
+  def uncache_claims(lattice_prefix, key) do
+    :ets.delete(claims_table_atom(lattice_prefix), key)
   end
 
   def cache_call_alias(lattice_prefix, call_alias, public_key) do
@@ -21,7 +43,7 @@ defmodule HostCore.Claims.Manager do
     end
   end
 
-  def put_claims(lattice_prefix, claims) do
+  def put_claims(host_id, lattice_prefix, claims) do
     key = claims.public_key
 
     claims = %{
@@ -62,7 +84,7 @@ defmodule HostCore.Claims.Manager do
 
     cache_call_alias(lattice_prefix, claims.call_alias, claims.sub)
     cache_claims(lattice_prefix, key, claims)
-    publish_claims(lattice_prefix, claims)
+    publish_claims(host_id, lattice_prefix, claims)
   end
 
   def claims_table_atom(lattice_prefix) do
@@ -83,12 +105,17 @@ defmodule HostCore.Claims.Manager do
     end
   end
 
-  defp publish_claims(lattice_prefix, claims) do
-    topic = "lc.#{lattice_prefix}.claims.#{claims.sub}"
+  defp publish_claims(host_id, lattice_prefix, claims) do
+    config = HostCore.Vhost.VirtualHost.config(host_id)
 
-    conn = HostCore.Nats.control_connection(lattice_prefix)
+    HostCore.Jetstream.Client.kv_put(
+      lattice_prefix,
+      config.js_domain,
+      "CLAIMS_#{claims.sub}",
+      Jason.encode!(claims)
+    )
 
-    HostCore.Nats.safe_pub(conn, topic, Jason.encode!(claims))
+    broadcast_event(:claims_added, claims, lattice_prefix)
   end
 
   def get_claims(lattice_prefix) when is_binary(lattice_prefix) do
