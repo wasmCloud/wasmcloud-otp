@@ -23,7 +23,8 @@ defmodule HostCore.Application do
     :host_seed,
     :enable_structured_logging,
     :structured_log_level,
-    :host_key
+    :host_key,
+    :host_config
   ]
 
   def start(_type, _args) do
@@ -122,12 +123,30 @@ defmodule HostCore.Application do
         end
       end
 
+    host_config =
+      if is_nil(config.host_config) do
+        case System.user_home() do
+          nil ->
+            Logger.warn(
+              "Could not determine user's home directory. Using current directory instead."
+            )
+
+            @host_config_file
+
+          h ->
+            Path.join([h, "/.wash/", @host_config_file])
+        end
+      else
+        config.host_config
+      end
+
     config =
       config
       |> Map.put(:cluster_adhoc, false)
       |> Map.put(:cluster_key, "")
       |> Map.put(:host_key, host_key)
       |> Map.put(:host_seed, host_seed)
+      |> Map.put(:host_config, host_config)
 
     config = ensure_booleans(config)
 
@@ -234,19 +253,7 @@ defmodule HostCore.Application do
     end)
   end
 
-  defp write_config(config) do
-    write_json(config, @host_config_file)
-
-    case System.user_home() do
-      nil ->
-        Logger.warn(
-          "Can't write ~/.wash/#{@host_config_file}: could not determine user's home directory."
-        )
-
-      h ->
-        write_json(config, Path.join([h, "/.wash/", @host_config_file]))
-    end
-  end
+  defp write_config(config), do: write_json(config, config.host_config)
 
   defp write_json(config, file) do
     with :ok <- File.mkdir_p(Path.dirname(file)) do
@@ -260,10 +267,7 @@ defmodule HostCore.Application do
     end
   end
 
-  defp remove_extras(config) do
-    config
-    |> Map.drop(@extra_keys)
-  end
+  defp remove_extras(config), do: Map.drop(config, @extra_keys)
 
   defp ensure_contains(list, item) do
     if Enum.member?(list, item) do
