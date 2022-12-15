@@ -419,9 +419,6 @@ defmodule HostCore.Vhost.VirtualHost do
   def handle_cast({:do_stop, _timeout_ms}, state) do
     Logger.debug("Host stop requested manually")
 
-    do_purge(state)
-    publish_host_stopped(state)
-
     if HostCore.Application.host_count() == 1 do
       # Give a little bit of time for the event to get sent before shutting down
       :timer.sleep(300)
