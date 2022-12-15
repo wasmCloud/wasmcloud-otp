@@ -1,6 +1,9 @@
 defmodule HostCore.Policy.Manager do
   @moduledoc false
   require Logger
+
+  alias HostCore.Policy.Manager
+
   use Gnat.Server
 
   @policy_table :policy_table
@@ -52,7 +55,7 @@ defmodule HostCore.Policy.Manager do
           action :: String.t()
         ) :: Map.t()
   def evaluate_action(host_config, source, target, action) do
-    with {:ok, topic} <- HostCore.Policy.Manager.policy_topic(host_config),
+    with {:ok, topic} <- Manager.policy_topic(host_config),
          nil <- cached_decision(source, target, action, host_config.lattice_prefix),
          :ok <- validate_source(source),
          :ok <- validate_target(target),
@@ -96,11 +99,10 @@ defmodule HostCore.Policy.Manager do
   defp evaluate(req, topic, host_config) do
     case Jason.encode(req) do
       {:ok, encoded} ->
-        case HostCore.Nats.safe_req(
-               HostCore.Nats.control_connection(host_config.lattice_prefix),
-               topic,
-               encoded,
-               receive_timeout: HostCore.Policy.Manager.policy_timeout(host_config)
+        case host_config.lattice_prefix
+             |> HostCore.Nats.control_connection()
+             |> HostCore.Nats.safe_req(topic, encoded,
+               receive_timeout: Manager.policy_timeout(host_config)
              ) do
           {:ok, %{body: body}} ->
             # Decode body with existing atom keys
@@ -111,27 +113,27 @@ defmodule HostCore.Policy.Manager do
               {:error, _decode} ->
                 {default_decision(
                    "Policy response failed to decode",
-                   req |> Map.get(:requestId, "not supplied")
+                   Map.get(req, :requestId, "not supplied")
                  ), false}
             end
 
           {:error, :no_responders} ->
             {default_decision(
                "No responders to policy request (policy server not listening?)",
-               req |> Map.get(:requestId, "not supplied")
+               Map.get(req, :requestId, "not supplied")
              ), false}
 
           {:error, :timeout} ->
             {default_decision(
                "Policy request timed out",
-               req |> Map.get(:requestId, "not supplied")
+               Map.get(req, :requestId, "not supplied")
              ), false}
         end
 
       {:error, e} ->
         Logger.error("Could not JSON encode request, #{e}")
 
-        {default_decision("", req |> Map.get(:requestId, "not supplied")), false}
+        {default_decision("", Map.get(req, :requestId, "not supplied")), false}
     end
   end
 

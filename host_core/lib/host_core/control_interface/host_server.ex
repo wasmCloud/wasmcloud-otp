@@ -4,14 +4,11 @@ defmodule HostCore.ControlInterface.HostServer do
   require OpenTelemetry.Tracer, as: Tracer
   use Gnat.Server
 
-  alias HostCore.ControlInterface.ACL
+  alias HostCore.Actors.ActorSupervisor
   alias HostCore.CloudEvent
-
-  import HostCore.Actors.ActorSupervisor,
-    only: [start_actor_from_bindle: 4, start_actor_from_oci: 4]
-
-  import HostCore.Providers.ProviderSupervisor,
-    only: [start_provider_from_bindle: 5, start_provider_from_oci: 5]
+  alias HostCore.ControlInterface.ACL
+  alias HostCore.Providers.ProviderSupervisor
+  alias HostCore.Vhost.VirtualHost
 
   import HostCore.ControlInterface.LatticeServer,
     only: [
@@ -46,12 +43,12 @@ defmodule HostCore.ControlInterface.HostServer do
     Tracer.with_span "Handle Inventory Request (ctl)", kind: :server do
       Tracer.set_attribute("host_id", host_id)
 
-      case HostCore.Vhost.VirtualHost.lookup(host_id) do
+      case VirtualHost.lookup(host_id) do
         :error ->
           {:reply, failure_ack("Command received by incorrect host and could not be processed")}
 
         {:ok, {pid, _prefix}} ->
-          inv = HostCore.Vhost.VirtualHost.get_inventory(pid)
+          inv = VirtualHost.get_inventory(pid)
 
           {:reply,
            inv
@@ -84,9 +81,9 @@ defmodule HostCore.ControlInterface.HostServer do
 
           res =
             if String.starts_with?(actor_ref, "bindle://") do
-              start_actor_from_bindle(host_id, actor_ref, count, annotations)
+              ActorSupervisor.start_actor_from_bindle(host_id, actor_ref, count, annotations)
             else
-              start_actor_from_oci(host_id, actor_ref, count, annotations)
+              ActorSupervisor.start_actor_from_oci(host_id, actor_ref, count, annotations)
             end
 
           case res do
@@ -124,7 +121,7 @@ defmodule HostCore.ControlInterface.HostServer do
 
       with {:ok, stop_actor_command} <- Jason.decode(body),
            true <- has_values(stop_actor_command, ["actor_ref", "count"]) do
-        HostCore.Actors.ActorSupervisor.terminate_actor(
+        ActorSupervisor.terminate_actor(
           host_id,
           stop_actor_command["actor_ref"],
           stop_actor_command["count"],
@@ -154,7 +151,7 @@ defmodule HostCore.ControlInterface.HostServer do
         Tracer.set_current_span(ctx)
 
         Tracer.with_span "Handle Scale Actor Request (ctl)", kind: :server do
-          case HostCore.Actors.ActorSupervisor.scale_actor(host_id, actor_id, count, actor_ref) do
+          case ActorSupervisor.scale_actor(host_id, actor_id, count, actor_ref) do
             {:error, err} ->
               Logger.error("Error scaling actor #{actor_id}: #{err}", actor_id: actor_id)
 
@@ -183,7 +180,7 @@ defmodule HostCore.ControlInterface.HostServer do
         span_ctx = Tracer.current_span_ctx()
 
         response =
-          case HostCore.Actors.ActorSupervisor.live_update(
+          case ActorSupervisor.live_update(
                  host_id,
                  update_actor_command["new_actor_ref"],
                  span_ctx
@@ -214,10 +211,10 @@ defmodule HostCore.ControlInterface.HostServer do
         # we want to wait for up to the timeout. We could use this library possibly so we can put in
         # hooks: https://github.com/botsquad/graceful_stop.
         {:ok, stop_host_command} ->
-          case HostCore.Vhost.VirtualHost.lookup(host_id) do
+          case VirtualHost.lookup(host_id) do
             {:ok, {pid, _prefix}} ->
               Logger.info("Received stop request for host #{host_id}")
-              HostCore.Vhost.VirtualHost.stop(pid, Map.get(stop_host_command, "timeout", 500))
+              VirtualHost.stop(pid, Map.get(stop_host_command, "timeout", 500))
 
               Tracer.set_status(:ok, "")
               {:reply, success_ack()}
@@ -240,7 +237,7 @@ defmodule HostCore.ControlInterface.HostServer do
   defp handle_request({"cmd", host_id, "lp"}, body, _reply_to, prefix) do
     with {:ok, start_provider_command} <- Jason.decode(body),
          true <- has_values(start_provider_command, ["provider_ref", "link_name"]) do
-      if HostCore.Providers.ProviderSupervisor.provider_running?(
+      if ProviderSupervisor.provider_running?(
            host_id,
            start_provider_command["provider_ref"],
            start_provider_command["link_name"],
@@ -264,7 +261,7 @@ defmodule HostCore.ControlInterface.HostServer do
 
             res =
               if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
-                start_provider_from_bindle(
+                ProviderSupervisor.start_provider_from_bindle(
                   host_id,
                   start_provider_command["provider_ref"],
                   start_provider_command["link_name"],
@@ -272,7 +269,7 @@ defmodule HostCore.ControlInterface.HostServer do
                   annotations
                 )
               else
-                start_provider_from_oci(
+                ProviderSupervisor.start_provider_from_oci(
                   host_id,
                   start_provider_command["provider_ref"],
                   start_provider_command["link_name"],
@@ -312,11 +309,11 @@ defmodule HostCore.ControlInterface.HostServer do
     Tracer.with_span "Handle Stop Provider Request (ctl)", kind: :server do
       with {:ok, stop_provider_command} <- Jason.decode(body),
            true <- has_values(stop_provider_command, ["provider_ref", "link_name"]),
-           56 <- String.length(Map.get(stop_provider_command, "provider_ref", "")) do
+           56 <- stop_provider_command |> Map.get("provider_ref", "") |> String.length() do
         Tracer.set_attribute("provider_ref", stop_provider_command["provider_ref"])
         Tracer.set_attribute("link_name", stop_provider_command["link_name"])
 
-        HostCore.Providers.ProviderSupervisor.terminate_provider(
+        ProviderSupervisor.terminate_provider(
           host_id,
           stop_provider_command["provider_ref"],
           stop_provider_command["link_name"]

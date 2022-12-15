@@ -11,6 +11,7 @@ defmodule HostCore.Providers.ProviderModule do
   require OpenTelemetry.Tracer, as: Tracer
 
   alias HostCore.CloudEvent
+  alias HostCore.Vhost.VirtualHost
 
   @thirty_seconds 30_000
 
@@ -157,7 +158,7 @@ defmodule HostCore.Providers.ProviderModule do
     Registry.register(Registry.ProviderRegistry, {claims.public_key, link_name}, host_id)
 
     host_info =
-      HostCore.Vhost.VirtualHost.generate_hostinfo_for_provider(
+      VirtualHost.generate_hostinfo_for_provider(
         host_id,
         claims.public_key,
         link_name,
@@ -218,9 +219,9 @@ defmodule HostCore.Providers.ProviderModule do
 
   @propagated_env_vars ["OTEL_TRACES_EXPORTER", "OTEL_EXPORTER_OTLP_ENDPOINT"]
 
-  defp extract_env_vars() do
+  defp extract_env_vars do
     @propagated_env_vars
-    |> Enum.map(fn e -> {e |> to_charlist(), System.get_env(e) |> to_charlist()} end)
+    |> Enum.map(fn e -> {to_charlist(e), e |> System.get_env() |> to_charlist()} end)
     |> Enum.filter(fn {_k, v} -> length(v) > 0 end)
     |> Enum.into([])
   end
@@ -230,8 +231,9 @@ defmodule HostCore.Providers.ProviderModule do
     Logger.debug("Provider termination requested manually")
 
     Tracer.with_span "Terminate provider instance", kind: :server do
-      case HostCore.Nats.safe_req(
-             HostCore.Nats.rpc_connection(state.lattice_prefix),
+      case state.lattice_prefix
+           |> HostCore.Nats.rpc_connection()
+           |> HostCore.Nats.safe_req(
              "wasmbus.rpc.#{state.lattice_prefix}.#{state.public_key}.#{state.link_name}.shutdown",
              Jason.encode!(%{host_id: state.host_id}),
              receive_timeout: 2000
@@ -365,13 +367,13 @@ defmodule HostCore.Providers.ProviderModule do
   def handle_info(:do_health, state) do
     topic = "wasmbus.rpc.#{state.lattice_prefix}.#{state.public_key}.#{state.link_name}.health"
     payload = %{placeholder: true} |> Msgpax.pack!() |> IO.iodata_to_binary()
-    config = HostCore.Vhost.VirtualHost.config(state.host_id)
+    config = VirtualHost.config(state.host_id)
 
     res =
       try do
-        HostCore.Nats.safe_req(HostCore.Nats.rpc_connection(state.lattice_prefix), topic, payload,
-          receive_timeout: config.rpc_timeout_ms
-        )
+        state.lattice_prefix
+        |> HostCore.Nats.rpc_connection()
+        |> HostCore.Nats.safe_req(topic, payload, receive_timeout: config.rpc_timeout_ms)
       rescue
         _e ->
           {:error, "Received no response on health check topic from provider"}

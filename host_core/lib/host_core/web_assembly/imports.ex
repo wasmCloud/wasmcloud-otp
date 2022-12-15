@@ -2,8 +2,13 @@ defmodule HostCore.WebAssembly.Imports do
   @moduledoc false
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
+
   alias HostCore.Actors.ActorModule.State
   alias HostCore.CloudEvent
+  alias HostCore.Providers.Builtin.Logging
+  alias HostCore.Providers.Builtin.Numbergen
+  alias HostCore.Vhost.VirtualHost
+  alias HostCore.WasmCloud.Native
 
   @wasmcloud_logging "wasmcloud:builtin:logging"
   @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
@@ -14,7 +19,7 @@ defmodule HostCore.WebAssembly.Imports do
   # store to hold it and allow 15 seconds for the RPC call to
   # finish (giving the other side time to "de-chunk")
   @chunk_threshold 900 * 1024
-  @chunk_rpc_timeout 15000
+  @chunk_rpc_timeout 15_000
 
   def wapc_imports(agent) do
     %{
@@ -134,7 +139,7 @@ defmodule HostCore.WebAssembly.Imports do
     Logger.debug("Host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
 
     state = Agent.get(agent, fn content -> content end)
-    config = HostCore.Vhost.VirtualHost.config(state.host_id)
+    config = VirtualHost.config(state.host_id)
     claims = state.claims
     actor = claims.public_key
 
@@ -197,20 +202,12 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   # Logging is a builtin and does not need a target
-  defp identify_target(
-         token = %{
-           namespace: @wasmcloud_logging
-         }
-       ) do
+  defp identify_target(%{namespace: @wasmcloud_logging} = token) do
     {:ok, token}
   end
 
   # Numbergen is a builtin and does not need a target
-  defp identify_target(
-         token = %{
-           namespace: @wasmcloud_numbergen
-         }
-       ) do
+  defp identify_target(%{namespace: @wasmcloud_numbergen} = token) do
     {:ok, token}
   end
 
@@ -262,26 +259,26 @@ defmodule HostCore.WebAssembly.Imports do
 
   # Built-in Providers do not have link definitions
   # Auto-verify the built-in contract IDs (claims check will be performed below in authorize_call)
-  defp verify_link(token = %{namespace: @wasmcloud_logging}) do
+  defp verify_link(%{namespace: @wasmcloud_logging} = token) do
     %{token | verified: true}
   end
 
-  defp verify_link(token = %{namespace: @wasmcloud_numbergen}) do
+  defp verify_link(%{namespace: @wasmcloud_numbergen} = token) do
     %{token | verified: true}
   end
 
-  defp verify_link(token = %{target: {:actor, _, _}}) do
+  defp verify_link(%{target: {:actor, _, _}} = token) do
     %{token | verified: true}
   end
 
   defp verify_link(
-         token = %{
+         %{
            target: {:provider, _pk, _topic},
            source_actor: actor,
            namespace: namespace,
            binding: binding,
            prefix: prefix
-         }
+         } = token
        ) do
     verified =
       case HostCore.Linkdefs.Manager.lookup_link_definition(prefix, actor, namespace, binding) do
@@ -292,37 +289,37 @@ defmodule HostCore.WebAssembly.Imports do
     %{token | verified: verified}
   end
 
-  defp authorize_call(token = %{verified: false}) do
+  defp authorize_call(%{verified: false} = token) do
     %{token | authorized: false}
   end
 
-  defp authorize_call(token = %{namespace: @wasmcloud_logging, claims: claims}) do
+  defp authorize_call(%{namespace: @wasmcloud_logging, claims: claims} = token) do
     %{token | authorized: Enum.member?(claims.caps, @wasmcloud_logging)}
   end
 
-  defp authorize_call(token = %{namespace: @wasmcloud_numbergen, claims: claims}) do
+  defp authorize_call(%{namespace: @wasmcloud_numbergen, claims: claims} = token) do
     %{token | authorized: Enum.member?(claims.caps, @wasmcloud_numbergen)}
   end
 
   defp authorize_call(
-         token = %{target: {:provider, _pk, _topic}, claims: claims, namespace: namespace}
+         %{target: {:provider, _pk, _topic}, claims: claims, namespace: namespace} = token
        ) do
     %{token | authorized: Enum.member?(claims.caps, namespace)}
   end
 
   # allow actor-to-actor calls
-  defp authorize_call(token = %{target: {:actor, _, _}}) do
+  defp authorize_call(%{target: {:actor, _, _}} = token) do
     %{token | authorized: true}
   end
 
   # Deny invocation due to missing link definition for a contract ID and link name
   defp invoke(
-         _token = %{
+         %{
            verified: false,
            agent: agent,
            namespace: namespace,
            prefix: prefix
-         }
+         } = _token
        ) do
     Agent.update(agent, fn state ->
       %State{
@@ -336,7 +333,7 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   # Deny invocation due to missing capability claim
-  defp invoke(_token = %{authorized: false, agent: agent, namespace: namespace}) do
+  defp invoke(%{authorized: false, agent: agent, namespace: namespace} = _token) do
     Agent.update(agent, fn state ->
       %State{
         state
@@ -348,32 +345,32 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp invoke(
-         _token = %{
+         %{
            namespace: @wasmcloud_logging,
            operation: operation,
            payload: payload,
            source_actor: actor
-         }
+         } = _token
        ) do
-    HostCore.Providers.Builtin.Logging.invoke(actor, operation, payload)
+    Logging.invoke(actor, operation, payload)
     1
   end
 
   defp invoke(
-         _token = %{
+         %{
            namespace: @wasmcloud_numbergen,
            operation: operation,
            payload: payload,
            agent: agent
-         }
+         } = _token
        ) do
-    res = HostCore.Providers.Builtin.Numbergen.invoke(operation, payload)
+    res = Numbergen.invoke(operation, payload)
     Agent.update(agent, fn state -> %State{state | host_response: res} end)
     1
   end
 
   defp invoke(
-         _token = %{
+         %{
            authorized: true,
            verified: true,
            agent: agent,
@@ -386,13 +383,13 @@ defmodule HostCore.WebAssembly.Imports do
            operation: operation,
            payload: payload,
            target: {target_type, target_key, target_subject}
-         }
+         } = _token
        ) do
     timeout =
       if byte_size(payload) > @chunk_threshold do
         @chunk_rpc_timeout
       else
-        config = HostCore.Vhost.VirtualHost.config(host_id)
+        config = VirtualHost.config(host_id)
         config.rpc_timeout_ms
       end
 
@@ -403,8 +400,8 @@ defmodule HostCore.WebAssembly.Imports do
     # storing on an invocation
 
     invocation_res =
-      HostCore.WasmCloud.Native.generate_invocation_bytes(
-        seed,
+      seed
+      |> Native.generate_invocation_bytes(
         actor,
         target_type,
         target_key,
@@ -500,12 +497,9 @@ defmodule HostCore.WebAssembly.Imports do
       Tracer.set_attribute("topic", target_subject)
       Tracer.set_attribute("lattice_id", prefix)
 
-      case HostCore.Nats.safe_req(
-             HostCore.Nats.control_connection(prefix),
-             target_subject,
-             inv_bytes,
-             receive_timeout: timeout
-           ) do
+      case prefix
+           |> HostCore.Nats.control_connection()
+           |> HostCore.Nats.safe_req(target_subject, inv_bytes, receive_timeout: timeout) do
         {:ok, %{body: body}} ->
           Tracer.set_status(:ok, "")
           body
@@ -532,10 +526,10 @@ defmodule HostCore.WebAssembly.Imports do
       # If invocation was successful but resulted in an error then that goes in `host_error`
       # Otherwise, InvocationResponse.msg goes in `host_response`
       _ ->
-        ir = res |> Msgpax.unpack!()
+        ir = Msgpax.unpack!(res)
 
         if ir["error"] == nil do
-          {1, :host_response, check_dechunk(ir) |> IO.iodata_to_binary()}
+          {1, :host_response, ir |> check_dechunk() |> IO.iodata_to_binary()}
         else
           {0, :host_error, ir["error"]}
         end
@@ -552,7 +546,7 @@ defmodule HostCore.WebAssembly.Imports do
     # if declared content size is greater than the actual (e.g. empty payload) then
     # we know we need to de-chunk
     with true <- Map.get(ir, "content_length", bsize) > bsize,
-         {:ok, bytes} <- HostCore.WasmCloud.Native.dechunk_inv(invid) do
+         {:ok, bytes} <- Native.dechunk_inv(invid) do
       bytes
     else
       {:error, e} ->
@@ -565,30 +559,38 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp host_response(_api_type, context, agent, ptr) do
-    if (hr = Agent.get(agent, fn content -> content.host_response end)) != nil do
-      Wasmex.Memory.write_binary(context.memory, ptr, hr)
+    host_resp = Agent.get(agent, fn content -> content.host_response end)
+
+    if host_resp != nil do
+      Wasmex.Memory.write_binary(context.memory, ptr, host_resp)
       nil
     end
   end
 
   defp host_response_len(_api_type, _context, agent) do
-    if (hr = Agent.get(agent, fn content -> content.host_response end)) != nil do
-      safe_bsize(hr)
+    host_resp = Agent.get(agent, fn content -> content.host_response end)
+
+    if host_resp != nil do
+      safe_bsize(host_resp)
     else
       0
     end
   end
 
   defp host_error(_api_type, context, agent, ptr) do
-    if (he = Agent.get(agent, fn content -> content.host_error end)) != nil do
-      Wasmex.Memory.write_binary(context.memory, ptr, he)
+    host_err = Agent.get(agent, fn content -> content.host_error end)
+
+    if host_err != nil do
+      Wasmex.Memory.write_binary(context.memory, ptr, host_err)
       nil
     end
   end
 
   defp host_error_len(_api_type, _context, agent) do
-    if (he = Agent.get(agent, fn content -> content.host_error end)) != nil do
-      safe_bsize(he)
+    host_err = Agent.get(agent, fn content -> content.host_error end)
+
+    if host_err != nil do
+      safe_bsize(host_err)
     else
       0
     end

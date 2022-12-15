@@ -1,6 +1,12 @@
 defmodule HostCore.Providers.Builtin.Numbergen do
+  @moduledoc """
+  A provider that generates random numbers and GUIDs.
+  """
+
   def invoke("NumberGen.GenerateGuid", _payload) do
-    IO.iodata_to_binary(Msgpax.pack!(UUID.uuid4()))
+    UUID.uuid4()
+    |> Msgpax.pack!()
+    |> IO.iodata_to_binary()
   end
 
   def invoke("NumberGen.RandomInRange", payload) do
@@ -8,10 +14,15 @@ defmodule HostCore.Providers.Builtin.Numbergen do
 
     min = max(params["min"], 0)
     max = min(params["max"], 4_294_967_295)
-    IO.iodata_to_binary(Msgpax.pack!(Enum.random(min..max)))
+
+    Enum.random(min..max)
+    |> Msgpax.pack!()
+    |> IO.iodata_to_binary()
   end
 
   def invoke("NumberGen.Random32", _payload) do
-    IO.iodata_to_binary(Msgpax.pack!(Enum.random(0..4_294_967_295)))
+    Enum.random(0..4_294_967_295)
+    |> Msgpax.pack!()
+    |> IO.iodata_to_binary()
   end
 end

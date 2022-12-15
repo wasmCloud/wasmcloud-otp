@@ -1,4 +1,9 @@
 defmodule HostCore.Vhost.FilesConfigProvider do
+  @moduledoc """
+  A configuration provider that loads configuration from a file.
+  The file is expected to be either in json, toml or yml/yaml format.
+  """
+
   defstruct paths: [], bindings: []
 
   defimpl Vapor.Provider do
