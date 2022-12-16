@@ -75,7 +75,7 @@ defmodule HostCore.Linkdefs.Manager do
         provider_key,
         values
       ) do
-    ldid = UUID.uuid4()
+    ldid = linkdef_hash(actor, contract_id, link_name)
 
     cache_link_definition(
       lattice_prefix,
@@ -166,6 +166,15 @@ defmodule HostCore.Linkdefs.Manager do
           "Tried to find a virtual host running for lattice #{prefix} but there isn't one. This indicates corrupt state!"
         )
     end
+  end
+
+  defp linkdef_hash(actor_id, contract_id, link_name) do
+    sha = :crypto.hash_init(:sha256)
+    sha = :crypto.hash_update(sha, actor_id)
+    sha = :crypto.hash_update(sha, contract_id)
+    sha = :crypto.hash_update(sha, link_name)
+    sha_binary = :crypto.hash_final(sha)
+    sha_binary |> Base.encode16() |> String.upcase()
   end
 
   # Publishes the removal of a link definition to the event stream and sends an indication
