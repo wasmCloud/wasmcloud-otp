@@ -3,11 +3,10 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   The metadata cache loader is responsible for reading metadata key changes (add/remove) from the LATTICEDATA_{prefix}
   NATS key-value bucket.
   """
-  alias HostCore.Linkdefs
-  alias Phoenix.PubSub
   alias HostCore.Claims.Manager, as: ClaimsManager
-  alias HostCore.Refmaps.Manager, as: RefmapsManager
   alias HostCore.Linkdefs.Manager, as: LinkdefsManager
+  alias HostCore.Refmaps.Manager, as: RefmapsManager
+  alias Phoenix.PubSub
 
   require Logger
   use Gnat.Server
@@ -77,8 +76,8 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
         # * store it in memory
         # * notify internal consumers via pubsub (publish)
         # * notify capability providers via RPC (publish)
-        Linkdefs.Manager.cache_link_definition(lattice_prefix, ld)
-        Linkdefs.Manager.publish_link_definition(lattice_prefix, ld)
+        LinkdefsManager.cache_link_definition(lattice_prefix, ld)
+        LinkdefsManager.publish_link_definition(lattice_prefix, ld)
 
       {:error, e} ->
         Logger.error("Failed to deserialize linkdef from metadata cache: #{inspect(e)}")

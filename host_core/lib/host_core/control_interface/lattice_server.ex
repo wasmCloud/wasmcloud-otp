@@ -5,8 +5,8 @@ defmodule HostCore.ControlInterface.LatticeServer do
   use Gnat.Server
 
   alias HostCore.CloudEvent
-  alias HostCore.Linkdefs.Manager, as: LinkdefsManager
   alias HostCore.Lattice.LatticeSupervisor
+  alias HostCore.Linkdefs.Manager, as: LinkdefsManager
   alias HostCore.Providers.ProviderSupervisor
   alias HostCore.Vhost.VirtualHost
 

@@ -4,6 +4,9 @@ defmodule HostCore.Claims.Manager do
 
   import HostCore.Jetstream.MetadataCacheLoader, only: [broadcast_event: 3]
 
+  alias HostCore.Jetstream.Client, as: JetstreamClient
+  alias HostCore.Vhost.VirtualHost
+
   @type cached_claimsdata :: %{
           call_alias: String.t(),
           iss: String.t(),
@@ -106,9 +109,9 @@ defmodule HostCore.Claims.Manager do
   end
 
   defp publish_claims(host_id, lattice_prefix, claims) do
-    config = HostCore.Vhost.VirtualHost.config(host_id)
+    config = VirtualHost.config(host_id)
 
-    HostCore.Jetstream.Client.kv_put(
+    JetstreamClient.kv_put(
       lattice_prefix,
       config.js_domain,
       "CLAIMS_#{claims.sub}",

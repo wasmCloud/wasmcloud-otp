@@ -8,7 +8,7 @@ defmodule HostCore.CloudEvent do
   require Logger
 
   def new(data, event_type, host) do
-    stamp = DateTime.utc_now() |> DateTime.to_iso8601()
+    stamp = DateTime.to_iso8601(DateTime.utc_now())
 
     %{
       specversion: "1.0",
@@ -30,11 +30,9 @@ defmodule HostCore.CloudEvent do
   """
   @spec publish(evt :: binary(), lattice_prefix :: String.t(), alt_prefix :: String.t()) :: :ok
   def publish(evt, lattice_prefix, alt_prefix \\ "wasmbus.evt") when is_binary(evt) do
-    HostCore.Nats.safe_pub(
-      HostCore.Nats.control_connection(lattice_prefix),
-      "#{alt_prefix}.#{lattice_prefix}",
-      evt
-    )
+    lattice_prefix
+    |> HostCore.Nats.control_connection()
+    |> HostCore.Nats.safe_pub("#{alt_prefix}.#{lattice_prefix}", evt)
 
     Task.Supervisor.start_child(ControlInterfaceTaskSupervisor, fn ->
       PubSub.broadcast(:hostcore_pubsub, "latticeevents:#{lattice_prefix}", {:lattice_event, evt})

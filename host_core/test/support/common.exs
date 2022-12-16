@@ -2,6 +2,7 @@ defmodule HostCoreTest.Common do
   require Logger
 
   alias HostCore.Actors.ActorSupervisor
+  alias HostCore.Jetstream.Client, as: JetstreamClient
   alias HostCore.Vhost.VirtualHost
   alias HostCore.WasmCloud.Native
 
@@ -70,7 +71,7 @@ defmodule HostCoreTest.Common do
         Logger.error("Failed to purge NATS stream for lattice cache - no responders")
     end
 
-    case HostCore.Jetstream.Client.delete_kv_bucket(config.lattice_prefix, nil) do
+    case JetstreamClient.delete_kv_bucket(config.lattice_prefix, nil) do
       {:ok, %{body: _body}} ->
         Logger.debug("Deleted metadata cache for lattice")
 

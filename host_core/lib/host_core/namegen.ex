@@ -27,10 +27,10 @@ defmodule HostCore.Namegen do
   )
 
   def generate(max_id \\ 9999) do
-    adjective = @adjectives |> Enum.random()
-    noun = @nouns |> Enum.random()
+    adjective = Enum.random(@adjectives)
+    noun = Enum.random(@nouns)
     id = :rand.uniform(max_id)
 
-    [adjective, noun, id] |> Enum.join("-")
+    Enum.join([adjective, noun, id], "-")
   end
 end
