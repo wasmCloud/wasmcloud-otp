@@ -8,6 +8,8 @@ defmodule HostCore.Lattice.LatticeSupervisor do
   use Supervisor
 
   alias HostCore.Lattice.LatticeRoot
+  alias HostCore.Vhost.VirtualHost
+
   require Logger
 
   @spec start_link(HostCore.Vhost.Configuration.t()) :: :ignore | {:error, any} | {:ok, pid}
@@ -105,7 +107,9 @@ defmodule HostCore.Lattice.LatticeSupervisor do
     pids = host_pids_in_lattice(lattice_prefix)
 
     if length(pids) > 0 do
-      HostCore.Vhost.VirtualHost.config(List.first(pids))
+      pids
+      |> List.first()
+      |> VirtualHost.config()
     else
       nil
     end

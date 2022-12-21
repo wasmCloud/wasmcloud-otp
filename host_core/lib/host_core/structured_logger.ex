@@ -47,6 +47,7 @@ defmodule HostCore.StructuredLogger do
 end
 
 defmodule HostCore.StructuredLogger.FormatterJson do
+  @moduledoc false
   require Logger
 
   @doc """
@@ -62,36 +63,34 @@ defmodule HostCore.StructuredLogger.FormatterJson do
     #   case Logger.Translator.translate(:debug, "unused", :report, {label, report}) do
     #   etc.
     # However, these are being encoded, not for display in dev, so not sure why we need to be too careful here.
-    try do
-      mfa = encode_meta(meta)
-      encoded_msg = encode_msg(msg)
+    mfa = encode_meta(meta)
+    encoded_msg = encode_msg(msg)
 
-      case encoded_msg do
-        # Ignore unsupported encoding
-        nil ->
-          []
+    case encoded_msg do
+      # Ignore unsupported encoding
+      nil ->
+        []
 
-        _ ->
-          x =
-            log_to_map(level, meta)
-            |> Map.merge(mfa)
-            |> Map.merge(encoded_msg)
-            |> scrub
+      _ ->
+        x =
+          log_to_map(level, meta)
+          |> Map.merge(mfa)
+          |> Map.merge(encoded_msg)
+          |> scrub
 
-          [Jason.encode_to_iodata!(x), "\n"]
-      end
-    rescue
-      e ->
-        # Give a full dump here
-        rescue_data = %{
-          "level" => level,
-          "meta" => inspect(meta),
-          "msg" => inspect(msg),
-          "log_error" => inspect(e)
-        }
-
-        [Jason.encode_to_iodata!(rescue_data), "\n"]
+        [Jason.encode_to_iodata!(x), "\n"]
     end
+  rescue
+    e ->
+      # Give a full dump here
+      rescue_data = %{
+        "level" => level,
+        "meta" => inspect(meta),
+        "msg" => inspect(msg),
+        "log_error" => inspect(e)
+      }
+
+      [Jason.encode_to_iodata!(rescue_data), "\n"]
   end
 
   defp encode_msg({:string, string}), do: %{"msg" => string}
@@ -153,9 +152,8 @@ defmodule HostCore.StructuredLogger.FormatterJson do
         |> put_val(:callers, nil_or_inspect_list(callers))
         |> put_val(:time, transform_timestamp(time))
       end
-      |> Map.put(:level, level)
 
-    m
+    Map.put(m, :level, level)
   end
 
   defp nil_or_inspect(nil), do: nil
@@ -173,7 +171,8 @@ defmodule HostCore.StructuredLogger.FormatterJson do
   end
 
   defp transform_timestamp(t) do
-    DateTime.from_unix!(t, :microsecond)
+    t
+    |> DateTime.from_unix!(:microsecond)
     |> DateTime.to_iso8601()
   end
 

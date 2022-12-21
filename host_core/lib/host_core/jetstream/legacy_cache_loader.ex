@@ -11,6 +11,9 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
 
   import HostCore.ControlInterface.LatticeServer, only: [failure_ack: 1]
 
+  alias HostCore.Jetstream.Client, as: JetstreamClient
+  alias HostCore.Linkdefs.Manager, as: LinkdefsManager
+
   def handle_legacy_request(js_domain, topic, body) do
     case String.split(topic, ".", parts: 3) do
       [_lc, prefix, remainder] ->
@@ -29,7 +32,7 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
   def handle_request({"linkdefs", key}, body, prefix, js_domain) do
     case Jason.decode(body, keys: :atoms) do
       {:ok, %{deleted: true} = ld} ->
-        HostCore.Linkdefs.Manager.uncache_link_definition(
+        LinkdefsManager.uncache_link_definition(
           prefix,
           ld.id
         )
@@ -39,11 +42,11 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
         )
 
       {:ok, ld} ->
-        HostCore.Jetstream.Client.kv_put(
+        JetstreamClient.kv_put(
           prefix,
           js_domain,
           "LINKDEF_#{ld.id}",
-          ld |> Jason.encode!()
+          Jason.encode!(ld)
         )
 
         Logger.debug(
@@ -60,11 +63,11 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
   def handle_request({"claims", key}, body, prefix, js_domain) do
     case Jason.decode(body, keys: :atoms) do
       {:ok, claims} ->
-        HostCore.Jetstream.Client.kv_put(
+        JetstreamClient.kv_put(
           prefix,
           js_domain,
           "CLAIMS_#{key}",
-          claims |> Jason.encode!()
+          Jason.encode!(claims)
         )
 
         broadcast_event(:claims_added, claims, prefix)
@@ -77,11 +80,11 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
   def handle_request({"refmap", _key}, body, prefix, js_domain) do
     case Jason.decode(body, keys: :atoms) do
       {:ok, refmap} ->
-        HostCore.Jetstream.Client.kv_put(
+        JetstreamClient.kv_put(
           prefix,
           js_domain,
           "REFMAP_#{HostCore.Nats.sanitize_for_topic(refmap.oci_url)}",
-          refmap |> Jason.encode!()
+          Jason.encode!(refmap)
         )
 
         broadcast_event(:refmap_added, refmap, prefix)

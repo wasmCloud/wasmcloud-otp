@@ -15,6 +15,9 @@ defmodule HostCore.Application do
   require Logger
   use Application
 
+  alias HostCore.Vhost.ConfigPlan
+  alias HostCore.WasmCloud.Native
+
   @host_config_file "host_config.json"
   @extra_keys [
     :cluster_adhoc,
@@ -30,7 +33,7 @@ defmodule HostCore.Application do
   def start(_type, _args) do
     create_ets_tables()
 
-    config = Vapor.load!(HostCore.Vhost.ConfigPlan)
+    config = Vapor.load!(ConfigPlan)
     config = post_process_config(config)
 
     OpentelemetryLoggerMetadata.setup()
@@ -55,25 +58,25 @@ defmodule HostCore.Application do
 
     Logger.info(
       "Started wasmCloud OTP Host Runtime",
-      version: "#{Application.spec(:host_core, :vsn) |> to_string()}"
+      version: "#{to_string(Application.spec(:host_core, :vsn))}"
     )
 
     started
   end
 
-  def host_count() do
+  def host_count do
     Registry.count(Registry.HostRegistry)
   end
 
   # Returns [{host public key, <pid>, lattice_prefix}]
   @spec all_hosts() :: [{String.t(), pid(), String.t()}]
-  def all_hosts() do
+  def all_hosts do
     Registry.select(Registry.HostRegistry, [
       {{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}
     ])
   end
 
-  defp create_ets_tables() do
+  defp create_ets_tables do
     :ets.new(:vhost_table, [:named_table, :set, :public])
     :ets.new(:policy_table, [:named_table, :set, :public])
     :ets.new(:module_cache, [:named_table, :set, :public])
@@ -108,9 +111,9 @@ defmodule HostCore.Application do
   defp post_process_config(config) do
     {host_key, host_seed} =
       if config.host_seed == nil do
-        HostCore.WasmCloud.Native.generate_key(:server)
+        Native.generate_key(:server)
       else
-        case HostCore.WasmCloud.Native.pk_from_seed(config.host_seed) do
+        case Native.pk_from_seed(config.host_seed) do
           {:ok, pk} ->
             {pk, config.host_seed}
 
@@ -119,7 +122,7 @@ defmodule HostCore.Application do
               "Failed to obtain host public key from seed: (#{config.host_seed}). Generating a new host key instead."
             )
 
-            HostCore.WasmCloud.Native.generate_key(:server)
+            Native.generate_key(:server)
         end
       end
 
@@ -172,7 +175,7 @@ defmodule HostCore.Application do
       Logger.info("Using JetStream domain: #{config.js_domain}", js_domain: "#{config.js_domain}")
     end
 
-    {def_cluster_key, def_cluster_seed} = HostCore.WasmCloud.Native.generate_key(:cluster)
+    {def_cluster_key, def_cluster_seed} = Native.generate_key(:cluster)
 
     chunk_config = %{
       "host" => config.rpc_host,
@@ -189,7 +192,7 @@ defmodule HostCore.Application do
         chunk_config
       end
 
-    case HostCore.WasmCloud.Native.set_chunking_connection_config(chunk_config) do
+    case Native.set_chunking_connection_config(chunk_config) do
       :ok ->
         Logger.debug("Configured invocation chunking object store (NATS)")
 
@@ -200,7 +203,7 @@ defmodule HostCore.Application do
     end
 
     # we're generating the key, so we know this is going to work
-    {:ok, issuer_key} = HostCore.WasmCloud.Native.pk_from_seed(def_cluster_seed)
+    {:ok, issuer_key} = Native.pk_from_seed(def_cluster_seed)
 
     config =
       if config.cluster_seed == "" do
@@ -212,7 +215,7 @@ defmodule HostCore.Application do
             cluster_adhoc: true
         }
       else
-        case HostCore.WasmCloud.Native.pk_from_seed(config.cluster_seed) do
+        case Native.pk_from_seed(config.cluster_seed) do
           {:ok, pk} ->
             issuers = ensure_contains(config.cluster_issuers, pk)
 
@@ -248,7 +251,7 @@ defmodule HostCore.Application do
 
     Enum.reduce(bool_keys, config, fn key, config ->
       old = Map.get(config, key, nil)
-      new = HostCore.Vhost.ConfigPlan.string_to_bool(old)
+      new = ConfigPlan.string_to_bool(old)
       Map.put(config, key, new)
     end)
   end
@@ -256,12 +259,18 @@ defmodule HostCore.Application do
   defp write_config(config), do: write_json(config, config.host_config)
 
   defp write_json(config, file) do
-    with :ok <- File.mkdir_p(Path.dirname(file)) do
-      case File.write(file, Jason.encode!(remove_extras(config))) do
-        {:error, reason} -> Logger.error("Failed to write configuration file #{file}: #{reason}")
-        :ok -> Logger.info("Wrote configuration file #{file}")
-      end
-    else
+    case file
+         |> Path.dirname()
+         |> File.mkdir_p() do
+      :ok ->
+        case File.write(file, Jason.encode!(remove_extras(config))) do
+          {:error, reason} ->
+            Logger.error("Failed to write configuration file #{file}: #{reason}")
+
+          :ok ->
+            Logger.info("Wrote configuration file #{file}")
+        end
+
       {:error, posix} ->
         Logger.error("Failed to create path to config file #{file}: #{posix}")
     end

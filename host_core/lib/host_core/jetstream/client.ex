@@ -2,6 +2,8 @@ defmodule HostCore.Jetstream.Client do
   @moduledoc false
   use GenServer
 
+  alias HostCore.Jetstream.LegacyCacheLoader
+
   require Logger
 
   def start_link(config) do
@@ -24,7 +26,10 @@ defmodule HostCore.Jetstream.Client do
   @impl true
   def handle_continue(:ensure_stream, state) do
     for _i <- 0..3 do
-      if Process.whereis(HostCore.Nats.control_connection(state.lattice_prefix)) == nil do
+      if state.lattice_prefix
+         |> HostCore.Nats.control_connection()
+         |> Process.whereis()
+         |> is_nil() do
         Process.sleep(200)
       end
     end
@@ -33,7 +38,7 @@ defmodule HostCore.Jetstream.Client do
     stream_topic = kv_stream_topic(state.lattice_prefix, state.domain)
 
     payload_json =
-      %{
+      Jason.encode!(%{
         name: "KV_LATTICEDATA_#{state.lattice_prefix}",
         subjects: [stream_topic],
         retention: "limits",
@@ -53,16 +58,13 @@ defmodule HostCore.Jetstream.Client do
         discard: "new",
         num_replicas: 1,
         duplicate_window: 120_000_000_000
-      }
-      |> Jason.encode!()
+      })
 
-    case HostCore.Nats.safe_req(
-           HostCore.Nats.control_connection(state.lattice_prefix),
-           create_topic,
-           payload_json
-         ) do
+    case state.lattice_prefix
+         |> HostCore.Nats.control_connection()
+         |> HostCore.Nats.safe_req(create_topic, payload_json) do
       {:ok, %{body: body}} ->
-        handle_stream_create_response(body |> Jason.decode!())
+        handle_stream_create_response(Jason.decode!(body))
 
       {:error, :no_responders} ->
         Logger.error("No responders to create stream. Is JetStream enabled/configured properly?")
@@ -89,7 +91,7 @@ defmodule HostCore.Jetstream.Client do
     create_topic = create_consumer_topic(stream_name, state.domain)
 
     payload_json =
-      %{
+      Jason.encode!(%{
         stream_name: stream_name,
         name: consumer_name,
         config: %{
@@ -102,16 +104,13 @@ defmodule HostCore.Jetstream.Client do
           max_deliver: -1,
           replay_policy: "instant"
         }
-      }
-      |> Jason.encode!()
+      })
 
-    case HostCore.Nats.safe_req(
-           HostCore.Nats.control_connection(state.lattice_prefix),
-           create_topic,
-           payload_json
-         ) do
+    case state.lattice_prefix
+         |> HostCore.Nats.control_connection()
+         |> HostCore.Nats.safe_req(create_topic, payload_json) do
       {:ok, %{body: body}} ->
-        handle_consumer_create_response("metadata", body |> Jason.decode!())
+        handle_consumer_create_response("metadata", Jason.decode!(body))
 
       {:error, :no_responders} ->
         Logger.error(
@@ -145,7 +144,7 @@ defmodule HostCore.Jetstream.Client do
       create_topic = create_consumer_topic(stream_name, state.domain)
 
       payload_json =
-        %{
+        Jason.encode!(%{
           stream_name: stream_name,
           name: consumer_name,
           config: %{
@@ -158,8 +157,7 @@ defmodule HostCore.Jetstream.Client do
             max_deliver: -11,
             replay_policy: "instant"
           }
-        }
-        |> Jason.encode!()
+        })
 
       conn = HostCore.Nats.control_connection(state.lattice_prefix)
 
@@ -195,7 +193,9 @@ defmodule HostCore.Jetstream.Client do
   def kv_put(lattice_prefix, js_domain, key, value) do
     topic = kv_operation_topic(lattice_prefix, key, js_domain)
 
-    case HostCore.Nats.safe_req(HostCore.Nats.control_connection(lattice_prefix), topic, value) do
+    case lattice_prefix
+         |> HostCore.Nats.control_connection()
+         |> HostCore.Nats.safe_req(topic, value) do
       {:ok, _msg} ->
         Logger.debug("Put metadata in lattice bucket #{lattice_prefix}, key #{key}")
 
@@ -221,11 +221,9 @@ defmodule HostCore.Jetstream.Client do
   def delete_stream(stream_name, lattice_prefix, js_domain) do
     del_topic = stream_delete_topic(stream_name, js_domain)
 
-    HostCore.Nats.safe_req(
-      HostCore.Nats.control_connection(lattice_prefix),
-      del_topic,
-      <<>>
-    )
+    lattice_prefix
+    |> HostCore.Nats.control_connection()
+    |> HostCore.Nats.safe_req(del_topic, <<>>)
   end
 
   defp create_bucket_topic(lattice_prefix, nil),
@@ -261,7 +259,7 @@ defmodule HostCore.Jetstream.Client do
   defp migrate_bucket_keys(js_domain) do
     receive do
       {:msg, %{topic: topic, body: body}} ->
-        HostCore.Jetstream.LegacyCacheLoader.handle_legacy_request(js_domain, topic, body)
+        LegacyCacheLoader.handle_legacy_request(js_domain, topic, body)
         migrate_bucket_keys(js_domain)
     after
       200 ->
@@ -281,11 +279,9 @@ defmodule HostCore.Jetstream.Client do
       end
 
     with {:ok, %{body: body}} <-
-           HostCore.Nats.safe_req(
-             HostCore.Nats.control_connection(lattice_prefix),
-             info_topic,
-             <<>>
-           ),
+           lattice_prefix
+           |> HostCore.Nats.control_connection()
+           |> HostCore.Nats.safe_req(info_topic, <<>>),
          {:ok, decoded} <- Jason.decode(body) do
       Map.has_key?(decoded, "config")
     else

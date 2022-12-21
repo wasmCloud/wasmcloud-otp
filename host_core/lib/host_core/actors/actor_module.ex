@@ -13,9 +13,9 @@ defmodule HostCore.Actors.ActorModule do
 
   alias HostCore.Actors.ActorRpcSupervisor
   alias HostCore.Claims.Manager, as: ClaimsManager
-  alias HostCore.Policy.Manager, as: PolicyManager
   alias HostCore.CloudEvent
   alias HostCore.ControlInterface.LatticeServer
+  alias HostCore.Policy.Manager, as: PolicyManager
   alias HostCore.Vhost.VirtualHost
   alias HostCore.WasmCloud.Native
 

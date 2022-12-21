@@ -10,6 +10,8 @@ defmodule HostCore.Refmaps.Manager do
   import HostCore.Jetstream.MetadataCacheLoader, only: [broadcast_event: 3]
 
   alias HostCore.CloudEvent
+  alias HostCore.Jetstream.Client, as: JetstreamClient
+  alias HostCore.Vhost.VirtualHost
 
   def lookup_refmap(lattice_prefix, oci_url) do
     rt = table_atom(lattice_prefix)
@@ -40,7 +42,7 @@ defmodule HostCore.Refmaps.Manager do
   end
 
   def publish_refmap(host_id, lattice_prefix, oci_url, public_key) do
-    config = HostCore.Vhost.VirtualHost.config(host_id)
+    config = VirtualHost.config(host_id)
 
     data = %{
       oci_url: oci_url,
@@ -49,7 +51,7 @@ defmodule HostCore.Refmaps.Manager do
 
     Logger.debug("Publishing OCI ref map for #{inspect(oci_url)}")
 
-    HostCore.Jetstream.Client.kv_put(
+    JetstreamClient.kv_put(
       lattice_prefix,
       config.js_domain,
       "REFMAP_#{HostCore.Nats.sanitize_for_topic(oci_url)}",

@@ -6,6 +6,7 @@ defmodule HostCore.PolicyTest do
   use ExUnit.Case, async: false
 
   alias HostCore.Actors.ActorSupervisor
+  alias HostCore.Jetstream.Client, as: JetstreamClient
   alias HostCore.Providers.ProviderSupervisor
   alias HostCore.Vhost.VirtualHost
 
@@ -91,7 +92,7 @@ defmodule HostCore.PolicyTest do
              requestId: ""
            }
 
-    HostCore.Jetstream.Client.delete_kv_bucket("policyhome", nil)
+    JetstreamClient.delete_kv_bucket("policyhome", nil)
   end
 
   # :passthrough enables mocking a single function from the module and still accessing said module

@@ -5,6 +5,9 @@ defmodule HostCore.Linkdefs.Manager do
   import HostCore.Jetstream.MetadataCacheLoader, only: [broadcast_event: 3]
 
   alias HostCore.CloudEvent
+  alias HostCore.Jetstream.Client, as: JetstreamClient
+  alias HostCore.Lattice.LatticeSupervisor
+  alias HostCore.Vhost.VirtualHost
 
   @spec lookup_link_definition(
           lattice_prefix :: String.t(),
@@ -19,10 +22,9 @@ defmodule HostCore.Linkdefs.Manager do
       {:==, {:map_get, :link_name, :"$2"}, link_name}
     ]
 
-    :ets.select(
-      table_atom(lattice_prefix),
-      [{{:"$1", :"$2"}, predicates, [:"$2"]}]
-    )
+    lattice_prefix
+    |> table_atom()
+    |> :ets.select([{{:"$1", :"$2"}, predicates, [:"$2"]}])
     |> List.first()
   end
 
@@ -145,8 +147,8 @@ defmodule HostCore.Linkdefs.Manager do
   end
 
   def write_linkdef_to_kv(prefix, ld) do
-    with [pid | _] <- HostCore.Lattice.LatticeSupervisor.host_pids_in_lattice(prefix),
-         config <- HostCore.Vhost.VirtualHost.config(pid) do
+    with [pid | _] <- LatticeSupervisor.host_pids_in_lattice(prefix),
+         config <- VirtualHost.config(pid) do
       js_domain =
         if config != nil do
           config.js_domain
@@ -154,11 +156,11 @@ defmodule HostCore.Linkdefs.Manager do
           nil
         end
 
-      HostCore.Jetstream.Client.kv_put(
+      JetstreamClient.kv_put(
         prefix,
         js_domain,
         "LINKDEF_#{ld.id}",
-        ld |> Jason.encode!()
+        Jason.encode!(ld)
       )
     else
       _ ->
