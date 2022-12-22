@@ -1,6 +1,8 @@
 defmodule ProviderRowComponent do
   use Phoenix.LiveComponent
 
+  alias WasmcloudHost.Lattice.ControlInterface
+
   def mount(socket) do
     {:ok, socket}
   end
@@ -10,7 +12,7 @@ defmodule ProviderRowComponent do
         %{"provider" => provider, "link_name" => link_name, "host_id" => host_id},
         socket
       ) do
-    WasmcloudHost.Lattice.ControlInterface.stop_provider(provider, link_name, host_id)
+    ControlInterface.stop_provider(provider, link_name, host_id)
     {:noreply, socket}
   end
 
