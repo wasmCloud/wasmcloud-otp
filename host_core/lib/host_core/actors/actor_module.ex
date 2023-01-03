@@ -198,34 +198,27 @@ defmodule HostCore.Actors.ActorModule do
       instance_id = Agent.get(agent, fn content -> content.instance_id end)
       Tracer.set_attribute("instance_id", instance_id)
 
-      {:ok, module} = Wasmex.Module.compile(bytes)
+      {:ok, stdin} = Wasmex.Pipe.new()
+      {:ok, stdout} = Wasmex.Pipe.new()
+      {:ok, stderr} = Wasmex.Pipe.new()
+
+      wasi_opts = %Wasmex.Wasi.WasiOptions{
+        args: [],
+        env: %{},
+        stdin: stdin,
+        stdout: stdout,
+        stderr: stderr
+      }
+
+      {:ok, store} = Wasmex.Store.new_wasi(wasi_opts)
+      {:ok, module} = Wasmex.Module.compile(store, bytes)
 
       imports = %{
         wapc: Imports.wapc_imports(agent),
         wasmbus: Imports.wasmbus_imports(agent)
       }
 
-      # TODO - in the future, poll these so we can forward the err/out pipes
-      # to our logger
-      {:ok, stdin} = Wasmex.Pipe.create()
-      {:ok, stdout} = Wasmex.Pipe.create()
-      {:ok, stderr} = Wasmex.Pipe.create()
-
-      wasi = %{
-        args: [],
-        env: %{},
-        preopen: %{},
-        stdin: stdin,
-        stdout: stdout,
-        stderr: stderr
-      }
-
-      opts =
-        if imports_wasi?(Wasmex.Module.imports(module)) do
-          %{module: module, imports: imports, wasi: wasi}
-        else
-          %{module: module, imports: imports}
-        end
+      opts = %{module: module, store: store, imports: imports, wasi: wasi_opts}
 
       # shut down the previous Wasmex instance to avoid orphaning it
       old_instance = Agent.get(agent, fn content -> content.instance end)
@@ -673,38 +666,34 @@ defmodule HostCore.Actors.ActorModule do
     # we consider a hash of bytes as a unique key
     key = :sha256 |> :crypto.hash(bytes) |> Base.encode16()
 
-    module =
-      case :ets.lookup(:module_cache, key) do
-        [{_, cached_mod}] ->
-          cached_mod
-
-        [] ->
-          {:ok, mod} = Wasmex.Module.compile(bytes)
-          :ets.insert(:module_cache, {key, mod})
-          mod
-      end
-
     # TODO - in the future, poll these so we can forward the err/out pipes
     # to our logger
-    {:ok, stdin} = Wasmex.Pipe.create()
-    {:ok, stdout} = Wasmex.Pipe.create()
-    {:ok, stderr} = Wasmex.Pipe.create()
+    {:ok, stdin} = Wasmex.Pipe.new()
+    {:ok, stdout} = Wasmex.Pipe.new()
+    {:ok, stderr} = Wasmex.Pipe.new()
 
-    wasi = %{
+    wasi_opts = %Wasmex.Wasi.WasiOptions{
       args: [],
       env: %{},
-      preopen: %{},
       stdin: stdin,
       stdout: stdout,
       stderr: stderr
     }
 
-    opts =
-      if imports_wasi?(Wasmex.Module.imports(module)) do
-        %{module: module, imports: imports, wasi: wasi}
-      else
-        %{module: module, imports: imports}
+    context =
+      case :ets.lookup(:module_cache, key) do
+        [{_, cached_ctx}] ->
+          cached_ctx
+
+        [] ->
+          {:ok, store} = Wasmex.Store.new_wasi(wasi_opts)
+          {:ok, mod} = Wasmex.Module.compile(store, bytes)
+          ctx = %{store: store, module: mod}
+          :ets.insert(:module_cache, {key, ctx})
+          ctx
       end
+
+    opts = %{module: context.module, store: context.store, imports: imports, wasi: wasi_opts}
 
     case prepare_module(Wasmex.start_link(opts), agent, oci, true) do
       {:ok, agent} ->

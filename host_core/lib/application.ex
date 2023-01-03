@@ -8,7 +8,7 @@ defmodule HostCore.Application do
   * ProviderTaskSupervisor - a task supervisor logically associated with provider module operations
   * InvocationTaskSupervisor - a task supervisor logically associated with performing remote procedure calls and invoking Wasm components
   * ActorRpcSupervisor - the root owner of all actor RPC subscriptions, with one _queue_ subscription per public key
-  * ProviderSupervisor - the root ovwner of all capability providers running inside this OTP application
+  * ProviderSupervisor - the root owner of all capability providers running inside this OTP application
   * ActorSupervisor - the root owner of all actors (webassembly components) running inside this OTP application
   * CallCounter - a per-actor call count incrementer that is used to ensure that the same actor is never invoked twice for RPC in a row (unless it's the only instance in the lattice)
   * LatticeRoot - the root owner of all lattice supervisors

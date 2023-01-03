@@ -104,7 +104,7 @@ defmodule HostCore.WebAssembly.Imports do
   end
 
   defp console_log(_api_type, context, ptr, len) do
-    text = Wasmex.Memory.read_string(context.memory, ptr, len)
+    text = Wasmex.Memory.read_string(context.caller, context.memory, ptr, len)
 
     if String.length(text) > 0 do
       Logger.info("Log from guest (non-actor): #{text}")
@@ -131,10 +131,10 @@ defmodule HostCore.WebAssembly.Imports do
     Tracer.set_current_span(span_ctx)
 
     # Read host_call parameters from wasm memory
-    payload = Wasmex.Memory.read_binary(context.memory, ptr, len)
-    binding = Wasmex.Memory.read_string(context.memory, bd_ptr, bd_len)
-    namespace = Wasmex.Memory.read_string(context.memory, ns_ptr, ns_len)
-    operation = Wasmex.Memory.read_string(context.memory, op_ptr, op_len)
+    payload = Wasmex.Memory.read_binary(context.caller, context.memory, ptr, len)
+    binding = Wasmex.Memory.read_string(context.caller, context.memory, bd_ptr, bd_len)
+    namespace = Wasmex.Memory.read_string(context.caller, context.memory, ns_ptr, ns_len)
+    operation = Wasmex.Memory.read_string(context.caller, context.memory, op_ptr, op_len)
 
     Logger.debug("Host call: #{namespace} - #{binding}: #{operation} (#{len} bytes)")
 
@@ -562,7 +562,7 @@ defmodule HostCore.WebAssembly.Imports do
     host_resp = Agent.get(agent, fn content -> content.host_response end)
 
     if host_resp != nil do
-      Wasmex.Memory.write_binary(context.memory, ptr, host_resp)
+      Wasmex.Memory.write_binary(context.caller, context.memory, ptr, host_resp)
       nil
     end
   end
@@ -581,7 +581,7 @@ defmodule HostCore.WebAssembly.Imports do
     host_err = Agent.get(agent, fn content -> content.host_error end)
 
     if host_err != nil do
-      Wasmex.Memory.write_binary(context.memory, ptr, host_err)
+      Wasmex.Memory.write_binary(context.caller, context.memory, ptr, host_err)
       nil
     end
   end
@@ -598,8 +598,7 @@ defmodule HostCore.WebAssembly.Imports do
 
   # Load the guest response indicated by the location and length into the :guest_response state field.
   defp guest_response(_api_type, context, agent, ptr, len) do
-    memory = context.memory
-    gr = Wasmex.Memory.read_binary(memory, ptr, len)
+    gr = Wasmex.Memory.read_binary(context.caller, context.memory, ptr, len)
     Agent.update(agent, fn content -> %State{content | guest_response: gr} end)
 
     nil
@@ -607,21 +606,18 @@ defmodule HostCore.WebAssembly.Imports do
 
   # Load the guest error indicated by the location and length into the :guest_error field
   defp guest_error(_api_type, context, agent, ptr, len) do
-    memory = context.memory
-
-    ge = Wasmex.Memory.read_binary(memory, ptr, len)
+    ge = Wasmex.Memory.read_binary(context.caller, context.memory, ptr, len)
     Agent.update(agent, fn content -> %State{content | guest_error: ge} end)
 
     nil
   end
 
   defp guest_request(_api_type, context, agent, op_ptr, ptr) do
-    memory = context.memory
     # inv = HostCore.WebAssembly.ActorModule.current_invocation(actor_pid)
     inv = Agent.get(agent, fn content -> content.invocation end)
 
-    Wasmex.Memory.write_binary(memory, ptr, inv.payload)
-    Wasmex.Memory.write_binary(memory, op_ptr, inv.operation)
+    Wasmex.Memory.write_binary(context.caller, context.memory, ptr, inv.payload)
+    Wasmex.Memory.write_binary(context.caller, context.memory, op_ptr, inv.operation)
 
     nil
   end
