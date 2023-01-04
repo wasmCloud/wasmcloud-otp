@@ -1,6 +1,6 @@
 [package]
 name = "hostcore_wasmcloud_native"
-version = "0.1.1"
+version = "0.1.2"
 authors = []
 edition = "2021"
 
@@ -15,7 +15,7 @@ lazy_static = "1.0"
 serde = {version = "1.0.126", features = ["derive"] }
 serde_bytes = "0.11.5"
 nkeys = "0.2.0"
-wascap = "0.8.0"
+wascap = "0.9.0"
 ring = "0.16.20"
 uuid = {version = "1.2.1", features = ["v4"]}
 data-encoding = "2.3.2"

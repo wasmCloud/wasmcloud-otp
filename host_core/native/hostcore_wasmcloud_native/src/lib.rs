@@ -60,22 +60,27 @@ pub struct Claims {
     not_before_human: String,
 }
 
-impl From<wascap::jwt::Claims<wascap::jwt::CapabilityProvider>> for Claims {
+impl From<wascap::jwt::Claims<wascap::jwt::CapabilityProvider>> for crate::Claims {
     fn from(c: wascap::jwt::Claims<wascap::jwt::CapabilityProvider>) -> Self {
-        let metadata = c.metadata.unwrap_or_default();
-        let revision = revision_or_iat(metadata.rev, c.issued_at);
-        Claims {
-            issuer: c.issuer,
-            public_key: c.subject,
-            revision,
-            tags: None,
-            version: metadata.ver,
-            name: metadata.name,
-            expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
-            not_before_human: stamp_to_human(c.not_before)
-                .unwrap_or_else(|| "immediately".to_string()),
-            ..Default::default()
-        }
+        provider_claims_to_crate_claims(c)
+    }
+}
+
+pub(crate) fn provider_claims_to_crate_claims(
+    c: wascap::jwt::Claims<wascap::jwt::CapabilityProvider>,
+) -> Claims {
+    let metadata = c.metadata.unwrap_or_default();
+    let revision = revision_or_iat(metadata.rev, c.issued_at);
+    Claims {
+        issuer: c.issuer,
+        public_key: c.subject,
+        revision,
+        tags: None,
+        version: metadata.ver,
+        name: metadata.name,
+        expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
+        not_before_human: stamp_to_human(c.not_before).unwrap_or_else(|| "immediately".to_string()),
+        ..Default::default()
     }
 }
 
@@ -413,9 +418,10 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
             )));
         }
         Err(e) => {
-            return Err(rustler::Error::Term(Box::new(
-                format!("Failed to extract claims from module: {}", e)
-            )));
+            return Err(rustler::Error::Term(Box::new(format!(
+                "Failed to extract claims from module: {}",
+                e
+            ))));
         }
     };
     let c: wascap::jwt::Claims<wascap::jwt::Actor> = extracted.claims;
@@ -569,7 +575,7 @@ fn load(env: rustler::Env, _: rustler::Term) -> bool {
 }
 
 // Inspects revision, if missing or zero then replace with iat value
-fn revision_or_iat(rev: Option<i32>, iat: u64) -> Option<i32> {
+pub(crate) fn revision_or_iat(rev: Option<i32>, iat: u64) -> Option<i32> {
     if rev.is_some() && rev.unwrap() > 0 {
         rev
     } else {
@@ -577,10 +583,11 @@ fn revision_or_iat(rev: Option<i32>, iat: u64) -> Option<i32> {
     }
 }
 
-fn stamp_to_human(stamp: Option<u64>) -> Option<String> {
+pub(crate) fn stamp_to_human(stamp: Option<u64>) -> Option<String> {
     stamp.map(|s| {
-        let now = NaiveDateTime::from_timestamp(since_the_epoch().as_secs() as i64, 0);
-        let then = NaiveDateTime::from_timestamp(s as i64, 0);
+        let now = NaiveDateTime::from_timestamp_opt(since_the_epoch().as_secs() as i64, 0)
+            .unwrap_or_default();
+        let then = NaiveDateTime::from_timestamp_opt(s as i64, 0).unwrap_or_default();
 
         let diff = then - now;
 
