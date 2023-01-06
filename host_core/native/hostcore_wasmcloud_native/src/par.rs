@@ -1,5 +1,4 @@
-use crate::{Claims, ProviderArchiveResource};
-
+use crate::{revision_or_iat, stamp_to_human, ProviderArchiveResource};
 use provider_archive::ProviderArchive;
 use rustler::{Env, Error};
 use std::env::temp_dir;
@@ -23,9 +22,24 @@ pub(crate) fn get_vendor(par: &ProviderArchive) -> Result<String, Error> {
     }
 }
 
-pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<Claims, Error> {
+pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<crate::Claims, Error> {
     par.claims()
-        .map(Claims::from)
+        .map(|c| {
+            let metadata = c.metadata.unwrap_or_default();
+            let revision = revision_or_iat(metadata.rev, c.issued_at);
+            crate::Claims {
+                issuer: c.issuer,
+                public_key: c.subject,
+                revision,
+                tags: None,
+                version: metadata.ver,
+                name: metadata.name,
+                expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
+                not_before_human: stamp_to_human(c.not_before)
+                    .unwrap_or_else(|| "immediately".to_string()),
+                ..Default::default()
+            }
+        })
         .ok_or_else(|| Error::Term(Box::new("No claims found in provider archive")))
 }
 
