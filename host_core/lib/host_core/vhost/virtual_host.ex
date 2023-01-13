@@ -537,27 +537,15 @@ defmodule HostCore.Vhost.VirtualHost do
         "Bypassing provider that did not include image reference and link name: #{inspect(prov)}"
       )
     else
-      if String.starts_with?(prov["imageReference"], "bindle://") do
-        ProviderSupervisor.start_provider_from_bindle(
-          state.config.host_key,
-          prov["imageReference"],
-          prov["linkName"]
-        )
-      else
-        ProviderSupervisor.start_provider_from_oci(
-          state.config.host_key,
-          prov["imageReference"],
-          prov["linkName"]
-        )
-      end
+      ProviderSupervisor.start_provider_from_ref(
+        state.config.host_key,
+        prov["imageReference"],
+        prov["linkeName"]
+      )
     end
   end
 
   defp start_autostart_actor(actor, state) do
-    if String.starts_with?(actor, "bindle://") do
-      ActorSupervisor.start_actor_from_bindle(state.config.host_key, actor)
-    else
-      ActorSupervisor.start_actor_from_oci(state.config.host_key, actor)
-    end
+    ActorSupervisor.start_actor_from_ref(state.config.host_key, actor)
   end
 end

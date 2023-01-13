@@ -62,6 +62,7 @@ defmodule HostCore.ControlInterface.HostServer do
   # Launch Actor
   # %{"actor_ref" => "wasmcloud.azurecr.io/echo:0.12.0", "host_id" => "Nxxxx", "count" => 3}
   # %{"actor_ref" => "bindle://example.com/echo/0.12.0", "host_id" => "Nxxxx", "count" => 4}
+  # %{"actor_ref" => "file:///home/example/actorfile", "host_id" => "Nxxxx", "count" => 5}
   defp handle_request({"cmd", host_id, "la"}, body, _reply_to, prefix) do
     with {:ok, start_actor_command} <- Jason.decode(body),
          actor_ref <- Map.get(start_actor_command, "actor_ref"),
@@ -79,12 +80,7 @@ defmodule HostCore.ControlInterface.HostServer do
           Tracer.set_attribute("host_id", host_id)
           Tracer.set_attribute("lattice_id", prefix)
 
-          res =
-            if String.starts_with?(actor_ref, "bindle://") do
-              ActorSupervisor.start_actor_from_bindle(host_id, actor_ref, count, annotations)
-            else
-              ActorSupervisor.start_actor_from_oci(host_id, actor_ref, count, annotations)
-            end
+          res = ActorSupervisor.start_actor_from_ref(host_id, actor_ref, count, annotations)
 
           case res do
             {:ok, _pid} ->

@@ -22,6 +22,19 @@ defmodule HostCore.Providers.ProviderSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
+  def start_provider_from_ref(host_id, ref, link_name, config_json \\ "", annotations \\ %{}) do
+    cond do
+      String.starts_with?(ref, "bindle://") ->
+        start_provider_from_bindle(host_id, ref, link_name, config_json, annotations)
+
+      String.starts_with?(ref, "file://") ->
+        start_provider_from_file(host_id, ref, link_name, annotations)
+
+      true ->
+        start_provider_from_oci(host_id, ref, link_name, config_json, annotations)
+    end
+  end
+
   @doc """
   Starts a capability provider from an OCI reference. This function requires you to pass the appropriate virtual host
   ID on which the provider will be started, along with the link name, startup configuration, and optional annotations typically

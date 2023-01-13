@@ -18,6 +18,8 @@ defmodule HostCore.ActorsTest do
   @echo_old_oci_reference HostCoreTest.Constants.echo_ociref()
   @echo_oci_reference HostCoreTest.Constants.echo_ociref_updated()
   @kvcounter_path HostCoreTest.Constants.kvcounter_path()
+  @kvcounter_unpriv_filepath HostCoreTest.Constants.kvcounter_unpriv_filepath()
+  @kvcounter_unpriv_key HostCoreTest.Constants.kvcounter_unpriv_key()
 
   @httpserver_key HostCoreTest.Constants.httpserver_key()
   @kvcounter_key HostCoreTest.Constants.kvcounter_key()
@@ -145,6 +147,49 @@ defmodule HostCore.ActorsTest do
         )
 
       assert config.host_key |> ActorSupervisor.all_actors() |> Map.get(@kvcounter_key) == nil
+    end
+
+    test "can load actors from file", %{
+      :evt_watcher => evt_watcher,
+      :hconfig => config,
+      :host_pid => pid
+    } do
+      on_exit(fn -> cleanup(pid, config) end)
+
+      {:ok, _pids} =
+        ActorSupervisor.start_actor_from_ref(
+          config.host_key,
+          @kvcounter_unpriv_filepath,
+          5,
+          %{
+            "is_testing" => "youbetcha"
+          }
+        )
+
+      :ok = wait_for_actor_start(evt_watcher, @kvcounter_unpriv_key)
+
+      actors = ActorSupervisor.all_actors(config.host_key)
+      kv_counters = Map.get(actors, @kvcounter_unpriv_key)
+
+      actor_count = length(kv_counters)
+
+      assert kv_counters |> Enum.at(0) |> ActorModule.annotations() == %{
+               "is_testing" => "youbetcha"
+             }
+
+      assert actor_count == 5
+      ActorSupervisor.terminate_actor(config.host_key, @kvcounter_unpriv_key, 5, %{})
+
+      :ok =
+        HostCoreTest.EventWatcher.wait_for_event(
+          evt_watcher,
+          :actor_stopped,
+          %{"public_key" => @kvcounter_unpriv_key},
+          5
+        )
+
+      assert config.host_key |> ActorSupervisor.all_actors() |> Map.get(@kvcounter_unpriv_key) ==
+               nil
     end
 
     test "can invoke the echo actor with huge payload", %{
