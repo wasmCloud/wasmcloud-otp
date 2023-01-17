@@ -349,6 +349,17 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end)
   end
 
+  def all_providers_for_hb(host_id) do
+    providers_on_host = providers_on_host(host_id)
+
+    Enum.map(providers_on_host, fn {{pk, link_name}, _pid} ->
+      %{
+        public_key: pk,
+        link_name: link_name
+      }
+    end)
+  end
+
   def find_provider(host_id, public_key, link_name) do
     pids =
       for {{pk, ln}, pid} <- providers_on_host(host_id),

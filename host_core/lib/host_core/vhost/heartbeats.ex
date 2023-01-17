@@ -11,19 +11,21 @@ defmodule HostCore.Vhost.Heartbeats do
 
   def generate_heartbeat(state) do
     config = state.config
-    # TODO: for large numbers of actors this heartbeat becomes prohibitively large and expensive
-    # refactor to only emit instance count
+
     actors =
       config.host_key
       |> ActorSupervisor.all_actors_for_hb()
-      |> Enum.map(fn {k, iid} -> %{public_key: k, instance_id: iid} end)
+      # |> Enum.map(fn {k, count} -> %{public_key: k, instances: count} end)
+      |> Map.new()
 
     providers =
       config.host_key
-      |> ProviderSupervisor.all_providers()
-      |> Enum.map(fn {_pid, pk, link, contract, instance_id} ->
-        %{public_key: pk, link_name: link, contract_id: contract, instance_id: instance_id}
-      end)
+      |> ProviderSupervisor.all_providers_for_hb()
+
+    # |> Map.new()
+    # |> Enum.map(fn {_pid, pk, link, contract, instance_id} ->
+    #  %{public_key: pk, link_name: link, contract_id: contract, instance_id: instance_id}
+    # end)
 
     {total, _} = :erlang.statistics(:wall_clock)
     ut_seconds = div(total, 1000)

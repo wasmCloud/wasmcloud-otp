@@ -285,12 +285,14 @@ defmodule HostCore.Actors.ActorSupervisor do
         {{:"$1", :"$2", :"$3"}, [{:==, :"$3", host_id}], [{{:"$1", :"$2"}}]}
       ])
 
-    Enum.map(actors_on_host, fn {pk, pid} ->
-      {
-        pk,
-        ActorModule.instance_id(pid)
-      }
-    end)
+    Enum.reduce(actors_on_host, %{}, fn {pk, _pid}, acc -> Map.update(acc, pk, 1, &(&1 + 1)) end)
+
+    # Enum.map(actors_on_host, fn {pk, pid} ->
+    #   {
+    #     pk, "a"
+    #     #ActorModule.instance_id(pid)
+    #   }
+    # end)
   end
 
   @doc """
