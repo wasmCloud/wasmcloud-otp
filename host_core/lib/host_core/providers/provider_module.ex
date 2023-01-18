@@ -215,16 +215,14 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   @impl true
-  def handle_continue(:register_provider, agent) do
-    agent_state = Agent.get(agent, fn contents -> contents end)
-
+  def handle_continue(:register_provider, state) do
     Registry.register(
       Registry.ProviderRegistry,
-      {agent_state.claims.public_key, agent_state.link_name},
-      agent_state.host_id
+      {state.public_key, state.link_name},
+      state.host_id
     )
 
-    {:noreply, agent}
+    {:noreply, state}
   end
 
   @propagated_env_vars ["OTEL_TRACES_EXPORTER", "OTEL_EXPORTER_OTLP_ENDPOINT"]
