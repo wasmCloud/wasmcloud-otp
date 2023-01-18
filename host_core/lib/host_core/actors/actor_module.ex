@@ -154,12 +154,19 @@ defmodule HostCore.Actors.ActorModule do
 
     case start_actor(lattice_prefix, host_id, claims, bytes, oci, annotations) do
       {:ok, agent} ->
-        {:ok, agent}
+        {:ok, agent, {:continue, :register_actor}}
 
       {:error, _e} ->
         # Actor should stop with no adverse effects on the supervisor
         :ignore
     end
+  end
+
+  @impl true
+  def handle_continue(:register_actor, agent) do
+    agent_state = Agent.get(agent, fn contents -> contents end)
+    Registry.register(Registry.ActorRegistry, agent_state.claims.public_key, agent_state.host_id)
+    {:noreply, agent}
   end
 
   @impl GenServer
@@ -615,8 +622,6 @@ defmodule HostCore.Actors.ActorModule do
     )
 
     Logger.info("Starting actor #{claims.public_key}")
-
-    Registry.register(Registry.ActorRegistry, claims.public_key, host_id)
 
     ClaimsManager.put_claims(host_id, lattice_prefix, claims)
     ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
