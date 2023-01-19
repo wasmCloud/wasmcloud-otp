@@ -3,6 +3,7 @@ defmodule HostCore.Linkdefs.Manager do
   require Logger
 
   import HostCore.Jetstream.MetadataCacheLoader, only: [broadcast_event: 3]
+  import HostCore.Jetstream.Client, only: [linkdef_hash: 3]
 
   alias HostCore.CloudEvent
   alias HostCore.Jetstream.Client, as: JetstreamClient
@@ -16,16 +17,20 @@ defmodule HostCore.Linkdefs.Manager do
           link_name :: String.t()
         ) :: map() | nil
   def lookup_link_definition(lattice_prefix, actor, contract_id, link_name) do
-    predicates = [
-      {:==, {:map_get, :actor_id, :"$2"}, actor},
-      {:==, {:map_get, :contract_id, :"$2"}, contract_id},
-      {:==, {:map_get, :link_name, :"$2"}, link_name}
-    ]
+    # predicates = [
+    #   {:==, {:map_get, :actor_id, :"$2"}, actor},
+    #   {:==, {:map_get, :contract_id, :"$2"}, contract_id},
+    #   {:==, {:map_get, :link_name, :"$2"}, link_name}
+    # ]
 
-    lattice_prefix
-    |> table_atom()
-    |> :ets.select([{{:"$1", :"$2"}, predicates, [:"$2"]}])
-    |> List.first()
+    # lattice_prefix
+    # |> table_atom()
+    # |> :ets.select([{{:"$1", :"$2"}, predicates, [:"$2"]}])
+    # |> List.first()
+    case lookup_link_definition(lattice_prefix, linkdef_hash(actor, contract_id, link_name)) do
+      {:ok, ld} -> ld
+      :error -> nil
+    end
   end
 
   def lookup_link_definition(lattice_prefix, ldid) do
@@ -44,6 +49,13 @@ defmodule HostCore.Linkdefs.Manager do
         provider_key,
         values
       ) do
+    ldid =
+      if is_nil(ldid) do
+        linkdef_hash(actor, contract_id, link_name)
+      else
+        ldid
+      end
+
     map = %{
       actor_id: actor,
       contract_id: contract_id,
@@ -168,15 +180,6 @@ defmodule HostCore.Linkdefs.Manager do
           "Tried to find a virtual host running for lattice #{prefix} but there isn't one. This indicates corrupt state!"
         )
     end
-  end
-
-  defp linkdef_hash(actor_id, contract_id, link_name) do
-    sha = :crypto.hash_init(:sha256)
-    sha = :crypto.hash_update(sha, actor_id)
-    sha = :crypto.hash_update(sha, contract_id)
-    sha = :crypto.hash_update(sha, link_name)
-    sha_binary = :crypto.hash_final(sha)
-    sha_binary |> Base.encode16() |> String.upcase()
   end
 
   # Publishes the removal of a link definition to the event stream and sends an indication

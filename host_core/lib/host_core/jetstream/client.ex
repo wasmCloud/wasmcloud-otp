@@ -226,6 +226,27 @@ defmodule HostCore.Jetstream.Client do
     |> HostCore.Nats.safe_req(del_topic, <<>>)
   end
 
+  def ensure_linkdef_id(linkdef) do
+    if Map.has_key?(linkdef, :id) do
+      linkdef
+    else
+      Map.put(
+        linkdef,
+        :id,
+        linkdef_hash(linkdef.actor_id, linkdef.contract_id, linkdef.link_name)
+      )
+    end
+  end
+
+  def linkdef_hash(actor_id, contract_id, link_name) do
+    sha = :crypto.hash_init(:sha256)
+    sha = :crypto.hash_update(sha, actor_id)
+    sha = :crypto.hash_update(sha, contract_id)
+    sha = :crypto.hash_update(sha, link_name)
+    sha_binary = :crypto.hash_final(sha)
+    sha_binary |> Base.encode16() |> String.upcase()
+  end
+
   defp create_bucket_topic(lattice_prefix, nil),
     do: "$JS.API.STREAM.CREATE.KV_LATTICEDATA_#{lattice_prefix}"
 
