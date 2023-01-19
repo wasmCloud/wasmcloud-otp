@@ -243,7 +243,7 @@ defmodule HostCore.Jetstream.Client do
     do: "$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
 
   defp kv_operation_topic(lattice_prefix, key, js_domain) when is_binary(js_domain),
-    do: "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
+    do: "$JS.#{js_domain}.API.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
 
   defp stream_delete_topic(stream_name, nil), do: "$JS.API.STREAM.DELETE.#{stream_name}"
 
