@@ -72,9 +72,8 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   defp handle_action(:key_added, %{key: @linkdef_prefix <> _ldid, prefix: lattice_prefix}, body) do
     case Jason.decode(body, keys: :atoms) do
       {:ok, ld} ->
-        Logger.debug("Caching link definition from #{ld.actor_id} on contract #{ld.contract_id}")
-
         ld = ensure_linkdef_id(ld)
+        Logger.debug("Caching link definition from #{ld.actor_id} on contract #{ld.contract_id}")
 
         # This data came from the bucket, so we don't need to re-write it to the bucket, just:
         # * store it in memory

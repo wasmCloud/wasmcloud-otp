@@ -17,16 +17,6 @@ defmodule HostCore.Linkdefs.Manager do
           link_name :: String.t()
         ) :: map() | nil
   def lookup_link_definition(lattice_prefix, actor, contract_id, link_name) do
-    # predicates = [
-    #   {:==, {:map_get, :actor_id, :"$2"}, actor},
-    #   {:==, {:map_get, :contract_id, :"$2"}, contract_id},
-    #   {:==, {:map_get, :link_name, :"$2"}, link_name}
-    # ]
-
-    # lattice_prefix
-    # |> table_atom()
-    # |> :ets.select([{{:"$1", :"$2"}, predicates, [:"$2"]}])
-    # |> List.first()
     case lookup_link_definition(lattice_prefix, linkdef_hash(actor, contract_id, link_name)) do
       {:ok, ld} -> ld
       :error -> nil
