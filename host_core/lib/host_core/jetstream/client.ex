@@ -35,7 +35,7 @@ defmodule HostCore.Jetstream.Client do
     end
 
     create_topic = create_bucket_topic(state.lattice_prefix, state.domain)
-    stream_topic = kv_stream_topic(state.lattice_prefix, state.domain)
+    stream_topic = kv_stream_topic(state.lattice_prefix)
 
     payload_json =
       Jason.encode!(%{
@@ -253,10 +253,7 @@ defmodule HostCore.Jetstream.Client do
   defp create_bucket_topic(lattice_prefix, js_domain) when is_binary(js_domain),
     do: "$JS.#{js_domain}.API.STREAM.CREATE.KV_LATTICEDATA_#{lattice_prefix}"
 
-  defp kv_stream_topic(lattice_prefix, nil), do: "$KV.LATTICEDATA_#{lattice_prefix}.>"
-
-  defp kv_stream_topic(lattice_prefix, js_domain) when is_binary(js_domain),
-    do: "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.>"
+  defp kv_stream_topic(lattice_prefix), do: "$KV.LATTICEDATA_#{lattice_prefix}.>"
 
   defp create_consumer_topic(stream_name, nil), do: "$JS.API.CONSUMER.CREATE.#{stream_name}"
 
@@ -267,7 +264,7 @@ defmodule HostCore.Jetstream.Client do
     do: "$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
 
   defp kv_operation_topic(lattice_prefix, key, js_domain) when is_binary(js_domain),
-    do: "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
+    do: "$JS.#{js_domain}.API.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
 
   defp stream_delete_topic(stream_name, nil), do: "$JS.API.STREAM.DELETE.#{stream_name}"
 
