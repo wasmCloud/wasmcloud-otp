@@ -117,6 +117,8 @@ defmodule HostCore.Vhost.VirtualHost do
 
     Logger.metadata(host_id: config.host_key, lattice_prefix: config.lattice_prefix)
 
+    :ets.insert(:vhost_config_table, {config.host_key, config})
+
     state = %State{
       config: Map.put(config, :labels, labels),
       friendly_name: friendly_name,
@@ -195,6 +197,7 @@ defmodule HostCore.Vhost.VirtualHost do
     end
   end
 
+  # Obtains -registry- credentials
   def get_creds(host_id, type, ref) do
     case lookup(host_id) do
       :error ->
@@ -207,12 +210,13 @@ defmodule HostCore.Vhost.VirtualHost do
 
   @spec get_lattice_for_host(host_id :: String.t()) :: nil | String.t()
   def get_lattice_for_host(host_id) do
-    case lookup(host_id) do
-      :error ->
+    # I can't believe I'm saying this, but I wish we had a monad here
+    case config(host_id) do
+      nil ->
         nil
 
-      {:ok, {_pid, prefix}} ->
-        prefix
+      config ->
+        config.lattice_prefix
     end
   end
 
@@ -223,12 +227,12 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   def config(host_id) when is_binary(host_id) do
-    case lookup(host_id) do
-      :error ->
-        nil
+    case :ets.lookup(:vhost_config_table, host_id) do
+      [{_, config}] ->
+        config
 
-      {:ok, {pid, _prefix}} ->
-        config(pid)
+      [] ->
+        nil
     end
   end
 

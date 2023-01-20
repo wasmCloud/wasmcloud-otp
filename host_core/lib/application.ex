@@ -82,7 +82,7 @@ defmodule HostCore.Application do
   end
 
   defp create_ets_tables do
-    :ets.new(:vhost_table, [:named_table, :set, :public])
+    :ets.new(:vhost_config_table, [:named_table, :set, :public])
     :ets.new(:policy_table, [:named_table, :set, :public])
     :ets.new(:module_cache, [:named_table, :set, :public])
   end
