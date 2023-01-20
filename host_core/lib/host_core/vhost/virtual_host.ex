@@ -123,7 +123,8 @@ defmodule HostCore.Vhost.VirtualHost do
       config: Map.put(config, :labels, labels),
       friendly_name: friendly_name,
       start_time: wclock,
-      labels: labels
+      labels: labels,
+      supplemental_config: nil
     }
 
     :timer.send_interval(@thirty_seconds, self(), :publish_heartbeat)
