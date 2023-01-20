@@ -169,7 +169,7 @@ defmodule HostCore.Vhost.VirtualHost do
       Enum.each(autostart_actors, fn actor -> start_autostart_actor(actor, state) end)
     end)
 
-    {:noreply, {:continue, :publish_started}}
+    {:noreply, state, {:continue, :publish_started}}
   end
 
   def handle_continue(:publish_started, state) do
