@@ -237,18 +237,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
          config_json,
          annotations
        ) do
-    config = VirtualHost.config(host_id)
-
-    source = %{
-      publicKey: "",
-      contractId: "",
-      linkName: "",
-      capabilities: [],
-      issuer: "",
-      issuedOn: "",
-      expiresAt: DateTime.utc_now() |> DateTime.add(60) |> DateTime.to_unix(),
-      expired: false
-    }
+    source = HostCore.Policy.Manager.default_source()
 
     target = %{
       publicKey: claims.public_key,
@@ -257,9 +246,13 @@ defmodule HostCore.Providers.ProviderSupervisor do
       contractId: contract_id
     }
 
-    with %{permitted: true} <-
+    with {:ok, {pid, _}} <- VirtualHost.lookup(host_id),
+         config <- VirtualHost.config(pid),
+         labels <- VirtualHost.labels(pid),
+         %{permitted: true} <-
            HostCore.Policy.Manager.evaluate_action(
              config,
+             labels,
              source,
              target,
              @start_provider
@@ -287,8 +280,12 @@ defmodule HostCore.Providers.ProviderSupervisor do
         Tracer.set_status(:error, "Policy denied starting provider, request: #{request_id}")
         {:error, "Starting provider #{claims.public_key} denied: #{message}"}
 
-      _ ->
+      true ->
         {:error, "Provider is already running on this host"}
+
+      {:error, err} ->
+        Tracer.set_status(:error, "#{inspect(err)}")
+        {:error, err}
     end
   end
 

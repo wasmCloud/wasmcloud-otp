@@ -50,11 +50,12 @@ defmodule HostCore.Policy.Manager do
 
   @spec evaluate_action(
           host_config :: HostCore.Vhost.Configuration.t(),
+          labels :: Map.t(),
           source :: Map.t(),
           target :: Map.t(),
           action :: String.t()
         ) :: Map.t()
-  def evaluate_action(host_config, source, target, action) do
+  def evaluate_action(host_config, labels, source, target, action) do
     with {:ok, topic} <- Manager.policy_topic(host_config),
          nil <- cached_decision(source, target, action, host_config.lattice_prefix),
          :ok <- validate_source(source),
@@ -71,7 +72,7 @@ defmodule HostCore.Policy.Manager do
           publicKey: host_config.host_key,
           issuer: host_config.cluster_key,
           latticeId: host_config.lattice_prefix,
-          labels: host_config.labels,
+          labels: labels,
           clusterIssuers: host_config.cluster_issuers
         }
       }
@@ -175,6 +176,20 @@ defmodule HostCore.Policy.Manager do
       [] ->
         nil
     end
+  end
+
+  @spec default_source() :: Map.t()
+  def default_source() do
+    %{
+      publicKey: "",
+      contractId: "",
+      linkName: "",
+      capabilities: [],
+      issuer: "",
+      issuedOn: "",
+      expiresAt: DateTime.utc_now() |> DateTime.add(60) |> DateTime.to_unix(),
+      expired: false
+    }
   end
 
   ##
