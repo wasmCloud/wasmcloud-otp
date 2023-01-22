@@ -2,6 +2,9 @@ defmodule HostCore.Jetstream.Client do
   @moduledoc false
   use GenServer
 
+  @kvoperation "KV-Operation"
+  @kvpurge "PURGE"
+
   alias HostCore.Jetstream.LegacyCacheLoader
 
   require Logger
@@ -185,6 +188,33 @@ defmodule HostCore.Jetstream.Client do
     end
 
     {:noreply, state}
+  end
+
+  def kv_del(lattice_prefix, "", key), do: kv_del(lattice_prefix, nil, key)
+
+  def kv_del(lattice_prefix, js_domain, key) do
+    # delete requires us to make a request on the topic with headers
+    # KV-Operation : PURGE
+    topic = kv_operation_topic(lattice_prefix, key, js_domain)
+    IO.inspect(topic)
+    headers = [{@kvoperation, @kvpurge}]
+
+    # TODO: once the Jetstream hex package support js_domains, switch this
+    # code to use JetStream.API.xxxx
+    case lattice_prefix
+         |> HostCore.Nats.control_connection()
+         |> Gnat.request(topic, <<>>, headers: headers) do
+      {:ok, _} ->
+        Logger.debug("Deleted key #{key} from metadata lattice bucket #{lattice_prefix}")
+        :ok
+
+      {:error, e} ->
+        Logger.error(
+          "Failed to delete key #{key} from metadata bucket #{lattice_prefix}: #{inspect(e)}"
+        )
+
+        {:error, e}
+    end
   end
 
   # Make sure that where applicable `value` is already encoded as JSON because this function won't do it.

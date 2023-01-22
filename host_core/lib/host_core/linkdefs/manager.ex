@@ -30,6 +30,10 @@ defmodule HostCore.Linkdefs.Manager do
     end
   end
 
+  def reidentify_linkdef(ld) do
+    Map.put(ld, :id, linkdef_hash(ld.actor_id, ld.contract_id, ld.link_name))
+  end
+
   def cache_link_definition(
         lattice_prefix,
         ldid,
@@ -62,7 +66,8 @@ defmodule HostCore.Linkdefs.Manager do
     :ets.insert(table_atom(lattice_prefix), {ld.id, ld})
   end
 
-  def uncache_link_definition(lattice_prefix, ldid) do
+  def uncache_link_definition(lattice_prefix, ldid, js_domain) do
+    HostCore.Jetstream.Client.kv_del(lattice_prefix, js_domain, "LINKDEF_#{ldid}")
     :ets.delete(table_atom(lattice_prefix), ldid)
   end
 
@@ -117,11 +122,22 @@ defmodule HostCore.Linkdefs.Manager do
   def del_link_definition(lattice_prefix, ldid) do
     case lookup_link_definition(lattice_prefix, ldid) do
       {:ok, linkdef} ->
-        uncache_link_definition(lattice_prefix, linkdef.id)
+        with [pid | _] <- LatticeSupervisor.host_pids_in_lattice(lattice_prefix),
+             config <- VirtualHost.config(pid) do
+          js_domain =
+            if config != nil do
+              config.js_domain
+            else
+              nil
+            end
+
+          uncache_link_definition(lattice_prefix, linkdef.id, js_domain)
+        end
+
         publish_link_definition_deleted(lattice_prefix, linkdef)
 
       :error ->
-        Logger.warn("Attempted to remove non-existent linkdef #{ldid}")
+        Logger.warn("Attempted to remove non-existent linkdef #{ldid} (this is OK)")
     end
   end
 
