@@ -191,6 +191,7 @@ defmodule HostCore.Vhost.VirtualHost do
   def lookup(host_id) do
     case Registry.lookup(Registry.HostRegistry, host_id) do
       [] ->
+        Logger.warn("Failed to look up host ID #{host_id}")
         :error
 
       [{pid, value}] ->
@@ -233,6 +234,7 @@ defmodule HostCore.Vhost.VirtualHost do
         config
 
       [] ->
+        Logger.warn("Failed to find config for host ID #{host_id}")
         nil
     end
   end

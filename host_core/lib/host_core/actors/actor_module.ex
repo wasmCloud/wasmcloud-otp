@@ -498,15 +498,17 @@ defmodule HostCore.Actors.ActorModule do
   defp policy_check(%{source_target: true} = token, agent) do
     lattice_prefix = Agent.get(agent, fn contents -> contents.lattice_prefix end)
     host_id = Agent.get(agent, fn contents -> contents.host_id end)
-    config = VirtualHost.config(host_id)
-    origin = token.invocation["origin"]
+    source = token.invocation["origin"]
     target = token.invocation["target"]
 
     decision =
-      with {:ok, _topic} <- PolicyManager.policy_topic(config),
+      with {:ok, {pid, _}} <- VirtualHost.lookup(host_id),
+           config <- VirtualHost.config(pid),
+           labels <- VirtualHost.labels(pid),
+           {:ok, _topic} <- PolicyManager.policy_topic(config),
            {:ok, source_claims} <-
-             ClaimsManager.lookup_claims(lattice_prefix, origin["public_key"]),
-           {:ok, _target_claims} <-
+             ClaimsManager.lookup_claims(lattice_prefix, source["public_key"]),
+           {:ok, target_claims} <-
              ClaimsManager.lookup_claims(lattice_prefix, target["public_key"]) do
         expired =
           case source_claims[:exp] do
@@ -518,18 +520,31 @@ defmodule HostCore.Actors.ActorModule do
         if expired do
           %{permitted: false}
         else
-          config = VirtualHost.config(host_id)
-
           PolicyManager.evaluate_action(
             config,
-            origin,
-            target,
+            labels,
+            %{
+              publicKey: source["public_key"],
+              contractId: source["contract_id"],
+              linkName: source["link_name"],
+              capabilities: source_claims[:caps],
+              issuer: source_claims[:iss],
+              issuedOn: source_claims[:iat],
+              expiresAt: source_claims[:exp],
+              expired: expired
+            },
+            %{
+              publicKey: target["public_key"],
+              contractId: target["contract_id"],
+              linkName: target["link_name"],
+              issuer: target_claims[:iss]
+            },
             @perform_invocation
           )
         end
       else
-        # Failed to check claims for source or target, denying
         :policy_eval_disabled -> %{permitted: true}
+        # Failed to get host info or check claims for source or target, denying
         :error -> %{permitted: false}
       end
 

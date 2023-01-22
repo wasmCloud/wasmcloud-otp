@@ -40,104 +40,101 @@ defmodule HostCore.Actors.ActorSupervisor do
       Tracer.set_attribute("byte_size", byte_size(bytes))
       Logger.debug("Start actor request received for #{oci}", oci_ref: oci)
 
-      case Native.extract_claims(bytes) do
+      source = HostCore.Policy.Manager.default_source()
+
+      with {:ok, {pid, _}} <- VirtualHost.lookup(host_id),
+           config <- VirtualHost.config(pid),
+           labels <- VirtualHost.labels(pid),
+           {:ok, claims} <- get_claims(bytes, oci),
+           target <- %{
+             publicKey: claims.public_key,
+             issuer: claims.issuer,
+             contractId: nil,
+             linkName: nil
+           },
+           %{permitted: true} <-
+             HostCore.Policy.Manager.evaluate_action(config, labels, source, target, @start_actor),
+           {:ok} <- check_other_oci_already_running(oci, claims.public_key, host_id),
+           pids <- start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
+        Tracer.add_event("Actor(s) Started", [])
+        Tracer.set_status(:ok, "")
+        {:ok, pids}
+      else
+        %{permitted: false, message: message, requestId: request_id} ->
+          Tracer.set_status(:error, "Policy denied starting actor, request: #{request_id}")
+          {:error, "Starting actor denied: #{message}"}
+
+        :error ->
+          Tracer.set_status(:error, "Host not found")
+          {:error, "Failed to find host #{host_id}"}
+
         {:error, err} ->
           Tracer.set_status(:error, "#{inspect(err)}")
-
-          Logger.error(
-            "Failed to extract claims from WebAssembly module, an actor must be signed with valid capability claims. (#{byte_size(bytes)} bytes)",
-            oci_ref: oci
-          )
-
           {:error, err}
-
-        {:ok, claims} ->
-          source = %{
-            publicKey: "",
-            contractId: "",
-            linkName: "",
-            capabilities: [],
-            issuer: "",
-            issuedOn: "",
-            expiresAt: DateTime.utc_now() |> DateTime.add(60) |> DateTime.to_unix(),
-            expired: false
-          }
-
-          target = %{
-            publicKey: claims.public_key,
-            issuer: claims.issuer,
-            contractId: nil,
-            linkName: nil
-          }
-
-          config = VirtualHost.config(host_id)
-
-          with %{permitted: true} <-
-                 HostCore.Policy.Manager.evaluate_action(
-                   config,
-                   source,
-                   target,
-                   @start_actor
-                 ),
-               false <- other_oci_already_running?(oci, claims.public_key, host_id) do
-            # Start `count` instances of this actor
-            case Enum.reduce_while(1..count, [], fn _count, pids ->
-                   opts = %{
-                     claims: claims,
-                     bytes: bytes,
-                     oci: oci,
-                     annotations: annotations,
-                     host_id: host_id
-                   }
-
-                   case DynamicSupervisor.start_child(
-                          __MODULE__,
-                          {ActorModule, opts}
-                        ) do
-                     {:error, err} ->
-                       {:halt, {:error, "Error: #{inspect(err)}"}}
-
-                     {:ok, pid} ->
-                       {:cont, [pid | pids]}
-
-                     {:ok, pid, _info} ->
-                       {:cont, [pid | pids]}
-
-                     :ignore ->
-                       {:cont, pids}
-                   end
-                 end) do
-              {:error, err} ->
-                Tracer.set_status(:error, "#{inspect(err)}")
-                {:error, err}
-
-              pids ->
-                Tracer.add_event("Actor(s) Started", [])
-                Tracer.set_status(:ok, "")
-                {:ok, pids}
-            end
-          else
-            true ->
-              Tracer.set_status(:error, "Already running")
-
-              {:error,
-               "Cannot start new instance of #{claims.public_key} from ref '#{oci}', it is already running with different reference. To upgrade an actor, use live update."}
-
-            %{permitted: false, message: message, requestId: request_id} ->
-              Tracer.set_status(:error, "Policy denied starting actor, request: #{request_id}")
-              {:error, "Starting actor #{claims.public_key} denied: #{message}"}
-          end
       end
+    end
+  end
+
+  defp get_claims(bytes, oci) do
+    case Native.extract_claims(bytes) do
+      {:error, err} ->
+        Logger.error(
+          "Failed to extract claims from WebAssembly module, an actor must be signed with valid capability claims. (#{byte_size(bytes)} bytes)",
+          oci_ref: oci
+        )
+
+        {:error, err}
+
+      {:ok, claims} ->
+        {:ok, claims}
     end
   end
 
   # Returns whether the given actor's public key has at least one
   # OCI reference running _other_ than the candidate supplied.
-  defp other_oci_already_running?(coci, pk, host_id) do
-    Enum.any?(
-      host_ocirefs(host_id),
-      fn {_pid, tpk, toci} -> tpk == pk && toci != coci end
-    )
+  defp check_other_oci_already_running(oci, pk, host_id) do
+    case Enum.any?(
+           host_ocirefs(host_id),
+           fn {_pid, other_pk, other_oci} -> other_pk == pk && other_oci != oci end
+         ) do
+      true ->
+        {:error,
+         "Cannot start new instance of #{pk} from ref '#{oci}', it is already running with different reference. To upgrade an actor, use live update."}
+
+      false ->
+        {:ok}
+    end
+  end
+
+  defp start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
+    # Start `count` instances of this actor
+    opts = %{
+      claims: claims,
+      bytes: bytes,
+      oci: oci,
+      annotations: annotations,
+      host_id: host_id
+    }
+
+    Enum.reduce_while(1..count, [], fn _count, pids ->
+      case DynamicSupervisor.start_child(
+             __MODULE__,
+             {ActorModule, opts}
+           ) do
+        {:error, err} ->
+          Logger.error("Failed to start actor instance", err)
+          {:halt, {:error, "Error: #{inspect(err)}"}}
+
+        {:ok, pid} ->
+          {:cont, [pid | pids]}
+
+        {:ok, pid, _info} ->
+          {:cont, [pid | pids]}
+
+        :ignore ->
+          {:cont, pids}
+      end
+    end)
   end
 
   def start_actor_from_oci(host_id, ref, count \\ 1, annotations \\ %{}) do

@@ -17,8 +17,6 @@ defmodule HostCore.PolicyTest do
   @policy_path HostCoreTest.Constants.policy_path()
   @nats_key HostCoreTest.Constants.nats_key()
   @nats_ociref HostCoreTest.Constants.nats_ociref()
-  @echo_key HostCoreTest.Constants.echo_key()
-  @echo_ociref HostCoreTest.Constants.echo_ociref()
 
   # This creates a host in the "policyhome" lattice that runs a policy
   # actor listening on wasmcloud.policy.evaluator
@@ -56,7 +54,7 @@ defmodule HostCore.PolicyTest do
   setup do
     {:ok, test_pid} = sudo_make_me_a_host(UUID.uuid4())
     test_config = VirtualHost.config(test_pid)
-    [hconfig: test_config, host_pid: test_pid]
+    [hconfig: test_config, host_pid: test_pid, host_labels: %{}]
   end
 
   @source_provider %{
@@ -80,9 +78,11 @@ defmodule HostCore.PolicyTest do
   test "can allow policy requests when disabled" do
     config = HostCoreTest.Common.default_vhost_config()
     config = %{config | lattice_prefix: UUID.uuid4()}
+    labels = %{}
 
     assert HostCore.Policy.Manager.evaluate_action(
              config,
+             labels,
              @source_provider,
              @target_actor,
              @perform_invocation
@@ -97,7 +97,7 @@ defmodule HostCore.PolicyTest do
 
   # :passthrough enables mocking a single function from the module and still accessing said module
   test_with_mock "can deny policy by default when timing out",
-                 %{:hconfig => config, :host_pid => pid},
+                 %{:hconfig => config, :host_pid => pid, :host_labels => labels},
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn _config -> {:ok, "foo.bar"} end do
@@ -109,6 +109,7 @@ defmodule HostCore.PolicyTest do
     decision =
       HostCore.Policy.Manager.evaluate_action(
         config,
+        labels,
         @source_provider,
         @target_actor,
         @perform_invocation
@@ -125,6 +126,7 @@ defmodule HostCore.PolicyTest do
     decision_same =
       HostCore.Policy.Manager.evaluate_action(
         config,
+        labels,
         @source_provider,
         @target_actor,
         @perform_invocation
@@ -139,7 +141,7 @@ defmodule HostCore.PolicyTest do
   end
 
   test_with_mock "can properly fail closed when policy requests are invalid",
-                 %{:hconfig => config, :host_pid => pid},
+                 %{:hconfig => config, :host_pid => pid, :host_labels => labels},
                  HostCore.Policy.Manager,
                  [:passthrough],
                  policy_topic: fn _config -> {:ok, "foo.bar"} end do
@@ -151,6 +153,7 @@ defmodule HostCore.PolicyTest do
     invalid_source =
       HostCore.Policy.Manager.evaluate_action(
         config,
+        labels,
         Map.delete(@source_provider, :publicKey),
         @target_actor,
         @perform_invocation
@@ -165,6 +168,7 @@ defmodule HostCore.PolicyTest do
     invalid_target =
       HostCore.Policy.Manager.evaluate_action(
         config,
+        labels,
         @source_provider,
         Map.delete(@target_actor, :issuer),
         @perform_invocation
@@ -179,6 +183,7 @@ defmodule HostCore.PolicyTest do
     invalid_action =
       HostCore.Policy.Manager.evaluate_action(
         config,
+        labels,
         @source_provider,
         @target_actor,
         [%{"mine_bitcoin" => true, "h4x0rscr1pt" => "./mine_bitcoin.sh"}]
@@ -196,7 +201,7 @@ defmodule HostCore.PolicyTest do
   #
 
   # test_with_mock "can request policy evaluations and deny actions",
-  #                %{:hconfig => config, :host_pid => pid},
+  #                %{:hconfig => config, :host_pid => pid, :host_labels => labels},
   #                HostCore.Policy.Manager,
   #                [:passthrough],
   #                policy_topic: fn _config -> {:ok, "wasmcloud.policy.evaluator"} end do
