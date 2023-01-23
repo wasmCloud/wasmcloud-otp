@@ -196,7 +196,6 @@ defmodule HostCore.Jetstream.Client do
     # delete requires us to make a request on the topic with headers
     # KV-Operation : PURGE
     topic = kv_operation_topic(lattice_prefix, key, js_domain)
-    IO.inspect(topic)
     headers = [{@kvoperation, @kvpurge}]
 
     # TODO: once the Jetstream hex package support js_domains, switch this
