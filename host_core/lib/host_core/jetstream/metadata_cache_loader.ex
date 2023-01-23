@@ -91,7 +91,9 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
 
   defp handle_action(:key_deleted, %{key: @linkdef_prefix <> ldid, prefix: lattice_prefix}, _body) do
     Logger.debug("Removing cached reference for linkdef ID #{ldid}")
-    LinkdefsManager.del_link_definition(lattice_prefix, ldid)
+
+    # Remove from in-memory cache. No need to remove from bucket (removal from bucket causes this handler)
+    LinkdefsManager.uncache_link_definition(lattice_prefix, ldid)
   end
 
   defp handle_action(:key_deleted, %{key: @claims_prefix <> pk, prefix: lattice_prefix}, _body) do

@@ -66,8 +66,7 @@ defmodule HostCore.Linkdefs.Manager do
     :ets.insert(table_atom(lattice_prefix), {ld.id, ld})
   end
 
-  def uncache_link_definition(lattice_prefix, ldid, js_domain) do
-    HostCore.Jetstream.Client.kv_del(lattice_prefix, js_domain, "LINKDEF_#{ldid}")
+  def uncache_link_definition(lattice_prefix, ldid) do
     :ets.delete(table_atom(lattice_prefix), ldid)
   end
 
@@ -131,7 +130,8 @@ defmodule HostCore.Linkdefs.Manager do
               nil
             end
 
-          uncache_link_definition(lattice_prefix, linkdef.id, js_domain)
+          uncache_link_definition(lattice_prefix, linkdef.id)
+          HostCore.Jetstream.Client.kv_del(lattice_prefix, js_domain, "LINKDEF_#{ldid}")
         end
 
         publish_link_definition_deleted(lattice_prefix, linkdef)
