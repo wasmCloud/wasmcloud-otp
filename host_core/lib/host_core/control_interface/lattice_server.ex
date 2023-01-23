@@ -121,6 +121,8 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
            true <- has_values(ld, ["actor_id", "contract_id", "link_name"]) do
+        # Removes linkdef from bucket and just in case we lose the subscription
+        # message from the bucket, uncache it from memory
         LinkdefsManager.del_link_definition_by_triple(
           prefix,
           ld["actor_id"],

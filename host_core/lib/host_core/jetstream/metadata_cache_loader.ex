@@ -15,6 +15,7 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
 
   @operation_header "kv-operation"
   @operation_del "DEL"
+  @operation_purge "PURGE"
 
   @bucket_prefix "LATTICEDATA_"
   @claims_prefix "CLAIMS_"
@@ -27,7 +28,8 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   def request(%{topic: topic, body: body, headers: headers}) do
     tokenmap = tokenize(topic)
 
-    if {@operation_header, @operation_del} in headers do
+    if {@operation_header, @operation_del} in headers ||
+         {@operation_header, @operation_purge} in headers do
       handle_action(:key_deleted, tokenmap, body)
     else
       handle_action(:key_added, tokenmap, body)
@@ -89,7 +91,9 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
 
   defp handle_action(:key_deleted, %{key: @linkdef_prefix <> ldid, prefix: lattice_prefix}, _body) do
     Logger.debug("Removing cached reference for linkdef ID #{ldid}")
-    LinkdefsManager.del_link_definition(lattice_prefix, ldid)
+
+    # Remove from in-memory cache. No need to remove from bucket (removal from bucket causes this handler)
+    LinkdefsManager.uncache_link_definition(lattice_prefix, ldid)
   end
 
   defp handle_action(:key_deleted, %{key: @claims_prefix <> pk, prefix: lattice_prefix}, _body) do
