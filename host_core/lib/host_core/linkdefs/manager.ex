@@ -191,7 +191,7 @@ defmodule HostCore.Linkdefs.Manager do
   # Publishes the removal of a link definition to the event stream and sends an indication
   # of the removal to the appropriate capability provider. Other hosts will already have been
   # informed of the deletion via key subscriptions on the bucket
-  defp publish_link_definition_deleted(prefix, ld) do
+  def publish_link_definition_deleted(prefix, ld) do
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.del"
 
     %{
