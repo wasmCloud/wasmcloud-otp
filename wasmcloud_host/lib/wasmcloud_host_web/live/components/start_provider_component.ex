@@ -1,5 +1,11 @@
 defmodule StartProviderComponent do
+  @moduledoc """
+  LiveComponent for starting a provider.
+  """
   use Phoenix.LiveComponent
+
+  alias HostCore.Providers.ProviderSupervisor
+  alias WasmcloudHost.Lattice.ControlInterface
 
   def mount(socket) do
     {:ok,
@@ -24,7 +30,7 @@ defmodule StartProviderComponent do
 
     error_msg =
       Phoenix.LiveView.consume_uploaded_entries(socket, :provider, fn %{path: path}, _entry ->
-        case HostCore.Providers.ProviderSupervisor.start_provider_from_file(
+        case ProviderSupervisor.start_provider_from_file(
                pk,
                path,
                provider_link_name
@@ -59,7 +65,7 @@ defmodule StartProviderComponent do
       ) do
     case host_id do
       "" ->
-        case WasmcloudHost.Lattice.ControlInterface.auction_provider(
+        case ControlInterface.auction_provider(
                provider_ociref,
                provider_link_name,
                %{}
@@ -77,7 +83,7 @@ defmodule StartProviderComponent do
   end
 
   defp start_provider(provider_ociref, provider_link_name, host_id, socket) do
-    case WasmcloudHost.Lattice.ControlInterface.start_provider(
+    case ControlInterface.start_provider(
            provider_ociref,
            provider_link_name,
            host_id

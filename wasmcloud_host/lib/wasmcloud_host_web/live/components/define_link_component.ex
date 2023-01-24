@@ -1,6 +1,8 @@
 defmodule DefineLinkComponent do
   use Phoenix.LiveComponent
 
+  alias WasmcloudHost.Lattice.ControlInterface
+
   def mount(socket) do
     {:ok, socket |> assign(:error_msg, nil)}
   end
@@ -21,33 +23,18 @@ defmodule DefineLinkComponent do
     link_name = Map.get(linkdef, "link_name")
     values = Map.get(linkdef, "values")
 
-    values_map =
-      case values do
-        "" ->
-          Map.new()
-
-        nil ->
-          Map.new()
-
-        value_list ->
-          value_list
-          |> String.split(",")
-          |> Enum.flat_map(fn s -> String.split(s, "=", parts: 2) end)
-          |> Enum.chunk_every(2)
-          |> Enum.map(fn [a, b] -> {a, b} end)
-          |> Map.new()
-      end
+    values_map = build_values_map(values)
 
     error_msg =
       cond do
-        actor_id == nil ->
+        is_nil(actor_id) ->
           "Please select an Actor ID to link"
 
-        provider_id == nil ->
+        is_nil(provider_id) ->
           "Please select a Provider ID to link"
 
         true ->
-          case WasmcloudHost.Lattice.ControlInterface.put_linkdef(
+          case ControlInterface.put_linkdef(
                  actor_id,
                  contract_id,
                  link_name,
@@ -59,11 +46,23 @@ defmodule DefineLinkComponent do
           end
       end
 
-    if error_msg == nil do
+    if is_nil(error_msg) do
       Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
     end
 
     {:noreply, assign(socket, error_msg: error_msg)}
+  end
+
+  defp build_values_map(""), do: Map.new()
+  defp build_values_map(nil), do: Map.new()
+
+  defp build_values_map(value_list) do
+    value_list
+    |> String.split(",")
+    |> Enum.flat_map(fn s -> String.split(s, "=", parts: 2) end)
+    |> Enum.chunk_every(2)
+    |> Enum.map(fn [a, b] -> {a, b} end)
+    |> Map.new()
   end
 
   def render(assigns) do

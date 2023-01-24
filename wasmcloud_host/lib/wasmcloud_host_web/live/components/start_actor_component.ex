@@ -1,5 +1,12 @@
 defmodule StartActorComponent do
+  @moduledoc """
+  LiveComponent for starting an actor.
+  """
   use Phoenix.LiveComponent
+
+  alias HostCore.Actors.ActorSupervisor
+  alias WasmcloudHost.Lattice.ControlInterface
+  alias WasmcloudHost.Lattice.StateMonitor
 
   @max_actor_size 16_000_000
 
@@ -42,7 +49,7 @@ defmodule StartActorComponent do
       Phoenix.LiveView.consume_uploaded_entries(socket, :actor, fn %{path: path}, _entry ->
         case File.read(path) do
           {:ok, bytes} ->
-            HostCore.Actors.ActorSupervisor.start_actor(bytes, pk, "", String.to_integer(count))
+            ActorSupervisor.start_actor(bytes, pk, "", String.to_integer(count))
 
           {:error, reason} ->
             {:error, "Error #{reason}"}
@@ -92,7 +99,7 @@ defmodule StartActorComponent do
       ) do
     case host_id do
       "" ->
-        case WasmcloudHost.Lattice.ControlInterface.auction_actor(actor_ociref, %{}) do
+        case ControlInterface.auction_actor(actor_ociref, %{}) do
           {:ok, auction_host_id} ->
             start_actor(actor_ociref, count, auction_host_id, socket)
 
@@ -107,11 +114,11 @@ defmodule StartActorComponent do
 
   defp start_actor(actor_ociref, count, host_id, socket) do
     actor_id =
-      WasmcloudHost.Lattice.StateMonitor.get_ocirefs()
+      StateMonitor.get_ocirefs()
       |> Enum.find({actor_ociref, ""}, fn {oci, _id} -> oci == actor_ociref end)
       |> elem(1)
 
-    case WasmcloudHost.Lattice.ControlInterface.scale_actor(
+    case ControlInterface.scale_actor(
            actor_id,
            actor_ociref,
            String.to_integer(count),

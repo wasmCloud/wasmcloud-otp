@@ -1,5 +1,7 @@
 defmodule WasmcloudHost.Lattice.StateMonitor do
   use GenServer, restart: :transient
+
+  alias HostCore.Vhost.VirtualHost
   alias Phoenix.PubSub
 
   require Logger
@@ -18,7 +20,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   @impl true
   def init(_opts) do
     {pk, pid, prefix} = WasmcloudHost.Application.first_host()
-    labels = HostCore.Vhost.VirtualHost.labels(pid)
+    labels = VirtualHost.labels(pid)
 
     state = %State{
       lattice_prefix: prefix,
@@ -87,27 +89,27 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     {:reply, state.refmaps, state}
   end
 
-  def get_hosts() do
+  def get_hosts do
     GenServer.call(:state_monitor, :hosts_query)
   end
 
-  def get_actors() do
+  def get_actors do
     GenServer.call(:state_monitor, :actor_query)
   end
 
-  def get_providers() do
+  def get_providers do
     GenServer.call(:state_monitor, :provider_query)
   end
 
-  def get_linkdefs() do
+  def get_linkdefs do
     GenServer.call(:state_monitor, :linkdef_query)
   end
 
-  def get_claims() do
+  def get_claims do
     GenServer.call(:state_monitor, :claims_query)
   end
 
-  def get_ocirefs() do
+  def get_ocirefs do
     GenServer.call(:state_monitor, :refmaps_query)
   end
 
