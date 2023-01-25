@@ -261,7 +261,7 @@ defmodule HostCore.Providers.ProviderModule do
       if state.os_pid != nil do
         # fun fact - if we don't do this in a spawned task, we never move execution
         # to after the if statement. HUZZAH
-        Task.Supervisor.start_child(ControlInterfaceTaskSupervisor, fn ->
+        Task.Supervisor.start_child(ProviderTaskSupervisor, fn ->
           System.cmd("kill", ["-9", "#{state.os_pid}"])
         end)
       end
