@@ -122,6 +122,14 @@ defmodule HostCore.Actors.ActorModule do
     end
   end
 
+  def full_state(pid) do
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_full_state)
+    else
+      %{}
+    end
+  end
+
   @doc """
   Halts the actor module corresponding to the supplied process ID. This will attempt a graceful termination
   and will try and emit an `actor_stopped` event.
@@ -260,6 +268,10 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   # A handful of individual query calls to pull information from the agent state
+
+  def handle_call(:get_full_state, _from, agent) do
+    {:reply, Agent.get(agent, fn content -> content end), agent}
+  end
 
   def handle_call(:get_api_ver, _from, agent) do
     {:reply, Agent.get(agent, fn content -> content.api_version end), agent}

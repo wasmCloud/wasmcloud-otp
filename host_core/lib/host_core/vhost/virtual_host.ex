@@ -491,7 +491,7 @@ defmodule HostCore.Vhost.VirtualHost do
   defp publish_heartbeat(state) do
     state
     |> generate_heartbeat()
-    |> CloudEvent.publish(state.config.lattice_prefix)
+    |> Enum.each(fn hb -> CloudEvent.publish(hb, state.config.lattice_prefix) end)
   end
 
   defp get_env_host_labels do
