@@ -32,16 +32,13 @@ defmodule HostCore.Jetstream.LegacyCacheLoader do
   def handle_request({"linkdefs", key}, body, prefix, js_domain) do
     case Jason.decode(body, keys: :atoms) do
       {:ok, %{deleted: true} = ld} ->
-        LinkdefsManager.uncache_link_definition(
-          prefix,
-          ld.id
-        )
-
         Logger.debug(
           "Skipping migration of deleted linkdef from #{ld.actor_id} to #{ld.provider_id}"
         )
 
       {:ok, ld} ->
+        ld = LinkdefsManager.reidentify_linkdef(ld)
+
         JetstreamClient.kv_put(
           prefix,
           js_domain,

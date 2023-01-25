@@ -1,6 +1,9 @@
 defmodule WasmcloudHost.ActorWatcher do
   use GenServer
 
+  alias HostCore.Actors.ActorSupervisor
+  alias HostCore.WasmCloud.Native
+
   @reload_delay_ms 1_000
 
   def start_link(args) do
@@ -30,7 +33,7 @@ defmodule WasmcloudHost.ActorWatcher do
       actor_map = Map.get(state, path, %{})
       actor_id = Map.get(actor_map, :actor_id, "")
       is_reloading = Map.get(actor_map, :is_reloading, false)
-      existing_actors = HostCore.Actors.ActorSupervisor.find_actor(actor_id)
+      existing_actors = ActorSupervisor.find_actor(actor_id)
 
       cond do
         # noop, no actor is registered under that path
@@ -64,11 +67,11 @@ defmodule WasmcloudHost.ActorWatcher do
   def handle_info({:reload_actor, path}, state) do
     {:ok, bytes} = File.read(path)
     actor_id = state |> Map.get(path, %{}) |> Map.get(:actor_id, "")
-    existing_actors = HostCore.Actors.ActorSupervisor.find_actor(actor_id)
+    existing_actors = ActorSupervisor.find_actor(actor_id)
 
     replicas = existing_actors |> Enum.count()
 
-    HostCore.Actors.ActorSupervisor.terminate_actor(
+    ActorSupervisor.terminate_actor(
       actor_id,
       replicas,
       %{}
@@ -83,7 +86,7 @@ defmodule WasmcloudHost.ActorWatcher do
   def handle_call({:hotwatch_actor, path, replicas}, _from, state) do
     with {:ok, bytes} <- File.read(path),
          :ok <- start_actor(bytes, replicas),
-         {:ok, claims} <- HostCore.WasmCloud.Native.extract_claims(bytes) do
+         {:ok, claims} <- Native.extract_claims(bytes) do
       if Map.get(state, path, nil) != nil do
         # Already watching this actor, don't re-subscribe
         {:reply, :ok, state}
@@ -120,7 +123,7 @@ defmodule WasmcloudHost.ActorWatcher do
   end
 
   def start_actor(bytes, replicas) do
-    case HostCore.Actors.ActorSupervisor.start_actor(bytes, "", replicas) do
+    case ActorSupervisor.start_actor(bytes, "", replicas) do
       {:ok, _pids} -> :ok
       {:error, e} -> {:error, e}
     end

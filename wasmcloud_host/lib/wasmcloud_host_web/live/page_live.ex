@@ -1,5 +1,8 @@
 defmodule WasmcloudHostWeb.PageLive do
   use WasmcloudHostWeb, :live_view
+
+  alias WasmcloudHost.Lattice.StateMonitor
+
   require Logger
 
   @impl true
@@ -12,21 +15,21 @@ defmodule WasmcloudHostWeb.PageLive do
     {:ok,
      socket
      |> assign(
-       hosts: WasmcloudHost.Lattice.StateMonitor.get_hosts(),
-       linkdefs: WasmcloudHost.Lattice.StateMonitor.get_linkdefs(),
-       ocirefs: WasmcloudHost.Lattice.StateMonitor.get_ocirefs(),
-       claims: WasmcloudHost.Lattice.StateMonitor.get_claims(),
+       hosts: StateMonitor.get_hosts(),
+       linkdefs: StateMonitor.get_linkdefs(),
+       ocirefs: StateMonitor.get_ocirefs(),
+       claims: StateMonitor.get_claims(),
        open_modal: nil,
        selected_host: pk
      )}
   end
 
-  def first_host_key() do
+  def first_host_key do
     {pk, _pid, _prefix} = WasmcloudHost.Application.first_host()
     pk
   end
 
-  def first_host_prefix() do
+  def first_host_prefix do
     {_pk, _pid, prefix} = WasmcloudHost.Application.first_host()
     prefix
   end

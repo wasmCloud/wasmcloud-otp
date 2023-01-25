@@ -1,12 +1,14 @@
 defmodule LinkRowComponent do
   use Phoenix.LiveComponent
 
+  alias WasmcloudHost.Lattice.ControlInterface
+
   def handle_event(
         "delete_linkdef",
         %{"actor_id" => actor_id, "contract_id" => contract_id, "link_name" => link_name},
         socket
       ) do
-    WasmcloudHost.Lattice.ControlInterface.delete_linkdef(actor_id, contract_id, link_name)
+    ControlInterface.delete_linkdef(actor_id, contract_id, link_name)
     {:noreply, socket}
   end
 
@@ -66,8 +68,6 @@ defmodule LinkRowComponent do
   end
 
   defp str_values(value) do
-    value
-    |> Enum.map(fn {a, b} -> "#{a}=#{b}" end)
-    |> Enum.join(",")
+    Enum.map_join(value, ",", fn {a, b} -> "#{a}=#{b}" end)
   end
 end

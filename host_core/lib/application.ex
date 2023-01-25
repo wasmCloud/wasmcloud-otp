@@ -45,6 +45,11 @@ defmodule HostCore.Application do
     started = Supervisor.start_link(children, opts)
 
     if config.enable_structured_logging do
+      :logger.set_primary_config(
+        :logger.get_primary_config()
+        |> Map.put(:level, config.structured_log_level)
+      )
+
       :logger.add_handler(:structured_logger, :logger_std_h, %{
         formatter: {HostCore.StructuredLogger.FormatterJson, []},
         level: config.structured_log_level,
@@ -77,7 +82,7 @@ defmodule HostCore.Application do
   end
 
   defp create_ets_tables do
-    :ets.new(:vhost_table, [:named_table, :set, :public])
+    :ets.new(:vhost_config_table, [:named_table, :set, :public])
     :ets.new(:policy_table, [:named_table, :set, :public])
     :ets.new(:module_cache, [:named_table, :set, :public])
   end

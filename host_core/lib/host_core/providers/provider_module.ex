@@ -154,9 +154,6 @@ defmodule HostCore.Providers.ProviderModule do
 
     instance_id = UUID.uuid4()
 
-    # Store the provider pid
-    Registry.register(Registry.ProviderRegistry, {claims.public_key, link_name}, host_id)
-
     host_info =
       VirtualHost.generate_hostinfo_for_provider(
         host_id,
@@ -214,7 +211,18 @@ defmodule HostCore.Providers.ProviderModule do
        # until we prove otherwise
        healthy: false,
        ociref: oci
-     }}
+     }, {:continue, :register_provider}}
+  end
+
+  @impl true
+  def handle_continue(:register_provider, state) do
+    Registry.register(
+      Registry.ProviderRegistry,
+      {state.public_key, state.link_name},
+      state.host_id
+    )
+
+    {:noreply, state}
   end
 
   @propagated_env_vars ["OTEL_TRACES_EXPORTER", "OTEL_EXPORTER_OTLP_ENDPOINT"]

@@ -2,6 +2,9 @@ defmodule HostCore.Jetstream.Client do
   @moduledoc false
   use GenServer
 
+  @kvoperation "KV-Operation"
+  @kvpurge "PURGE"
+
   alias HostCore.Jetstream.LegacyCacheLoader
 
   require Logger
@@ -35,7 +38,7 @@ defmodule HostCore.Jetstream.Client do
     end
 
     create_topic = create_bucket_topic(state.lattice_prefix, state.domain)
-    stream_topic = kv_stream_topic(state.lattice_prefix, state.domain)
+    stream_topic = kv_stream_topic(state.lattice_prefix)
 
     payload_json =
       Jason.encode!(%{
@@ -187,6 +190,32 @@ defmodule HostCore.Jetstream.Client do
     {:noreply, state}
   end
 
+  def kv_del(lattice_prefix, "", key), do: kv_del(lattice_prefix, nil, key)
+
+  def kv_del(lattice_prefix, js_domain, key) do
+    # delete requires us to make a request on the topic with headers
+    # KV-Operation : PURGE
+    topic = kv_operation_topic(lattice_prefix, key, js_domain)
+    headers = [{@kvoperation, @kvpurge}]
+
+    # TODO: once the Jetstream hex package support js_domains, switch this
+    # code to use JetStream.API.xxxx
+    case lattice_prefix
+         |> HostCore.Nats.control_connection()
+         |> Gnat.request(topic, <<>>, headers: headers) do
+      {:ok, _} ->
+        Logger.debug("Deleted key #{key} from metadata lattice bucket #{lattice_prefix}")
+        :ok
+
+      {:error, e} ->
+        Logger.error(
+          "Failed to delete key #{key} from metadata bucket #{lattice_prefix}: #{inspect(e)}"
+        )
+
+        {:error, e}
+    end
+  end
+
   # Make sure that where applicable `value` is already encoded as JSON because this function won't do it.
   def kv_put(lattice_prefix, "", key, value), do: kv_put(lattice_prefix, nil, key, value)
 
@@ -226,16 +255,34 @@ defmodule HostCore.Jetstream.Client do
     |> HostCore.Nats.safe_req(del_topic, <<>>)
   end
 
+  def ensure_linkdef_id(linkdef) do
+    if Map.has_key?(linkdef, :id) do
+      linkdef
+    else
+      Map.put(
+        linkdef,
+        :id,
+        linkdef_hash(linkdef.actor_id, linkdef.contract_id, linkdef.link_name)
+      )
+    end
+  end
+
+  def linkdef_hash(actor_id, contract_id, link_name) do
+    sha = :crypto.hash_init(:sha256)
+    sha = :crypto.hash_update(sha, actor_id)
+    sha = :crypto.hash_update(sha, contract_id)
+    sha = :crypto.hash_update(sha, link_name)
+    sha_binary = :crypto.hash_final(sha)
+    sha_binary |> Base.encode16() |> String.upcase()
+  end
+
   defp create_bucket_topic(lattice_prefix, nil),
     do: "$JS.API.STREAM.CREATE.KV_LATTICEDATA_#{lattice_prefix}"
 
   defp create_bucket_topic(lattice_prefix, js_domain) when is_binary(js_domain),
     do: "$JS.#{js_domain}.API.STREAM.CREATE.KV_LATTICEDATA_#{lattice_prefix}"
 
-  defp kv_stream_topic(lattice_prefix, nil), do: "$KV.LATTICEDATA_#{lattice_prefix}.>"
-
-  defp kv_stream_topic(lattice_prefix, js_domain) when is_binary(js_domain),
-    do: "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.>"
+  defp kv_stream_topic(lattice_prefix), do: "$KV.LATTICEDATA_#{lattice_prefix}.>"
 
   defp create_consumer_topic(stream_name, nil), do: "$JS.API.CONSUMER.CREATE.#{stream_name}"
 
@@ -246,7 +293,7 @@ defmodule HostCore.Jetstream.Client do
     do: "$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
 
   defp kv_operation_topic(lattice_prefix, key, js_domain) when is_binary(js_domain),
-    do: "#{js_domain}.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
+    do: "$JS.#{js_domain}.API.$KV.LATTICEDATA_#{lattice_prefix}.#{key}"
 
   defp stream_delete_topic(stream_name, nil), do: "$JS.API.STREAM.DELETE.#{stream_name}"
 

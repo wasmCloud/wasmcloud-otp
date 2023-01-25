@@ -8,11 +8,14 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   alias HostCore.Refmaps.Manager, as: RefmapsManager
   alias Phoenix.PubSub
 
+  import HostCore.Jetstream.Client, only: [ensure_linkdef_id: 1]
+
   require Logger
   use Gnat.Server
 
   @operation_header "kv-operation"
   @operation_del "DEL"
+  @operation_purge "PURGE"
 
   @bucket_prefix "LATTICEDATA_"
   @claims_prefix "CLAIMS_"
@@ -25,7 +28,8 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   def request(%{topic: topic, body: body, headers: headers}) do
     tokenmap = tokenize(topic)
 
-    if {@operation_header, @operation_del} in headers do
+    if {@operation_header, @operation_del} in headers ||
+         {@operation_header, @operation_purge} in headers do
       handle_action(:key_deleted, tokenmap, body)
     else
       handle_action(:key_added, tokenmap, body)
@@ -70,6 +74,7 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
   defp handle_action(:key_added, %{key: @linkdef_prefix <> _ldid, prefix: lattice_prefix}, body) do
     case Jason.decode(body, keys: :atoms) do
       {:ok, ld} ->
+        ld = ensure_linkdef_id(ld)
         Logger.debug("Caching link definition from #{ld.actor_id} on contract #{ld.contract_id}")
 
         # This data came from the bucket, so we don't need to re-write it to the bucket, just:
@@ -86,7 +91,14 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
 
   defp handle_action(:key_deleted, %{key: @linkdef_prefix <> ldid, prefix: lattice_prefix}, _body) do
     Logger.debug("Removing cached reference for linkdef ID #{ldid}")
-    LinkdefsManager.del_link_definition(lattice_prefix, ldid)
+
+    case LinkdefsManager.lookup_link_definition(lattice_prefix, ldid) do
+      {:ok, ld} -> LinkdefsManager.publish_link_definition_deleted(lattice_prefix, ld)
+      _ -> Logger.warn("Failed to look up link definition with ID #{ldid}")
+    end
+
+    # Remove from in-memory cache. No need to remove from bucket (removal from bucket causes this handler)
+    LinkdefsManager.uncache_link_definition(lattice_prefix, ldid)
   end
 
   defp handle_action(:key_deleted, %{key: @claims_prefix <> pk, prefix: lattice_prefix}, _body) do

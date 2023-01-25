@@ -1,6 +1,8 @@
 defmodule ScaleActorComponent do
   use Phoenix.LiveComponent
 
+  alias WasmcloudHost.Lattice.ControlInterface
+
   def mount(socket) do
     {:ok,
      socket
@@ -21,7 +23,7 @@ defmodule ScaleActorComponent do
         },
         socket
       ) do
-    case WasmcloudHost.Lattice.ControlInterface.scale_actor(
+    case ControlInterface.scale_actor(
            actor_id,
            actor_ref,
            String.to_integer(count),
