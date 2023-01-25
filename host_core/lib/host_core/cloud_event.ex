@@ -30,11 +30,11 @@ defmodule HostCore.CloudEvent do
   """
   @spec publish(evt :: binary(), lattice_prefix :: String.t(), alt_prefix :: String.t()) :: :ok
   def publish(evt, lattice_prefix, alt_prefix \\ "wasmbus.evt") when is_binary(evt) do
-    lattice_prefix
-    |> HostCore.Nats.control_connection()
-    |> HostCore.Nats.safe_pub("#{alt_prefix}.#{lattice_prefix}", evt)
-
     Task.Supervisor.start_child(ControlInterfaceTaskSupervisor, fn ->
+      lattice_prefix
+      |> HostCore.Nats.control_connection()
+      |> HostCore.Nats.safe_pub("#{alt_prefix}.#{lattice_prefix}", evt)
+
       PubSub.broadcast(:hostcore_pubsub, "latticeevents:#{lattice_prefix}", {:lattice_event, evt})
     end)
 

@@ -970,10 +970,6 @@ defmodule HostCore.Actors.ActorModule do
     }
     |> CloudEvent.new("actor_updated", host_id)
     |> CloudEvent.publish(prefix)
-
-    # topic = "#{@event_prefix}.#{prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(prefix), topic, msg)
   end
 
   def publish_actor_update_failed(prefix, host_id, actor_pk, revision, instance_id, reason) do
@@ -985,10 +981,6 @@ defmodule HostCore.Actors.ActorModule do
     }
     |> CloudEvent.new("actor_update_failed", host_id)
     |> CloudEvent.publish(prefix)
-
-    # topic = "#{@event_prefix}.#{prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(prefix), topic, msg)
   end
 
   def publish_actor_stopped(host_id, lattice_prefix, actor_pk, instance_id) do
@@ -998,9 +990,5 @@ defmodule HostCore.Actors.ActorModule do
     }
     |> CloudEvent.new("actor_stopped", host_id)
     |> CloudEvent.publish(lattice_prefix)
-
-    # topic = "#{@event_prefix}.#{lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 end

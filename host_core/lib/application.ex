@@ -100,6 +100,7 @@ defmodule HostCore.Application do
        partitions: System.schedulers_online()},
       {Phoenix.PubSub, name: :hostcore_pubsub},
       {Task.Supervisor, name: ControlInterfaceTaskSupervisor},
+      {Task.Supervisor, name: HostTaskSupervisor},
       {Task.Supervisor, name: InvocationTaskSupervisor},
       {HostCore.Actors.ActorRpcSupervisor, strategy: :one_for_one},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
