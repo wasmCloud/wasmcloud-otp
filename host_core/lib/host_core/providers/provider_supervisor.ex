@@ -346,6 +346,15 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end)
   end
 
+  @doc """
+  Produces a list of maps, one for reach running provider on the host
+  """
+  @spec all_providers_for_hb(host_id :: String.t()) :: [
+          %{
+            required(:public_key) => String.t(),
+            required(:link_name) => String.t()
+          }
+        ]
   def all_providers_for_hb(host_id) do
     providers_on_host = providers_on_host(host_id)
 

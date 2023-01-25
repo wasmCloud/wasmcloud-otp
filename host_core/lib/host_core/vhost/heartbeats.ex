@@ -26,11 +26,11 @@ defmodule HostCore.Vhost.Heartbeats do
 
   @impl true
   def handle_info(:publish_heartbeat, state) do
-    publish_heartbeat(state)
+    publish_heartbeat(elem(state, 0))
     {:noreply, state}
   end
 
-  defp publish_heartbeat({host_pid, _host_key}) do
+  def publish_heartbeat(host_pid) do
     if Process.alive?(host_pid) do
       state = HostCore.Vhost.VirtualHost.full_state(host_pid)
 
@@ -46,7 +46,6 @@ defmodule HostCore.Vhost.Heartbeats do
     actors =
       config.host_key
       |> ActorSupervisor.all_actors_for_hb()
-      |> Map.new()
 
     providers =
       config.host_key
