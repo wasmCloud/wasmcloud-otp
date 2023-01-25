@@ -4,6 +4,8 @@ defmodule HostCore.Application do
   application root level, the following supervisors will always be present:
 
   * ControlInterfaceTaskSupervisor - a task supervisor logically associated with control interface/operations tasks
+  * HostTaskSupervisor - a task supervisor logically associated with performing operations in a virtual host
+  * ProviderTaskSupervisor - a task supervisor logically associated with provider module operations
   * InvocationTaskSupervisor - a task supervisor logically associated with performing remote procedure calls and invoking Wasm components
   * ActorRpcSupervisor - the root owner of all actor RPC subscriptions, with one _queue_ subscription per public key
   * ProviderSupervisor - the root ovwner of all capability providers running inside this OTP application
