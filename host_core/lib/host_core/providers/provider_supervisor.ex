@@ -247,12 +247,11 @@ defmodule HostCore.Providers.ProviderSupervisor do
     }
 
     with {:ok, {pid, _}} <- VirtualHost.lookup(host_id),
-         config <- VirtualHost.config(pid),
-         labels <- VirtualHost.labels(pid),
+         full_state <- VirtualHost.full_state(pid),
          %{permitted: true} <-
            HostCore.Policy.Manager.evaluate_action(
-             config,
-             labels,
+             full_state.config,
+             full_state.labels,
              source,
              target,
              @start_provider
@@ -262,12 +261,12 @@ defmodule HostCore.Providers.ProviderSupervisor do
         path: path,
         claims: claims,
         link_name: link_name,
-        lattice_prefix: config.lattice_prefix,
+        lattice_prefix: full_state.config.lattice_prefix,
         contract_id: contract_id,
         oci: oci,
         config_json: config_json,
         host_id: host_id,
-        shutdown_delay: config.provider_delay,
+        shutdown_delay: full_state.config.provider_delay,
         annotations: annotations
       }
 
