@@ -65,7 +65,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
             par.contract_id,
             link_name
           ),
-          par.claims,
+          Map.put(par.claims, :contract_id, par.contract_id),
           link_name,
           par.contract_id,
           ref,
@@ -133,7 +133,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
               par.contract_id,
               link_name
             ),
-            par.claims,
+            Map.put(par.claims, :contract_id, par.contract_id),
             link_name,
             par.contract_id,
             bindle_id,
@@ -185,7 +185,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
               par.contract_id,
               link_name
             ),
-            par.claims,
+            Map.put(par.claims, :contract_id, par.contract_id),
             link_name,
             par.contract_id,
             "",
@@ -356,11 +356,22 @@ defmodule HostCore.Providers.ProviderSupervisor do
         ]
   def all_providers_for_hb(host_id) do
     providers_on_host = providers_on_host(host_id)
+    lattice_prefix = HostCore.Vhost.VirtualHost.get_lattice_for_host(host_id)
 
     Enum.map(providers_on_host, fn {{pk, link_name}, _pid} ->
+      contract_id =
+        case HostCore.Claims.Manager.lookup_claims(lattice_prefix, pk) do
+          {:ok, claims} ->
+            Map.get(claims, :contract_id, "n/a")
+
+          _ ->
+            "n/a"
+        end
+
       %{
         public_key: pk,
-        link_name: link_name
+        link_name: link_name,
+        contract_id: contract_id
       }
     end)
   end
