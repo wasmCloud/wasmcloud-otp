@@ -29,8 +29,8 @@ defmodule HostCore.Actors.ActorSupervisor do
           bytes :: binary(),
           host_id :: String.t(),
           oci :: String.t(),
-          count :: Integer.t(),
-          annotations :: Map.t()
+          count :: integer(),
+          annotations :: map()
         ) :: {:error, any} | {:ok, [pid()]}
   def start_actor(bytes, host_id, oci \\ "", count \\ 1, annotations \\ %{})
       when is_binary(bytes) do
@@ -359,7 +359,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   suitability on emitted heartbeats. Maps the public key of the actor
   to the count of instances
   """
-  @spec all_actors_for_hb(host_id :: String.t()) :: %{String.t() => Integer.t()}
+  @spec all_actors_for_hb(host_id :: String.t()) :: %{String.t() => integer()}
   def all_actors_for_hb(host_id) do
     # $1 - pk
     # $2 - pid
