@@ -12,8 +12,6 @@ defmodule HostCore.Vhost.VirtualHost do
 
   use GenServer, restart: :transient
 
-  import HostCore.Vhost.Heartbeats, only: [generate_heartbeat: 1]
-
   require Logger
 
   alias HostCore.Actors.ActorSupervisor
@@ -24,8 +22,6 @@ defmodule HostCore.Vhost.VirtualHost do
   alias HostCore.Vhost.Configuration
   alias HostCore.WasmCloud.Native
   alias Timex.Format.Duration.Formatters.Humanized
-
-  @thirty_seconds 30_000
 
   defmodule State do
     @moduledoc """
@@ -113,21 +109,23 @@ defmodule HostCore.Vhost.VirtualHost do
       ]
     })
 
+    HostCore.Vhost.Heartbeats.start_link(self(), config.host_key)
+
     {wclock, _} = :erlang.statistics(:wall_clock)
 
     Logger.metadata(host_id: config.host_key, lattice_prefix: config.lattice_prefix)
 
+    config = Map.put(config, :labels, labels)
+
     :ets.insert(:vhost_config_table, {config.host_key, config})
 
     state = %State{
-      config: Map.put(config, :labels, labels),
+      config: config,
       friendly_name: friendly_name,
       start_time: wclock,
       labels: labels,
       supplemental_config: nil
     }
-
-    :timer.send_interval(@thirty_seconds, self(), :publish_heartbeat)
 
     if config.config_service_enabled do
       {:ok, state, {:continue, :load_supp_config}}
@@ -181,12 +179,6 @@ defmodule HostCore.Vhost.VirtualHost do
     {:via, Registry, {Registry.HostRegistry, host_id, lattice_prefix}}
   end
 
-  @impl true
-  def handle_info(:publish_heartbeat, state) do
-    publish_heartbeat(state)
-    {:noreply, state}
-  end
-
   @spec lookup(host_id :: String.t()) :: :error | {:ok, {pid(), String.t()}}
   def lookup(host_id) do
     case Registry.lookup(Registry.HostRegistry, host_id) do
@@ -224,10 +216,27 @@ defmodule HostCore.Vhost.VirtualHost do
 
   def get_inventory(pid), do: GenServer.call(pid, :get_inventory)
 
-  def config(pid) when is_pid(pid) do
-    GenServer.call(pid, :get_config)
+  def full_state(pid) when is_pid(pid) do
+    GenServer.call(pid, :get_full_state)
   end
 
+  @doc """
+  Performs a lookup of the pid in the host registry, and then uses that host ID
+  to look the configuration up in the ETS cache. This function no longer makes
+  a GenServer call
+  """
+  @spec config(pid()) :: nil | HostCore.Vhost.Configuration.t()
+  def config(pid) when is_pid(pid) do
+    case Registry.keys(Registry.HostRegistry, pid) do
+      [host_id] ->
+        config(host_id)
+
+      _ ->
+        nil
+    end
+  end
+
+  @spec config(String.t()) :: nil | HostCore.Vhost.Configuration.t()
   def config(host_id) when is_binary(host_id) do
     case :ets.lookup(:vhost_config_table, host_id) do
       [{_, config}] ->
@@ -239,16 +248,19 @@ defmodule HostCore.Vhost.VirtualHost do
     end
   end
 
-  def uptime(pid) do
-    GenServer.call(pid, :get_uptime)
-  end
-
-  def friendly_name(pid) do
-    GenServer.call(pid, :get_friendlyname)
-  end
-
+  @doc """
+  Returns the labels associated with the vhost by looking it up on the
+  ETS cache. Does NOT make a GenServer call
+  """
+  @spec labels(pid()) :: map()
   def labels(pid) do
-    GenServer.call(pid, :get_labels)
+    case config(pid) do
+      nil ->
+        %{}
+
+      config ->
+        config.labels
+    end
   end
 
   def generate_ping_reply(pid) do
@@ -326,8 +338,8 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   @impl true
-  def handle_call(:get_config, _from, state) do
-    {:reply, state.config, state}
+  def handle_call(:get_full_state, _from, state) do
+    {:reply, state, state}
   end
 
   @impl true
@@ -341,22 +353,6 @@ defmodule HostCore.Vhost.VirtualHost do
        actors: ActorSupervisor.all_actors(state.config.host_key),
        providers: ProviderSupervisor.all_providers(state.config.host_key)
      }, state}
-  end
-
-  @impl true
-  def handle_call(:get_uptime, _from, state) do
-    {total, _} = :erlang.statistics(:wall_clock)
-    {:reply, total - state.start_time, state}
-  end
-
-  @impl true
-  def handle_call(:get_friendlyname, _from, state) do
-    {:reply, state.friendly_name, state}
-  end
-
-  @impl true
-  def handle_call(:get_labels, _from, state) do
-    {:reply, state.labels, state}
   end
 
   @impl true
@@ -427,7 +423,7 @@ defmodule HostCore.Vhost.VirtualHost do
       :timer.sleep(300)
 
       Task.Supervisor.start_child(
-        ControlInterfaceTaskSupervisor,
+        HostTaskSupervisor,
         fn -> :init.stop() end
       )
     end
@@ -481,24 +477,6 @@ defmodule HostCore.Vhost.VirtualHost do
 
         {:noreply, new_state}
     end
-  end
-
-  @impl true
-  def handle_cast(:publish_heartbeat, state) do
-    publish_heartbeat(state)
-    {:noreply, state}
-  end
-
-  def emit_heartbeat(pid) when is_pid(pid) do
-    if Process.alive?(pid) do
-      GenServer.cast(pid, :publish_heartbeat)
-    end
-  end
-
-  defp publish_heartbeat(state) do
-    state
-    |> generate_heartbeat()
-    |> CloudEvent.publish(state.config.lattice_prefix)
   end
 
   defp get_env_host_labels do

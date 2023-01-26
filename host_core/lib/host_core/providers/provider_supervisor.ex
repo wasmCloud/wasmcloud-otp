@@ -247,12 +247,11 @@ defmodule HostCore.Providers.ProviderSupervisor do
     }
 
     with {:ok, {pid, _}} <- VirtualHost.lookup(host_id),
-         config <- VirtualHost.config(pid),
-         labels <- VirtualHost.labels(pid),
+         full_state <- VirtualHost.full_state(pid),
          %{permitted: true} <-
            HostCore.Policy.Manager.evaluate_action(
-             config,
-             labels,
+             full_state.config,
+             full_state.labels,
              source,
              target,
              @start_provider
@@ -262,12 +261,12 @@ defmodule HostCore.Providers.ProviderSupervisor do
         path: path,
         claims: claims,
         link_name: link_name,
-        lattice_prefix: config.lattice_prefix,
+        lattice_prefix: full_state.config.lattice_prefix,
         contract_id: contract_id,
         oci: oci,
         config_json: config_json,
         host_id: host_id,
-        shutdown_delay: config.provider_delay,
+        shutdown_delay: full_state.config.provider_delay,
         annotations: annotations
       }
 
@@ -343,6 +342,26 @@ defmodule HostCore.Providers.ProviderSupervisor do
     |> providers_on_host()
     |> Enum.map(fn {{pk, link_name}, pid} ->
       {pid, pk, link_name, ProviderModule.contract_id(pid), ProviderModule.instance_id(pid)}
+    end)
+  end
+
+  @doc """
+  Produces a list of maps, one for reach running provider on the host
+  """
+  @spec all_providers_for_hb(host_id :: String.t()) :: [
+          %{
+            required(:public_key) => String.t(),
+            required(:link_name) => String.t()
+          }
+        ]
+  def all_providers_for_hb(host_id) do
+    providers_on_host = providers_on_host(host_id)
+
+    Enum.map(providers_on_host, fn {{pk, link_name}, _pid} ->
+      %{
+        public_key: pk,
+        link_name: link_name
+      }
     end)
   end
 

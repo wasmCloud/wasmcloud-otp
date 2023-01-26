@@ -122,6 +122,14 @@ defmodule HostCore.Actors.ActorModule do
     end
   end
 
+  def full_state(pid) do
+    if Process.alive?(pid) do
+      GenServer.call(pid, :get_full_state)
+    else
+      %{}
+    end
+  end
+
   @doc """
   Halts the actor module corresponding to the supplied process ID. This will attempt a graceful termination
   and will try and emit an `actor_stopped` event.
@@ -267,6 +275,10 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   # A handful of individual query calls to pull information from the agent state
+
+  def handle_call(:get_full_state, _from, agent) do
+    {:reply, Agent.get(agent, fn content -> content end), agent}
+  end
 
   def handle_call(:get_api_ver, _from, agent) do
     {:reply, Agent.get(agent, fn content -> content.api_version end), agent}
@@ -958,10 +970,6 @@ defmodule HostCore.Actors.ActorModule do
     }
     |> CloudEvent.new("actor_updated", host_id)
     |> CloudEvent.publish(prefix)
-
-    # topic = "#{@event_prefix}.#{prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(prefix), topic, msg)
   end
 
   def publish_actor_update_failed(prefix, host_id, actor_pk, revision, instance_id, reason) do
@@ -973,10 +981,6 @@ defmodule HostCore.Actors.ActorModule do
     }
     |> CloudEvent.new("actor_update_failed", host_id)
     |> CloudEvent.publish(prefix)
-
-    # topic = "#{@event_prefix}.#{prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(prefix), topic, msg)
   end
 
   def publish_actor_stopped(host_id, lattice_prefix, actor_pk, instance_id) do
@@ -986,9 +990,5 @@ defmodule HostCore.Actors.ActorModule do
     }
     |> CloudEvent.new("actor_stopped", host_id)
     |> CloudEvent.publish(lattice_prefix)
-
-    # topic = "#{@event_prefix}.#{lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 end

@@ -12,11 +12,13 @@ defmodule HostCore.ControlInterface.ACL do
         revision = String.to_integer(claims.rev)
         name = claims.name
 
+        raw_instances = Enum.map(pids, fn pid -> ActorModule.full_state(pid) end)
+
         instances =
-          Enum.map(pids, fn pid ->
+          Enum.map(raw_instances, fn state ->
             %{
-              annotations: ActorModule.annotations(pid),
-              instance_id: ActorModule.instance_id(pid),
+              annotations: state.annotations,
+              instance_id: state.instance_id,
               revision: revision
             }
           end)

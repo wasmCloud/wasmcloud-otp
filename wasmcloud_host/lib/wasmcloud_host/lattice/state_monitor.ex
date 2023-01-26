@@ -254,20 +254,33 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     # TODO: Also ensure that actors don't exist in the dashboard that aren't in the health check
     actor_map =
       actors
-      |> Enum.reduce(%{}, fn actor, actor_map ->
-        actor_id = Map.get(actor, "public_key")
-
-        actor_info = Map.get(actor_map, actor_id, %{})
-        count = Map.get(actor_info, :count, 0) + 1
-
-        status =
-          current_host
-          |> Map.get(:actors, %{})
-          |> Map.get(actor_id, %{})
-          |> Map.get(:status, "Awaiting")
-
-        Map.put(actor_map, actor_id, %{count: count, status: status})
+      |> Enum.map(fn {pk, count} ->
+        {
+          pk,
+          %{
+            count: count,
+            status: "Awaiting"
+          }
+        }
       end)
+      |> Map.new()
+
+    # actor_map =
+    #   actors
+    #   |> Enum.reduce(%{}, fn actor, actor_map ->
+    #     actor_id = elem(actor_map, 0)
+
+    #     actor_info = Map.get(actor_map, actor_id, %{})
+    #     count = elem(actor_map, 1) + 1
+
+    #     status =
+    #       current_host
+    #       |> Map.get(:actors, %{})
+    #       |> Map.get(actor_id, %{})
+    #       |> Map.get(:status, "Awaiting")
+
+    #     Map.put(actor_map, actor_id, %{count: count, status: status})
+    #   end)
 
     # TODO: Also ensure that providers don't exist in the dashboard that aren't in the health check
     # Provider map is keyed by a tuple of the form {public_key, link_name}
@@ -287,7 +300,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
             provider_map,
             {provider_id, link_name},
             %{
-              contract_id: Map.get(provider, "contract_id"),
+              contract_id: Map.get(provider, "contract_id", ""),
               status: "Awaiting"
             }
           )

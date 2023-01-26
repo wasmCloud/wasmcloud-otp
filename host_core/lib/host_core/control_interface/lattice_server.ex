@@ -54,7 +54,7 @@ defmodule HostCore.ControlInterface.LatticeServer do
       for pid <- LatticeSupervisor.host_pids_in_lattice(prefix),
           pingres = VirtualHost.generate_ping_reply(pid) do
         safe_pub(control_connection(prefix), reply_to, Jason.encode!(pingres))
-        VirtualHost.emit_heartbeat(pid)
+        HostCore.Vhost.Heartbeats.publish_heartbeat(pid)
       end
 
       :ok

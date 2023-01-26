@@ -34,9 +34,7 @@ defmodule HostCore.CloudEvent do
     |> HostCore.Nats.control_connection()
     |> HostCore.Nats.safe_pub("#{alt_prefix}.#{lattice_prefix}", evt)
 
-    Task.Supervisor.start_child(ControlInterfaceTaskSupervisor, fn ->
-      PubSub.broadcast(:hostcore_pubsub, "latticeevents:#{lattice_prefix}", {:lattice_event, evt})
-    end)
+    PubSub.broadcast(:hostcore_pubsub, "latticeevents:#{lattice_prefix}", {:lattice_event, evt})
 
     :ok
   end

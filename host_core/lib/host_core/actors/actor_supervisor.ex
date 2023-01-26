@@ -271,8 +271,10 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   @doc """
   A slightly different version of the all actors list, formatted for
-  suitability on emitted heartbeats
+  suitability on emitted heartbeats. Maps the public key of the actor
+  to the count of instances
   """
+  @spec all_actors_for_hb(host_id :: String.t()) :: %{String.t() => Integer.t()}
   def all_actors_for_hb(host_id) do
     # $1 - pk
     # $2 - pid
@@ -282,12 +284,7 @@ defmodule HostCore.Actors.ActorSupervisor do
         {{:"$1", :"$2", :"$3"}, [{:==, :"$3", host_id}], [{{:"$1", :"$2"}}]}
       ])
 
-    Enum.map(actors_on_host, fn {pk, pid} ->
-      {
-        pk,
-        ActorModule.instance_id(pid)
-      }
-    end)
+    Enum.reduce(actors_on_host, %{}, fn {pk, _pid}, acc -> Map.update(acc, pk, 1, &(&1 + 1)) end)
   end
 
   @doc """
