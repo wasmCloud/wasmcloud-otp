@@ -15,7 +15,8 @@ defmodule HostCore.Claims.Manager do
           rev: String.t(),
           tags: String.t(),
           version: String.t(),
-          sub: String.t()
+          sub: String.t(),
+          contract_id: String.t() | nil
         }
 
   @spec lookup_claims(lattice_prefix :: String.t(), public_key :: String.t()) ::
@@ -82,7 +83,8 @@ defmodule HostCore.Claims.Manager do
           Enum.join(claims.tags, ",")
         end,
       version: claims.version,
-      sub: claims.public_key
+      sub: claims.public_key,
+      contract_id: Map.get(claims, :contract_id) || ""
     }
 
     cache_call_alias(lattice_prefix, claims.call_alias, claims.sub)
