@@ -84,7 +84,7 @@ defmodule HostCore.Claims.Manager do
         end,
       version: claims.version,
       sub: claims.public_key,
-      contract_id: Map.get(claims, :contract_id)
+      contract_id: Map.get(claims, :contract_id) || ""
     }
 
     cache_call_alias(lattice_prefix, claims.call_alias, claims.sub)
