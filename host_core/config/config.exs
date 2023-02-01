@@ -16,9 +16,9 @@ import Config
 #
 
 config :logger, :console,
-  format: "$time $metadata[$level] $message\n",
+  format: {HostCore.ConsoleLogger, :format},
   level: :info,
-  metadata: [:span_id, :trace_id],
+  metadata: :all,
   device: :standard_error
 
 config :opentelemetry, :resource, service: %{name: "wasmcloud"}

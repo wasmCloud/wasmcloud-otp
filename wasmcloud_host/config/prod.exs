@@ -20,7 +20,7 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
   version: Application.spec(:phoenix_distillery, :vsn)
 
 # Do not print debug messages in production
-config :logger, level: :info
+config :logger, :console, level: :info
 
 # ## SSL Support
 #

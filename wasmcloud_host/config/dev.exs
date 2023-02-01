@@ -52,10 +52,7 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
   ]
 
 # Do not include metadata nor timestamps in development logs
-config :logger, :console,
-  format: "$metadata[$level] $message\n",
-  level: :debug,
-  metadata: [:span_id, :trace_id]
+config :logger, :console, level: :debug
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
