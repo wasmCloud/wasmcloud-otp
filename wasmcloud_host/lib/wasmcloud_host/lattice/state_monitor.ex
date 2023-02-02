@@ -241,7 +241,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   defp process_event(
          state,
          %Cloudevents.Format.V_1_0.Event{
-           data: %{"actors" => actors, "providers" => providers},
+           data: %{"actors" => actors, "providers" => providers, "labels" => labels},
            datacontenttype: "application/json",
            source: source_host,
            type: "com.wasmcloud.lattice.host_heartbeat"
@@ -307,38 +307,11 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         end
       end)
 
-    host =
-      if current_host == %{} do
-        labels =
-          case Gnat.request(
-                 HostCore.Nats.control_connection(state.lattice_prefix),
-                 "wasmbus.ctl.#{state.lattice_prefix}.get.#{source_host}.inv",
-                 "",
-                 [{:receive_timeout, 2_000}]
-               ) do
-            {:ok, msg} ->
-              Map.get(Jason.decode!(msg.body), "labels", %{})
-
-            {:error, :no_responders} ->
-              Logger.error("No responders to host inventory request")
-              %{}
-
-            {:error, :timeout} ->
-              %{}
-          end
-
-        %{
-          actors: actor_map,
-          providers: provider_map,
-          labels: labels
-        }
-      else
-        %{
-          actors: actor_map,
-          providers: provider_map,
-          labels: state.hosts |> Map.get(source_host) |> Map.get(:labels)
-        }
-      end
+    host = %{
+      actors: actor_map,
+      providers: provider_map,
+      labels: labels
+    }
 
     hosts = Map.put(state.hosts, source_host, host)
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
