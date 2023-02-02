@@ -18,17 +18,32 @@ defmodule HostCore.ConsoleLogger do
 
   require Logger
 
-  @excluded_keys MapSet.new([:erl_level, :application, :domain, :file, :function, :gl, :line, :mfa, :module, :pid, :time])
+  @excluded_keys MapSet.new([
+                   :erl_level,
+                   :application,
+                   :domain,
+                   :file,
+                   :function,
+                   :gl,
+                   :line,
+                   :mfa,
+                   :module,
+                   :pid,
+                   :time
+                 ])
 
   @without_metadata_pattern Logger.Formatter.compile("$time [$level] $message\n")
   @with_metadata_pattern Logger.Formatter.compile("$time [$level] $metadata$message\n")
 
   def format(level, message, timestamp, metadata) do
     filtered_metadata = Enum.reject(metadata, fn {k, _v} -> MapSet.member?(@excluded_keys, k) end)
-    pattern = case filtered_metadata do
-      [] -> @without_metadata_pattern
-      _ -> @with_metadata_pattern
-    end
+
+    pattern =
+      case filtered_metadata do
+        [] -> @without_metadata_pattern
+        _ -> @with_metadata_pattern
+      end
+
     Logger.Formatter.format(pattern, level, message, timestamp, filtered_metadata)
   rescue
     err -> "ERROR: FAILED TO FORMAT LOG MESSAGE! #{inspect(err)}\n"
