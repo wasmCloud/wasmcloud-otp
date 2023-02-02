@@ -23,8 +23,8 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
 
 # Configures Elixir's Logger
 config :logger, :console,
-  format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id, :span_id, :trace_id],
+  format: {HostCore.ConsoleLogger, :format},
+  metadata: :all,
   device: :standard_error
 
 # Use Jason for JSON parsing in Phoenix
