@@ -53,6 +53,8 @@ jobs:
 
       # Cache Rust builds
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-directories: "host_core/native/hostcore_wasmcloud_native/target"
 
       - name: Install Rebar and Hex
         working-directory: ${{env.working-directory}}
