@@ -30,15 +30,16 @@ defmodule HostCore.Claims.Manager do
 
   @spec cache_claims(
           lattice_prefix :: String.t(),
-          key :: String.t(),
+          public_key :: String.t(),
           claims :: cached_claimsdata()
         ) :: any()
-  def cache_claims(lattice_prefix, key, claims) do
-    :ets.insert(claims_table_atom(lattice_prefix), {key, claims})
+  def cache_claims(lattice_prefix, public_key, claims) do
+    cache_call_alias(lattice_prefix, claims.call_alias, public_key)
+    :ets.insert(claims_table_atom(lattice_prefix), {public_key, claims})
   end
 
-  def uncache_claims(lattice_prefix, key) do
-    :ets.delete(claims_table_atom(lattice_prefix), key)
+  def uncache_claims(lattice_prefix, public_key) do
+    :ets.delete(claims_table_atom(lattice_prefix), public_key)
   end
 
   def cache_call_alias(lattice_prefix, call_alias, public_key) do
@@ -48,7 +49,7 @@ defmodule HostCore.Claims.Manager do
   end
 
   def put_claims(host_id, lattice_prefix, claims) do
-    key = claims.public_key
+    public_key = claims.public_key
 
     claims = %{
       call_alias:
@@ -83,12 +84,11 @@ defmodule HostCore.Claims.Manager do
           Enum.join(claims.tags, ",")
         end,
       version: claims.version,
-      sub: claims.public_key,
+      sub: public_key,
       contract_id: Map.get(claims, :contract_id) || ""
     }
 
-    cache_call_alias(lattice_prefix, claims.call_alias, claims.sub)
-    cache_claims(lattice_prefix, key, claims)
+    cache_claims(lattice_prefix, public_key, claims)
     publish_claims(host_id, lattice_prefix, claims)
   end
 
