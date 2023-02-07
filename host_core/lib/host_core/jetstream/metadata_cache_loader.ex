@@ -54,6 +54,7 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
       {:ok, claims} ->
         Logger.debug("Caching claims for #{public_key}")
         ClaimsManager.cache_claims(lattice_prefix, public_key, claims)
+        ClaimsManager.cache_call_alias(lattice_prefix, claims.call_alias, public_key)
 
       {:error, e} ->
         Logger.error("Failed to deserialize claims from metadata cache: #{inspect(e)}")
