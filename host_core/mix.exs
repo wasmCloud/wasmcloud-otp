@@ -49,9 +49,9 @@ defmodule HostCore.MixProject do
       {:gnat, "~> 1.6.0"},
       {:cloudevents, "~> 0.6.1"},
       {:uuid, "~> 1.1"},
-      {:opentelemetry_api, "~> 1.0"},
-      {:opentelemetry, "~> 1.0", application: false},
-      {:opentelemetry_exporter, "~> 1.0", application: false},
+      {:opentelemetry_api, "~> 1.2"},
+      {:opentelemetry, "~> 1.2.1", application: false},
+      {:opentelemetry_exporter, "~> 1.3", application: false},
       {:opentelemetry_logger_metadata, "~> 0.1.0"},
       {:phoenix_pubsub, "~> 2.1.1"},
 
