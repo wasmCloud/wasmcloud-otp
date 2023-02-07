@@ -101,9 +101,13 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
     LinkdefsManager.uncache_link_definition(lattice_prefix, ldid)
   end
 
-  defp handle_action(:key_deleted, %{key: @claims_prefix <> pk, prefix: lattice_prefix}, _body) do
-    Logger.debug("Removing cached claims for #{pk}")
-    ClaimsManager.uncache_claims(lattice_prefix, pk)
+  defp handle_action(
+         :key_deleted,
+         %{key: @claims_prefix <> public_key, prefix: lattice_prefix},
+         _body
+       ) do
+    Logger.debug("Removing cached claims for #{public_key}")
+    ClaimsManager.uncache_claims(lattice_prefix, public_key)
   end
 
   defp handle_action(action, tokenmap, _body) do
