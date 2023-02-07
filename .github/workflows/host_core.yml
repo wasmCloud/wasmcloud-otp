@@ -50,6 +50,9 @@ jobs:
             host_core/_build
           key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('host_core/mix.exs', 'host_core/mix.lock') }}
 
+      # Cache Rust builds
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install Rebar and Hex
         working-directory: ${{env.working-directory}}
         run: |

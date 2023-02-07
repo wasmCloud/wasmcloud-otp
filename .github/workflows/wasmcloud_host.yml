@@ -51,6 +51,9 @@ jobs:
             wasmcloud_host/_build
           key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('wasmcloud_host/mix.exs', 'wasmcloud_host/mix.lock') }}
 
+      # Cache Rust builds
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install Rebar and Hex
         working-directory: ${{env.working-directory}}
         run: |
