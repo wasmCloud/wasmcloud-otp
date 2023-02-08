@@ -75,10 +75,13 @@ defmodule StartActorComponent do
         %{"path" => path, "count" => count},
         socket
       ) do
+    {host_id, _pid, _prefix} = WasmcloudHost.Application.first_host()
+
     case WasmcloudHost.ActorWatcher.hotwatch_actor(
            :actor_watcher,
            path,
-           String.to_integer(count)
+           String.to_integer(count),
+           host_id
          ) do
       :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)

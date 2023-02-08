@@ -34,7 +34,7 @@ defmodule WasmcloudHost.Application do
   end
 
   # returns {host public key, <pid>, lattice prefix}
-  @spec first_host() :: {String.t(), pid(), String.t()}
+  @spec first_host() :: {public_key :: String.t(), pid :: pid(), lattice_prefix :: String.t()}
   def first_host do
     HostCore.Application.all_hosts()
     |> List.first()
