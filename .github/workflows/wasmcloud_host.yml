@@ -98,5 +98,4 @@ jobs:
           mix dialyzer --plt
       - name: Run dialyzer
         working-directory: ${{env.working-directory}}
-        continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
         run: mix dialyzer --no-check
