@@ -98,4 +98,4 @@ jobs:
           mix dialyzer --plt
       - name: Run dialyzer
         working-directory: ${{env.working-directory}}
-        run: mix dialyzer --no-check
+        run: mix dialyzer

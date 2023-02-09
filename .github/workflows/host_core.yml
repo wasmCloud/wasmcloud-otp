@@ -102,5 +102,5 @@ jobs:
       - name: Run dialyzer
         working-directory: ${{env.working-directory}}
         continue-on-error: true # Don't fail entire action with dialyzer opportunities for now
-        run: mix dialyzer --no-check
+        run: mix dialyzer
 # Thank you https://hashrocket.com/blog/posts/build-the-ultimate-elixir-ci-with-github-actions for this action setup
