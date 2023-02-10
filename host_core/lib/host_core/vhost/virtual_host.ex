@@ -511,9 +511,15 @@ defmodule HostCore.Vhost.VirtualHost do
 
   @spec publish_host_started(state :: State.t()) :: :ok
   defp publish_host_started(state) do
+    {total, _} = :erlang.statistics(:wall_clock)
+
+    ut_seconds = div(total - state.start_time, 1000)
+
     %{
       labels: state.labels,
-      friendly_name: state.friendly_name
+      friendly_name: state.friendly_name,
+      uptime_seconds: ut_seconds,
+      version: :host_core |> Application.spec(:vsn) |> to_string()
     }
     |> CloudEvent.new("host_started", state.config.host_key)
     |> CloudEvent.publish(state.config.lattice_prefix)
