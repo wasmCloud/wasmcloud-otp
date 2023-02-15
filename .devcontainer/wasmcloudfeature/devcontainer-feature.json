@@ -1,0 +1,10 @@
+{
+    "name": "wasmCloud OTP",
+    "id": "wasmcloud",
+    "version": "0.0.1",
+    "description": "A feature to install wasmCloud OTP development components",
+    "installsAfter": [
+      "ghcr.io/devcontainers/features/rust",
+      "ghcr.io/devcontainers-contrib/features/elixir-asdf"
+    ]
+}
