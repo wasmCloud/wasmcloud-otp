@@ -41,7 +41,7 @@ defmodule HostCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:wasmex, "~> 0.8.0"},
+      {:wasmex, git: "https://github.com/ricochet/wasmex", branch: "update-wasmtime"},
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.26.0"},
       {:timex, "~> 3.7"},
