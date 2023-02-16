@@ -65,6 +65,8 @@ jobs:
       - name: Install Mix Dependencies
         working-directory: ${{env.working-directory}}
         if: steps.mix-cache.outputs.cache-hit != 'true'
+        env:
+          WASMEX_BUILD: "true"
         run: |
           mix do deps.get, deps.compile
 

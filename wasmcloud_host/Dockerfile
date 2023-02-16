@@ -89,7 +89,7 @@ RUN rm -rf host_core/priv/built/aarch64 host_core/priv/built/x86_64 host_core/pr
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR ./wasmcloud_host
-RUN mix do deps.compile, compile
+RUN WASMEX_BUILD="true" mix do deps.compile, compile
 
 RUN mkdir -p /opt/built && \
   mix release && \
