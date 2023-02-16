@@ -15,6 +15,8 @@ import Config
 # here (which is why it is important to import them last).
 #
 
+config :rustler_precompiled, :force_build, wasmex: true
+
 config :logger, :console,
   format: {HostCore.ConsoleLogger, :format},
   level: :info,
