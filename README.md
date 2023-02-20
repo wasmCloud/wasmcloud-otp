@@ -1,6 +1,6 @@
 ![wasmCloud logo](https://raw.githubusercontent.com/wasmCloud/branding/main/02.Horizontal%20Version/Pixel/PNG/Wasmcloud.Logo-Hrztl_Color.png)
 
-[![wasmcloud_host build status](https://img.shields.io/github/workflow/status/wasmcloud/wasmcloud-otp/WasmcloudHost%20Elixir%20CI)](https://github.com/wasmCloud/wasmcloud-otp/actions/workflows/wasmcloud_host.yml)
+[![wasmcloud_host build status](https://img.shields.io/github/actions/workflow/status/wasmcloud/wasmcloud-otp/wasmcloud_host.yml?branch=main)](https://github.com/wasmCloud/wasmcloud-otp/actions/workflows/wasmcloud_host.yml)
 [![latest release](https://img.shields.io/github/v/release/wasmcloud/wasmcloud-otp?include_prereleases)](https://github.com/wasmCloud/wasmcloud-otp/releases)
 [![homepage](https://img.shields.io/website?label=homepage&url=https%3A%2F%2Fwasmcloud.com)](https://wasmcloud.com)
 [![documentation site](https://img.shields.io/website?label=documentation&url=https%3A%2F%2Fwasmcloud.dev)](https://wasmcloud.dev)
