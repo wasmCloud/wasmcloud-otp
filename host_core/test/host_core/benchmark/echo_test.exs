@@ -34,9 +34,6 @@ defmodule HostCore.BenchmarkTest do
       # TODO: make configurable w/ benchee
       num_actors = 1
       parallel = [1, 10]
-      {:ok, bytes} = File.read(@echo_path)
-
-      {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", num_actors)
 
       {msg, inv, port} = setup_echo_test(config, evt_watcher, @echo_key, @echo_path, num_actors)
 
