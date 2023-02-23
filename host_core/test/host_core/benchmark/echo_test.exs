@@ -55,7 +55,7 @@ defmodule HostCore.BenchmarkTest do
           |> HostCore.Nats.safe_req(msg.topic, inv, receive_timeout: 2_000)
         end,
         "http_echo_request" => fn ->
-          {:ok, _resp} = request_http("http://localhost:8080/foo/bar", 1)
+          {:ok, _resp} = request_http("http://localhost:#{port}/foo/bar", 1)
         end
       }
 
