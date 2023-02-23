@@ -42,7 +42,6 @@ defmodule HostCore.BenchmarkTest do
       {msg, inv, port} =
         setup_kvcounter_test(config, evt_watcher, @kvcounter_key, @kvcounter_path, num_actors)
 
-      IO.puts("Benchmarking with #{num_actors} actors and #{parallel} parallel requests")
       # very noisy debug logs during bench
       {:ok, _okay} = HTTPoison.start()
       Logger.configure(level: :info)
@@ -56,6 +55,8 @@ defmodule HostCore.BenchmarkTest do
       # Run the test at a few specified levels of parallelism, allowing for some warmup time to let compute calm down
       parallel
       |> Enum.each(fn parallel ->
+        IO.puts("Benchmarking with #{num_actors} actors and #{parallel} parallel requests")
+
         Benchee.run(test_config,
           warmup: 1,
           time: 5,
