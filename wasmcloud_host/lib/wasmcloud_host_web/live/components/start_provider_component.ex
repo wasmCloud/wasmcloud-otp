@@ -7,17 +7,32 @@ defmodule StartProviderComponent do
   alias HostCore.Providers.ProviderSupervisor
   alias WasmcloudHost.Lattice.ControlInterface
 
+  @par_file_size_max_bytes 64_000_000
+  @par_file_size_max_mb @par_file_size_max_bytes / 1_000_000
+
   def mount(socket) do
     {:ok,
      socket
      |> assign(:uploads, %{})
      |> assign(:error_msg, nil)
-     |> allow_upload(:provider, accept: ~w(.par .gz), max_entries: 1, max_file_size: 64_000_000)}
+     |> allow_upload(:provider,
+       accept: ~w(.par .gz),
+       max_entries: 1,
+       max_file_size: @par_file_size_max_bytes
+     )}
   end
 
   def handle_event("validate", _params, socket) do
     {:noreply, socket}
   end
+
+  def error_to_html(:too_large),
+    do:
+      "Provider archive too large (limit: #{@par_file_size_max_mb}MB)<br/>hint: consider using the --compress option to `par create`"
+
+  ########################
+  # Provider load - File #
+  ########################
 
   def handle_event(
         "start_provider_file",
@@ -44,6 +59,13 @@ defmodule StartProviderComponent do
     case error_msg do
       nil ->
         {:noreply, assign(socket, error_msg: "Please select a provider archive file")}
+
+      :too_large ->
+        {:noreply,
+         assign(socket,
+           error_msg:
+             "Provider archive too large (limit: #{@par_file_size_max_mb}MB). Consider the --compress option to `par create`"
+         )}
 
       "" ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)
@@ -106,6 +128,20 @@ defmodule StartProviderComponent do
       end
 
     ~L"""
+    <%= if @error_msg != nil do %>
+    <div class="alert alert-danger">
+      <%= @error_msg %>
+    </div>
+    <% end %>
+
+    <%= for entry <- @uploads.provider.entries do %>
+      <%= for err <- upload_errors(@uploads.provider, entry) do %>
+        <div class="alert alert-danger">
+          <%= Phoenix.HTML.raw error_to_html(err) %>
+        </div>
+      <% end %>
+    <% end %>
+
     <form class="form-horizontal" phx-submit="<%= submit_action %>" phx-change="validate" phx-target="<%= @myself %>">
       <input name="_csrf_token" type="hidden" value="<%= Phoenix.Controller.get_csrf_token() %>">
       <%= if assigns.id == :start_provider_file_modal do %>
@@ -167,11 +203,6 @@ defmodule StartProviderComponent do
         <button class="btn btn-primary" type="submit">Submit</button>
       </div>
     </form>
-    <%= if @error_msg != nil do %>
-    <div class="alert alert-danger">
-      <%= @error_msg %>
-    </div>
-    <% end %>
     """
   end
 end
