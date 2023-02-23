@@ -1,0 +1,29 @@
+{
+	"name": "wasmcloud-otp",
+	"image": "mcr.microsoft.com/devcontainers/base:bullseye",
+	"features": {
+		"ghcr.io/devcontainers/features/rust:1": {
+			"version": "latest"
+		},
+		"ghcr.io/devcontainers-contrib/features/elixir-asdf:2": {
+			"elixirVersion": "1.14.2",
+			"erlangVersion": "25.0"
+		},
+		"./wasmcloudfeature": {}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"rust-lang.rust-analyzer",
+				"JakeBecker.elixir-ls"
+			],
+			"settings": {
+				"rust-analyzer.linkedProjects": [
+					"host_core/native/hostcore_wasmcloud_native.Cargo.toml"
+				]
+			}
+		}
+	},
+	"workspaceMount": "source=${localWorkspaceFolder},target=/wash,type=bind,consistency=cached",
+	"workspaceFolder": "/wasmcloud-otp"
+}
