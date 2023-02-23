@@ -52,7 +52,7 @@ defmodule HostCore.Vhost.Heartbeats do
       |> ProviderSupervisor.all_providers_for_hb()
 
     {total, _} = :erlang.statistics(:wall_clock)
-    ut_seconds = div(total, 1000)
+    ut_seconds = div(total - state.start_time, 1000)
 
     ut_human =
       ut_seconds
