@@ -38,8 +38,8 @@ defmodule HostCore.BenchmarkTest do
       {msg, inv, port} = setup_echo_test(config, evt_watcher, @echo_key, @echo_path, num_actors)
 
       # very noisy debug logs during bench
+      HostCoreTest.Common.pre_benchmark_run()
       {:ok, _okay} = HTTPoison.start()
-      Logger.configure(level: :info)
 
       test_config = %{
         "direct_echo_request" => fn ->
@@ -55,21 +55,9 @@ defmodule HostCore.BenchmarkTest do
         end
       }
 
-      # Run the test at a few specified levels of parallelism, allowing for some warmup time to let compute calm down
-      parallel
-      |> Enum.each(fn parallel ->
-        IO.puts("Benchmarking with #{num_actors} actors and #{parallel} parallel requests")
+      HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
 
-        Benchee.run(test_config,
-          warmup: 1,
-          time: 5,
-          parallel: parallel
-          # save: [path: "./echo_wasm32_unknown_#{num_actors}_#{parallel}.txt"] # TODO: this should be how we compare
-        )
-      end)
-
-      # turning debug logs back on
-      Logger.configure(level: :debug)
+      HostCoreTest.Common.post_benchmark_run()
 
       assert true
     end
@@ -93,9 +81,8 @@ defmodule HostCore.BenchmarkTest do
       {msg, inv, port} =
         setup_echo_test(config, evt_watcher, @echo_wasi_key, @echo_wasi_path, num_actors)
 
-      # very noisy debug logs during bench
+      HostCoreTest.Common.pre_benchmark_run()
       {:ok, _okay} = HTTPoison.start()
-      Logger.configure(level: :info)
 
       test_config = %{
         "direct_echo_request" => fn ->
@@ -111,21 +98,9 @@ defmodule HostCore.BenchmarkTest do
         end
       }
 
-      # Run the test at a few specified levels of parallelism, allowing for some warmup time to let compute calm down
-      parallel
-      |> Enum.each(fn parallel ->
-        IO.puts("Benchmarking with #{num_actors} actors and #{parallel} parallel requests")
+      HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
 
-        Benchee.run(test_config,
-          warmup: 1,
-          time: 5,
-          parallel: parallel
-          # save: [path: "./echo_wasm32_wasi_#{num_actors}_#{parallel}.txt"] # TODO: this should be how we compare
-        )
-      end)
-
-      # turning debug logs back on
-      Logger.configure(level: :debug)
+      HostCoreTest.Common.post_benchmark_run()
 
       assert true
     end
@@ -159,6 +134,10 @@ defmodule HostCore.BenchmarkTest do
       |> IO.iodata_to_binary()
 
     port = "8081"
+
+    # NOTE: Link definitions are put _before_ providers are started so that they receive
+    # the linkdef on startup. There is a race condition between provider starting and
+    # creating linkdef subscriptions that make this a desirable order for consistent tests.
 
     :ok =
       Manager.put_link_definition(

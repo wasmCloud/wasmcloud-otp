@@ -3,7 +3,6 @@ defmodule HostCore.BenchmarkTest do
   # results if this is the only test running at the time.
   use ExUnit.Case, async: false
 
-  alias HostCore.Actors.ActorRpcServer
   alias HostCore.Actors.ActorSupervisor
   alias HostCore.WasmCloud.Native
   alias HostCore.Linkdefs.Manager
@@ -37,14 +36,12 @@ defmodule HostCore.BenchmarkTest do
       num_actors = 25
       parallel = [1, 10, 25, 50]
 
-      seed = config.cluster_seed
-
-      {msg, inv, port} =
+      {_msg, _inv, port} =
         setup_kvcounter_test(config, evt_watcher, @kvcounter_key, @kvcounter_path, num_actors)
 
+      HostCoreTest.Common.pre_benchmark_run()
       # very noisy debug logs during bench
       {:ok, _okay} = HTTPoison.start()
-      Logger.configure(level: :info)
 
       test_config = %{
         "http_kvcounter_request" => fn ->
@@ -53,20 +50,9 @@ defmodule HostCore.BenchmarkTest do
       }
 
       # Run the test at a few specified levels of parallelism, allowing for some warmup time to let compute calm down
-      parallel
-      |> Enum.each(fn parallel ->
-        IO.puts("Benchmarking with #{num_actors} actors and #{parallel} parallel requests")
+      HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
 
-        Benchee.run(test_config,
-          warmup: 1,
-          time: 5,
-          parallel: parallel
-          # save: [path: "./echo_wasm32_wasi_#{num_actors}_#{parallel}.txt"] # TODO: this should be how we compare
-        )
-      end)
-
-      # turning debug logs back on
-      Logger.configure(level: :debug)
+      HostCoreTest.Common.post_benchmark_run()
 
       assert true
     end
@@ -80,7 +66,7 @@ defmodule HostCore.BenchmarkTest do
           num_actors :: non_neg_integer()
         ) ::
           {msg :: map(), inv :: map(), port :: binary()}
-  # Helper function to set up echo tests and reduce code duplication
+  # Helper function to set up kvcounter tests and reduce code duplication
   def setup_kvcounter_test(config, evt_watcher, key, path, num_actors) do
     {:ok, bytes} = File.read(path)
 
@@ -190,7 +176,7 @@ defmodule HostCore.BenchmarkTest do
 
     msg = %{
       body: IO.iodata_to_binary(inv),
-      topic: "wasmbus.rpc.#{config.lattice_prefix}.#{@echo_wasi_key}",
+      topic: "wasmbus.rpc.#{config.lattice_prefix}.#{@kvcounter_key}",
       reply_to: "_INBOX.thisisatest.notinterested"
     }
 
