@@ -48,7 +48,7 @@ defmodule HostCore.Benchmark.KvcounterTest do
       }
 
       # Run the test at a few specified levels of parallelism, allowing for some warmup time to let compute calm down
-      HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
+      HostCore.Benchmark.Common.run_benchmark(test_config, num_actors, parallel)
 
       assert true
     end

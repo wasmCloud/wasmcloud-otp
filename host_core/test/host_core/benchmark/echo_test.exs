@@ -53,7 +53,7 @@ defmodule HostCore.Benchmark.EchoTest do
         end
       }
 
-      HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
+      HostCore.Benchmark.Common.run_benchmark(test_config, num_actors, parallel)
 
       assert true
     end
@@ -93,7 +93,7 @@ defmodule HostCore.Benchmark.EchoTest do
         end
       }
 
-      HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
+      HostCore.Benchmark.Common.run_benchmark(test_config, num_actors, parallel)
 
       assert true
     end
