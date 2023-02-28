@@ -1,4 +1,4 @@
-defmodule HostCore.BenchmarkTest do
+defmodule HostCore.Benchmark.EchoTest do
   # We'd rather not run this test asynchronously because it's a benchmark. We'll get better
   # results if this is the only test running at the time.
   use ExUnit.Case, async: false
@@ -37,8 +37,6 @@ defmodule HostCore.BenchmarkTest do
 
       {msg, inv, port} = setup_echo_test(config, evt_watcher, @echo_key, @echo_path, num_actors)
 
-      # very noisy debug logs during bench
-      HostCoreTest.Common.pre_benchmark_run()
       {:ok, _okay} = HTTPoison.start()
 
       test_config = %{
@@ -56,8 +54,6 @@ defmodule HostCore.BenchmarkTest do
       }
 
       HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
-
-      HostCoreTest.Common.post_benchmark_run()
 
       assert true
     end
@@ -81,7 +77,6 @@ defmodule HostCore.BenchmarkTest do
       {msg, inv, port} =
         setup_echo_test(config, evt_watcher, @echo_wasi_key, @echo_wasi_path, num_actors)
 
-      HostCoreTest.Common.pre_benchmark_run()
       {:ok, _okay} = HTTPoison.start()
 
       test_config = %{
@@ -99,8 +94,6 @@ defmodule HostCore.BenchmarkTest do
       }
 
       HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
-
-      HostCoreTest.Common.post_benchmark_run()
 
       assert true
     end

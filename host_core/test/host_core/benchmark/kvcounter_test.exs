@@ -1,4 +1,4 @@
-defmodule HostCore.BenchmarkTest do
+defmodule HostCore.Benchmark.KvcounterTest do
   # We'd rather not run this test asynchronously because it's a benchmark. We'll get better
   # results if this is the only test running at the time.
   use ExUnit.Case, async: false
@@ -39,8 +39,6 @@ defmodule HostCore.BenchmarkTest do
       {_msg, _inv, port} =
         setup_kvcounter_test(config, evt_watcher, @kvcounter_key, @kvcounter_path, num_actors)
 
-      HostCoreTest.Common.pre_benchmark_run()
-      # very noisy debug logs during bench
       {:ok, _okay} = HTTPoison.start()
 
       test_config = %{
@@ -51,8 +49,6 @@ defmodule HostCore.BenchmarkTest do
 
       # Run the test at a few specified levels of parallelism, allowing for some warmup time to let compute calm down
       HostCoreTest.Common.run_benchmark(test_config, num_actors, parallel)
-
-      HostCoreTest.Common.post_benchmark_run()
 
       assert true
     end
