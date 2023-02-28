@@ -295,9 +295,10 @@ defmodule HostCore.Providers.ProviderSupervisor do
       true ->
         {:error, "Provider is already running on this host"}
 
-      {:error, err} ->
-        Tracer.set_status(:error, "#{inspect(err)}")
-        {:error, err}
+      :error ->
+        error = "Failed to look up target host for provider"
+        Tracer.set_status(:error, error)
+        {:error, error}
     end
   end
 

@@ -12,7 +12,7 @@ defmodule HostCore.Vhost.Configuration do
   """
   @type t :: %Configuration{
           prov_rpc_host: String.t(),
-          labels: Map.t(),
+          labels: map(),
           rpc_timeout_ms: integer(),
           js_domain: String.t(),
           prov_rpc_seed: String.t(),

@@ -50,11 +50,11 @@ defmodule HostCore.Policy.Manager do
 
   @spec evaluate_action(
           host_config :: HostCore.Vhost.Configuration.t(),
-          labels :: Map.t(),
-          source :: Map.t(),
-          target :: Map.t(),
+          labels :: map(),
+          source :: map(),
+          target :: map(),
           action :: String.t()
-        ) :: Map.t()
+        ) :: map()
   def evaluate_action(host_config, labels, source, target, action) do
     with {:ok, topic} <- Manager.policy_topic(host_config),
          nil <- cached_decision(source, target, action, host_config.lattice_prefix),
@@ -178,7 +178,7 @@ defmodule HostCore.Policy.Manager do
     end
   end
 
-  @spec default_source() :: Map.t()
+  @spec default_source() :: map()
   def default_source() do
     %{
       publicKey: "",

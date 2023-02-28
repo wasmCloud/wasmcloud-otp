@@ -7,7 +7,7 @@ defmodule HostCore.MixProject do
     [
       app: :host_core,
       version: @app_vsn,
-      elixir: "~> 1.13",
+      elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       rustler_crates: [
@@ -64,6 +64,8 @@ defmodule HostCore.MixProject do
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:httpoison, "~> 1.8", only: [:test]},
       {:json, "~> 1.4", only: [:test]},
+      {:yaml_elixir, "~> 2.9.0"},
+      {:toml, "~> 0.7"},
       {:benchee, "~> 1.0", only: :test},
       {:mock, "~> 0.3.0", only: :test}
     ]

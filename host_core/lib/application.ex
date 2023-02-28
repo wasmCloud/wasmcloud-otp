@@ -53,7 +53,7 @@ defmodule HostCore.Application do
       )
 
       :logger.add_handler(:structured_logger, :logger_std_h, %{
-        formatter: {HostCore.StructuredLogger.FormatterJson, []},
+        formatter: {HostCore.StructuredLogger.FormatterJson, %{}},
         level: config.structured_log_level,
         config: %{
           type: :standard_error

@@ -37,9 +37,9 @@ defmodule HostCore.Vhost.VirtualHost do
     @type t :: %State{
             config: Configuration.t(),
             friendly_name: String.t(),
-            labels: Map.t(),
+            labels: map(),
             start_time: non_neg_integer(),
-            supplemental_config: Map.t() | nil
+            supplemental_config: map() | nil
           }
     defstruct [:config, :friendly_name, :start_time, :labels, :supplemental_config]
   end
@@ -288,7 +288,7 @@ defmodule HostCore.Vhost.VirtualHost do
       end)
 
     url =
-      if config.prov_rpc_host == nil || config.prov_rpc_host == "" do
+      if config.prov_rpc_host == "" do
         "127.0.0.1:4222"
       else
         "#{config.prov_rpc_host}:#{config.prov_rpc_port}"

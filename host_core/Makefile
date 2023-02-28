@@ -15,7 +15,7 @@ build: deps ## Compile host_core
 
 build-image: ## Compile host_core docker image
 	docker build \
-		--build-arg BUILDER_IMAGE=elixir:1.13.4-alpine \
+		--build-arg BUILDER_IMAGE=elixir:1.14.2-alpine \
 		--build-arg RELEASE_IMAGE=alpine:3.16  \
 		--build-arg MIX_ENV=prod \
 		-t host_core:alpine \
@@ -23,7 +23,7 @@ build-image: ## Compile host_core docker image
 
 buildx-cross-image: ## Compile host_core docker image using buildx for amd64 and arm64
 	docker buildx build  \
-		--build-arg BUILDER_IMAGE=elixir:1.13.4-alpine \
+		--build-arg BUILDER_IMAGE=elixir:1.14.2-alpine \
 		--build-arg RELEASE_IMAGE=alpine:3.16  \
 		--build-arg MIX_ENV=prod \
 		-t host_core:alpine \
