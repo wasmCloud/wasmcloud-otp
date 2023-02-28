@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, windows-2019, macos-10.15]
-        elixir: [1.13.4]
+        elixir: [1.14.2]
         otp: [25]
 
     name: Build and test

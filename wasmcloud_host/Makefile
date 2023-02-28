@@ -29,7 +29,7 @@ esbuild: deps
 build-image: build esbuild ## Compile wasmcloud_host docker image, requires local elixir toolchain since dart-sass doesn't work in arm64 environments
 	cd ../ && \
 	docker build $(BASE_ARGS) \
-		--build-arg BUILDER_IMAGE=elixir:1.13.3-slim \
+		--build-arg BUILDER_IMAGE=elixir:1.14.2-slim \
 		--build-arg RELEASE_IMAGE=debian:bullseye-slim  \
 		--build-arg MIX_ENV=prod \
 		$(BASE_TAGS) \
@@ -39,7 +39,7 @@ build-image: build esbuild ## Compile wasmcloud_host docker image, requires loca
 buildx-cross-image: build esbuild ## Compile wasmcloud_host docker image using buildx for amd64 and arm64
 	cd ../ && \
 	docker buildx build $(BASE_ARGS) \
-		--build-arg BUILDER_IMAGE=elixir:1.13.3-slim \
+		--build-arg BUILDER_IMAGE=elixir:1.14.2-slim \
 		--build-arg RELEASE_IMAGE=debian:bullseye-slim \
 		--build-arg MIX_ENV=prod \
 		-t wasmcloud_host:slim \
