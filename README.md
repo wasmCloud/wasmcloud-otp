@@ -34,3 +34,13 @@ You can find the [dashboard UI](./wasmcloud_host/README.md) in this github repos
 ### NATS
 
 All of wasmCloud's _lattice_ functionality requires the use of [NATS](https://nats.io). To learn more, check out the [lattice](https://wasmcloud.dev/reference/lattice/) section of our documentation.
+
+## Local development
+
+### Pre-requisites
+
+- (optional) [`asdf`][asdf] with [`asdf-elixir`][asdf-elixir] for managing versions of [`elixir`][elixir] (see `.tool-versions`)
+
+[asdf]: https://asdf-vm.com/
+[asdf-elixir]: https://github.com/asdf-vm/asdf-elixir
+[elixir]: https://elixir-lang.org/
