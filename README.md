@@ -12,7 +12,7 @@ The wasmCloud Host Runtime is a server process that securely hosts and provides 
 
 This runtime is designed to take advantage of WebAssembly's small footprint, secure sandbox, speed, and portability to allow developers to write boilerplate-free code that embraces the [actor model](https://en.wikipedia.org/wiki/Actor_model) and abstracts away dependencies on [non-functional requirements](https://www.scaledagileframework.com/nonfunctional-requirements/) via well-defined [interfaces](https://github.com/wasmCloud/interfaces/).
 
-This host runtime is written in [Elixir][elixir] and extensively leverages the decades of work, testing, and improvements that have gone into the **OTP** framework. 
+This host runtime is written in [Elixir][elixir] and extensively leverages the decades of work, testing, and improvements that have gone into the **OTP** framework.
 There are a number of excellent Elixir and OTP references online, but we highly recommend starting with the [Pragmatic Programmers](https://pragprog.com/categories/elixir-phoenix-and-otp/) Elixir and OTP library of books.
 
 ## Getting started
@@ -48,7 +48,9 @@ All of wasmCloud's _lattice_ functionality requires the use of [NATS](https://na
 
 ### Pre-requisites
 
-- (optional) [`asdf`][asdf] with [`asdf-elixir`][asdf-elixir] for managing versions of [`elixir`][elixir] (see `.tool-versions`)
+- (optional) [`asdf`][asdf] with [`asdf-elixir`][asdf-elixir] for managing versions of your [`elixir`][elixir] toolchain (see `.tool-versions`)
+
+**NOTE** If you manage your Elixir toolchain manually, please make sure to use a version that matches the contents of `.tool-versions`.
 
 [asdf]: https://asdf-vm.com/
 [asdf-elixir]: https://github.com/asdf-vm/asdf-elixir
