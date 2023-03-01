@@ -184,9 +184,16 @@ defmodule HostCore.Providers.ProviderSupervisor do
           host_id :: String.t(),
           path :: String.t(),
           link_name :: String.t(),
-          annotations :: map()
+          annotations :: map(),
+          provider_configuration :: String.t()
         ) :: DynamicSupervisor.on_start_child()
-  def start_provider_from_file(host_id, path, link_name, annotations \\ %{}) do
+  def start_provider_from_file(
+        host_id,
+        path,
+        link_name,
+        annotations \\ %{},
+        provider_configuration \\ ""
+      ) do
     Tracer.with_span "Start Provider from File" do
       case Native.par_from_path(path, link_name) do
         {:ok, par} ->
@@ -202,7 +209,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
             link_name,
             par.contract_id,
             "",
-            "",
+            provider_configuration,
             annotations
           )
 
