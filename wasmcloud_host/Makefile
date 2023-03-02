@@ -16,15 +16,16 @@ help:  ## Display this help
 
 deps: ## Fetch mix dependencies
 	mix deps.get
+	$(MAKE) esbuild
 
-build: deps ## Build wasmcloud_host for development
-	mix compile
-
-esbuild: deps
+esbuild: ## Build frontend code that relies on esbuild
 	mix sass default assets/css/app.scss priv/static/assets/app.css
 	mix assets.deploy
 	cp -r assets/static/* priv/static/
 	cp -r assets/css/coreui priv/static/assets/coreui
+
+build: deps ## Build wasmcloud_host for development
+	mix compile
 
 build-image: build esbuild ## Compile wasmcloud_host docker image, requires local elixir toolchain since dart-sass doesn't work in arm64 environments
 	cd ../ && \
