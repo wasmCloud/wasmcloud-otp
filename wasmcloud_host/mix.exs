@@ -13,7 +13,9 @@ defmodule WasmcloudHost.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       releases: [
-        wasmcloud_host: []
+        wasmcloud_host: [
+          steps: [:assemble, &Bakeware.assemble/1]
+        ]
       ],
       deps: deps()
     ]
@@ -54,7 +56,8 @@ defmodule WasmcloudHost.MixProject do
       {:host_core, path: "../host_core"},
       {:file_system, "~> 0.2"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.6", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:bakeware, "~> 0.2.4"}
     ]
   end
 

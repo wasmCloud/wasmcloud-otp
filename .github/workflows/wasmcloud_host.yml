@@ -73,7 +73,18 @@ jobs:
         working-directory: ${{env.working-directory}}
         run: mix format --check-formatted
 
-      - name: Ensure static files build properly
+      - name: Ensure static files build properly (windows)
+        if: ${{ startswith(matrix.os, 'windows') }} # Windows needs special env vars
+        working-directory: ${{env.working-directory}}
+        shell: bash
+        env:
+          MIX_ENV: dev
+          CC: gcc
+          MAKE: make
+        run: make esbuild
+
+      - name: Ensure static files build properly (macos/linux)
+        if: ${{ !startswith(matrix.os, 'windows') }}
         working-directory: ${{env.working-directory}}
         shell: bash
         env:

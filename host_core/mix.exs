@@ -16,7 +16,9 @@ defmodule HostCore.MixProject do
         ]
       ],
       releases: [
-        host_core: []
+        host_core: [
+          steps: [:assemble, &Bakeware.assemble/1]
+        ]
       ],
       dialyzer: [plt_add_deps: :apps_direct]
     ]
@@ -67,7 +69,8 @@ defmodule HostCore.MixProject do
       {:yaml_elixir, "~> 2.9.0"},
       {:toml, "~> 0.7"},
       {:benchee, "~> 1.0", only: :test},
-      {:mock, "~> 0.3.0", only: :test}
+      {:mock, "~> 0.3.0", only: :test},
+      {:bakeware, "~> 0.2.4"}
     ]
   end
 end
