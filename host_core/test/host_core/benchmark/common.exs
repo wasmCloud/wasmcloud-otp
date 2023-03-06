@@ -1,11 +1,6 @@
 defmodule HostCore.Benchmark.Common do
   require Logger
 
-  alias HostCore.Actors.ActorSupervisor
-  alias HostCore.Jetstream.Client, as: JetstreamClient
-  alias HostCore.Vhost.VirtualHost
-  alias HostCore.WasmCloud.Native
-
   # Benchmarking common functions
   # Helper function to run before benchmark tests
   def pre_benchmark_run() do
@@ -37,7 +32,10 @@ defmodule HostCore.Benchmark.Common do
 
   def run_benchmark(test_config, num_actors, parallel, warmup, time)
       when is_number(parallel) do
-    IO.puts("Benchmarking with #{num_actors} actors and #{parallel} parallel requests")
+    IO.puts(
+      "---\n- Benchmarking with #{num_actors} actors and #{parallel} parallel requests\n---"
+    )
+
     pre_benchmark_run()
 
     Benchee.run(test_config,

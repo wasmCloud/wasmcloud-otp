@@ -66,7 +66,7 @@ defmodule HostCore.Benchmark.EchoTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       # TODO: make configurable w/ benchee
-      num_actors = 1
+      num_actors = 25
       parallel = [1, 10]
       {:ok, bytes} = File.read(@echo_wasi_path)
 
