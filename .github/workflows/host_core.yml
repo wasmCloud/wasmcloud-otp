@@ -94,12 +94,13 @@ jobs:
           path: host_core/priv/plts
           key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{ hashFiles('host_core/mix.exs', 'host_core/mix.lock') }}
       - name: Create PLTs
+        if: steps.plt-cache.outputs.cache-hit != 'true' && !startswith(matrix.os, 'windows')
         working-directory: ${{env.working-directory}}
-        if: steps.plt-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p priv/plts
           mix dialyzer --plt
       - name: Run dialyzer
+        if: ${{ !startswith(matrix.os, 'windows') }}
         working-directory: ${{env.working-directory}}
         run: mix dialyzer
 # Thank you https://hashrocket.com/blog/posts/build-the-ultimate-elixir-ci-with-github-actions for this action setup
