@@ -395,6 +395,7 @@ defmodule HostCore.Providers.ProviderModule do
           %State{state | healthy: true}
 
         {:ok, _body} ->
+          publish_health_status(state)
           state
 
         {:error, _} ->
@@ -419,21 +420,18 @@ defmodule HostCore.Providers.ProviderModule do
     HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, oci, public_key)
   end
 
-  defp publish_health_passed(state) do
-    %{
-      public_key: state.public_key,
-      link_name: state.link_name
-    }
-    |> CloudEvent.new("health_check_passed", state.host_id)
-    |> CloudEvent.publish(state.lattice_prefix)
-  end
+  defp publish_health_status(state), do: publish_health_event(state, "health_check_status")
 
-  defp publish_health_failed(state) do
+  defp publish_health_passed(state), do: publish_health_event(state, "health_check_passed")
+
+  defp publish_health_failed(state), do: publish_health_event(state, "health_check_failed")
+
+  defp publish_health_event(state, type) do
     %{
       public_key: state.public_key,
       link_name: state.link_name
     }
-    |> CloudEvent.new("health_check_failed", state.host_id)
+    |> CloudEvent.new(type, state.host_id)
     |> CloudEvent.publish(state.lattice_prefix)
   end
 
