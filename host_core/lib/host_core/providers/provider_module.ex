@@ -426,12 +426,12 @@ defmodule HostCore.Providers.ProviderModule do
 
   defp publish_health_failed(state), do: publish_health_event(state, "health_check_failed")
 
-  defp publish_health_event(state, type) do
+  defp publish_health_event(state, evt) do
     %{
       public_key: state.public_key,
       link_name: state.link_name
     }
-    |> CloudEvent.new(type, state.host_id)
+    |> CloudEvent.new(evt, state.host_id)
     |> CloudEvent.publish(state.lattice_prefix)
   end
 
