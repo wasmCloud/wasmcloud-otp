@@ -264,7 +264,7 @@ jobs:
       SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
       app-name: wasmcloud_host
       arm-tarball: aarch64-linux.tar.gz
-      builder-image: elixir:1.14.2-slim
+      builder-image: hexpm/elixir:1.14.3-erlang-25.3-debian-bullseye-20230227-slim
       release-image: debian:bullseye-slim
     steps:
       - uses: actions/checkout@v3
