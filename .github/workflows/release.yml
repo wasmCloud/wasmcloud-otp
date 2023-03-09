@@ -8,7 +8,7 @@ on:
     branches: [main]
 env:
   otp-version: 25
-  elixir-version: 1.14.2
+  elixir-version: 1.14.3
 
 jobs:
   compile-native-nif:
