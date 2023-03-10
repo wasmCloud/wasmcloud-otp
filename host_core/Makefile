@@ -13,20 +13,19 @@ deps: ## Fetch mix dependencies
 build: deps ## Compile host_core
 	mix compile
 
-# official hexpm elixir images
-# hub.docker.com/r/hexpm/elixir
 build-image: ## Compile host_core docker image
 	docker build \
-		--build-arg BUILDER_IMAGE=hexpm/elixir:1.14.3-erlang-25.3-alpine-3.17.2 \
-		--build-arg RELEASE_IMAGE=alpine:3.17.2  \
+		--build-arg BUILDER_IMAGE=elixir:1.14.3-alpine \
+		--build-arg RELEASE_IMAGE=alpine:3.17.2 \
 		--build-arg MIX_ENV=prod \
 		-t host_core:alpine \
 		.
 
+# erlang 24 until 25 stops segfaulting under qemu
 buildx-cross-image: ## Compile host_core docker image using buildx for amd64 and arm64
 	docker buildx build  \
-		--build-arg BUILDER_IMAGE=hexpm/elixir:1.14.3-erlang-25.3-alpine-3.17.2 \
-		--build-arg RELEASE_IMAGE=alpine:3.17.2  \
+		--build-arg BUILDER_IMAGE=elixir:1.14.3-otp-24-alpine \
+		--build-arg RELEASE_IMAGE=alpine:3.17.2 \
 		--build-arg MIX_ENV=prod \
 		-t host_core:alpine \
 		--platform linux/amd64,linux/arm64 \
