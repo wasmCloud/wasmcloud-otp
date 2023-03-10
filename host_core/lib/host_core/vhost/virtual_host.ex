@@ -313,7 +313,7 @@ defmodule HostCore.Vhost.VirtualHost do
       invocation_seed: config.cluster_seed,
       js_domain: config.js_domain,
       # In case providers want to be aware of this for their own logging
-      enable_structured_logging: config.enable_structured_logging
+      structured_logging: config.enable_structured_logging
     })
   end
 
