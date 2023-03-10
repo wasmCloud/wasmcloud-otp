@@ -146,19 +146,21 @@ checksum = "e6b4d9b1225d28d360ec6a231d65af1fd99a2a095154c8040689617290569c5c"
 
 [[package]]
 name = "bcrypt"
-version = "0.11.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8d70a6d9cd7179c1020c7f48512203ffe48cd1a442359e5f81881bf2cc165ac"
+checksum = "a7e7c93a3fb23b2fdde989b2c9ec4dd153063ec81f408507f84c090cd91c6641"
 dependencies = [
  "base64 0.13.1",
  "blowfish",
  "getrandom 0.2.8",
+ "zeroize",
 ]
 
 [[package]]
 name = "bindle"
-version = "0.8.0"
-source = "git+https://github.com/deislabs/bindle?rev=7a5f11ca9986837f8ee54e8d577204ec520b6764#7a5f11ca9986837f8ee54e8d577204ec520b6764"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6e094a05735491445601e151b6094fbd48ecf2bd08fe7e0ccb036ce29a50230"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -1222,9 +1224,9 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.7.8"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e999beba7b6e8345721bd280141ed958096a2e4abdf74f67ff4ce49b4b54e47a"
+checksum = "b6e8aaa3f231bb4bd57b84b2d5dc3ae7f350265df8aa96492e0bc394a1571909"
 dependencies = [
  "hashbrown",
 ]
