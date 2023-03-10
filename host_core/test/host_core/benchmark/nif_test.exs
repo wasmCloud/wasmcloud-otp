@@ -48,6 +48,16 @@ defmodule HostCore.Benchmark.NifTest do
         )
         |> IO.iodata_to_binary()
 
+      # Encoded claims variables
+      actor = "MCS4AAQ2NZZRTGKHGNBBFYH3RKQ7QLGOSI5TRRMRWFKMBD4KZFSL6EDF"
+      target_type = :provider
+      target_key = "VCPCNFTKMNMGVNK2VFJAAZ3263ND3E7PBCJKEJFX66EW4NEVP5N5MTOO"
+      namespace = "wasmcloud:testing"
+      link_name = "default"
+      seed = "SNALQCCB7TXESX3WT2YGA466VJUTES3XQF6D75H546TPLS7RFZGNFAUNGM"
+      payload = "oogabooga"
+      operation = "WasmCloud.Testing"
+
       test_config = %{
         "generate_invocation_bytes" => fn ->
           Native.generate_invocation_bytes(
@@ -67,6 +77,55 @@ defmodule HostCore.Benchmark.NifTest do
             config.cluster_issuers
           )
         end,
+        "encoded_claims" => fn ->
+          inv_id = UUID.uuid4()
+
+          origin = %{
+            public_key: actor,
+            contract_id: "",
+            link_name: ""
+          }
+
+          target =
+            if target_type == :actor do
+              %{
+                public_key: target_key,
+                contract_id: "",
+                link_name: ""
+              }
+            else
+              %{
+                public_key: target_key,
+                contract_id: namespace,
+                link_name: link_name
+              }
+            end
+
+          {:ok, {host_id, encoded_claims}} =
+            Native.encoded_claims(
+              seed,
+              inv_id,
+              "#{HostCore.WebAssembly.Imports.inv_url(target)}/#{operation}",
+              HostCore.WebAssembly.Imports.inv_url(origin),
+              payload,
+              operation
+            )
+
+          inv =
+            %{
+              origin: origin,
+              target: target,
+              operation: operation,
+              id: inv_id,
+              encoded_claims: encoded_claims,
+              host_id: host_id,
+              content_length: 0
+            }
+            |> Msgpax.pack!()
+            |> IO.iodata_to_binary()
+
+          :ok
+        end,
         "host_config_lookup" => fn ->
           # This is a function that we've worried about blocking in concurrent requests before
           # and consists essentially just of an `:ets.lookup`
@@ -74,7 +133,7 @@ defmodule HostCore.Benchmark.NifTest do
         end
       }
 
-      HostCore.Benchmark.Common.run_benchmark(test_config, 0, [50])
+      HostCore.Benchmark.Common.run_benchmark(test_config, 0, [10])
 
       assert true
     end

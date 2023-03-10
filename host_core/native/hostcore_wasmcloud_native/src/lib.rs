@@ -150,6 +150,7 @@ rustler::init!(
         set_chunking_connection_config,
         dechunk_inv,
         chunk_inv,
+        encoded_claims,
         extract_claims,
         generate_key,
         generate_invocation_bytes,
@@ -401,6 +402,36 @@ fn pk_from_seed(seed: String) -> Result<(Atom, String), Error> {
     })?;
 
     Ok((atoms::ok(), key.public_key()))
+}
+
+#[rustler::nif]
+fn encoded_claims(
+    seed: String,
+    inv_id: String,
+    target_url: String,
+    origin_url: String,
+    msg: Binary,
+    op: String,
+) -> Result<(Atom, (String, String)), Error> {
+    let host_key = KeyPair::from_seed(&seed).map_err(|e| {
+        rustler::Error::Term(Box::new(format!(
+            "Failed to determine public key from seed: {}",
+            e
+        )))
+    })?;
+
+    use wascap::prelude::Claims;
+    let claims = Claims::<wascap::prelude::Invocation>::new(
+        host_key.public_key(),
+        inv_id,
+        &target_url,
+        &origin_url,
+        &crate::inv::invocation_hash(&target_url, &origin_url, &msg, &op),
+    );
+
+    let encoded_claims = claims.encode(&host_key).unwrap();
+
+    Ok((atoms::ok(), (host_key.public_key(), encoded_claims)))
 }
 
 #[rustler::nif]

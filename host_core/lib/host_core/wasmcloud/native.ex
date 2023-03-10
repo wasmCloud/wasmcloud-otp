@@ -8,6 +8,7 @@ defmodule HostCore.WasmCloud.Native do
   def generate_key(_keytype), do: error()
 
   def pk_from_seed(_seed), do: error()
+  def encoded_claims(_seed, _inv_id, _target_url, _origin_url, _msg, _op), do: error()
   def validate_antiforgery(_bytes, _valid_issuers), do: error()
 
   def generate_invocation_bytes(

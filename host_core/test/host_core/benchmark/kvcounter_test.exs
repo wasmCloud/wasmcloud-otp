@@ -33,22 +33,56 @@ defmodule HostCore.Benchmark.KvcounterTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       # TODO: make configurable w/ benchee
-      num_actors = 25
-      parallel = [1, 10, 25, 50]
+      num_actors = 1
+      parallel = [1]
 
       {_msg, _inv, port} =
         setup_kvcounter_test(config, evt_watcher, @kvcounter_key, @kvcounter_path, num_actors)
 
+      seed = config.cluster_seed
+
+      req =
+        %{
+          body: "hello",
+          header: %{},
+          path: "/api/counter/test",
+          queryString: "",
+          method: "GET"
+        }
+        |> Msgpax.pack!()
+        |> IO.iodata_to_binary()
+
+      inv =
+        Native.generate_invocation_bytes(
+          seed,
+          "system",
+          :provider,
+          @httpserver_key,
+          @httpserver_contract,
+          @httpserver_link,
+          "HttpServer.HandleRequest",
+          req
+        )
+
+      msg = %{
+        body: IO.iodata_to_binary(inv),
+        topic: "wasmbus.rpc.#{config.lattice_prefix}.#{@kvcounter_key}",
+        reply_to: "_INBOX.thisisatest.notinterested"
+      }
+
       {:ok, _okay} = HTTPoison.start()
 
       test_config = %{
+        "direct_kvcounter_request" => fn ->
+          HostCore.Actors.ActorRpcServer.request(msg)
+        end,
         "http_kvcounter_request" => fn ->
           {:ok, _resp} = request_http("http://localhost:#{port}/api/counter", 1)
         end
       }
 
       # Run the test at a few specified levels of parallelism, allowing for some warmup time to let compute calm down
-      HostCore.Benchmark.Common.run_benchmark(test_config, num_actors, parallel)
+      HostCore.Benchmark.Common.run_benchmark(test_config, num_actors, parallel, 1, 5)
 
       assert true
     end
