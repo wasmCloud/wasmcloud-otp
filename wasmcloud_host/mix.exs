@@ -59,7 +59,7 @@ defmodule WasmcloudHost.MixProject do
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.5"},
       {:floki, ">= 0.30.0", only: :test},
-      {:jason, "~> 1.0"},
+      {:jason, "~> 1.2.2"},
       {:plug_cowboy, "~> 2.0"},
       {:host_core, path: "../host_core"},
       {:file_system, "~> 0.2"},

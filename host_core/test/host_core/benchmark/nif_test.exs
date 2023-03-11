@@ -78,53 +78,18 @@ defmodule HostCore.Benchmark.NifTest do
           )
         end,
         "encoded_claims" => fn ->
-          inv_id = UUID.uuid4()
-
-          origin = %{
-            public_key: actor,
-            contract_id: "",
-            link_name: ""
-          }
-
-          target =
-            if target_type == :actor do
-              %{
-                public_key: target_key,
-                contract_id: "",
-                link_name: ""
-              }
-            else
-              %{
-                public_key: target_key,
-                contract_id: namespace,
-                link_name: link_name
-              }
-            end
-
-          {:ok, {host_id, encoded_claims}} =
-            Native.encoded_claims(
-              seed,
-              inv_id,
-              "#{HostCore.WebAssembly.Imports.inv_url(target)}/#{operation}",
-              HostCore.WebAssembly.Imports.inv_url(origin),
-              payload,
-              operation
-            )
-
-          inv =
-            %{
-              origin: origin,
-              target: target,
-              operation: operation,
-              id: inv_id,
-              encoded_claims: encoded_claims,
-              host_id: host_id,
-              content_length: 0
-            }
-            |> Msgpax.pack!()
-            |> IO.iodata_to_binary()
-
-          :ok
+          # This function call includes the NIF call and all the data massaging for a true
+          # comparison to generate_invocation_bytes
+          HostCore.WebAssembly.Imports.actor_invocation(
+            actor,
+            target_key,
+            target_key,
+            namespace,
+            link_name,
+            operation,
+            seed,
+            payload
+          )
         end,
         "host_config_lookup" => fn ->
           # This is a function that we've worried about blocking in concurrent requests before
