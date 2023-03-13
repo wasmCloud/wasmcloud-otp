@@ -1,13 +1,12 @@
+use oci_distribution::manifest::OciManifest;
+use oci_distribution::secrets::RegistryAuth;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::env::{temp_dir, var};
 use std::path::PathBuf;
 use std::str::FromStr;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use sha2::{Sha256, Digest};
-use hex;
-use oci_distribution::secrets::RegistryAuth;
-use oci_distribution::manifest::OciManifest;
 
 pub(crate) const OCI_VAR_REGISTRY: &str = "OCI_REGISTRY";
 pub(crate) const OCI_VAR_USER: &str = "OCI_REGISTRY_USER";
@@ -52,34 +51,33 @@ pub(crate) async fn fetch_oci_path(
         return Err(
             "Fetching images tagged 'latest' is currently prohibited in this host. This option can be overridden with WASMCLOUD_OCI_ALLOW_LATEST".into());
     }
-    let cf = cached_file(img).await?;
+    let cf = get_cached_file_path(img).await?;
 
     let auth = determine_auth(img, creds_override);
     let img = oci_distribution::Reference::from_str(img)?;
 
-    let protocol =
-        oci_distribution::client::ClientProtocol::HttpsExcept(allowed_insecure.to_vec());
+    let protocol = oci_distribution::client::ClientProtocol::HttpsExcept(allowed_insecure.to_vec());
     let config = oci_distribution::client::ClientConfig {
         protocol,
         ..Default::default()
     };
     let mut c = oci_distribution::Client::new(config);
 
-    if tokio::fs::metadata(&cf).await.is_err() {     
+    // In case of a cache miss where the file does not exist, pull a fresh OCI Image
+    if tokio::fs::metadata(&cf).await.is_err() {
         let imgdata = pull(&mut c, &img, &auth).await;
         match imgdata {
             Ok(imgdata) => {
-                cache_oci_image(&imgdata, &cf).await;
+                cache_oci_image(&imgdata, &cf).await?;
             }
             Err(e) => return Err(format!("Failed to fetch OCI bytes: {}", e).into()),
         }
-    }else{
+    } else {
         let manifest = c.pull_manifest(&img, &auth).await;
-        match manifest{
-            Ok(manifest)=>{
+        match manifest {
+            Ok(manifest) => {
                 let (oci_manifest, _) = manifest;
                 if let OciManifest::Image(image_manifest) = oci_manifest {
-                    
                     let layers = image_manifest.layers;
                     // The digest will be string like sha256:asdf, and the first 7 characters are removed
                     let oci_sha = &layers[0].digest[7..];
@@ -90,17 +88,19 @@ pub(crate) async fn fetch_oci_path(
                     cache_file.read_to_end(&mut cache_contents).await?;
                     let cache_sha = Sha256::digest(cache_contents);
 
-                    // compare the OCI sha with the cache file sha and pull the OCI image
-                    if oci_sha_bytes[..] != cache_sha[..]{
+                    // compare the OCI digest with the cache file hash and pull the OCI image in case of a mismatch
+                    if oci_sha_bytes[..] != cache_sha[..] {
                         let imgdata = pull(&mut c, &img, &auth).await;
                         match imgdata {
                             Ok(imgdata) => {
-                                cache_oci_image(&imgdata, &cf).await;
+                                cache_oci_image(&imgdata, &cf).await?;
                             }
-                            Err(e) => return Err(format!("Failed to fetch OCI bytes: {}", e).into()),
+                            Err(e) => {
+                                return Err(format!("Failed to fetch OCI bytes: {}", e).into())
+                            }
                         }
                     }
-                }            
+                }
             }
             Err(e) => return Err(format!("Failed to fetch OCI manifest: {}", e).into()),
         }
@@ -109,7 +109,7 @@ pub(crate) async fn fetch_oci_path(
     Ok(cf)
 }
 
-async fn cached_file(img: &str) -> std::io::Result<PathBuf> {
+async fn get_cached_file_path(img: &str) -> std::io::Result<PathBuf> {
     let path = temp_dir();
     let path = path.join("wasmcloud_ocicache");
     ::tokio::fs::create_dir_all(&path).await?;
@@ -143,14 +143,16 @@ async fn pull(
 
 async fn cache_oci_image(
     imgdata: &oci_distribution::client::ImageData,
-    cache_filename: &PathBuf,
-) {
-    let mut f = tokio::fs::File::create(&cache_filename).await.unwrap();
+    cache_filepath: &PathBuf,
+) -> ::std::io::Result<()> {
+    let mut f = tokio::fs::File::create(&cache_filepath).await?;
     let content = imgdata
-        .layers.clone()
+        .layers
+        .clone()
         .into_iter()
         .flat_map(|l| l.data)
         .collect::<Vec<_>>();
-    f.write_all(&content).await.unwrap();
-    f.flush().await.unwrap();    
+    f.write_all(&content).await?;
+    f.flush().await?;
+    Ok(())
 }
