@@ -79,15 +79,20 @@ pub(crate) async fn fetch_oci_path(
                 let (oci_manifest, _) = manifest;
                 if let OciManifest::Image(image_manifest) = oci_manifest {
                     let layers = image_manifest.layers;
+                    if layers.is_empty() {
+                        return Err(
+                            format!("Failed to fetch OCI bytes: Empty manifest layers").into()
+                        );
+                    }
                     // The digest will be string like sha256:asdf, and the first 7 characters are removed
-                    let oci_sha = &layers[0].digest[7..];
+                    let oci_sha = &layers[0].digest.trim_start_matches("sha256:");
                     let oci_sha_bytes: Vec<u8> = hex::decode(oci_sha).expect("Invalid Hex String");
 
                     let mut cache_file = File::open(cf.clone()).await?;
                     let mut cache_contents = Vec::new();
                     cache_file.read_to_end(&mut cache_contents).await?;
                     let cache_sha = Sha256::digest(cache_contents);
-
+                    
                     // compare the OCI digest with the cache file hash and pull the OCI image in case of a mismatch
                     if oci_sha_bytes[..] != cache_sha[..] {
                         let imgdata = pull(&mut c, &img, &auth).await;
