@@ -179,7 +179,7 @@ fn execute_call_actor(
     // TODO: use actor instance to invoke a function, get result
     // TODO: if this fails, use make_error_tuple to produce the error
 
-    let res_vec: Vec<u8> = vec![];
+    let res_vec: Vec<u8> = vec![1,2,3,4];
     let result_binary: Term = res_vec.encode(thread_env);
 
     // In theory (haven't confirmed this), should produce {:returned_function_call, {:ok, binary}}

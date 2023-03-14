@@ -204,7 +204,7 @@ defmodule HostCore.Vhost.VirtualHost do
     end
   end
 
-  def get_runtime(pid) do
+  def get_runtime(pid) when is_pid(pid) do
     GenServer.call(pid, :get_runtime)
   end
 
