@@ -40,7 +40,7 @@ defmodule WasmcloudHost.MixProject do
   #
   # Type `mix help deps` for examples and options.
   defp deps do
-    [
+    list = [
       {:phoenix, "~> 1.6.0"},
       {:phoenix_html, "~> 3.0.4"},
       {:phoenix_live_view, "~> 0.16.4"},
@@ -56,9 +56,16 @@ defmodule WasmcloudHost.MixProject do
       {:host_core, path: "../host_core"},
       {:file_system, "~> 0.2"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
-      {:bakeware, "~> 0.2.4"}
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false}
     ]
+
+    case :os.type() do
+      {:unix, _} ->
+        [{:bakeware, "~> 0.2.4"} | list]
+
+      _ ->
+        list
+    end
   end
 
   # Aliases are shortcuts or tasks specific to the current project.

@@ -42,7 +42,7 @@ defmodule HostCore.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    [
+    list = [
       {:wasmex, "~> 0.7.0"},
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.24.0"},
@@ -69,8 +69,12 @@ defmodule HostCore.MixProject do
       {:yaml_elixir, "~> 2.9.0"},
       {:toml, "~> 0.7"},
       {:benchee, "~> 1.0", only: :test},
-      {:mock, "~> 0.3.0", only: :test},
-      {:bakeware, "~> 0.2.4"}
+      {:mock, "~> 0.3.0", only: :test}
     ]
+
+    case :os.type() do
+      {:unix, _} -> [{:bakeware, "~> 0.2.4"} | list]
+      _ -> list
+    end
   end
 end
