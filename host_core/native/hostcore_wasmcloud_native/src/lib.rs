@@ -25,6 +25,7 @@ mod objstore;
 mod oci;
 mod par;
 mod task;
+mod wasmruntime;
 
 lazy_static! {
     static ref CHUNKING_STORE: RwLock<Option<ObjectStore>> = RwLock::new(None);
@@ -119,6 +120,8 @@ rustler::init!(
         pk_from_seed,
         get_provider_bindle,
         get_actor_bindle,
+        wasmruntime::new,
+        wasmruntime::version,
     ],
     load = load
 );
@@ -571,6 +574,8 @@ async fn get_provider_file(path: &str) -> Result<Option<tokio::fs::File>, Error>
 
 fn load(env: rustler::Env, _: rustler::Term) -> bool {
     par::on_load(env);
+    wasmruntime::on_load(env);
+
     true
 }
 

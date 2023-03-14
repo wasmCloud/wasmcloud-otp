@@ -36,12 +36,13 @@ defmodule HostCore.Vhost.VirtualHost do
 
     @type t :: %State{
             config: Configuration.t(),
+            wasm_runtime: HostCore.WasmCloud.Runtime.t(),
             friendly_name: String.t(),
             labels: map(),
             start_time: non_neg_integer(),
             supplemental_config: map() | nil
           }
-    defstruct [:config, :friendly_name, :start_time, :labels, :supplemental_config]
+    defstruct [:config, :friendly_name, :start_time, :labels, :supplemental_config, :wasm_runtime]
   end
 
   @doc """
@@ -109,6 +110,10 @@ defmodule HostCore.Vhost.VirtualHost do
       ]
     })
 
+    {:ok, runtime} =
+      HostCore.WasmCloud.Runtime.new(%HostCore.WasmCloud.Runtime.Config{placeholder: false})
+    Logger.info("Started wasmCloud internal wasm runtime v#{HostCore.WasmCloud.Runtime.version(runtime)}")
+
     HostCore.Vhost.Heartbeats.start_link(self(), config.host_key)
 
     {wclock, _} = :erlang.statistics(:wall_clock)
@@ -124,7 +129,8 @@ defmodule HostCore.Vhost.VirtualHost do
       friendly_name: friendly_name,
       start_time: wclock,
       labels: labels,
-      supplemental_config: nil
+      supplemental_config: nil,
+      wasm_runtime: runtime
     }
 
     if config.config_service_enabled do

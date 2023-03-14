@@ -34,6 +34,11 @@ defmodule HostCore.WasmCloud.Native do
   def get_actor_bindle(_creds, _bindle_id), do: error()
   def get_provider_bindle(_creds, _bindle_id, _link_name), do: error()
 
+  # Wasm Runtime
+  def runtime_new(_config), do: error()
+  def start_actor(_runtime_resource, _bytes), do: error()
+  def version(_runtime_resource), do: error()
+
   # When the NIF is loaded, it will override functions in this module.
   # Calling error is handles the case when the nif could not be loaded.
   defp error, do: :erlang.nif_error(:nif_not_loaded)
