@@ -1,9 +1,12 @@
 #[macro_use]
 extern crate rustler;
 
+use futures::Future;
 use lazy_static::lazy_static;
 use nats::object_store::ObjectStore;
 use nats::{Connection, JetStreamOptions};
+use once_cell::sync::Lazy;
+use tokio::task::JoinHandle;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -30,6 +33,20 @@ mod wasmruntime;
 
 lazy_static! {
     static ref CHUNKING_STORE: RwLock<Option<ObjectStore>> = RwLock::new(None);
+}
+
+static TOKIO: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()        
+        .build()
+        .expect("Failed to start tokio runtime")
+});
+
+pub(crate) fn spawn<T>(task: T) -> JoinHandle<T::Output>
+where
+    T: Future + Send + 'static,
+    T::Output: Send + 'static,
+{
+    TOKIO.spawn(task)
 }
 
 const CHONKY_THRESHOLD_BYTES: usize = 1024 * 700; // 700KB

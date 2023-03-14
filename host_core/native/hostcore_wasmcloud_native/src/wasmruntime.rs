@@ -40,6 +40,27 @@ impl wasmcloud::capability::Handler for ElixirHandler {
         operation: String,
         payload: Option<Vec<u8>>,
     ) -> anyhow::Result<Result<Option<Vec<u8>>, Self::Error>> {
+
+        /*
+        
+         let caller_token = set_caller(caller);
+
+        let mut msg_env = OwnedEnv::new();
+        msg_env.send_and_clear(&pid.clone(), |env| {
+            ....
+
+              (
+                atoms::invoke_callback(),
+                convert_claims(claims),
+                binding,
+                namespace,
+                operation,
+                payload,                
+                callback_token.clone(),
+            )
+                .encode(env)
+        })
+         */
         bail!(
             "cannot execute `{binding}.{namespace}.{operation}` with payload {payload:?} for actor `{}`",
             claims.subject

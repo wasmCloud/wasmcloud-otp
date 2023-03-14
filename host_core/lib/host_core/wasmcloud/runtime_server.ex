@@ -82,7 +82,11 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   end
 
   @impl true
-  def handle_info({:invoke_callback, claims, namespace, operation, payload, token}, state) do
+  def handle_info(
+        {:invoke_callback, claims, binding, namespace, operation, payload, token},
+        state
+      ) do
+    # This callback is invoked by the wasmcloud::Runtime's host call handler
     Logger.info("Handling invoke callback")
     # TODO
     {success, return_value} =
