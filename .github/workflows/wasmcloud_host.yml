@@ -79,7 +79,7 @@ jobs:
         shell: bash
         env:
           MIX_ENV: dev
-          CC: gcc
+          CC: clang
           MAKE: make
         run: make esbuild
 
