@@ -14,6 +14,7 @@ crate-type = ["dylib"]
 wasmcloud = { git = "https://github.com/rvolosatovs/wasmcloud", branch = "feat/component-model" }
 rustler = "0.27.0"
 lazy_static = "1.0"
+async-trait = "0.1.66"
 serde = {version = "1.0.126", features = ["derive"] }
 serde_bytes = "0.11.5"
 nkeys = "0.2.0"
@@ -34,7 +35,6 @@ chrono-humanize = "0.2.1"
 chrono = "0.4.19"
 tokio-stream = "0.1"
 bindle = { version = "0.9", default-features = false, features = ["client", "caching", "rustls-tls"] }
-async-trait = "0.1"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
 nats = "0.24.0"
 anyhow = "1.0.69"

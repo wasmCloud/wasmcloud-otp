@@ -1,4 +1,5 @@
 defmodule HostCore.WasmCloud.Runtime do
+
   @type t :: %__MODULE__{
           resource: binary(),
           reference: reference()
@@ -17,6 +18,15 @@ defmodule HostCore.WasmCloud.Runtime do
       resource: resource,
       reference: make_ref()
     }
+  end
+
+  defmodule ActorReference do
+    @type t :: %__MODULE__{
+      resource: binary(),
+      reference: reference()
+    }
+    defstruct resource: nil,
+              reference: nil
   end
 
   @doc ~S"""
@@ -45,6 +55,13 @@ defmodule HostCore.WasmCloud.Runtime do
       version -> version
     end
   end
+
+  @spec call_actor(runtime :: HostCore.WasmCloud.Runtime.t(), actor :: HostCore.WasmCloud.Runtime.ActorReference.t(),
+  operation :: binary(), payload :: binary(), from :: GenServer.from()) :: {:ok, binary()} | {:error, binary()}
+  def call_actor(%__MODULE__{resource: rt_resource},
+    %HostCore.WasmCloud.Runtime.ActorReference{resource: actor_resource}, operation, payload, from) do
+      HostCore.WasmCloud.Native.call_actor(rt_resource, actor_resource, operation, payload, from)
+ end
 
   defimpl Inspect, for: HostCore.WasmCloud.Runtime do
     import Inspect.Algebra

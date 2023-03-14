@@ -36,6 +36,8 @@ defmodule HostCore.Actors.ActorModule do
     """
 
     defstruct [
+      :host_runtime,
+      :actor_reference,
       :guest_request,
       :guest_response,
       :host_response,

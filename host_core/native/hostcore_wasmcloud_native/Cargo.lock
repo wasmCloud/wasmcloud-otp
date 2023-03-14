@@ -1499,7 +1499,7 @@ dependencies = [
 [[package]]
 name = "host"
 version = "0.0.0"
-source = "git+https://github.com/bytecodealliance/preview2-prototyping#5836a6b0028f6fbdd094fbdd87df1ff4ca535168"
+source = "git+https://github.com/bytecodealliance/preview2-prototyping?rev=24fa023d1848ca3a24b35ed80ff1514ea54dd219#24fa023d1848ca3a24b35ed80ff1514ea54dd219"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2974,9 +2974,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.155"
+version = "1.0.156"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71f2b4817415c6d4210bfe1c7bfcf4801b2d904cb4d0e1a8fdb651013c9e86b8"
+checksum = "314b5b092c0ade17c00142951e50ced110ec27cea304b1037c6969246c2469a4"
 dependencies = [
  "serde_derive",
 ]
@@ -3002,9 +3002,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.155"
+version = "1.0.156"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d071a94a3fac4aff69d023a7f411e33f40f3483f8c5190b1953822b6b76d7630"
+checksum = "d7e29c4601e36bcec74a223228dce795f4cd3616341a4af93520ca1a837c087d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3786,7 +3786,7 @@ checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 [[package]]
 name = "wasi-cap-std-sync"
 version = "0.0.0"
-source = "git+https://github.com/bytecodealliance/preview2-prototyping#5836a6b0028f6fbdd094fbdd87df1ff4ca535168"
+source = "git+https://github.com/bytecodealliance/preview2-prototyping?rev=24fa023d1848ca3a24b35ed80ff1514ea54dd219#24fa023d1848ca3a24b35ed80ff1514ea54dd219"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3832,7 +3832,7 @@ dependencies = [
 [[package]]
 name = "wasi-common"
 version = "0.0.0"
-source = "git+https://github.com/bytecodealliance/preview2-prototyping#5836a6b0028f6fbdd094fbdd87df1ff4ca535168"
+source = "git+https://github.com/bytecodealliance/preview2-prototyping?rev=24fa023d1848ca3a24b35ed80ff1514ea54dd219#24fa023d1848ca3a24b35ed80ff1514ea54dd219"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4017,7 +4017,7 @@ dependencies = [
 [[package]]
 name = "wasmcloud"
 version = "0.1.0"
-source = "git+https://github.com/rvolosatovs/wasmcloud?branch=feat/component-model#73531764601c5ff714d1e738a6d27f3bf8c6862c"
+source = "git+https://github.com/rvolosatovs/wasmcloud?branch=feat/component-model#98430454a7fb939ab0e0da0a09795127bf39aadc"
 dependencies = [
  "anyhow",
  "async-trait",

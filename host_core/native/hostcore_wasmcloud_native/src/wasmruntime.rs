@@ -1,12 +1,21 @@
 use anyhow::{self, bail, ensure, Context};
-use futures::executor::block_on;
-use log::info;
-use rustler::{Binary, Env, Error, ResourceArc};
-use std::hash::BuildHasher;
-use std::sync::Mutex;
+use async_trait::async_trait;
+
+use rustler::{
+    dynamic::TermType,
+    env::{OwnedEnv, SavedTerm},
+    resource::ResourceArc,
+    types::tuple::make_tuple,
+    types::ListIterator,
+    Binary, Encoder, Env, Error, MapIterator, NifResult, Term,
+};
+
+use std::thread;
 use wascap::jwt;
 use wasmcloud::capability::{Handler, HostHandler, LogLogging, RandNumbergen};
 use wasmcloud::{ActorModule, Runtime as WcRuntime};
+
+use crate::{atoms, environment::CallbackTokenResource};
 //use wasmcloud::{ActorInstanceConfig, ActorModule, ActorResponse, Runtime};
 
 type WasmcloudRuntime = WcRuntime<
@@ -19,10 +28,11 @@ type WasmcloudRuntime = WcRuntime<
 
 pub struct ElixirHandler {}
 
+#[async_trait]
 impl wasmcloud::capability::Handler for ElixirHandler {
     type Error = anyhow::Error;
 
-    fn handle(
+    async fn handle(
         &self,
         claims: &jwt::Claims<jwt::Actor>,
         binding: String,
@@ -43,6 +53,7 @@ pub struct RuntimeResource {
 }
 
 pub struct ActorResource {
+    // TODO
     //pub inner:  Mutex<wasmcloud::actor::Instance>
     pub raw: Vec<u8>,
 }
@@ -60,7 +71,7 @@ pub fn on_load(env: Env) -> bool {
 }
 
 #[rustler::nif(name = "runtime_new")]
-pub fn new(config: ExRuntimeConfig) -> Result<ResourceArc<RuntimeResource>, rustler::Error> {
+pub fn new(_config: ExRuntimeConfig) -> Result<ResourceArc<RuntimeResource>, rustler::Error> {
     let handler = HostHandler {
         logging: LogLogging::from(log::logger()),
         numbergen: RandNumbergen::from(rand::rngs::OsRng),
@@ -83,15 +94,19 @@ pub fn version(runtime_resource: ResourceArc<RuntimeResource>) -> Result<String,
     Ok(v.to_string())
 }
 
+// TODO
+// roughly equivalent to the wasmex call_exported_function
 #[rustler::nif(name = "start_actor")]
 pub fn start_actor<'a>(
     env: rustler::Env<'a>,
-    runtime_resource: ResourceArc<RuntimeResource>,
+    _runtime_resource: ResourceArc<RuntimeResource>,
     bytes: Binary<'a>,
 ) -> Result<ResourceArc<ActorResource>, rustler::Error> {
-    // let engine: &Engine = &*(engine_resource.inner.lock().map_err(|e| {
-    //     rustler::Error::Term(Box::new(format!("Could not unlock engine resource: {}", e)))
-    // })?);
+    // TODO: wrap a wasmcloud::ActorModule in an ActoResource. Right now
+    // I can't seem to create an instance with an async closure 🤷🏼
+    let actor_resource = ActorResource {
+        raw: bytes.to_vec(),
+    };
 
     // let module = ActorModule::new(&runtime_resource.inner, bytes.as_slice())
     // .context("failed to load actor from bytes")
@@ -103,28 +118,108 @@ pub fn start_actor<'a>(
     //     instance
     // });
 
-    // let resource = ResourceArc::new(ActorResource {
-    //     raw: bytes.to_vec(),
-    // });
-    // Ok(resource)
-
-    Ok(ResourceArc::new(ActorResource { raw: vec![1, 2, 3] }))
+    Ok(ResourceArc::new(actor_resource))
 }
 
-#[rustler::nif(name = "call_actor")]
+// NOTE: wasmex uses dirtycpu here. should we use dirty IO ?
+#[rustler::nif(name = "call_actor", schedule = "DirtyCpu")]
 pub fn call_actor<'a>(
     env: rustler::Env<'a>,
+    runtime: ResourceArc<RuntimeResource>,
     instance: ResourceArc<ActorResource>,
     operation: &str,
     payload: Binary<'a>,
-) -> Result<Binary<'a>, rustler::Error> {
-    /*
-    ActorModule::new(&rt, actor)
-        .context("failed to create actor")?
-        .instantiate()
-        .context("failed to instantiate actor")? */
+    from: Term,
+) -> rustler::Atom {
+    let pid = env.pid();
+    let mut thread_env = OwnedEnv::new();
+
+    let from = thread_env.save(from);
+    let payload = payload.to_vec();
+    let operation = operation.to_owned();
+
+    // ref: https://github.com/tessi/wasmex/issues/256
+    // here we spawn a thread, do the work of the actor invocation,
+    // and use other sync mechanisms to finish the work and send
+    // the results to the caller (the `from` field)
+    thread::spawn(move || {
+        thread_env.send_and_clear(&pid, |thread_env| {
+            execute_call_actor(
+                thread_env,
+                runtime,
+                instance,
+                operation.to_string(),
+                payload,
+                from,
+            )
+        })
+    });
+
+    atoms::ok()
+}
+
+fn execute_call_actor(
+    thread_env: Env,
+    runtime: ResourceArc<RuntimeResource>,
+    actor: ResourceArc<ActorResource>,
+    operation: String,
+    payload: Vec<u8>,
+    from: SavedTerm,
+) -> Term {
+    let from = from
+        .load(thread_env)
+        .decode::<Term>()
+        .unwrap_or_else(|_| "could not load 'from' param".encode(thread_env));
+
     todo!()
 }
+
+fn make_error_tuple<'a>(env: &Env<'a>, reason: &str, from: Term<'a>) -> Term<'a> {
+    make_tuple(
+        *env,
+        &[
+            atoms::returned_function_call().encode(*env),
+            env.error_tuple(reason),
+            from,
+        ],
+    )
+}
+
+// TODO: this is from wasmex... need to convert this so the result is just an optional binary
+// called from elixir, params
+// * callback_token
+// * success: :ok | :error
+//   indicates whether the call was successful or produced an elixir-error
+// * results: [number]
+//   return values of the elixir-callback - empty list when success-type is :error
+// #[rustler::nif(name = "instance_receive_callback_result")]
+// pub fn receive_callback_result(
+//     token_resource: ResourceArc<CallbackTokenResource>,
+//     success: bool,
+//     result_list: ListIterator,
+// ) -> NifResult<rustler::Atom> {
+//     // let results = if success {
+//     //     let return_types = token_resource.token.return_types.clone();
+//     //     match decode_function_param_terms(&return_types, result_list.collect()) {
+//     //         Ok(v) => v,
+//     //         Err(reason) => {
+//     //             return Err(Error::Term(Box::new(format!(
+//     //                 "could not convert callback result param to expected return signature: {}",
+//     //                 reason
+//     //             ))));
+//     //         }
+//     //     }
+//     // } else {
+//     //     vec![]
+//     // };
+
+//     let mut result = token_resource.token.return_values.lock().unwrap();
+//     *result = Some((success, results));
+//     token_resource.token.continue_signal.notify_one();
+
+//     Ok(atoms::ok())
+// }
+
 /*
 
 #[rustler::nif(name = "engine_precompile_module")]

@@ -20,6 +20,7 @@ use wascap::prelude::*;
 
 mod atoms;
 mod client;
+mod environment;
 mod inv;
 mod objstore;
 mod oci;
@@ -122,6 +123,7 @@ rustler::init!(
         get_actor_bindle,
         wasmruntime::new,
         wasmruntime::version,
+        wasmruntime::call_actor
     ],
     load = load
 );
