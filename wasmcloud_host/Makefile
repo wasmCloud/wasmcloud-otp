@@ -4,6 +4,7 @@ NAME ?= `grep 'app:' ./wasmcloud_host/mix.exs | sed -e 's/\[//g' -e 's/ //g' -e 
 VERSION ?= `grep '@app_vsn ' ./wasmcloud_host/mix.exs | cut -d '"' -f2`
 BUILD ?= `git rev-parse --short HEAD`
 DOCKERFILE ?= ./wasmcloud_host/Dockerfile
+DOCKERFILESTATIC ?= ./wasmcloud_host/Dockerfile.static
 SKIP_PHOENIX ?= false
 TAG ?= latest
 SECRET_KEY_BASE ?= $(shell mix phx.gen.secret)
@@ -35,6 +36,14 @@ build-image: build esbuild ## Compile wasmcloud_host docker image, requires loca
 		--build-arg MIX_ENV=prod \
 		$(BASE_TAGS) \
 		-f $(DOCKERFILE) \
+		.
+build-image-static: build esbuild ## build statically compiled docker image
+	@SECRET_KEY_BASE=$(shell mix phx.gen.secret) \
+	cd ../ && \
+	docker build $(BASE_ARGS) \
+		--build-arg MIX_ENV=prod \
+		$(BASE_TAGS) \
+		-f $(DOCKERFILESTATIC) \
 		.
 
 # erlang 24 until 25 stops segfaulting under qemu
