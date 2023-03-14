@@ -1,6 +1,8 @@
 use anyhow::{self, bail, ensure, Context};
 use async_trait::async_trait;
+use log::Log;
 
+use crate::TOKIO;
 use rustler::{
     dynamic::TermType,
     env::{OwnedEnv, SavedTerm},
@@ -10,21 +12,27 @@ use rustler::{
     Binary, Encoder, Env, Error, MapIterator, NifResult, Term,
 };
 
-use std::thread;
+use std::{
+    sync::{Arc, RwLock},
+    thread,
+};
 use wascap::jwt;
-use wasmcloud::capability::{Handler, HostHandler, LogLogging, RandNumbergen};
+use wasmcloud::{
+    capability::{Handler, HostHandler, LogLogging, RandNumbergen},
+    ActorComponent,
+};
 use wasmcloud::{ActorModule, Runtime as WcRuntime};
 
 use crate::{atoms, environment::CallbackTokenResource};
 //use wasmcloud::{ActorInstanceConfig, ActorModule, ActorResponse, Runtime};
 
-type WasmcloudRuntime = WcRuntime<
-    HostHandler<
-        LogLogging<&'static dyn ::log::Log>,
-        RandNumbergen<::rand::rngs::OsRng>,
-        ElixirHandler,
-    >,
+type MyH = HostHandler<
+    LogLogging<&'static dyn ::log::Log>,
+    RandNumbergen<::rand::rngs::OsRng>,
+    ElixirHandler,
 >;
+
+type WasmcloudRuntime = WcRuntime<MyH>;
 
 pub struct ElixirHandler {}
 
@@ -40,9 +48,8 @@ impl wasmcloud::capability::Handler for ElixirHandler {
         operation: String,
         payload: Option<Vec<u8>>,
     ) -> anyhow::Result<Result<Option<Vec<u8>>, Self::Error>> {
-
         /*
-        
+
          let caller_token = set_caller(caller);
 
         let mut msg_env = OwnedEnv::new();
@@ -55,7 +62,7 @@ impl wasmcloud::capability::Handler for ElixirHandler {
                 binding,
                 namespace,
                 operation,
-                payload,                
+                payload,
                 callback_token.clone(),
             )
                 .encode(env)
@@ -73,10 +80,21 @@ pub struct RuntimeResource {
     pub inner: WasmcloudRuntime,
 }
 
+// TODO
+// pub inner: wasmcloud::actor::ModuleInstance<
+//     'static,
+//     HostHandler<
+//         LogLogging<&'static dyn ::log::Log>,
+//         RandNumbergen<::rand::rngs::OsRng>,
+//         ElixirHandler,
+//     >,
+// >,
+
 pub struct ActorResource {
-    // TODO
-    //pub inner:  Mutex<wasmcloud::actor::Instance>
-    pub raw: Vec<u8>,
+    //pub raw: Vec<u8>,
+    //pub instance: wasmcloud::actor::ModuleInstance<'static, MyH>,
+    //pub module: wasmcloud::actor::Module<MyH>,
+    pub module: wasmcloud::actor::Module<MyH>,
 }
 
 #[derive(NifStruct)]
@@ -120,34 +138,26 @@ pub fn version(runtime_resource: ResourceArc<RuntimeResource>) -> Result<String,
 #[rustler::nif(name = "start_actor")]
 pub fn start_actor<'a>(
     env: rustler::Env<'a>,
-    _runtime_resource: ResourceArc<RuntimeResource>,
+    runtime_resource: ResourceArc<RuntimeResource>,
     bytes: Binary<'a>,
 ) -> Result<ResourceArc<ActorResource>, rustler::Error> {
     // TODO: wrap a wasmcloud::ActorModule in an ActoResource. Right now
     // I can't seem to create an instance with an async closure 🤷🏼
-    let actor_resource = ActorResource {
-        raw: bytes.to_vec(),
-    };
 
-    // let module = ActorModule::new(&runtime_resource.inner, bytes.as_slice())
-    // .context("failed to load actor from bytes")
-    // .unwrap();
-    // let actor = block_on(async move {
-    //    let m = module.clone();
-    //     let instance = m.instantiate().await.unwrap();
+    let module: ActorModule<MyH> = ActorModule::new(&runtime_resource.inner, bytes.as_slice())
+        .context("failed to load actor from bytes")
+        .unwrap();
 
-    //     instance
-    // });
+    let ar = ActorResource { module };
 
-    Ok(ResourceArc::new(actor_resource))
+    Ok(ResourceArc::new(ar))
 }
 
 // NOTE: wasmex uses dirtycpu here. should we use dirty IO ?
 #[rustler::nif(name = "call_actor", schedule = "DirtyCpu")]
 pub fn call_actor<'a>(
     env: rustler::Env<'a>,
-    runtime: ResourceArc<RuntimeResource>,
-    instance: ResourceArc<ActorResource>,
+    component: ResourceArc<ActorResource>,
     operation: &str,
     payload: Binary<'a>,
     from: Term,
@@ -170,14 +180,7 @@ pub fn call_actor<'a>(
     // which we get from the `from` parameter to the GenServer call that got us here
     thread::spawn(move || {
         thread_env.send_and_clear(&pid, |thread_env| {
-            execute_call_actor(
-                thread_env,
-                runtime,
-                instance,
-                operation.to_string(),
-                payload,
-                from,
-            )
+            execute_call_actor(thread_env, component, operation.to_string(), payload, from)
         })
     });
 
@@ -186,8 +189,7 @@ pub fn call_actor<'a>(
 
 fn execute_call_actor(
     thread_env: Env,
-    runtime: ResourceArc<RuntimeResource>,
-    actor: ResourceArc<ActorResource>,
+    component: ResourceArc<ActorResource>,
     operation: String,
     payload: Vec<u8>,
     from: SavedTerm,
@@ -197,21 +199,35 @@ fn execute_call_actor(
         .decode::<Term>()
         .unwrap_or_else(|_| "could not load 'from' param".encode(thread_env));
 
-    // TODO: use actor instance to invoke a function, get result
-    // TODO: if this fails, use make_error_tuple to produce the error
+    // for now we instantiate an actor module (cheap) and then immediately call it,
+    // disposing of the instance when we're done.
+    let response = TOKIO
+        .block_on(async {
+            let mut instance = component.module.instantiate().await.unwrap();
+            instance.call(operation, payload).await
+        })
+        .unwrap();
 
-    let res_vec: Vec<u8> = vec![1,2,3,4];
-    let result_binary: Term = res_vec.encode(thread_env);
-
-    // In theory (haven't confirmed this), should produce {:returned_function_call, {:ok, binary}}
-    make_tuple(
-        thread_env,
-        &[
-            atoms::returned_function_call().encode(thread_env),
-            make_tuple(thread_env, &[atoms::ok().encode(thread_env), result_binary]),
-            from,
-        ],
-    )
+    if response.code == 1 {
+        // success
+        make_tuple(
+            thread_env,
+            &[
+                atoms::returned_function_call().encode(thread_env),
+                make_tuple(
+                    thread_env,
+                    &[
+                        atoms::ok().encode(thread_env),
+                        response.response.encode(thread_env),
+                    ],
+                ),
+                from,
+            ],
+        )
+    } else {
+        // fail
+        make_error_tuple(&thread_env, "No response returned", from)
+    }
 }
 
 fn make_error_tuple<'a>(env: &Env<'a>, reason: &str, from: Term<'a>) -> Term<'a> {

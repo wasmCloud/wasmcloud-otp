@@ -6,11 +6,11 @@ use lazy_static::lazy_static;
 use nats::object_store::ObjectStore;
 use nats::{Connection, JetStreamOptions};
 use once_cell::sync::Lazy;
-use tokio::task::JoinHandle;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::RwLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::task::JoinHandle;
 
 use bindle::{filters::BindleFilter, provider::Provider};
 use chrono::NaiveDateTime;
@@ -36,7 +36,7 @@ lazy_static! {
 }
 
 static TOKIO: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
-    tokio::runtime::Builder::new_multi_thread()        
+    tokio::runtime::Builder::new_multi_thread()
         .build()
         .expect("Failed to start tokio runtime")
 });

@@ -32,10 +32,10 @@ defmodule HostCore.WasmCloud.Runtime.Server do
     GenServer.call(pid, :get_version)
   end
 
-  @spec dispense_actor(pid :: pid(), bytes :: binary()) ::
+  @spec precompile_actor(pid :: pid(), bytes :: binary()) ::
           {:ok, ActorReference.t()} | {:error, binary()}
-  def dispense_actor(pid, bytes) do
-    GenServer.call(pid, {:dispense_actor, bytes})
+  def precompile_actor(pid, bytes) do
+    GenServer.call(pid, {:precompile_actor, bytes})
   end
 
   @spec invoke_actor(
@@ -58,7 +58,6 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   def handle_call({:invoke_actor, actor_reference, operation, payload}, from, state) do
     {:reply,
      HostCore.WasmCloud.Runtime.call_actor(
-       state,
        actor_reference,
        operation,
        payload,
@@ -68,7 +67,7 @@ defmodule HostCore.WasmCloud.Runtime.Server do
 
   # calls into the NIF to call into the runtime instance to create a new actor
   @impl true
-  def handle_call({:dispense_actor, bytes}, _from, state) do
+  def handle_call({:precompile_actor, bytes}, _from, state) do
     {:reply, HostCore.WasmCloud.Runtime.start_actor(state, bytes), state}
   end
 
@@ -101,7 +100,7 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   end
 
   defp do_invocation() do
+    # TODO - make wasmbus RPC call to target
     {true, <<>>}
-    # TODO
   end
 end
