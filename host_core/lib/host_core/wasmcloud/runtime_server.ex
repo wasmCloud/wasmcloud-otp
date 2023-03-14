@@ -42,10 +42,11 @@ defmodule HostCore.WasmCloud.Runtime.Server do
           pid :: pid(),
           actor_reference :: ActorReference.t(),
           operation :: binary(),
-          payload :: binary()
+          payload :: binary(),
+          from  :: GenServer.from()
         ) :: {:ok, binary()} | {:error, binary()}
-  def invoke_actor(pid, actor_reference, operation, payload) do
-    GenServer.call(pid, {:invoke_actor, actor_reference, operation, payload})
+  def invoke_actor(pid, actor_reference, operation, payload, from) do
+    GenServer.call(pid, {:invoke_actor, actor_reference, operation, payload, from})
   end
 
   @impl true
@@ -55,7 +56,8 @@ defmodule HostCore.WasmCloud.Runtime.Server do
 
   # calls into the NIF to invoke the given operation on the indicated actor instance
   @impl true
-  def handle_call({:invoke_actor, actor_reference, operation, payload}, from, state) do
+  def handle_call({:invoke_actor, actor_reference, operation, payload, from}, _from, state) do
+    IO.inspect(from)
     {:reply,
      HostCore.WasmCloud.Runtime.call_actor(
        actor_reference,

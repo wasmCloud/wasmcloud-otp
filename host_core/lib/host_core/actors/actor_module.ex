@@ -36,8 +36,8 @@ defmodule HostCore.Actors.ActorModule do
     """
 
     defstruct [
-      :host_runtime,
       :actor_reference,
+      :rtpid,
       :guest_request,
       :guest_response,
       :host_response,
@@ -342,7 +342,7 @@ defmodule HostCore.Actors.ActorModule do
             topic: topic
           } = msg
         },
-        _from,
+        from,
         agent
       ) do
     reconstitute_trace_context(Map.get(msg, :headers))
@@ -369,7 +369,8 @@ defmodule HostCore.Actors.ActorModule do
         inv_res: nil,
         anti_forgery: false,
         source_target: false,
-        policy: false
+        policy: false,
+        origin: from
       }
 
       {token, ir} =
@@ -379,7 +380,8 @@ defmodule HostCore.Actors.ActorModule do
         |> validate_invocation_source_target(agent)
         |> policy_check(agent)
         |> check_dechunk_inv()
-        |> perform_invocation(agent)
+        |> perform_runtime_invocation(agent)
+        #|> perform_invocation(agent)
 
       publish_invocation_result(host_id, lattice_prefix, token.invocation, ir)
 
@@ -653,12 +655,18 @@ defmodule HostCore.Actors.ActorModule do
 
     Logger.info("Starting actor #{claims.public_key}")
 
+    {:ok, {pid, _}} = HostCore.Vhost.VirtualHost.lookup(host_id)
+    rtpid = HostCore.Vhost.VirtualHost.get_runtime(pid)
+    {:ok, aref} = HostCore.WasmCloud.Runtime.Server.precompile_actor(rtpid, bytes)
+
     ClaimsManager.put_claims(host_id, lattice_prefix, claims)
     ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
 
     {:ok, agent} =
       Agent.start_link(fn ->
         %State{
+          actor_reference: aref,
+          rtpid: rtpid,
           claims: claims,
           instance_id: UUID.uuid4(),
           healthy: false,
@@ -734,6 +742,32 @@ defmodule HostCore.Actors.ActorModule do
 
   defp imports_wasi?(imports_map) do
     imports_map |> Map.keys() |> Enum.find(fn ns -> String.contains?(ns, "wasi") end) != nil
+  end
+
+  defp perform_runtime_invocation(%{policy: false} = token, _agent), do: {token, token.inv_res}
+  defp perform_runtime_invocation(token, agent) do
+    operation = token.invocation["operation"]
+    payload = IO.iodata_to_binary(token.invocation["msg"])
+    #rtpid = Agent.get(agent, fn a -> a.rtpid end)
+    aref = Agent.get(agent, fn a -> a.actor_reference end)
+    case HostCore.WasmCloud.Runtime.call_actor(aref, operation, payload, token.origin) do
+      {:ok, msg} ->
+        chunk_inv_response(%{
+          msg: msg,
+          invocation_id: token.invocation["id"],
+          instance_id: token.iid,
+          content_length: byte_size(msg)
+        })
+
+      {:error, msg} ->
+        %{
+          msg: <<>>,
+          error: msg,
+          invocation_id: token.invocation["id"],
+          instance_id: token.iid,
+          content_length: 0
+        }
+    end
   end
 
   defp perform_invocation(%{policy: false} = token, _agent), do: {token, token.inv_res}
