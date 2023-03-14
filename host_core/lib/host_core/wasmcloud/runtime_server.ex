@@ -42,11 +42,10 @@ defmodule HostCore.WasmCloud.Runtime.Server do
           pid :: pid(),
           actor_reference :: ActorReference.t(),
           operation :: binary(),
-          payload :: binary(),
-          from  :: GenServer.from()
+          payload :: binary()
         ) :: {:ok, binary()} | {:error, binary()}
-  def invoke_actor(pid, actor_reference, operation, payload, from) do
-    GenServer.call(pid, {:invoke_actor, actor_reference, operation, payload, from})
+  def invoke_actor(pid, actor_reference, operation, payload) do
+    GenServer.call(pid, {:invoke_actor, actor_reference, operation, payload})
   end
 
   @impl true
@@ -56,15 +55,16 @@ defmodule HostCore.WasmCloud.Runtime.Server do
 
   # calls into the NIF to invoke the given operation on the indicated actor instance
   @impl true
-  def handle_call({:invoke_actor, actor_reference, operation, payload, from}, _from, state) do
-    IO.inspect(from)
-    {:reply,
-     HostCore.WasmCloud.Runtime.call_actor(
-       actor_reference,
-       operation,
-       payload,
-       from
-     ), state}
+  def handle_call({:invoke_actor, actor_reference, operation, payload}, from, state) do
+    :ok =
+      HostCore.WasmCloud.Runtime.call_actor(
+        actor_reference,
+        operation,
+        payload,
+        from
+      )
+
+    {:noreply, state}
   end
 
   # calls into the NIF to call into the runtime instance to create a new actor
@@ -78,7 +78,15 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   # GenServer call to `:invoke_actor`
   @impl true
   def handle_info({:returned_function_call, result, from}, state) do
+    # the binary comes out of the NIF as  {:ok, vec<u8>} or {:error, vec<u8>}
+    # so we need to turn the second element from a vec<u8> into a << ...>> binary
+    bindata = elem(result, 1)
+    bindata = IO.iodata_to_binary(bindata)
+    code = elem(result, 0)
+    result = {code, bindata}
+
     GenServer.reply(from, result)
+
     {:noreply, state}
   end
 

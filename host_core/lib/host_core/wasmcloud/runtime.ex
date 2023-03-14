@@ -63,11 +63,11 @@ defmodule HostCore.WasmCloud.Runtime do
   end
 
   @spec call_actor(
-          actor :: HostCore.WasmCloud.Runtime.ActorReference.t(),
-          operation :: binary(),
-          payload :: binary(),
-          from :: GenServer.from()
-        ) :: {:ok, binary()} | {:error, binary()}
+          HostCore.WasmCloud.Runtime.ActorReference.t(),
+          binary(),
+          binary(),
+          GenServer.from()
+        ) :: :ok
   def call_actor(
         %HostCore.WasmCloud.Runtime.ActorReference{resource: actor_resource},
         operation,

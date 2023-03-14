@@ -342,7 +342,7 @@ defmodule HostCore.Actors.ActorModule do
             topic: topic
           } = msg
         },
-        from,
+        _from,
         agent
       ) do
     reconstitute_trace_context(Map.get(msg, :headers))
@@ -369,8 +369,7 @@ defmodule HostCore.Actors.ActorModule do
         inv_res: nil,
         anti_forgery: false,
         source_target: false,
-        policy: false,
-        origin: from
+        policy: false
       }
 
       {token, ir} =
@@ -381,7 +380,8 @@ defmodule HostCore.Actors.ActorModule do
         |> policy_check(agent)
         |> check_dechunk_inv()
         |> perform_runtime_invocation(agent)
-        #|> perform_invocation(agent)
+
+      # |> perform_invocation(agent)
 
       publish_invocation_result(host_id, lattice_prefix, token.invocation, ir)
 
@@ -745,29 +745,34 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   defp perform_runtime_invocation(%{policy: false} = token, _agent), do: {token, token.inv_res}
+
   defp perform_runtime_invocation(token, agent) do
     operation = token.invocation["operation"]
     payload = IO.iodata_to_binary(token.invocation["msg"])
-    #rtpid = Agent.get(agent, fn a -> a.rtpid end)
+    rtpid = Agent.get(agent, fn a -> a.rtpid end)
     aref = Agent.get(agent, fn a -> a.actor_reference end)
-    case HostCore.WasmCloud.Runtime.call_actor(aref, operation, payload, token.origin) do
-      {:ok, msg} ->
-        chunk_inv_response(%{
-          msg: msg,
-          invocation_id: token.invocation["id"],
-          instance_id: token.iid,
-          content_length: byte_size(msg)
-        })
 
-      {:error, msg} ->
-        %{
-          msg: <<>>,
-          error: msg,
-          invocation_id: token.invocation["id"],
-          instance_id: token.iid,
-          content_length: 0
-        }
-    end
+    ir =
+      case HostCore.WasmCloud.Runtime.Server.invoke_actor(rtpid, aref, operation, payload) do
+        {:ok, msg} ->
+          chunk_inv_response(%{
+            msg: msg,
+            invocation_id: token.invocation["id"],
+            instance_id: token.iid,
+            content_length: byte_size(msg)
+          })
+
+        {:error, msg} ->
+          %{
+            msg: <<>>,
+            error: msg,
+            invocation_id: token.invocation["id"],
+            instance_id: token.iid,
+            content_length: 0
+          }
+      end
+
+    {token, ir}
   end
 
   defp perform_invocation(%{policy: false} = token, _agent), do: {token, token.inv_res}

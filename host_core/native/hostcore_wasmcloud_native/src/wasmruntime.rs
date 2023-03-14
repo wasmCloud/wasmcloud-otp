@@ -176,12 +176,13 @@ pub fn call_actor<'a>(
     // and use other sync mechanisms to finish the work and send
     // the results to the caller (the `from` field)
 
-    // this sends the result of `execute_call_actor` to the pid supplied as the `from` field,
-    // which we get from the `from` parameter to the GenServer call that got us here
+    // this sends the result of `execute_call_actor` to the pid of the server that invoked this.
+    // in turn, the thing that hands :returned_function_call should then be able to GenServer.reply
+    // to the value of from... (but that's not working right now)
     thread::spawn(move || {
         thread_env.send_and_clear(&pid, |thread_env| {
             execute_call_actor(thread_env, component, operation.to_string(), payload, from)
-        })
+        });
     });
 
     atoms::ok()
