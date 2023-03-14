@@ -142,6 +142,9 @@ pub fn call_actor<'a>(
     // here we spawn a thread, do the work of the actor invocation,
     // and use other sync mechanisms to finish the work and send
     // the results to the caller (the `from` field)
+
+    // this sends the result of `execute_call_actor` to the pid supplied as the `from` field,
+    // which we get from the `from` parameter to the GenServer call that got us here
     thread::spawn(move || {
         thread_env.send_and_clear(&pid, |thread_env| {
             execute_call_actor(
@@ -171,7 +174,21 @@ fn execute_call_actor(
         .decode::<Term>()
         .unwrap_or_else(|_| "could not load 'from' param".encode(thread_env));
 
-    todo!()
+    // TODO: use actor instance to invoke a function, get result
+    // TODO: if this fails, use make_error_tuple to produce the error
+
+    let res_vec: Vec<u8> = vec![];
+    let result_binary: Term = res_vec.encode(thread_env);
+
+    // In theory (haven't confirmed this), should produce {:returned_function_call, {:ok, binary}}
+    make_tuple(
+        thread_env,
+        &[
+            atoms::returned_function_call().encode(thread_env),
+            make_tuple(thread_env, &[atoms::ok().encode(thread_env), result_binary]),
+            from,
+        ],
+    )
 }
 
 fn make_error_tuple<'a>(env: &Env<'a>, reason: &str, from: Term<'a>) -> Term<'a> {
@@ -183,6 +200,26 @@ fn make_error_tuple<'a>(env: &Env<'a>, reason: &str, from: Term<'a>) -> Term<'a>
             from,
         ],
     )
+}
+
+// TODO: this is from wasmex... need to convert this so the result is just an optional binary
+// called from elixir, params
+// * callback_token
+// * success: :ok | :error
+//   indicates whether the call was successful or produced an elixir-error
+// * results: [number]
+//   return values of the elixir-callback - empty list when success-type is :error
+#[rustler::nif(name = "instance_receive_callback_result")]
+pub fn receive_callback_result<'a>(
+    token_resource: ResourceArc<CallbackTokenResource>,
+    success: bool,
+    binary_result: Binary<'a>,
+) -> NifResult<rustler::Atom> {
+    let mut result = token_resource.token.return_value.lock().unwrap();
+    *result = Some((success, binary_result.to_vec()));
+    token_resource.token.continue_signal.notify_one();
+
+    Ok(atoms::ok())
 }
 
 // TODO: this is from wasmex... need to convert this so the result is just an optional binary

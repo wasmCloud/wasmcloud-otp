@@ -1,8 +1,8 @@
 use std::sync::{Condvar, Mutex};
 
 use rustler::{
-    resource::ResourceArc, types::tuple, Atom, Binary, Encoder, Error, ListIterator, MapIterator,
-    OwnedEnv, Term,
+    resource::ResourceArc, types::tuple, Atom, Binary, Encoder, Env, Error, ListIterator,
+    MapIterator, OwnedEnv, Term,
 };
 
 pub struct CallbackTokenResource {
@@ -12,5 +12,10 @@ pub struct CallbackTokenResource {
 pub struct CallbackToken {
     pub continue_signal: Condvar,
     pub success: bool,
-    pub return_value: Vec<u8>,
+    pub return_value: Mutex<Option<(bool, Vec<u8>)>>,
+}
+
+pub fn on_load(env: Env) -> bool {
+    rustler::resource!(CallbackTokenResource, env);
+    true
 }

@@ -38,7 +38,8 @@ defmodule HostCore.WasmCloud.Native do
   def runtime_new(_config), do: error()
   def start_actor(_runtime_resource, _bytes), do: error()
   def version(_runtime_resource), do: error()
-  def call_actor(_runtime_resource, _actor_resource, _operation, _payload), do: error()
+  def call_actor(_runtime_resource, _actor_resource, _operation, _payload, _from), do: error()
+  def instance_receive_callback_result(_callback_token, _success, _result), do: error()
 
   # When the NIF is loaded, it will override functions in this module.
   # Calling error is handles the case when the nif could not be loaded.

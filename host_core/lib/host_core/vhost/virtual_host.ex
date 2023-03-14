@@ -113,9 +113,13 @@ defmodule HostCore.Vhost.VirtualHost do
     # {:ok, runtime} =
     #   HostCore.WasmCloud.Runtime.new(%HostCore.WasmCloud.Runtime.Config{placeholder: false})
     {:ok, runtime} =
-      HostCore.WasmCloud.Runtime.Server.start_link(%HostCore.WasmCloud.Runtime.Config{placeholder: false})
+      HostCore.WasmCloud.Runtime.Server.start_link(%HostCore.WasmCloud.Runtime.Config{
+        placeholder: false
+      })
 
-    Logger.info("Started wasmCloud internal wasm runtime v#{HostCore.WasmCloud.Runtime.Server.version(runtime)}")
+    Logger.info(
+      "Started wasmCloud internal wasm runtime v#{HostCore.WasmCloud.Runtime.Server.version(runtime)}"
+    )
 
     HostCore.Vhost.Heartbeats.start_link(self(), config.host_key)
 
