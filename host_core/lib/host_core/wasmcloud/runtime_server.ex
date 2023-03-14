@@ -1,6 +1,6 @@
 defmodule HostCore.WasmCloud.Runtime.Server do
-  alias Credo.Check.Design.TagTODO
   use GenServer
+  require Logger
 
   @spec start_link(HostCore.WasmCloud.Runtime.Config.t()) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(%HostCore.WasmCloud.Runtime.Config{} = config) do
@@ -14,13 +14,14 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   def runtime_for_host(host_id) do
     case HostCore.Vhost.VirtualHost.lookup(host_id) do
       {:ok, {pid, _lattice_id}} ->
-        {:ok, pid}
+        {:ok, HostCore.Vhost.VirtualHost.get_runtime(pid)}
 
       _ ->
         :error
     end
   end
 
+  @impl true
   def init(%HostCore.WasmCloud.Runtime.Config{} = config) do
     {:ok, runtime} = HostCore.WasmCloud.Runtime.new(config)
 
@@ -55,21 +56,20 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   # calls into the NIF to invoke the given operation on the indicated actor instance
   @impl true
   def handle_call({:invoke_actor, actor_reference, operation, payload}, from, state) do
-    HostCore.WasmCloud.Runtime.call_actor(
-      state.runtime,
-      actor_reference,
-      operation,
-      payload,
-      from
-    )
+    {:reply,
+     HostCore.WasmCloud.Runtime.call_actor(
+       state,
+       actor_reference,
+       operation,
+       payload,
+       from
+     ), state}
   end
 
   # calls into the NIF to call into the runtime instance to create a new actor
   @impl true
   def handle_call({:dispense_actor, bytes}, _from, state) do
-    {:ok, actor_reference} = HostCore.WasmCloud.Runtime.start_actor(state.runtime, bytes)
-
-    {:ok, actor_reference, state}
+    {:reply, HostCore.WasmCloud.Runtime.start_actor(state, bytes), state}
   end
 
   # this gets called from inside the NIF to indicate that a function call has completed
@@ -83,6 +83,7 @@ defmodule HostCore.WasmCloud.Runtime.Server do
 
   @impl true
   def handle_info({:invoke_callback, claims, namespace, operation, payload, token}, state) do
+    Logger.info("Handling invoke callback")
     # TODO
     {success, return_value} =
       try do

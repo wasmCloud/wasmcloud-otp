@@ -26,6 +26,13 @@ defmodule HostCore.WasmCloud.Runtime do
           }
     defstruct resource: nil,
               reference: nil
+
+    def __wrap_resource__(resource) do
+      %__MODULE__{
+        resource: resource,
+        reference: make_ref()
+      }
+    end
   end
 
   @doc ~S"""
@@ -41,10 +48,10 @@ defmodule HostCore.WasmCloud.Runtime do
     end
   end
 
-  def start_actor(%__MODULE__{resource: resource}, bytes) do
-    case HostCore.WasmCloud.Native.start_actor(resource, bytes) do
+  def start_actor(%__MODULE__{resource: rtresource}, bytes) do
+    case HostCore.WasmCloud.Native.start_actor(rtresource, bytes) do
       {:error, err} -> {:error, err}
-      resource -> {:ok, __wrap_resource__(resource)}
+      resource -> {:ok, ActorReference.__wrap_resource__(resource)}
     end
   end
 

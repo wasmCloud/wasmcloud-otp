@@ -138,6 +138,8 @@ pub fn call_actor<'a>(
     let payload = payload.to_vec();
     let operation = operation.to_owned();
 
+    println!("HEY THERE");
+
     // ref: https://github.com/tessi/wasmex/issues/256
     // here we spawn a thread, do the work of the actor invocation,
     // and use other sync mechanisms to finish the work and send

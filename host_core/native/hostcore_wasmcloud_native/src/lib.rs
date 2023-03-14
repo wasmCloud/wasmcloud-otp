@@ -123,6 +123,7 @@ rustler::init!(
         get_actor_bindle,
         wasmruntime::new,
         wasmruntime::version,
+        wasmruntime::start_actor,
         wasmruntime::call_actor
     ],
     load = load

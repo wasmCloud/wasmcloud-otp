@@ -204,6 +204,10 @@ defmodule HostCore.Vhost.VirtualHost do
     end
   end
 
+  def get_runtime(pid) do
+    GenServer.call(pid, :get_runtime)
+  end
+
   # Obtains -registry- credentials
   def get_creds(host_id, type, ref) do
     case lookup(host_id) do
@@ -344,6 +348,11 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   # Callbacks
+  @impl true
+  def handle_call(:get_runtime, _from, state) do
+    {:reply, state.wasm_runtime, state}
+  end
+
   @impl true
   def handle_call(:purge, _from, state) do
     do_purge(state)
