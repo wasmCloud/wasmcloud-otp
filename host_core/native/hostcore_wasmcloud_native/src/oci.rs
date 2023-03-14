@@ -1,12 +1,9 @@
-use oci_distribution::manifest::OciManifest;
-use oci_distribution::secrets::RegistryAuth;
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::env::{temp_dir, var};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use oci_distribution::secrets::RegistryAuth;
+use tokio::io::AsyncWriteExt;
 
 pub(crate) const OCI_VAR_REGISTRY: &str = "OCI_REGISTRY";
 pub(crate) const OCI_VAR_USER: &str = "OCI_REGISTRY_USER";
@@ -51,7 +48,8 @@ pub(crate) async fn fetch_oci_path(
         return Err(
             "Fetching images tagged 'latest' is currently prohibited in this host. This option can be overridden with WASMCLOUD_OCI_ALLOW_LATEST".into());
     }
-    let cf = get_cached_file_path(img).await?;
+    let cache_file = get_cached_filepath(img).await?;
+    let digest_file = get_digest_filepath(img).await?;
 
     let auth = determine_auth(img, creds_override);
     let img = oci_distribution::Reference::from_str(img)?;
@@ -64,11 +62,11 @@ pub(crate) async fn fetch_oci_path(
     let mut c = oci_distribution::Client::new(config);
 
     // In case of a cache miss where the file does not exist, pull a fresh OCI Image
-    if tokio::fs::metadata(&cf).await.is_err() {
+    if tokio::fs::metadata(&cache_file).await.is_err() {
         let imgdata = pull(&mut c, &img, &auth).await;
         match imgdata {
             Ok(imgdata) => {
-                cache_oci_image(&imgdata, &cf).await?;
+                cache_oci_image(imgdata, &cache_file, digest_file).await?;
             }
             Err(e) => return Err(format!("Failed to fetch OCI bytes: {}", e).into()),
         }
@@ -76,34 +74,18 @@ pub(crate) async fn fetch_oci_path(
         let manifest = c.pull_manifest(&img, &auth).await;
         match manifest {
             Ok(manifest) => {
-                let (oci_manifest, _) = manifest;
-                if let OciManifest::Image(image_manifest) = oci_manifest {
-                    let layers = image_manifest.layers;
-                    if layers.is_empty() {
-                        return Err(
-                            format!("Failed to fetch OCI bytes: Empty manifest layers").into()
-                        );
-                    }
-                    // The digest will be string like sha256:asdf, and the first 7 characters are removed
-                    let oci_sha = &layers[0].digest.trim_start_matches("sha256:");
-                    let oci_sha_bytes: Vec<u8> = hex::decode(oci_sha).expect("Invalid Hex String");
-
-                    let mut cache_file = File::open(cf.clone()).await?;
-                    let mut cache_contents = Vec::new();
-                    cache_file.read_to_end(&mut cache_contents).await?;
-                    let cache_sha = Sha256::digest(cache_contents);
-                    
-                    // compare the OCI digest with the cache file hash and pull the OCI image in case of a mismatch
-                    if oci_sha_bytes[..] != cache_sha[..] {
-                        let imgdata = pull(&mut c, &img, &auth).await;
-                        match imgdata {
-                            Ok(imgdata) => {
-                                cache_oci_image(&imgdata, &cf).await?;
-                            }
-                            Err(e) => {
-                                return Err(format!("Failed to fetch OCI bytes: {}", e).into())
-                            }
+                let (_, oci_digest) = manifest;
+                // If the digest file doesn't exist that is ok, we just unwrap to an empty string
+                let file_digest = tokio::fs::read_to_string(&digest_file)
+                    .await
+                    .unwrap_or_default();
+                if oci_digest.is_empty() || file_digest.is_empty() || file_digest != oci_digest {
+                    let imgdata = pull(&mut c, &img, &auth).await;
+                    match imgdata {
+                        Ok(imgdata) => {
+                            cache_oci_image(imgdata, &cache_file, digest_file).await?;
                         }
+                        Err(e) => return Err(format!("Failed to fetch OCI bytes: {}", e).into()),
                     }
                 }
             }
@@ -111,20 +93,32 @@ pub(crate) async fn fetch_oci_path(
         }
     }
 
-    Ok(cf)
+    Ok(cache_file)
 }
 
-async fn get_cached_file_path(img: &str) -> std::io::Result<PathBuf> {
+async fn get_cached_filepath(img: &str) -> std::io::Result<PathBuf> {
+    let mut path = create_filepath(img).await?;
+    path.set_extension("bin");
+
+    Ok(path)
+}
+
+async fn get_digest_filepath(img: &str) -> std::io::Result<PathBuf> {
+    let mut path = create_filepath(img).await?;
+    path.set_extension("digest");
+
+    Ok(path)
+}
+
+async fn create_filepath(img: &str) -> std::io::Result<PathBuf> {
     let path = temp_dir();
     let path = path.join("wasmcloud_ocicache");
     ::tokio::fs::create_dir_all(&path).await?;
-    // should produce a file like wasmcloud_azurecr_io_kvcounter_v1.bin
+    // should produce a file like wasmcloud_azurecr_io_kvcounter_v1
     let img = img.replace(':', "_");
     let img = img.replace('/', "_");
     let img = img.replace('.', "_");
-    let mut path = path.join(img);
-    path.set_extension("bin");
-
+    let path = path.join(img);
     Ok(path)
 }
 
@@ -147,17 +141,22 @@ async fn pull(
 }
 
 async fn cache_oci_image(
-    imgdata: &oci_distribution::client::ImageData,
-    cache_filepath: &PathBuf,
+    image: oci_distribution::client::ImageData,
+    cache_filepath: impl AsRef<Path>,
+    digest_filepath: impl AsRef<Path>,
 ) -> ::std::io::Result<()> {
-    let mut f = tokio::fs::File::create(&cache_filepath).await?;
-    let content = imgdata
+    let mut cache_file = tokio::fs::File::create(cache_filepath).await?;
+    let content = image
         .layers
-        .clone()
         .into_iter()
         .flat_map(|l| l.data)
         .collect::<Vec<_>>();
-    f.write_all(&content).await?;
-    f.flush().await?;
+    cache_file.write_all(&content).await?;
+    cache_file.flush().await?;
+    if let Some(digest) = image.digest {
+        let mut digest_file = tokio::fs::File::create(digest_filepath).await?;
+        digest_file.write_all(digest.as_bytes()).await?;
+        digest_file.flush().await?;
+    }
     Ok(())
 }
