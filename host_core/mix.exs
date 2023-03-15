@@ -17,11 +17,19 @@ defmodule HostCore.MixProject do
       ],
       releases: [
         host_core: [
-          steps: [:assemble, &Bakeware.assemble/1]
+          steps: conditional_steps()
         ]
       ],
       dialyzer: [plt_add_deps: :apps_direct]
     ]
+  end
+
+  # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
+  defp conditional_steps do
+    case :os.type() do
+      {:unix, _} -> [:assemble, &Bakeware.assemble/1]
+      _ -> [:assemble]
+    end
   end
 
   # In order to ensure that TLS cert check starts before the otel applications,
