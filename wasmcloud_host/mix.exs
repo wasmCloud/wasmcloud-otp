@@ -14,11 +14,19 @@ defmodule WasmcloudHost.MixProject do
       aliases: aliases(),
       releases: [
         wasmcloud_host: [
-          steps: [:assemble, &Bakeware.assemble/1]
+          steps: conditional_steps()
         ]
       ],
       deps: deps()
     ]
+  end
+
+  # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
+  defp conditional_steps do
+    case :os.type() do
+      {:unix, _} -> [:assemble, &Bakeware.assemble/1]
+      _ -> [:assemble]
+    end
   end
 
   # Configuration for the OTP application.
