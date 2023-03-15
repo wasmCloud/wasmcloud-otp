@@ -4017,7 +4017,7 @@ dependencies = [
 [[package]]
 name = "wasmcloud"
 version = "0.1.0"
-source = "git+https://github.com/rvolosatovs/wasmcloud?branch=feat/component-model#98430454a7fb939ab0e0da0a09795127bf39aadc"
+source = "git+https://github.com/wasmcloud/wasmcloud#f0f73d5e09d815af60778b2bd093424167dac40d"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4036,6 +4036,7 @@ dependencies = [
  "wasmbus-rpc",
  "wasmcloud-interface-logging",
  "wasmcloud-interface-numbergen",
+ "wasmparser",
  "wasmtime",
  "wasmtime-wasi",
 ]

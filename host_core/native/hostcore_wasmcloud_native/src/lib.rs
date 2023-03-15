@@ -35,6 +35,7 @@ lazy_static! {
     static ref CHUNKING_STORE: RwLock<Option<ObjectStore>> = RwLock::new(None);
 }
 
+// Static tokio runtime required for the NIF to interact with async Rust APIs
 static TOKIO: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .build()

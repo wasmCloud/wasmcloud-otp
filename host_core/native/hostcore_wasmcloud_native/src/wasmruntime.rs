@@ -17,14 +17,13 @@ use std::{
     thread,
 };
 use wascap::jwt;
+use wasmcloud::Runtime as WcRuntime;
 use wasmcloud::{
     capability::{Handler, HostHandler, LogLogging, RandNumbergen},
-    ActorComponent,
+    Actor,
 };
-use wasmcloud::{ActorModule, Runtime as WcRuntime};
 
 use crate::{atoms, environment::CallbackTokenResource};
-//use wasmcloud::{ActorInstanceConfig, ActorModule, ActorResponse, Runtime};
 
 type MyH = HostHandler<
     LogLogging<&'static dyn ::log::Log>,
@@ -33,6 +32,24 @@ type MyH = HostHandler<
 >;
 
 type WasmcloudRuntime = WcRuntime<MyH>;
+
+/// A wrapper around an instance of the wasmCloud runtime. This will be used inside a `ResourceArc` to allow
+/// Elixir to maintain a long-lived reference to it
+pub struct RuntimeResource {
+    pub inner: WasmcloudRuntime,
+}
+
+/// A wrapper around an instance of a precompiled wasmCloud actor. This will be used inside a `ResourceArc` to allow
+/// Elixir to maintain a long-lived reference to it
+pub struct ActorResource {
+    pub actor: Actor<MyH>,
+}
+
+#[derive(NifStruct)]
+#[module = "HostCore.WasmCloud.Runtime.Config"]
+pub struct ExRuntimeConfig {
+    placeholder: bool,
+}
 
 pub struct ElixirHandler {}
 
@@ -49,6 +66,7 @@ impl wasmcloud::capability::Handler for ElixirHandler {
         payload: Option<Vec<u8>>,
     ) -> anyhow::Result<Result<Option<Vec<u8>>, Self::Error>> {
         /*
+        TODO: actually call the host by sending message up to elixir
 
          let caller_token = set_caller(caller);
 
@@ -73,34 +91,6 @@ impl wasmcloud::capability::Handler for ElixirHandler {
             claims.subject
         )
     }
-}
-
-pub struct RuntimeResource {
-    //pub inner: WasmcloudRuntime<Box<dyn Handler<Error = String>>>,
-    pub inner: WasmcloudRuntime,
-}
-
-// TODO
-// pub inner: wasmcloud::actor::ModuleInstance<
-//     'static,
-//     HostHandler<
-//         LogLogging<&'static dyn ::log::Log>,
-//         RandNumbergen<::rand::rngs::OsRng>,
-//         ElixirHandler,
-//     >,
-// >,
-
-pub struct ActorResource {
-    //pub raw: Vec<u8>,
-    //pub instance: wasmcloud::actor::ModuleInstance<'static, MyH>,
-    //pub module: wasmcloud::actor::Module<MyH>,
-    pub module: wasmcloud::actor::Module<MyH>,
-}
-
-#[derive(NifStruct)]
-#[module = "HostCore.WasmCloud.Runtime.Config"]
-pub struct ExRuntimeConfig {
-    placeholder: bool,
 }
 
 pub fn on_load(env: Env) -> bool {
@@ -133,22 +123,18 @@ pub fn version(runtime_resource: ResourceArc<RuntimeResource>) -> Result<String,
     Ok(v.to_string())
 }
 
-// TODO
-// roughly equivalent to the wasmex call_exported_function
+/// Called from the Elixir native wrapper which is in turn wrapped by the Wasmcloud.Runtime.Server GenServer
 #[rustler::nif(name = "start_actor")]
 pub fn start_actor<'a>(
     env: rustler::Env<'a>,
     runtime_resource: ResourceArc<RuntimeResource>,
     bytes: Binary<'a>,
 ) -> Result<ResourceArc<ActorResource>, rustler::Error> {
-    // TODO: wrap a wasmcloud::ActorModule in an ActoResource. Right now
-    // I can't seem to create an instance with an async closure 🤷🏼
-
-    let module: ActorModule<MyH> = ActorModule::new(&runtime_resource.inner, bytes.as_slice())
+    let actor: Actor<MyH> = Actor::new(&runtime_resource.inner, bytes.as_slice())
         .context("failed to load actor from bytes")
         .unwrap();
 
-    let ar = ActorResource { module };
+    let ar = ActorResource { actor };
 
     Ok(ResourceArc::new(ar))
 }
@@ -169,15 +155,13 @@ pub fn call_actor<'a>(
     let payload = payload.to_vec();
     let operation = operation.to_owned();
 
-    println!("HEY THERE");
-
     // ref: https://github.com/tessi/wasmex/issues/256
     // here we spawn a thread, do the work of the actor invocation,
     // and use other sync mechanisms to finish the work and send
     // the results to the caller (the `from` field)
 
     // this sends the result of `execute_call_actor` to the pid of the server that invoked this.
-    // in turn, the thing that hands :returned_function_call should then be able to GenServer.reply
+    // in turn, the thing that handles :returned_function_call should then be able to GenServer.reply
     // to the value of from... (but that's not working right now)
     thread::spawn(move || {
         thread_env.send_and_clear(&pid, |thread_env| {
@@ -185,6 +169,8 @@ pub fn call_actor<'a>(
         });
     });
 
+    // the Elixir host doesn't get this right away because it returned `:noreply`, allowing some other process
+    // to reply on its behalf
     atoms::ok()
 }
 
@@ -200,37 +186,36 @@ fn execute_call_actor(
         .decode::<Term>()
         .unwrap_or_else(|_| "could not load 'from' param".encode(thread_env));
 
-    // for now we instantiate an actor module (cheap) and then immediately call it,
-    // disposing of the instance when we're done.
+    // Invoke the actor within a tokio blocking spawn because the wasmCloud runtime is async
     let response = TOKIO
-        .block_on(async {
-            let mut instance = component.module.instantiate().await.unwrap();
-            instance.call(operation, payload).await
-        })
+        .block_on(async { component.module.call(operation, Some(payload)).await })
         .unwrap();
 
-    if response.code == 1 {
-        // success
-        make_tuple(
-            thread_env,
-            &[
-                atoms::returned_function_call().encode(thread_env),
-                make_tuple(
-                    thread_env,
-                    &[
-                        atoms::ok().encode(thread_env),
-                        response.response.encode(thread_env),
-                    ],
-                ),
-                from,
-            ],
-        )
-    } else {
-        // fail
-        make_error_tuple(&thread_env, "No response returned", from)
+    match response {
+        Ok(opt_data) => {
+            // Ultimately sends {:ok, payload} once the envelopes are removed
+            let data = opt_data.unwrap_or_default();
+            make_tuple(
+                thread_env,
+                &[
+                    atoms::returned_function_call().encode(thread_env),
+                    make_tuple(
+                        thread_env,
+                        &[atoms::ok().encode(thread_env), data.encode(thread_env)],
+                    ),
+                    from,
+                ],
+            )
+        }
+        Err(e) => {
+            // Once the layers are removed, sends {:error, msg}
+            make_error_tuple(&thread_env, e.as_str(), from)
+        }
     }
 }
 
+/// Produces an Elixir tuple in the form {:error, reason} along with the `from` value propogated
+/// through the plumbing
 fn make_error_tuple<'a>(env: &Env<'a>, reason: &str, from: Term<'a>) -> Term<'a> {
     make_tuple(
         *env,
@@ -242,13 +227,8 @@ fn make_error_tuple<'a>(env: &Env<'a>, reason: &str, from: Term<'a>) -> Term<'a>
     )
 }
 
-// TODO: this is from wasmex... need to convert this so the result is just an optional binary
-// called from elixir, params
-// * callback_token
-// * success: :ok | :error
-//   indicates whether the call was successful or produced an elixir-error
-// * results: [number]
-//   return values of the elixir-callback - empty list when success-type is :error
+/// Part of the async plumbing. Allows the Elixir caller (NIF) to extract the result of a callback
+/// operation by way of passing back a reference to the callback token
 #[rustler::nif(name = "instance_receive_callback_result")]
 pub fn receive_callback_result<'a>(
     token_resource: ResourceArc<CallbackTokenResource>,
@@ -261,59 +241,3 @@ pub fn receive_callback_result<'a>(
 
     Ok(atoms::ok())
 }
-
-// TODO: this is from wasmex... need to convert this so the result is just an optional binary
-// called from elixir, params
-// * callback_token
-// * success: :ok | :error
-//   indicates whether the call was successful or produced an elixir-error
-// * results: [number]
-//   return values of the elixir-callback - empty list when success-type is :error
-// #[rustler::nif(name = "instance_receive_callback_result")]
-// pub fn receive_callback_result(
-//     token_resource: ResourceArc<CallbackTokenResource>,
-//     success: bool,
-//     result_list: ListIterator,
-// ) -> NifResult<rustler::Atom> {
-//     // let results = if success {
-//     //     let return_types = token_resource.token.return_types.clone();
-//     //     match decode_function_param_terms(&return_types, result_list.collect()) {
-//     //         Ok(v) => v,
-//     //         Err(reason) => {
-//     //             return Err(Error::Term(Box::new(format!(
-//     //                 "could not convert callback result param to expected return signature: {}",
-//     //                 reason
-//     //             ))));
-//     //         }
-//     //     }
-//     // } else {
-//     //     vec![]
-//     // };
-
-//     let mut result = token_resource.token.return_values.lock().unwrap();
-//     *result = Some((success, results));
-//     token_resource.token.continue_signal.notify_one();
-
-//     Ok(atoms::ok())
-// }
-
-/*
-
-#[rustler::nif(name = "engine_precompile_module")]
-pub fn precompile_module<'a>(
-    env: rustler::Env<'a>,
-    engine_resource: ResourceArc<EngineResource>,
-    binary: Binary<'a>,
-) -> Result<Binary<'a>, rustler::Error> {
-    let engine: &Engine = &*(engine_resource.inner.lock().map_err(|e| {
-        rustler::Error::Term(Box::new(format!("Could not unlock engine resource: {}", e)))
-    })?);
-    let bytes = binary.as_slice();
-    let serialized_module = engine.precompile_module(bytes).map_err(|err| {
-        rustler::Error::Term(Box::new(format!("Could not precompile module: {}", err)))
-    })?;
-    let mut binary = OwnedBinary::new(serialized_module.len())
-        .ok_or_else(|| rustler::Error::Term(Box::new("not enough memory")))?;
-    binary.copy_from_slice(&serialized_module);
-    Ok(binary.release(env))
-} */
