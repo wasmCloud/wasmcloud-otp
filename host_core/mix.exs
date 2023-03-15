@@ -72,6 +72,7 @@ defmodule HostCore.MixProject do
       {:mock, "~> 0.3.0", only: :test}
     ]
 
+    # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
     case :os.type() do
       {:unix, _} -> [{:bakeware, "~> 0.2.4"} | list]
       _ -> list

@@ -37,10 +37,11 @@ build-image: build esbuild ## Compile wasmcloud_host docker image, requires loca
 		$(BASE_TAGS) \
 		-f $(DOCKERFILE) \
 		.
+
 build-image-static: build esbuild ## build statically compiled docker image
-	@SECRET_KEY_BASE=$(shell mix phx.gen.secret) \
-	cd ../ && \
-	docker build $(BASE_ARGS) \
+	cd ../ \
+	&& docker build -f Dockerfile.localstatic -t localstatic . \
+	&& docker build $(BASE_ARGS) \
 		--build-arg MIX_ENV=prod \
 		$(BASE_TAGS) \
 		-f $(DOCKERFILESTATIC) \

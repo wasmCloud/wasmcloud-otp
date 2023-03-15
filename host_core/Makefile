@@ -3,6 +3,9 @@
 
 CARGO ?= cargo --color always
 EXTRA_TEST_ARGS ?=
+DOCKERFILESTATIC ?= host_core/Dockerfile.static
+TAG ?= latest
+STATIC_NAME ?= wasmcloud/host_core_static
 
 help:  ## Display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_\-.*]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -20,6 +23,11 @@ build-image: ## Compile host_core docker image
 		--build-arg MIX_ENV=prod \
 		-t host_core:alpine \
 		.
+
+build-image-static: ## build statically compiled docker image
+	cd ../ \
+	&& docker build -f Dockerfile.localstatic -t localstatic . \
+	&& docker build -f $(DOCKERFILESTATIC) . -t $(STATIC_NAME):$(TAG)
 
 # erlang 24 until 25 stops segfaulting under qemu
 buildx-cross-image: ## Compile host_core docker image using buildx for amd64 and arm64

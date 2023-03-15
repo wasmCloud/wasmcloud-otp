@@ -340,13 +340,23 @@ jobs:
             wasmcloud.azurecr.io/${{ env.app-name }}:latest
             wasmcloud/${{ env.app-name }}:${{ env.app-version }}
             wasmcloud/${{ env.app-name }}:latest
-      - name: Build static linux artifacts
+      - name: Build common static image
+        uses: docker/build-push-action@v3
+        with:
+          builder: ${{ steps.buildx-builder.outputs.name }}
+          push: false
+          context: .
+          file: Dockerfile.localstatic
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            localstatic
+      - name: Build and release static docker image
         uses: docker/build-push-action@v3
         with:
           builder: ${{ steps.buildx-builder.outputs.name }}
           push: true
           context: .
-            file ${{ env.app-name }}/Dockerfile.static
+          file: ${{ env.app-name }}/Dockerfile.static
           platforms: linux/amd64,linux/arm64
           build-args: |
             APP_NAME=${{ env.app-name }}
@@ -369,17 +379,17 @@ jobs:
           tar czvf ${{ env.amd-tarball-static }} /usr/local/bin/wasmcloud_host
           cp ${{ env.amd-tarball-static }} /amd64temp/
           EOF
-      - name: Upload artifact
+      - name: Upload artifact (arm64)
         uses: actions/upload-artifact@v2
         with:
           name: ${{ env.arm-tarball }}
           path: ${{ env.arm-tarball }}
-      - name: Upload artifact
+      - name: Upload artifact (arm64 static)
         uses: actions/upload-artifact@v2
         with:
           name: ${{ env.arm-tarball-static }}
           path: ${{ env.arm-tarball-static }}
-      - name: Upload artifact
+      - name: Upload artifact (amd64 static)
         uses: actions/upload-artifact@v2
         with:
           name: ${{ env.amd-tarball-static }}
