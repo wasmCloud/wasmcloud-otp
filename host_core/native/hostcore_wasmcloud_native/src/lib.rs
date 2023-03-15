@@ -86,6 +86,28 @@ impl From<wascap::jwt::Claims<wascap::jwt::CapabilityProvider>> for crate::Claim
     }
 }
 
+impl From<wascap::jwt::Claims<wascap::jwt::Actor>> for crate::Claims {
+    fn from(c: wascap::jwt::Claims<wascap::jwt::Actor>) -> Self {
+        actor_claims_to_crate_claims(c)
+    }
+}
+
+pub(crate) fn actor_claims_to_crate_claims(c: wascap::jwt::Claims<wascap::jwt::Actor>) -> Claims {
+    let metadata = c.metadata.unwrap_or_default();
+    let revision = revision_or_iat(metadata.rev, c.issued_at);
+    Claims {
+        issuer: c.issuer,
+        public_key: c.subject,
+        revision,
+        tags: None,
+        version: metadata.ver,
+        name: metadata.name,
+        expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
+        not_before_human: stamp_to_human(c.not_before).unwrap_or_else(|| "immediately".to_string()),
+        ..Default::default()
+    }
+}
+
 pub(crate) fn provider_claims_to_crate_claims(
     c: wascap::jwt::Claims<wascap::jwt::CapabilityProvider>,
 ) -> Claims {

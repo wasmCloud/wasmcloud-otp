@@ -1,19 +1,19 @@
 use anyhow::{self, bail, ensure, Context};
 use async_trait::async_trait;
-use log::Log;
+use log::{error, Log};
 
-use crate::TOKIO;
+use crate::{environment::CallbackToken, TOKIO};
 use rustler::{
     dynamic::TermType,
     env::{OwnedEnv, SavedTerm},
     resource::ResourceArc,
     types::tuple::make_tuple,
     types::ListIterator,
-    Binary, Encoder, Env, Error, MapIterator, NifResult, Term,
+    Binary, Encoder, Env, Error, LocalPid, MapIterator, NifResult, Term,
 };
 
 use std::{
-    sync::{Arc, RwLock},
+    sync::{Arc, Condvar, Mutex, RwLock},
     thread,
 };
 use wascap::jwt;
@@ -51,7 +51,9 @@ pub struct ExRuntimeConfig {
     placeholder: bool,
 }
 
-pub struct ElixirHandler {}
+pub struct ElixirHandler {
+    pid: LocalPid,
+}
 
 #[async_trait]
 impl wasmcloud::capability::Handler for ElixirHandler {
@@ -65,31 +67,47 @@ impl wasmcloud::capability::Handler for ElixirHandler {
         operation: String,
         payload: Option<Vec<u8>>,
     ) -> anyhow::Result<Result<Option<Vec<u8>>, Self::Error>> {
-        /*
-        TODO: actually call the host by sending message up to elixir
+        let callback_token = ResourceArc::new(CallbackTokenResource {
+            token: CallbackToken {
+                continue_signal: Condvar::new(),
+                return_value: Mutex::new(None),
+            },
+        });
 
-         let caller_token = set_caller(caller);
+        // TODO: figure out if we need the caller tokens
+        //let caller_token = set_caller(...);
+        //let caller_token = 12;
 
         let mut msg_env = OwnedEnv::new();
-        msg_env.send_and_clear(&pid.clone(), |env| {
-            ....
-
-              (
+        msg_env.send_and_clear(&self.pid.clone(), |env| {
+            (
                 atoms::invoke_callback(),
-                convert_claims(claims),
+                crate::Claims::from(claims.clone()),
                 binding,
                 namespace,
                 operation,
-                payload,
+                payload.unwrap_or_default(),
                 callback_token.clone(),
             )
                 .encode(env)
-        })
-         */
-        bail!(
-            "cannot execute `{binding}.{namespace}.{operation}` with payload {payload:?} for actor `{}`",
-            claims.subject
-        )
+        });
+
+        let mut result = callback_token.token.return_value.lock().unwrap();
+        while result.is_none() {
+            result = callback_token.token.continue_signal.wait(result).unwrap();
+        }
+
+        let result: &(bool, Vec<u8>) = result
+            .as_ref()
+            .expect("expect callback token to contain a result");
+        match result {
+            (true, return_value) => Ok(Ok(Some(return_value.clone()))),
+            (false, _) => {
+                // TODO: verify whether we should return none here or use an Err
+                error!("Elixir callback threw an exception.");
+                Ok(Ok(None))
+            }
+        }
     }
 }
 
@@ -100,11 +118,14 @@ pub fn on_load(env: Env) -> bool {
 }
 
 #[rustler::nif(name = "runtime_new")]
-pub fn new(_config: ExRuntimeConfig) -> Result<ResourceArc<RuntimeResource>, rustler::Error> {
+pub fn new<'a>(
+    env: rustler::Env<'a>,
+    _config: ExRuntimeConfig,
+) -> Result<ResourceArc<RuntimeResource>, rustler::Error> {
     let handler = HostHandler {
         logging: LogLogging::from(log::logger()),
         numbergen: RandNumbergen::from(rand::rngs::OsRng),
-        hostcall: ElixirHandler {},
+        hostcall: ElixirHandler { pid: env.pid() },
     };
 
     let rt: WasmcloudRuntime = WasmcloudRuntime::builder(handler)
@@ -188,7 +209,7 @@ fn execute_call_actor(
 
     // Invoke the actor within a tokio blocking spawn because the wasmCloud runtime is async
     let response = TOKIO
-        .block_on(async { component.module.call(operation, Some(payload)).await })
+        .block_on(async { component.actor.call(operation, Some(payload)).await })
         .unwrap();
 
     match response {

@@ -1,4 +1,10 @@
 defmodule HostCore.WasmCloud.Runtime.Server do
+  @moduledoc """
+  This GenServer encapsulates access to the underlying wasmCloud runtime used for everything from
+  execution of WebAssembly modules/components to verifying signatures, claims, and many other
+  interactions with the wasmCloud ecosystem and lattices. This server should be the _only_ means
+  by which code in this host accesses the underlying runtime
+  """
   use GenServer
   require Logger
 
@@ -97,6 +103,7 @@ defmodule HostCore.WasmCloud.Runtime.Server do
       ) do
     # This callback is invoked by the wasmcloud::Runtime's host call handler
     Logger.info("Handling invoke callback")
+    payload = payload |> IO.iodata_to_binary()
     # TODO
     {success, return_value} =
       try do

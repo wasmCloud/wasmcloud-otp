@@ -1,4 +1,9 @@
 defmodule HostCore.WasmCloud.Runtime do
+  @moduledoc """
+  This module provides encapsulated access to the native NIF function calls exposed through the wasmcloud/native.ex interface
+  This runtime module supports the Runtime.Server module and should _not_ be used directly by any code other than that module. This
+  would be a private module, but Elixir doesn't allow selective access
+  """
   @type t :: %__MODULE__{
           resource: binary(),
           reference: reference()

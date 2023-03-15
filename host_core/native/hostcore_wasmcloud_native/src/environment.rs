@@ -11,7 +11,7 @@ pub struct CallbackTokenResource {
 
 pub struct CallbackToken {
     pub continue_signal: Condvar,
-    pub success: bool,
+    /// Holds the return data from the call, (success, payload) in an Option in a mutex
     pub return_value: Mutex<Option<(bool, Vec<u8>)>>,
 }
 

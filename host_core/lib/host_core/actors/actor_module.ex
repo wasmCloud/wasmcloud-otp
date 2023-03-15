@@ -201,44 +201,12 @@ defmodule HostCore.Actors.ActorModule do
       instance_id = Agent.get(agent, fn content -> content.instance_id end)
       Tracer.set_attribute("instance_id", instance_id)
 
-      {:ok, module} = Wasmex.Module.compile(bytes)
+      rtpid = Agent.get(agent, fn a -> a.rtpid end)
 
-      imports = %{
-        wapc: Imports.wapc_imports(agent),
-        wasmbus: Imports.wasmbus_imports(agent)
-      }
-
-      # TODO - in the future, poll these so we can forward the err/out pipes
-      # to our logger
-      {:ok, stdin} = Wasmex.Pipe.create()
-      {:ok, stdout} = Wasmex.Pipe.create()
-      {:ok, stderr} = Wasmex.Pipe.create()
-
-      wasi = %{
-        args: [],
-        env: %{},
-        preopen: %{},
-        stdin: stdin,
-        stdout: stdout,
-        stderr: stderr
-      }
-
-      opts =
-        if imports_wasi?(Wasmex.Module.imports(module)) do
-          %{module: module, imports: imports, wasi: wasi}
-        else
-          %{module: module, imports: imports}
-        end
-
-      # shut down the previous Wasmex instance to avoid orphaning it
-      old_instance = Agent.get(agent, fn content -> content.instance end)
-      GenServer.stop(old_instance, :normal)
-
-      case prepare_module(Wasmex.start_link(opts), agent, oci, false) do
-        {:ok, new_agent} ->
-          Logger.debug("Replaced and restarted underlying wasm module")
-          Tracer.set_status(:ok, "")
-
+      # TODO: do we need to make a call into the runtime to "un"compile the previous
+      # actor reference's bytes, e.g. `uncache_actor(old_aref)`
+      case HostCore.WasmCloud.Runtime.Server.precompile_actor(rtpid, bytes) do
+        {:ok, aref} ->
           publish_actor_updated(
             config.lattice_prefix,
             config.host_key,
@@ -247,12 +215,12 @@ defmodule HostCore.Actors.ActorModule do
             instance_id
           )
 
+          Agent.update(agent, fn state -> %State{state | actor_reference: aref} end)
+
           Logger.info("Actor #{claims.public_key} live update complete",
             actor_id: claims.public_key,
             oci_ref: oci
           )
-
-          {:reply, :ok, new_agent}
 
         {:error, e} ->
           error_msg =
@@ -270,11 +238,13 @@ defmodule HostCore.Actors.ActorModule do
             instance_id,
             inspect(e)
           )
-
-          # failing to update won't crash the process, it emits errors and stays on the old version
-          {:reply, :ok, agent}
       end
+
+      # failing to update won't crash the process, it emits errors and stays on the old version
+      {:reply, :ok, agent}
     end
+
+    # tracer span
   end
 
   # A handful of individual query calls to pull information from the agent state
@@ -380,8 +350,6 @@ defmodule HostCore.Actors.ActorModule do
         |> policy_check(agent)
         |> check_dechunk_inv()
         |> perform_runtime_invocation(agent)
-
-      # |> perform_invocation(agent)
 
       publish_invocation_result(host_id, lattice_prefix, token.invocation, ir)
 
@@ -657,74 +625,26 @@ defmodule HostCore.Actors.ActorModule do
 
     {:ok, {pid, _}} = HostCore.Vhost.VirtualHost.lookup(host_id)
     rtpid = HostCore.Vhost.VirtualHost.get_runtime(pid)
-    {:ok, aref} = HostCore.WasmCloud.Runtime.Server.precompile_actor(rtpid, bytes)
 
-    ClaimsManager.put_claims(host_id, lattice_prefix, claims)
-    ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
-
-    {:ok, agent} =
-      Agent.start_link(fn ->
-        %State{
-          actor_reference: aref,
-          rtpid: rtpid,
-          claims: claims,
-          instance_id: UUID.uuid4(),
-          healthy: false,
-          annotations: annotations,
-          lattice_prefix: lattice_prefix,
-          host_id: host_id
-        }
-      end)
-
-    imports = %{
-      wapc: Imports.wapc_imports(agent),
-      wasmbus: Imports.wasmbus_imports(agent)
-    }
-
-    # we consider a hash of bytes as a unique key
-    key = :sha256 |> :crypto.hash(bytes) |> Base.encode16()
-
-    module =
-      case :ets.lookup(:module_cache, key) do
-        [{_, cached_mod}] ->
-          cached_mod
-
-        [] ->
-          {:ok, mod} = Wasmex.Module.compile(bytes)
-          :ets.insert(:module_cache, {key, mod})
-          mod
-      end
-
-    # TODO - in the future, poll these so we can forward the err/out pipes
-    # to our logger
-    {:ok, stdin} = Wasmex.Pipe.create()
-    {:ok, stdout} = Wasmex.Pipe.create()
-    {:ok, stderr} = Wasmex.Pipe.create()
-
-    wasi = %{
-      args: [],
-      env: %{},
-      preopen: %{},
-      stdin: stdin,
-      stdout: stdout,
-      stderr: stderr
-    }
-
-    opts =
-      if imports_wasi?(Wasmex.Module.imports(module)) do
-        %{module: module, imports: imports, wasi: wasi}
-      else
-        %{module: module, imports: imports}
-      end
-
-    case prepare_module(Wasmex.start_link(opts), agent, oci, true) do
-      {:ok, agent} ->
-        Agent.update(agent, fn state ->
-          %State{state | ociref: oci}
-        end)
-
+    case HostCore.WasmCloud.Runtime.Server.precompile_actor(rtpid, bytes) do
+      {:ok, aref} ->
+        ClaimsManager.put_claims(host_id, lattice_prefix, claims)
+        ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
         publish_oci_map(host_id, lattice_prefix, oci, claims.public_key)
-        {:ok, agent}
+
+        Agent.start_link(fn ->
+          %State{
+            actor_reference: aref,
+            ociref: oci,
+            rtpid: rtpid,
+            claims: claims,
+            instance_id: UUID.uuid4(),
+            healthy: false,
+            annotations: annotations,
+            lattice_prefix: lattice_prefix,
+            host_id: host_id
+          }
+        end)
 
       {:error, e} ->
         Logger.error("Failed to start actor: #{inspect(e)}", actor_id: claims.public_key)
@@ -738,10 +658,6 @@ defmodule HostCore.Actors.ActorModule do
 
         {:error, e}
     end
-  end
-
-  defp imports_wasi?(imports_map) do
-    imports_map |> Map.keys() |> Enum.find(fn ns -> String.contains?(ns, "wasi") end) != nil
   end
 
   defp perform_runtime_invocation(%{policy: false} = token, _agent), do: {token, token.inv_res}
@@ -773,153 +689,6 @@ defmodule HostCore.Actors.ActorModule do
       end
 
     {token, ir}
-  end
-
-  defp perform_invocation(%{policy: false} = token, _agent), do: {token, token.inv_res}
-
-  defp perform_invocation(token, agent) do
-    operation = token.invocation["operation"]
-    payload = IO.iodata_to_binary(token.invocation["msg"])
-
-    raw_state = Agent.get(agent, fn content -> content end)
-
-    ir =
-      Tracer.with_span "Wasm Guest Call", kind: :client do
-        Tracer.set_attribute("operation", operation)
-        Tracer.set_attribute("payload_size", byte_size(payload))
-
-        Logger.debug("Performing invocation #{operation}",
-          operation: operation,
-          actor_id: raw_state.claims.public_key
-        )
-
-        span_ctx = Tracer.current_span_ctx()
-
-        raw_state = %State{
-          raw_state
-          | guest_response: nil,
-            guest_request: nil,
-            guest_error: nil,
-            host_response: nil,
-            host_error: nil,
-            parent_span: span_ctx,
-            invocation: %Invocation{operation: operation, payload: payload}
-        }
-
-        Agent.update(agent, fn _content -> raw_state end)
-
-        # invoke __guest_call
-        # if it fails, set guest_error, return 1
-        # if it succeeeds, set guest_response, return 0
-        try do
-          res =
-            raw_state.instance
-            |> Wasmex.call_function(:__guest_call, [
-              byte_size(operation),
-              byte_size(payload)
-            ])
-            |> to_guest_call_result(agent)
-
-          case res do
-            {:ok, msg} ->
-              chunk_inv_response(%{
-                msg: msg,
-                invocation_id: token.invocation["id"],
-                instance_id: token.iid,
-                content_length: byte_size(msg)
-              })
-
-            {:error, msg} ->
-              %{
-                msg: <<>>,
-                error: msg,
-                invocation_id: token.invocation["id"],
-                instance_id: token.iid,
-                content_length: 0
-              }
-          end
-        catch
-          :exit, value ->
-            Logger.error("WebAssembly runtime failed to invoke Wasm guest: #{inspect(value)}")
-
-            %{
-              msg: <<>>,
-              error: "WebAssembly runtime failed to invoke Wasm guest: #{inspect(value)}",
-              invocation_id: token.invocation["id"],
-              instance_id: token.iid,
-              content_length: 0
-            }
-        end
-      end
-
-    {token, ir}
-  end
-
-  defp to_guest_call_result({:ok, [res]}, agent) do
-    state = Agent.get(agent, fn content -> content end)
-
-    case res do
-      1 ->
-        Tracer.set_status(:ok, "")
-        {:ok, state.guest_response}
-
-      0 ->
-        Tracer.set_status(:error, "Guest call failed #{inspect(state.guest_error)}")
-        {:error, state.guest_error}
-    end
-  end
-
-  defp to_guest_call_result({:error, err}, _agent) do
-    {:error, err}
-  end
-
-  defp prepare_module({:error, e}, _agent, _oci, _first_time), do: {:error, e}
-
-  defp prepare_module({:ok, instance}, agent, oci, first_time) do
-    api_version =
-      case Wasmex.call_function(instance, :__wasmbus_rpc_version, []) do
-        {:ok, [v]} -> v
-        _ -> 0
-      end
-
-    agent_state = Agent.get(agent, fn contents -> contents end)
-
-    claims = agent_state.claims
-    instance_id = agent_state.instance_id
-    annotations = agent_state.annotations
-    host_id = agent_state.host_id
-    lattice_prefix = agent_state.lattice_prefix
-
-    if Wasmex.function_exists(instance, :start) do
-      Wasmex.call_function(instance, :start, [])
-    end
-
-    if Wasmex.function_exists(instance, :wapc_init) do
-      Wasmex.call_function(instance, :wapc_init, [])
-    end
-
-    # TinyGo exports `main` as `_start`
-    if Wasmex.function_exists(instance, :_start) do
-      Wasmex.call_function(instance, :_start, [])
-    end
-
-    Agent.update(agent, fn content ->
-      %State{content | api_version: api_version, instance: instance}
-    end)
-
-    if first_time do
-      publish_actor_started(
-        host_id,
-        lattice_prefix,
-        claims,
-        api_version,
-        instance_id,
-        oci,
-        annotations
-      )
-    end
-
-    {:ok, agent}
   end
 
   def publish_oci_map(_host_id, _lattice_prefix, "", _pk) do
