@@ -9,6 +9,7 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   require Logger
 
   alias HostCore.WasmCloud.Runtime.Config, as: RuntimeConfig
+  alias HostCore.WasmCloud.Runtime.ActorReference
 
   import HostCore.WasmCloud.RpcInvocations
 

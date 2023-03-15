@@ -41,7 +41,6 @@ defmodule HostCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:wasmex, "~> 0.7.0"},
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.24.0"},
       {:timex, "~> 3.7"},

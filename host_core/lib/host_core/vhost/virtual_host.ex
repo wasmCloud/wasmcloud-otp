@@ -36,8 +36,8 @@ defmodule HostCore.Vhost.VirtualHost do
 
     @type t :: %State{
             config: Configuration.t(),
-            wasm_runtime: HostCore.WasmCloud.Runtime.t(),
-            friendly_name: String.t(),
+            wasm_runtime: pid(),
+            friendly_name: binary(),
             labels: map(),
             start_time: non_neg_integer(),
             supplemental_config: map() | nil
@@ -56,7 +56,7 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   @impl true
-  @spec init(config :: HostCore.Vhost.Configuration.t()) ::
+  @spec init(Configuration.t()) ::
           {:ok, HostCore.Vhost.VirtualHost.State.t(),
            {:continue, :load_supp_config | :publish_started}}
   def init(config) do
