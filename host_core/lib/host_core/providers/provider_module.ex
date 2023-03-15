@@ -387,32 +387,24 @@ defmodule HostCore.Providers.ProviderModule do
           {:error, "Received no response on health check topic from provider"}
       end
 
-    # Only publish health check pass/fail when state changes
-    state =
+    new_state =
       case res do
         {:ok, _body} when not state.healthy ->
-          publish_health_passed(state)
           %State{state | healthy: true}
 
-        {:ok, _body} ->
-          publish_health_status(state)
-          state
+        {:error, _} when state.healthy ->
+          %State{state | healthy: false}
 
-        {:error, _} ->
-          if state.healthy do
-            publish_health_failed(state)
-            %State{state | healthy: false}
-          else
-            state
-          end
+        _ ->
+          state
       end
 
-    {:noreply, state}
+    publish_health_status(new_state, state.healthy)
+    {:noreply, new_state}
   end
 
   def handle_info({_ref, msg}, state) do
     Logger.debug(msg)
-
     {:noreply, state}
   end
 
@@ -420,11 +412,21 @@ defmodule HostCore.Providers.ProviderModule do
     HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, oci, public_key)
   end
 
-  defp publish_health_status(state), do: publish_health_event(state, "health_check_status")
+  defp publish_health_status(state, previous_health_check_passed) do
+    cond do
+      # publish health_passed if previous state was unhealthy and current state is healthy
+      state.healthy and not previous_health_check_passed ->
+        publish_health_event(state, "health_check_passed")
 
-  defp publish_health_passed(state), do: publish_health_event(state, "health_check_passed")
+      # publish health_failed if previous state was healthy and current state is unhealthy
+      not state.healthy and previous_health_check_passed ->
+        publish_health_event(state, "health_check_failed")
 
-  defp publish_health_failed(state), do: publish_health_event(state, "health_check_failed")
+      # publish health_status if state has not changed
+      true ->
+        publish_health_event(state, "health_check_status")
+    end
+  end
 
   defp publish_health_event(state, evt) do
     %{
