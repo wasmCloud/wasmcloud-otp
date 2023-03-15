@@ -16,7 +16,9 @@ defmodule HostCore.MixProject do
         ]
       ],
       releases: [
-        host_core: []
+        host_core: [
+          steps: [:assemble, &Bakeware.assemble/1]
+        ]
       ],
       dialyzer: [plt_add_deps: :apps_direct]
     ]
@@ -40,7 +42,7 @@ defmodule HostCore.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    [
+    list = [
       {:wasmex, "~> 0.7.0"},
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.24.0"},
@@ -69,5 +71,11 @@ defmodule HostCore.MixProject do
       {:benchee, "~> 1.0", only: :test},
       {:mock, "~> 0.3.0", only: :test}
     ]
+
+    # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
+    case :os.type() do
+      {:unix, _} -> [{:bakeware, "~> 0.2.4"} | list]
+      _ -> list
+    end
   end
 end

@@ -264,6 +264,8 @@ jobs:
       SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
       app-name: wasmcloud_host
       arm-tarball: aarch64-linux.tar.gz
+      arm-tarball-static: aarch64-linux-static.tar.gz
+      amd-tarball-static: amd64-linux-static.tar.gz
       builder-image: elixir:1.14.3-otp-24-slim
       release-image: debian:bullseye-slim
     steps:
@@ -338,18 +340,60 @@ jobs:
             wasmcloud.azurecr.io/${{ env.app-name }}:latest
             wasmcloud/${{ env.app-name }}:${{ env.app-version }}
             wasmcloud/${{ env.app-name }}:latest
+      - name: Build common static image
+        uses: docker/build-push-action@v3
+        with:
+          builder: ${{ steps.buildx-builder.outputs.name }}
+          push: false
+          context: .
+          file: Dockerfile.localstatic
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            localstatic
+      - name: Build and release static docker image
+        uses: docker/build-push-action@v3
+        with:
+          builder: ${{ steps.buildx-builder.outputs.name }}
+          push: true
+          context: .
+          file: ${{ env.app-name }}/Dockerfile.static
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            APP_NAME=${{ env.app-name }}
+            APP_VSN=${{ env.app-version }}
+            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+            MIX_ENV=release_prod
+          tags: |
+            wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}-static
+            wasmcloud/${{ env.app-name }}:${{ env.app-version }}-static
 
-      - name: Retrieve aarch64 tarball from Docker
+      - name: Retrieve aarch64, aarch64-static, and amd64-static tarballs from Docker
         run: |
-          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version}} sh -s <<EOF
+          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
           tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
           cp ${{ env.arm-tarball }} /aarch64temp/
+          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
+          tar czvf ${{ env.arm-tarball-static }} /usr/local/bin/wasmcloud_host 
+          cp ${{ env.arm-tarball-static }} /aarch64temp/
+          docker run --rm --platform linux/amd64 -iv ${PWD}:/amd64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
+          tar czvf ${{ env.amd-tarball-static }} /usr/local/bin/wasmcloud_host
+          cp ${{ env.amd-tarball-static }} /amd64temp/
           EOF
-      - name: Upload artifact
+      - name: Upload artifact (arm64)
         uses: actions/upload-artifact@v2
         with:
           name: ${{ env.arm-tarball }}
           path: ${{ env.arm-tarball }}
+      - name: Upload artifact (arm64 static)
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.arm-tarball-static }}
+          path: ${{ env.arm-tarball-static }}
+      - name: Upload artifact (amd64 static)
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.amd-tarball-static }}
+          path: ${{ env.amd-tarball-static }}
 
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
