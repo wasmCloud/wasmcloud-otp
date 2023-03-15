@@ -8,8 +8,12 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   use GenServer
   require Logger
 
-  @spec start_link(HostCore.WasmCloud.Runtime.Config.t()) :: :ignore | {:error, any} | {:ok, pid}
-  def start_link(%HostCore.WasmCloud.Runtime.Config{} = config) do
+  alias HostCore.WasmCloud.Runtime.Config, as: RuntimeConfig
+
+  import HostCore.WasmCloud.RpcInvocations
+
+  @spec start_link(RuntimeConfig.t()) :: :ignore | {:error, any} | {:ok, pid}
+  def start_link(%RuntimeConfig{} = config) do
     GenServer.start_link(__MODULE__, config)
   end
 
@@ -28,10 +32,10 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   end
 
   @impl true
-  def init(%HostCore.WasmCloud.Runtime.Config{} = config) do
+  def init(%RuntimeConfig{} = config) do
     {:ok, runtime} = HostCore.WasmCloud.Runtime.new(config)
 
-    {:ok, runtime}
+    {:ok, {runtime, config}}
   end
 
   def version(pid) do
@@ -55,8 +59,8 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   end
 
   @impl true
-  def handle_call(:get_version, _from, state) do
-    {:reply, HostCore.WasmCloud.Runtime.version(state), state}
+  def handle_call(:get_version, _from, {runtime, _config} = state) do
+    {:reply, HostCore.WasmCloud.Runtime.version(runtime), state}
   end
 
   # calls into the NIF to invoke the given operation on the indicated actor instance
@@ -75,8 +79,8 @@ defmodule HostCore.WasmCloud.Runtime.Server do
 
   # calls into the NIF to call into the runtime instance to create a new actor
   @impl true
-  def handle_call({:precompile_actor, bytes}, _from, state) do
-    {:reply, HostCore.WasmCloud.Runtime.start_actor(state, bytes), state}
+  def handle_call({:precompile_actor, bytes}, _from, {runtime, _config} = state) do
+    {:reply, HostCore.WasmCloud.Runtime.start_actor(runtime, bytes), state}
   end
 
   # this gets called from inside the NIF to indicate that a function call has completed
@@ -99,15 +103,14 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   @impl true
   def handle_info(
         {:invoke_callback, claims, binding, namespace, operation, payload, token},
-        state
+        {_runtime, config} = state
       ) do
     # This callback is invoked by the wasmcloud::Runtime's host call handler
-    Logger.info("Handling invoke callback")
     payload = payload |> IO.iodata_to_binary()
     # TODO
     {success, return_value} =
       try do
-        do_invocation()
+        do_invocation(claims, binding, namespace, operation, payload, config)
       rescue
         e in RuntimeError -> {false, e.message}
       end
@@ -116,8 +119,39 @@ defmodule HostCore.WasmCloud.Runtime.Server do
     {:noreply, state}
   end
 
-  defp do_invocation() do
-    # TODO - make wasmbus RPC call to target
-    {true, <<>>}
+  defp do_invocation(claims, binding, namespace, operation, payload, rt_config) do
+    host_config = HostCore.Vhost.VirtualHost.config(rt_config.host_id)
+    actor = claims.public_key
+
+    final_res =
+      %{
+        payload: payload,
+        binding: binding,
+        namespace: namespace,
+        operation: operation,
+        seed: host_config.cluster_seed,
+        claims: claims,
+        prefix: host_config.lattice_prefix,
+        host_id: host_config.host_key,
+        source_actor: actor,
+        target: nil,
+        authorized: false,
+        verified: false,
+        result: nil,
+        error: nil
+      }
+      |> identify_target()
+      |> verify_link()
+      |> authorize_call()
+      |> rpc_invoke()
+      |> tap(&update_tracer_status/1)
+
+    case final_res do
+      {:ok, %{result: r}} ->
+        {true, r}
+
+      {:error, %{error: e}} ->
+        {false, e}
+    end
   end
 end

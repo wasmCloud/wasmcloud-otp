@@ -1,54 +1,40 @@
-use anyhow::{self, bail, ensure, Context};
+use anyhow::{self, Context};
 use async_trait::async_trait;
-use log::{error, Log};
+use log::error;
 
 use crate::{environment::CallbackToken, TOKIO};
 use rustler::{
-    dynamic::TermType,
     env::{OwnedEnv, SavedTerm},
     resource::ResourceArc,
     types::tuple::make_tuple,
-    types::ListIterator,
-    Binary, Encoder, Env, Error, LocalPid, MapIterator, NifResult, Term,
+    Binary, Encoder, Env, Error, LocalPid, NifResult, Term,
 };
 
 use std::{
-    sync::{Arc, Condvar, Mutex, RwLock},
+    sync::{Condvar, Mutex},
     thread,
 };
 use wascap::jwt;
-use wasmcloud::Runtime as WcRuntime;
-use wasmcloud::{
-    capability::{Handler, HostHandler, LogLogging, RandNumbergen},
-    Actor,
-};
+use wasmcloud::{Actor, Handle, HostInvocation, Runtime as WcRuntime};
 
 use crate::{atoms, environment::CallbackTokenResource};
-
-type MyH = HostHandler<
-    LogLogging<&'static dyn ::log::Log>,
-    RandNumbergen<::rand::rngs::OsRng>,
-    ElixirHandler,
->;
-
-type WasmcloudRuntime = WcRuntime<MyH>;
 
 /// A wrapper around an instance of the wasmCloud runtime. This will be used inside a `ResourceArc` to allow
 /// Elixir to maintain a long-lived reference to it
 pub struct RuntimeResource {
-    pub inner: WasmcloudRuntime,
+    pub inner: WcRuntime,
 }
 
 /// A wrapper around an instance of a precompiled wasmCloud actor. This will be used inside a `ResourceArc` to allow
 /// Elixir to maintain a long-lived reference to it
 pub struct ActorResource {
-    pub actor: Actor<MyH>,
+    pub actor: Actor,
 }
 
 #[derive(NifStruct)]
 #[module = "HostCore.WasmCloud.Runtime.Config"]
 pub struct ExRuntimeConfig {
-    placeholder: bool,
+    host_id: String,
 }
 
 pub struct ElixirHandler {
@@ -56,17 +42,21 @@ pub struct ElixirHandler {
 }
 
 #[async_trait]
-impl wasmcloud::capability::Handler for ElixirHandler {
-    type Error = anyhow::Error;
-
+impl Handle<HostInvocation> for ElixirHandler {
     async fn handle(
         &self,
         claims: &jwt::Claims<jwt::Actor>,
         binding: String,
-        namespace: String,
-        operation: String,
-        payload: Option<Vec<u8>>,
-    ) -> anyhow::Result<Result<Option<Vec<u8>>, Self::Error>> {
+        invocation: HostInvocation,
+    ) -> anyhow::Result<Option<Vec<u8>>> {
+        // async fn handle(
+        //     &self,
+        //     claims: &jwt::Claims<jwt::Actor>,
+        //     binding: String,
+        //     namespace: String,
+        //     operation: String,
+        //     payload: Option<Vec<u8>>,
+        // ) -> anyhow::Result<Result<Option<Vec<u8>>, Self::Error>> {
         let callback_token = ResourceArc::new(CallbackTokenResource {
             token: CallbackToken {
                 continue_signal: Condvar::new(),
@@ -84,9 +74,9 @@ impl wasmcloud::capability::Handler for ElixirHandler {
                 atoms::invoke_callback(),
                 crate::Claims::from(claims.clone()),
                 binding,
-                namespace,
-                operation,
-                payload.unwrap_or_default(),
+                invocation.namespace,
+                invocation.operation,
+                invocation.payload.unwrap_or_default(),
                 callback_token.clone(),
             )
                 .encode(env)
@@ -101,11 +91,11 @@ impl wasmcloud::capability::Handler for ElixirHandler {
             .as_ref()
             .expect("expect callback token to contain a result");
         match result {
-            (true, return_value) => Ok(Ok(Some(return_value.clone()))),
+            (true, return_value) => Ok(Some(return_value.clone())),
             (false, _) => {
                 // TODO: verify whether we should return none here or use an Err
                 error!("Elixir callback threw an exception.");
-                Ok(Ok(None))
+                Ok(None)
             }
         }
     }
@@ -122,14 +112,8 @@ pub fn new<'a>(
     env: rustler::Env<'a>,
     _config: ExRuntimeConfig,
 ) -> Result<ResourceArc<RuntimeResource>, rustler::Error> {
-    let handler = HostHandler {
-        logging: LogLogging::from(log::logger()),
-        numbergen: RandNumbergen::from(rand::rngs::OsRng),
-        hostcall: ElixirHandler { pid: env.pid() },
-    };
-
-    let rt: WasmcloudRuntime = WasmcloudRuntime::builder(handler)
-        .try_into()
+    let host_handler = ElixirHandler { pid: env.pid() };
+    let rt = WcRuntime::from_host_handler(host_handler)
         .context("failed to construct runtime")
         .map_err(|e| Error::Term(Box::new(e.to_string())))?;
 
@@ -151,7 +135,7 @@ pub fn start_actor<'a>(
     runtime_resource: ResourceArc<RuntimeResource>,
     bytes: Binary<'a>,
 ) -> Result<ResourceArc<ActorResource>, rustler::Error> {
-    let actor: Actor<MyH> = Actor::new(&runtime_resource.inner, bytes.as_slice())
+    let actor: Actor = Actor::new(&runtime_resource.inner, bytes.as_slice())
         .context("failed to load actor from bytes")
         .unwrap();
 

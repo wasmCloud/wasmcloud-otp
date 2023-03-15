@@ -27,7 +27,6 @@ defmodule HostCore.Actors.ActorModule do
   @rpc_event_prefix "wasmbus.rpcevt"
 
   require Logger
-  alias HostCore.WebAssembly.Imports
 
   defmodule State do
     @moduledoc """
@@ -628,9 +627,11 @@ defmodule HostCore.Actors.ActorModule do
 
     case HostCore.WasmCloud.Runtime.Server.precompile_actor(rtpid, bytes) do
       {:ok, aref} ->
+        iid = UUID.uuid4()
         ClaimsManager.put_claims(host_id, lattice_prefix, claims)
         ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
         publish_oci_map(host_id, lattice_prefix, oci, claims.public_key)
+        publish_actor_started(host_id, lattice_prefix, claims, "n/a", iid, oci, annotations)
 
         Agent.start_link(fn ->
           %State{
@@ -638,7 +639,7 @@ defmodule HostCore.Actors.ActorModule do
             ociref: oci,
             rtpid: rtpid,
             claims: claims,
-            instance_id: UUID.uuid4(),
+            instance_id: iid,
             healthy: false,
             annotations: annotations,
             lattice_prefix: lattice_prefix,

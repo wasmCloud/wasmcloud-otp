@@ -9,9 +9,9 @@ defmodule HostCore.WasmCloud.Runtime.Config do
       iex> _config = %HostCore.WasmCloud.Runtime.Config{}
   """
 
-  defstruct placeholder: false
+  defstruct host_id: ""
 
   @type t :: %__MODULE__{
-          placeholder: boolean()
+          host_id: binary()
         }
 end

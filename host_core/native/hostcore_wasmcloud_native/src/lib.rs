@@ -101,6 +101,7 @@ pub(crate) fn actor_claims_to_crate_claims(c: wascap::jwt::Claims<wascap::jwt::A
         revision,
         tags: None,
         version: metadata.ver,
+        caps: metadata.caps,
         name: metadata.name,
         expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
         not_before_human: stamp_to_human(c.not_before).unwrap_or_else(|| "immediately".to_string()),
@@ -164,7 +165,8 @@ rustler::init!(
         wasmruntime::new,
         wasmruntime::version,
         wasmruntime::start_actor,
-        wasmruntime::call_actor
+        wasmruntime::call_actor,
+        wasmruntime::receive_callback_result
     ],
     load = load
 );
@@ -618,6 +620,7 @@ async fn get_provider_file(path: &str) -> Result<Option<tokio::fs::File>, Error>
 fn load(env: rustler::Env, _: rustler::Term) -> bool {
     par::on_load(env);
     wasmruntime::on_load(env);
+    environment::on_load(env);
 
     true
 }

@@ -110,11 +110,10 @@ defmodule HostCore.Vhost.VirtualHost do
       ]
     })
 
-    # {:ok, runtime} =
-    #   HostCore.WasmCloud.Runtime.new(%HostCore.WasmCloud.Runtime.Config{placeholder: false})
+    # TODO - gracefully bail if the runtime couldn't be started
     {:ok, runtime} =
       HostCore.WasmCloud.Runtime.Server.start_link(%HostCore.WasmCloud.Runtime.Config{
-        placeholder: false
+        host_id: config.host_key
       })
 
     Logger.info(
