@@ -49,14 +49,6 @@ impl Handle<HostInvocation> for ElixirHandler {
         binding: String,
         invocation: HostInvocation,
     ) -> anyhow::Result<Option<Vec<u8>>> {
-        // async fn handle(
-        //     &self,
-        //     claims: &jwt::Claims<jwt::Actor>,
-        //     binding: String,
-        //     namespace: String,
-        //     operation: String,
-        //     payload: Option<Vec<u8>>,
-        // ) -> anyhow::Result<Result<Option<Vec<u8>>, Self::Error>> {
         let callback_token = ResourceArc::new(CallbackTokenResource {
             token: CallbackToken {
                 continue_signal: Condvar::new(),
@@ -192,9 +184,7 @@ fn execute_call_actor(
         .unwrap_or_else(|_| "could not load 'from' param".encode(thread_env));
 
     // Invoke the actor within a tokio blocking spawn because the wasmCloud runtime is async
-    let response = TOKIO
-        .block_on(async { component.actor.call(operation, Some(payload)).await })
-        .unwrap();
+    let response = TOKIO.block_on(async { component.actor.call(operation, Some(payload)).await });
 
     match response {
         Ok(opt_data) => {
@@ -213,8 +203,9 @@ fn execute_call_actor(
             )
         }
         Err(e) => {
+            let rc = e.root_cause().to_string();
             // Once the layers are removed, sends {:error, msg}
-            make_error_tuple(&thread_env, e.as_str(), from)
+            make_error_tuple(&thread_env, rc.as_str(), from)
         }
     }
 }

@@ -79,7 +79,7 @@ defmodule HostCore.WasmCloud.Runtime do
         payload,
         from
       ) do
-    HostCore.WasmCloud.Native.call_actor(actor_resource, operation, payload, from)
+    :ok = HostCore.WasmCloud.Native.call_actor(actor_resource, operation, payload, from)
   end
 
   defimpl Inspect, for: HostCore.WasmCloud.Runtime do
