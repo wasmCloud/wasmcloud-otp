@@ -127,7 +127,7 @@ pub fn start_actor<'a>(
     runtime_resource: ResourceArc<RuntimeResource>,
     bytes: Binary<'a>,
 ) -> Result<ResourceArc<ActorResource>, rustler::Error> {
-    let actor: Actor = Actor::new(&runtime_resource.inner, bytes.as_slice())
+    let actor = Actor::new(&runtime_resource.inner, bytes.as_slice())
         .context("failed to load actor from bytes")
         .unwrap();
 
