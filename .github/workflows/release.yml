@@ -373,9 +373,11 @@ jobs:
           docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
           tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
           cp ${{ env.arm-tarball }} /aarch64temp/
+          EOF
           # docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
           # tar czvf ${{ env.arm-tarball-static }} /usr/local/bin/wasmcloud_host
           # cp ${{ env.arm-tarball-static }} /aarch64temp/
+          # EOF
           docker run --rm --platform linux/amd64 -iv ${PWD}:/amd64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
           tar czvf ${{ env.amd-tarball-static }} /usr/local/bin/wasmcloud_host
           cp ${{ env.amd-tarball-static }} /amd64temp/
