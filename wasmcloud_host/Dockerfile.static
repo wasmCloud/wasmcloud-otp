@@ -1,7 +1,8 @@
 # we use a common Dockerfile with statically compiled erlang+openssl
 # the Makefile handles this for you
 # ../Dockerfile.localstatic
-FROM localstatic
+ARG BASEIMAGE=localstatic
+FROM BASEIMAGE
 
 COPY ./host_core /opt/app/host_core
 COPY ./wasmcloud_host /opt/app/wasmcloud_host
