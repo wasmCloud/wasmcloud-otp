@@ -1,0 +1,16 @@
+# we use a common Dockerfile with statically compiled erlang+openssl
+# the Makefile handles this for you
+# ../Dockerfile.localstatic
+FROM localstatic
+COPY ./host_core /opt/app/host_core
+
+WORKDIR /opt/app/host_core
+
+RUN . /root/.cargo/env \
+    && mix deps.get \
+    && MIX_ENV=prod mix release host_core
+
+FROM ubuntu:20.04
+COPY --from=0 /opt/app/host_core/_build/prod/rel/bakeware/host_core /usr/local/bin/host_core
+
+CMD ["/usr/local/bin/host_core"]

@@ -16,10 +16,20 @@ defmodule HostCore.MixProject do
         ]
       ],
       releases: [
-        host_core: []
+        host_core: [
+          steps: conditional_steps()
+        ]
       ],
       dialyzer: [plt_add_deps: :apps_direct]
     ]
+  end
+
+  # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
+  defp conditional_steps do
+    case :os.type() do
+      {:unix, _} -> [:assemble, &Bakeware.assemble/1]
+      _ -> [:assemble]
+    end
   end
 
   # In order to ensure that TLS cert check starts before the otel applications,
@@ -40,7 +50,7 @@ defmodule HostCore.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    [
+    [   
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.24.0"},
       {:timex, "~> 3.7"},
@@ -68,5 +78,11 @@ defmodule HostCore.MixProject do
       {:benchee, "~> 1.0", only: :test},
       {:mock, "~> 0.3.0", only: :test}
     ]
+
+    # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
+    case :os.type() do
+      {:unix, _} -> [{:bakeware, "~> 0.2.4"} | list]
+      _ -> list
+    end
   end
 end

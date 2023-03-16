@@ -1,0 +1,24 @@
+# we use a common Dockerfile with statically compiled erlang+openssl
+# the Makefile handles this for you
+# ../Dockerfile.localstatic
+FROM localstatic
+
+COPY ./host_core /opt/app/host_core
+COPY ./wasmcloud_host /opt/app/wasmcloud_host
+
+ARG SECRET_KEY_BASE
+ARG APP_VSN
+ENV SECRET_KEY_BASE=${SECRET_KEY_BASE} \
+    APP_VSN=${APP_VSN}
+
+RUN . /root/.cargo/env \
+    && cd /opt/app/host_core \
+    && mix deps.get \
+    && cd /opt/app/wasmcloud_host \
+    && mix deps.get \
+    && MIX_ENV=prod mix release wasmcloud_host
+
+FROM ubuntu:20.04
+COPY --from=0 /opt/app/wasmcloud_host/_build/prod/rel/bakeware/wasmcloud_host /usr/local/bin/wasmcloud_host
+
+CMD ["/usr/local/bin/wasmcloud_host"]

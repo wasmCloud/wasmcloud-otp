@@ -13,10 +13,20 @@ defmodule WasmcloudHost.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       releases: [
-        wasmcloud_host: []
+        wasmcloud_host: [
+          steps: conditional_steps()
+        ]
       ],
       deps: deps()
     ]
+  end
+
+  # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
+  defp conditional_steps do
+    case :os.type() do
+      {:unix, _} -> [:assemble, &Bakeware.assemble/1]
+      _ -> [:assemble]
+    end
   end
 
   # Configuration for the OTP application.
@@ -38,7 +48,7 @@ defmodule WasmcloudHost.MixProject do
   #
   # Type `mix help deps` for examples and options.
   defp deps do
-    [
+    list = [
       {:phoenix, "~> 1.6.0"},
       {:phoenix_html, "~> 3.0.4"},
       {:phoenix_live_view, "~> 0.16.4"},
@@ -56,6 +66,15 @@ defmodule WasmcloudHost.MixProject do
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false}
     ]
+
+    # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
+    case :os.type() do
+      {:unix, _} ->
+        [{:bakeware, "~> 0.2.4"} | list]
+
+      _ ->
+        list
+    end
   end
 
   # Aliases are shortcuts or tasks specific to the current project.
