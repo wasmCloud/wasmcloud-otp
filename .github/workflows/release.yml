@@ -347,7 +347,7 @@ jobs:
           push: false
           context: .
           file: Dockerfile.localstatic
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64 #,linux/arm64
           tags: |
             localstatic
       - name: Build and release static docker image
@@ -372,9 +372,9 @@ jobs:
           docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
           tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
           cp ${{ env.arm-tarball }} /aarch64temp/
-          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
-          tar czvf ${{ env.arm-tarball-static }} /usr/local/bin/wasmcloud_host 
-          cp ${{ env.arm-tarball-static }} /aarch64temp/
+          # docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
+          # tar czvf ${{ env.arm-tarball-static }} /usr/local/bin/wasmcloud_host
+          # cp ${{ env.arm-tarball-static }} /aarch64temp/
           docker run --rm --platform linux/amd64 -iv ${PWD}:/amd64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
           tar czvf ${{ env.amd-tarball-static }} /usr/local/bin/wasmcloud_host
           cp ${{ env.amd-tarball-static }} /amd64temp/
@@ -384,11 +384,11 @@ jobs:
         with:
           name: ${{ env.arm-tarball }}
           path: ${{ env.arm-tarball }}
-      - name: Upload artifact (arm64 static)
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.arm-tarball-static }}
-          path: ${{ env.arm-tarball-static }}
+      # - name: Upload artifact (arm64 static)
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: ${{ env.arm-tarball-static }}
+      #     path: ${{ env.arm-tarball-static }}
       - name: Upload artifact (amd64 static)
         uses: actions/upload-artifact@v2
         with:
