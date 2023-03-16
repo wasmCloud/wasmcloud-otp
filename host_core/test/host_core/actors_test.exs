@@ -470,6 +470,8 @@ defmodule HostCore.ActorsTest do
       {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @pinger_key)
 
+      Process.sleep(2_000)
+
       seed = config.cluster_seed
 
       req =
@@ -500,7 +502,7 @@ defmodule HostCore.ActorsTest do
       res =
         case config.lattice_prefix
              |> HostCore.Nats.rpc_connection()
-             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 3_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end

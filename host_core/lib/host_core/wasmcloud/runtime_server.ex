@@ -102,7 +102,19 @@ defmodule HostCore.WasmCloud.Runtime.Server do
     # the binary comes out of the NIF as  {:ok, vec<u8>} or {:error, vec<u8>}
     # so we need to turn the second element from a vec<u8> into a << ...>> binary
     bindata = elem(result, 1)
-    bindata = IO.iodata_to_binary(bindata)
+
+    bindata =
+      cond do
+        is_nil(bindata) ->
+          <<>>
+
+        is_binary(bindata) && byte_size(bindata) == 0 ->
+          <<>>
+
+        true ->
+          IO.iodata_to_binary(bindata)
+      end
+
     code = elem(result, 0)
     result = {code, bindata}
 

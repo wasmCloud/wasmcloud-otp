@@ -479,9 +479,9 @@ checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
 
 [[package]]
 name = "cap-fs-ext"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff40fd8a96d57a204080e5debd621342612f6d6b60901201a51f518baf72691d"
+checksum = "41e05646ca0c0d3628153d93c91675b8aeebba6c07363ec4f2dd05f42a4648ba"
 dependencies = [
  "cap-primitives",
  "cap-std",
@@ -491,9 +491,9 @@ dependencies = [
 
 [[package]]
 name = "cap-primitives"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9554a7698c8db4b7777f01b2237de111c5ecea169efb1190004d9069ceb289aa"
+checksum = "140f0d0d968143f4d23cd2958ccae53e3b336d7362920af268205b8593718933"
 dependencies = [
  "ambient-authority",
  "fs-set-times",
@@ -508,9 +508,9 @@ dependencies = [
 
 [[package]]
 name = "cap-rand"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "103e94d97d73504c5fa6ffb47135d5627ce5ff84a4ad37e8219103ddc291de24"
+checksum = "138311adb9c01710d0fac361da7bf646672e5df00e2f3283764b315449d6edeb"
 dependencies = [
  "ambient-authority",
  "rand 0.8.5",
@@ -518,9 +518,9 @@ dependencies = [
 
 [[package]]
 name = "cap-std"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7b68a8ac703cc7bed0a46666a04b386cca214844897a69f599dcd82ea59422c"
+checksum = "2139a25a1568af991f921198c13d30e5ddfacd06967707841905366aee257e0a"
 dependencies = [
  "cap-primitives",
  "io-extras",
@@ -531,9 +531,9 @@ dependencies = [
 
 [[package]]
 name = "cap-time-ext"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "472931750f90fbf0731c886c2937521e25772942577a182e7ace5bc561d10e3b"
+checksum = "c711dddaae4b4cec2d0e729182fc4c27566f4945ea55ee7b852ce632b6ce7fe6"
 dependencies = [
  "cap-primitives",
  "once_cell",
@@ -1788,10 +1788,11 @@ dependencies = [
 
 [[package]]
 name = "io-lifetimes"
-version = "1.0.6"
+version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfa919a82ea574332e2de6e74b4c36e74d41982b335080fa59d4ef31be20fdf3"
+checksum = "76e86b86ae312accbf05ade23ce76b625e0e47a255712b7414037385a1c05380"
 dependencies = [
+ "hermit-abi 0.3.1",
  "libc",
  "windows-sys 0.45.0",
 ]
@@ -4257,7 +4258,7 @@ dependencies = [
 [[package]]
 name = "wasmcloud"
 version = "0.1.0"
-source = "git+https://github.com/wasmcloud/wasmcloud#26ad6c0fbf658a556a8b67a68767ac47d06ac004"
+source = "git+https://github.com/wasmcloud/wasmcloud#c6acc2c6f6183515441d1dcaca073ba1df109df2"
 dependencies = [
  "anyhow",
  "async-trait",
