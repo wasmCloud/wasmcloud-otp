@@ -50,8 +50,7 @@ defmodule HostCore.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    list =
-    [
+    list = [
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.24.0"},
       {:timex, "~> 3.7"},

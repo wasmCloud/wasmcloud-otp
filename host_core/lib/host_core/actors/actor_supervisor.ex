@@ -216,9 +216,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   def start_actor_from_file(host_id, fileref, count \\ 1, annotations \\ %{}) do
     config = VirtualHost.config(host_id)
 
-    if not config.enable_actor_from_fs do
-      {:error, "actor file loading is disabled"}
-    else
+    if config.enable_actor_from_fs do
       Tracer.with_span "Starting Actor from file", kind: :server do
         case File.read(String.trim_leading(fileref, "file://")) do
           {:error, err} ->
@@ -236,6 +234,8 @@ defmodule HostCore.Actors.ActorSupervisor do
             |> start_actor(host_id, fileref, count, annotations)
         end
       end
+    else
+      {:error, "actor file loading is disabled"}
     end
   end
 

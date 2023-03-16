@@ -491,7 +491,7 @@ defmodule HostCore.ActorsTest do
           @pinger_key,
           @httpserver_contract,
           @httpserver_link,
-          "HandleRequest",
+          "HttpServer.HandleRequest",
           req
         )
 
@@ -508,6 +508,7 @@ defmodule HostCore.ActorsTest do
       assert res != :fail
 
       ir = Msgpax.unpack!(res)
+      IO.inspect(ir)
 
       payload = Msgpax.unpack!(ir["msg"])
 

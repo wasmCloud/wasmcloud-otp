@@ -13,13 +13,19 @@ defmodule HostCore.WasmCloud.Runtime.Server do
 
   import HostCore.WasmCloud.RpcInvocations
 
+  @doc """
+  Starts this server with the supplied configuration. This configuration corresponds to the configuration
+  required by the Rust wasmCloud runtime SDK so it needs to be kept in agreement with the equivalent data
+  type in the NIF
+  """
   @spec start_link(RuntimeConfig.t()) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(%RuntimeConfig{} = config) do
     GenServer.start_link(__MODULE__, config)
   end
 
   @doc """
-  Returns the runtime server corresponding to the given virtual host
+  Returns the runtime server corresponding to the given virtual host. There should always be one runtime server
+  process per virtual host.
   """
   @spec runtime_for_host(host_id :: binary()) :: {:ok, pid} | :error
   def runtime_for_host(host_id) do
@@ -32,6 +38,10 @@ defmodule HostCore.WasmCloud.Runtime.Server do
     end
   end
 
+  @doc """
+  Init portion of the genserver startup chain. Instantiates a new reference to the Rust runtime and retains
+  that reference in state
+  """
   @impl true
   def init(%RuntimeConfig{} = config) do
     {:ok, runtime} = HostCore.WasmCloud.Runtime.new(config)

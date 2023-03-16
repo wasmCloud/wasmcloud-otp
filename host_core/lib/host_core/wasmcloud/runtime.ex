@@ -43,7 +43,7 @@ defmodule HostCore.WasmCloud.Runtime do
   @doc ~S"""
   Creates a new `HostCore.WasmCloud.Runtime` with the specified options.
   ## Example
-      iex> {:ok, _runtime} = HosrCore.WasmCloud.Runtime.new(%WasmCloud.RuntimeConfig{})
+      iex> {:ok, _runtime} = HostCore.WasmCloud.Runtime.new(%WasmCloud.RuntimeConfig{host_id: "Nxxx"})
   """
   @spec new(HostCore.WasmCloud.Runtime.Config.t()) :: {:ok, __MODULE__.t()} | {:error, binary()}
   def new(%HostCore.WasmCloud.Runtime.Config{} = config) do
@@ -53,6 +53,11 @@ defmodule HostCore.WasmCloud.Runtime do
     end
   end
 
+  @doc """
+  Has the underlying Rust SDK precompile an actor. Note that this is called "start" to be consistent with
+  the terminology throughout the rest of the host, but the wasmCloud SDK is responsible for determining what
+  this means. As such, this will precompile a modul/component and return a reference to it.
+  """
   def start_actor(%__MODULE__{resource: rtresource}, bytes) do
     case HostCore.WasmCloud.Native.start_actor(rtresource, bytes) do
       {:error, err} -> {:error, err}
