@@ -14,4 +14,14 @@ RUN . /root/.cargo/env \
 FROM ubuntu:20.04
 COPY --from=0 /opt/app/host_core/_build/prod/rel/bakeware/host_core /usr/local/bin/host_core
 
+ENV LANGUAGE en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+
+RUN mkdir -p /root/.cache \
+    && apt-get update \
+    && echo "en_US UTF-8" > /etc/locale.gen \
+    && apt-get install -y locales \
+    && rm -rf /var/lib/apt/*
+
 CMD ["/usr/local/bin/host_core"]
