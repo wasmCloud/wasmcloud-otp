@@ -11,6 +11,7 @@ SECRET_KEY_BASE ?= $(shell mix phx.gen.secret)
 
 BASE_ARGS ?= --build-arg APP_NAME=$(NAME) --build-arg APP_VSN=$(VERSION) --build-arg SECRET_KEY_BASE=$(SECRET_KEY_BASE) --build-arg SKIP_PHOENIX=$(SKIP_PHOENIX)
 BASE_TAGS ?= -t $(NAME):$(VERSION)-$(BUILD) -t $(NAME):$(TAG)
+BASE_TAGS_STATIC ?= -t $(NAME):$(VERSION)-$(BUILD)-static -t $(NAME):$(TAG)-static
 
 help:  ## Display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_\-.*]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -43,7 +44,7 @@ build-image-static: build esbuild ## build statically compiled docker image
 	&& docker build -f Dockerfile.localstatic -t localstatic . \
 	&& docker build $(BASE_ARGS) \
 		--build-arg MIX_ENV=prod \
-		$(BASE_TAGS) \
+		$(BASE_TAGS_STATIC) \
 		-f $(DOCKERFILESTATIC) \
 		.
 
