@@ -35,13 +35,10 @@ defmodule HostCore.Actors.ActorModule do
     """
 
     defstruct [
+      # NIF reference wrapper for the compiled module/component managed by the wasmCloud Rust crate
       :actor_reference,
-      :rtpid,
-      :guest_request,
-      :guest_response,
-      :host_response,
-      :guest_error,
-      :host_error,
+      # PID of the HostCore.WasmCloud.Runtime.Server GenServer that provides access to the underlying runtime
+      :runtime_pid,
       :instance,
       :instance_id,
       :annotations,
@@ -200,11 +197,11 @@ defmodule HostCore.Actors.ActorModule do
       instance_id = Agent.get(agent, fn content -> content.instance_id end)
       Tracer.set_attribute("instance_id", instance_id)
 
-      rtpid = Agent.get(agent, fn a -> a.rtpid end)
+      runtime_pid = Agent.get(agent, fn a -> a.runtime_pid end)
 
       # TODO: do we need to make a call into the runtime to "un"compile the previous
       # actor reference's bytes, e.g. `uncache_actor(old_aref)`
-      case HostCore.WasmCloud.Runtime.Server.precompile_actor(rtpid, bytes) do
+      case HostCore.WasmCloud.Runtime.Server.precompile_actor(runtime_pid, bytes) do
         {:ok, aref} ->
           publish_actor_updated(
             config.lattice_prefix,
@@ -623,9 +620,9 @@ defmodule HostCore.Actors.ActorModule do
     Logger.info("Starting actor #{claims.public_key}")
 
     {:ok, {pid, _}} = HostCore.Vhost.VirtualHost.lookup(host_id)
-    rtpid = HostCore.Vhost.VirtualHost.get_runtime(pid)
+    runtime_pid = HostCore.Vhost.VirtualHost.get_runtime(pid)
 
-    case HostCore.WasmCloud.Runtime.Server.precompile_actor(rtpid, bytes) do
+    case HostCore.WasmCloud.Runtime.Server.precompile_actor(runtime_pid, bytes) do
       {:ok, aref} ->
         iid = UUID.uuid4()
         ClaimsManager.put_claims(host_id, lattice_prefix, claims)
@@ -637,7 +634,7 @@ defmodule HostCore.Actors.ActorModule do
           %State{
             actor_reference: aref,
             ociref: oci,
-            rtpid: rtpid,
+            runtime_pid: runtime_pid,
             claims: claims,
             instance_id: iid,
             healthy: false,
@@ -666,11 +663,11 @@ defmodule HostCore.Actors.ActorModule do
   defp perform_runtime_invocation(token, agent) do
     operation = token.invocation["operation"]
     payload = IO.iodata_to_binary(token.invocation["msg"])
-    rtpid = Agent.get(agent, fn a -> a.rtpid end)
+    runtime_pid = Agent.get(agent, fn a -> a.runtime_pid end)
     aref = Agent.get(agent, fn a -> a.actor_reference end)
 
     ir =
-      case HostCore.WasmCloud.Runtime.Server.invoke_actor(rtpid, aref, operation, payload) do
+      case HostCore.WasmCloud.Runtime.Server.invoke_actor(runtime_pid, aref, operation, payload) do
         {:ok, msg} ->
           chunk_inv_response(%{
             msg: msg,
