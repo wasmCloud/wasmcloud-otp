@@ -22,4 +22,14 @@ RUN . /root/.cargo/env \
 FROM ubuntu:20.04
 COPY --from=0 /opt/app/wasmcloud_host/_build/prod/rel/bakeware/wasmcloud_host /usr/local/bin/wasmcloud_host
 
+ENV LANGUAGE en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+
+RUN mkdir -p /root/.cache \
+    && apt-get update \
+    && echo "en_US UTF-8" > /etc/locale.gen \
+    && apt-get install -y locales ca-certificates \
+    && rm -rf /var/lib/apt/*
+
 CMD ["/usr/local/bin/wasmcloud_host"]

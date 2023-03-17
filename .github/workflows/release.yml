@@ -379,7 +379,8 @@ jobs:
           # cp ${{ env.arm-tarball-static }} /aarch64temp/
           # EOF
           docker run --rm --platform linux/amd64 -iv ${PWD}:/amd64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
-          tar czvf ${{ env.amd-tarball-static }} /usr/local/bin/wasmcloud_host
+          cd /usr/local/bin
+          tar -czvf ${{ env.amd-tarball-static }} ./wasmcloud_host
           cp ${{ env.amd-tarball-static }} /amd64temp/
           EOF
       - name: Upload artifact (arm64)
