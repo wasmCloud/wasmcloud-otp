@@ -36,7 +36,7 @@ jobs:
           wget https://github.com/cross-rs/cross/releases/download/v0.2.4/cross-x86_64-unknown-linux-gnu.tar.gz
           tar -xf cross-x86_64-unknown-linux-gnu.tar.gz
           chmod +x cross
-          ./cross build --release --target ${{ matrix.target }}
+          ./cross build +nightly --release --target ${{ matrix.target }}
         working-directory: ${{ env.working-directory }}
 
       - name: Upload nif to GH Actions
