@@ -190,4 +190,53 @@ defmodule HostCore.ProvidersTest do
 
     assert ProviderSupervisor.all_providers(config.host_key) == []
   end
+
+  test "emits health events on wasmbus.evt", %{
+    :evt_watcher => evt_watcher,
+    :hconfig => config,
+    :host_pid => pid
+  } do
+    on_exit(fn -> cleanup(pid, config) end)
+
+    {:ok, _pid} =
+      ProviderSupervisor.start_provider_from_file(
+        config.host_key,
+        @httpserver_path,
+        @httpserver_link,
+        %{
+          "is_testing" => "youbetcha"
+        }
+      )
+
+    {:ok, par} = Native.par_from_path(@httpserver_path, @httpserver_link)
+    httpserver_key = par.claims.public_key
+    httpserver_contract = par.contract_id
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_provider_start(
+        evt_watcher,
+        httpserver_contract,
+        @httpserver_link,
+        httpserver_key
+      )
+
+    :ok = HostCoreTest.EventWatcher.wait_for_event(evt_watcher, "health_check_passed")
+
+    # wait for the health statys message which is sent every 30 seconds
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_event(evt_watcher, "health_check_status", %{}, 1, 35_000)
+
+    ProviderSupervisor.terminate_provider(
+      config.host_key,
+      httpserver_key,
+      @httpserver_link
+    )
+
+    :ok =
+      HostCoreTest.EventWatcher.wait_for_provider_stop(
+        evt_watcher,
+        @httpserver_link,
+        httpserver_key
+      )
+  end
 end
