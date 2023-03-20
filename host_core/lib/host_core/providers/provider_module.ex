@@ -431,6 +431,7 @@ defmodule HostCore.Providers.ProviderModule do
   defp publish_health_event(state, evt) do
     %{
       public_key: state.public_key,
+      contract_id: state.contract_id,
       link_name: state.link_name
     }
     |> CloudEvent.new(evt, state.host_id)
