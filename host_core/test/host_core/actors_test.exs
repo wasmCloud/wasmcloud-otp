@@ -470,7 +470,6 @@ defmodule HostCore.ActorsTest do
       {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @pinger_key)
 
-      Process.sleep(2_000)
 
       seed = config.cluster_seed
 

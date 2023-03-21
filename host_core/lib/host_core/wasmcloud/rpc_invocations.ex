@@ -106,6 +106,11 @@ defmodule HostCore.WasmCloud.RpcInvocations do
     %{token | verified: verified}
   end
 
+  # Reject verification of tokens that have no identified target
+  def verify_link(%{target: nil} = token) do
+    %{token | verified: false}
+  end
+
   # RPC
 
   # Deny invocation due to missing link definition for a contract ID and link name
