@@ -60,6 +60,7 @@ impl Handle<HostInvocation> for ElixirHandler {
         //let caller_token = set_caller(...);
         //let caller_token = 12;
 
+        let op = invocation.operation.clone();
         let mut msg_env = OwnedEnv::new();
         msg_env.send_and_clear(&self.pid.clone(), |env| {
             (
@@ -84,10 +85,10 @@ impl Handle<HostInvocation> for ElixirHandler {
             .expect("expect callback token to contain a result");
         match result {
             (true, return_value) => Ok(Some(return_value.clone())),
-            (false, _) => {
+            (false, e) => {
                 // TODO: verify whether we should return none here or use an Err
                 error!("Elixir callback threw an exception.");
-                Ok(None)
+                Err(anyhow::anyhow!("Host call function failed: {e:?}").into())
             }
         }
     }
@@ -184,7 +185,8 @@ fn execute_call_actor(
         .unwrap_or_else(|_| "could not load 'from' param".encode(thread_env));
 
     // Invoke the actor within a tokio blocking spawn because the wasmCloud runtime is async
-    let response = TOKIO.block_on(async { component.actor.call(operation, Some(payload)).await });
+    let response =
+        TOKIO.block_on(async { component.actor.call(operation.clone(), Some(payload)).await });
 
     match response {
         Ok(opt_data) => {

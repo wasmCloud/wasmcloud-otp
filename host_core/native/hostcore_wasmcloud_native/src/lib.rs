@@ -207,7 +207,7 @@ fn get_provider_bindle(
         let bindle_id = crate::client::normalize_bindle_id(&bindle_id);
         // Get the invoice first
         let inv = bindle_client.get_invoice(bindle_id).await.map_err(|e| {
-            println!("{:?}", e);
+            eprintln!("{:?}", e);
             to_rustler_err(e)
         })?;
         // Now filter to figure out which parcels to get (should only get the claims and the provider based on arch)

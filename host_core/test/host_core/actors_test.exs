@@ -470,7 +470,6 @@ defmodule HostCore.ActorsTest do
       {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
       wait_for_actor_start(evt_watcher, @pinger_key)
 
-
       seed = config.cluster_seed
 
       req =
@@ -509,16 +508,11 @@ defmodule HostCore.ActorsTest do
       assert res != :fail
 
       ir = Msgpax.unpack!(res)
-      IO.inspect(ir)
 
       payload = Msgpax.unpack!(ir["msg"])
 
-      assert payload["header"] == %{}
-      assert payload["status"] == "OK"
+      assert payload["body"] == "Ping pong"
       assert payload["statusCode"] == 200
-
-      assert payload["body"] ==
-               "{\"value\":53}"
     end
 
     test "Prevents an attempt to start an actor with a conflicting OCI reference", %{

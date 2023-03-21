@@ -127,17 +127,21 @@ defmodule HostCore.WasmCloud.Runtime.Server do
         {:invoke_callback, claims, binding, namespace, operation, payload, token},
         {_runtime, config} = state
       ) do
-    # This callback is invoked by the wasmcloud::Runtime's host call handler
-    payload = payload |> IO.iodata_to_binary()
-    # TODO
-    {success, return_value} =
-      try do
-        do_invocation(claims, binding, namespace, operation, payload, config)
-      rescue
-        e in RuntimeError -> {false, e.message}
-      end
+    Task.Supervisor.start_child(RuntimeCallSupervisor, fn ->
+      # This callback is invoked by the wasmcloud::Runtime's host call handler
+      payload = payload |> IO.iodata_to_binary()
 
-    :ok = HostCore.WasmCloud.Native.instance_receive_callback_result(token, success, return_value)
+      {success, return_value} =
+        try do
+          do_invocation(claims, binding, namespace, operation, payload, config)
+        rescue
+          e in RuntimeError -> {false, e.message}
+        end
+
+      :ok =
+        HostCore.WasmCloud.Native.instance_receive_callback_result(token, success, return_value)
+    end)
+
     {:noreply, state}
   end
 
