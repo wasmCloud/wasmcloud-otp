@@ -11,9 +11,39 @@ env:
   elixir-version: 1.14.3
 
 jobs:
+  create-static-macos:
+    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    name: Static macOS release
+    strategy:
+      matrix: 
+        os: [macos-11]
+        include:
+          - os: macos-11
+            rust-target: x86_64-apple-darwin
+            release-tarball: x86_64-macos-static.tar.gz
+            working-directory: wasmcloud_host
+    runs-on: ${{ matrix.os }}
+    env:
+      working-directory: ${{ matrix.working-directory }}
+      MIX_ENV: release_prod
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: run macos script
+        shell: bash
+        run: |
+          bash .github/workflows/static_macos
+          tar -czvf ${{ matrix.release-tarball }} -C wasmcloud_host/_build/prod/rel/bakeware wasmcloud_host
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.release-tarball }}
+          path: ${{ matrix.release-tarball }}
+
   create-mix-releases:
     # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ (startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && startswith(github.repository.name, 'wasmcloud') }}
     name: Mix release
     strategy:
       fail-fast: false
@@ -312,8 +342,7 @@ jobs:
           # cp ${{ env.arm-tarball-static }} /aarch64temp/
           # EOF
           docker run --rm --platform linux/amd64 -iv ${PWD}:/amd64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
-          cd /usr/local/bin
-          tar -czvf ${{ env.amd-tarball-static }} ./wasmcloud_host
+          tar -czvf ${{ env.amd-tarball-static }} --directory /usr/local/bin wasmcloud_host
           cp ${{ env.amd-tarball-static }} /amd64temp/
           EOF
       - name: Upload artifact (arm64)
@@ -352,7 +381,7 @@ jobs:
           draft: false
 
   release-charts:
-    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ (startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && startswith(github.repository.name, 'wasmcloud') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
