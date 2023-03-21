@@ -1,13 +1,16 @@
 #[macro_use]
 extern crate rustler;
 
+use futures::Future;
 use lazy_static::lazy_static;
 use nats::object_store::ObjectStore;
 use nats::{Connection, JetStreamOptions};
+use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::RwLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::task::JoinHandle;
 
 use bindle::{filters::BindleFilter, provider::Provider};
 use chrono::NaiveDateTime;
@@ -20,14 +23,31 @@ use wascap::prelude::*;
 
 mod atoms;
 mod client;
+mod environment;
 mod inv;
 mod objstore;
 mod oci;
 mod par;
 mod task;
+mod wasmruntime;
 
 lazy_static! {
     static ref CHUNKING_STORE: RwLock<Option<ObjectStore>> = RwLock::new(None);
+}
+
+// Static tokio runtime required for the NIF to interact with async Rust APIs
+static TOKIO: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .build()
+        .expect("Failed to start tokio runtime")
+});
+
+pub(crate) fn spawn<T>(task: T) -> JoinHandle<T::Output>
+where
+    T: Future + Send + 'static,
+    T::Output: Send + 'static,
+{
+    TOKIO.spawn(task)
 }
 
 const CHONKY_THRESHOLD_BYTES: usize = 1024 * 700; // 700KB
@@ -63,6 +83,29 @@ pub struct Claims {
 impl From<wascap::jwt::Claims<wascap::jwt::CapabilityProvider>> for crate::Claims {
     fn from(c: wascap::jwt::Claims<wascap::jwt::CapabilityProvider>) -> Self {
         provider_claims_to_crate_claims(c)
+    }
+}
+
+impl From<wascap::jwt::Claims<wascap::jwt::Actor>> for crate::Claims {
+    fn from(c: wascap::jwt::Claims<wascap::jwt::Actor>) -> Self {
+        actor_claims_to_crate_claims(c)
+    }
+}
+
+pub(crate) fn actor_claims_to_crate_claims(c: wascap::jwt::Claims<wascap::jwt::Actor>) -> Claims {
+    let metadata = c.metadata.unwrap_or_default();
+    let revision = revision_or_iat(metadata.rev, c.issued_at);
+    Claims {
+        issuer: c.issuer,
+        public_key: c.subject,
+        revision,
+        tags: None,
+        version: metadata.ver,
+        caps: metadata.caps,
+        name: metadata.name,
+        expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
+        not_before_human: stamp_to_human(c.not_before).unwrap_or_else(|| "immediately".to_string()),
+        ..Default::default()
     }
 }
 
@@ -119,6 +162,11 @@ rustler::init!(
         pk_from_seed,
         get_provider_bindle,
         get_actor_bindle,
+        wasmruntime::new,
+        wasmruntime::version,
+        wasmruntime::start_actor,
+        wasmruntime::call_actor,
+        wasmruntime::receive_callback_result
     ],
     load = load
 );
@@ -159,7 +207,7 @@ fn get_provider_bindle(
         let bindle_id = crate::client::normalize_bindle_id(&bindle_id);
         // Get the invoice first
         let inv = bindle_client.get_invoice(bindle_id).await.map_err(|e| {
-            println!("{:?}", e);
+            eprintln!("{:?}", e);
             to_rustler_err(e)
         })?;
         // Now filter to figure out which parcels to get (should only get the claims and the provider based on arch)
@@ -571,6 +619,9 @@ async fn get_provider_file(path: &str) -> Result<Option<tokio::fs::File>, Error>
 
 fn load(env: rustler::Env, _: rustler::Term) -> bool {
     par::on_load(env);
+    wasmruntime::on_load(env);
+    environment::on_load(env);
+
     true
 }
 

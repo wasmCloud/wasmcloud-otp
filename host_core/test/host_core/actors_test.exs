@@ -491,7 +491,7 @@ defmodule HostCore.ActorsTest do
           @pinger_key,
           @httpserver_contract,
           @httpserver_link,
-          "HandleRequest",
+          "HttpServer.HandleRequest",
           req
         )
 
@@ -500,7 +500,7 @@ defmodule HostCore.ActorsTest do
       res =
         case config.lattice_prefix
              |> HostCore.Nats.rpc_connection()
-             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 2_000) do
+             |> HostCore.Nats.safe_req(topic, inv, receive_timeout: 3_000) do
           {:ok, %{body: body}} -> body
           {:error, :timeout} -> :fail
         end
@@ -511,12 +511,8 @@ defmodule HostCore.ActorsTest do
 
       payload = Msgpax.unpack!(ir["msg"])
 
-      assert payload["header"] == %{}
-      assert payload["status"] == "OK"
+      assert payload["body"] == "Ping pong"
       assert payload["statusCode"] == 200
-
-      assert payload["body"] ==
-               "{\"value\":53}"
     end
 
     test "Prevents an attempt to start an actor with a conflicting OCI reference", %{

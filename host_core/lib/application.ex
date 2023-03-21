@@ -105,6 +105,7 @@ defmodule HostCore.Application do
       {Task.Supervisor, name: HostTaskSupervisor},
       {Task.Supervisor, name: ProviderTaskSupervisor},
       {Task.Supervisor, name: InvocationTaskSupervisor},
+      {Task.Supervisor, name: RuntimeCallSupervisor},
       {HostCore.Actors.ActorRpcSupervisor, strategy: :one_for_one},
       {HostCore.Providers.ProviderSupervisor, strategy: :one_for_one, name: ProviderRoot},
       {HostCore.Actors.ActorSupervisor,

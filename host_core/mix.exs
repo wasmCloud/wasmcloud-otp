@@ -1,7 +1,7 @@
 defmodule HostCore.MixProject do
   use Mix.Project
 
-  @app_vsn "0.61.0"
+  @app_vsn "0.62.0"
 
   def project do
     [
@@ -51,7 +51,6 @@ defmodule HostCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     list = [
-      {:wasmex, "~> 0.7.0"},
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.24.0"},
       {:timex, "~> 3.7"},

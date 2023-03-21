@@ -18,7 +18,7 @@ defmodule HostCoreTest.Constants do
   @kvcounter_unpriv_filepath "file://test/fixtures/actors/kvcounter_unpriv_s.wasm"
 
   @pinger_path "test/fixtures/actors/pinger_s.wasm"
-  @pinger_key "MDVMDDZP7QZH2T2447DZWX2GJ4563VTTKHQ26R6GNMDYMOUBR2EP3JFL"
+  @pinger_key "MBXTD7YXTTV7IURPDDACK3E6YZ2XPJNSG3LQQRHUCHJVZ54F6E4FMB3B"
 
   @policy_path "test/fixtures/actors/example_policy_s.wasm"
   @policy_key "MCX7HXCVATHJQRQLCCKV57R34V726FYRTDQL2QKPHXLYFWGOUE2LWRE3"

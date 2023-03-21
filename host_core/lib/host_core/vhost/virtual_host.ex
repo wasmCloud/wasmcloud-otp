@@ -36,12 +36,13 @@ defmodule HostCore.Vhost.VirtualHost do
 
     @type t :: %State{
             config: Configuration.t(),
-            friendly_name: String.t(),
+            wasm_runtime: pid(),
+            friendly_name: binary(),
             labels: map(),
             start_time: non_neg_integer(),
             supplemental_config: map() | nil
           }
-    defstruct [:config, :friendly_name, :start_time, :labels, :supplemental_config]
+    defstruct [:config, :friendly_name, :start_time, :labels, :supplemental_config, :wasm_runtime]
   end
 
   @doc """
@@ -55,7 +56,7 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   @impl true
-  @spec init(config :: HostCore.Vhost.Configuration.t()) ::
+  @spec init(Configuration.t()) ::
           {:ok, HostCore.Vhost.VirtualHost.State.t(),
            {:continue, :load_supp_config | :publish_started}}
   def init(config) do
@@ -109,6 +110,16 @@ defmodule HostCore.Vhost.VirtualHost do
       ]
     })
 
+    # TODO - gracefully bail if the runtime couldn't be started
+    {:ok, runtime} =
+      HostCore.WasmCloud.Runtime.Server.start_link(%HostCore.WasmCloud.Runtime.Config{
+        host_id: config.host_key
+      })
+
+    Logger.info(
+      "Started wasmCloud internal wasm runtime v#{HostCore.WasmCloud.Runtime.Server.version(runtime)}"
+    )
+
     HostCore.Vhost.Heartbeats.start_link(self(), config.host_key)
 
     {wclock, _} = :erlang.statistics(:wall_clock)
@@ -124,7 +135,8 @@ defmodule HostCore.Vhost.VirtualHost do
       friendly_name: friendly_name,
       start_time: wclock,
       labels: labels,
-      supplemental_config: nil
+      supplemental_config: nil,
+      wasm_runtime: runtime
     }
 
     if config.config_service_enabled do
@@ -189,6 +201,10 @@ defmodule HostCore.Vhost.VirtualHost do
       [{pid, value}] ->
         {:ok, {pid, value}}
     end
+  end
+
+  def get_runtime(pid) when is_pid(pid) do
+    GenServer.call(pid, :get_runtime)
   end
 
   # Obtains -registry- credentials
@@ -331,6 +347,11 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   # Callbacks
+  @impl true
+  def handle_call(:get_runtime, _from, state) do
+    {:reply, state.wasm_runtime, state}
+  end
+
   @impl true
   def handle_call(:purge, _from, state) do
     do_purge(state)

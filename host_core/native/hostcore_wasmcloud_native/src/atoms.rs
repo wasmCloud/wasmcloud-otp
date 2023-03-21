@@ -18,4 +18,8 @@ rustler::atoms! {
     provider,
     //atom __true__ = "true";
     //atom __false__ = "false";
+
+    // calls to erlang processes
+    returned_function_call,
+    invoke_callback
 }

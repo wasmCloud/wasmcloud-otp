@@ -216,9 +216,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   def start_actor_from_file(host_id, fileref, count \\ 1, annotations \\ %{}) do
     config = VirtualHost.config(host_id)
 
-    if not config.enable_actor_from_fs do
-      {:error, "actor file loading is disabled"}
-    else
+    if config.enable_actor_from_fs do
       Tracer.with_span "Starting Actor from file", kind: :server do
         case File.read(String.trim_leading(fileref, "file://")) do
           {:error, err} ->
@@ -236,6 +234,8 @@ defmodule HostCore.Actors.ActorSupervisor do
             |> start_actor(host_id, fileref, count, annotations)
         end
       end
+    else
+      {:error, "actor file loading is disabled"}
     end
   end
 
@@ -243,66 +243,24 @@ defmodule HostCore.Actors.ActorSupervisor do
     {:ok, {pid, lattice_prefix}} = VirtualHost.lookup(host_id)
     config = VirtualHost.config(pid)
 
-    cond do
-      String.starts_with?(ref, "file://") ->
-        if not config.enable_actor_from_fs do
-          {:error, "actor from local filesystem is disabled"}
-        else
-          with {:ok, binary} <- File.read(String.trim_leading(ref, "file://")),
-               {:ok, new_claims} <- Native.extract_claims(binary),
-               {:ok, old_claims} <-
-                 HostCore.Claims.Manager.lookup_claims(lattice_prefix, new_claims.public_key),
-               :ok <- validate_actor_for_update(old_claims, new_claims) do
-            HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, new_claims)
-
-            HostCore.Refmaps.Manager.put_refmap(
-              host_id,
-              lattice_prefix,
-              ref,
-              new_claims.public_key
-            )
-
-            targets = find_actor(new_claims.public_key, host_id)
-
-            Logger.info("Performing live update on #{length(targets)} instances",
-              actor_id: new_claims.public_key,
-              oci_ref: ref
-            )
-
-            Enum.each(targets, fn pid ->
-              ActorModule.live_update(
-                config,
-                pid,
-                binary,
-                new_claims,
-                ref,
-                span_ctx
-              )
-            end)
-
-            :ok
-          else
-            err -> {:error, err}
-          end
-        end
-
-      true ->
-        creds = VirtualHost.get_creds(host_id, :oci, ref)
-
-        with {:ok, bytes} <-
-               Native.get_oci_bytes(
-                 creds,
-                 ref,
-                 config.allow_latest,
-                 config.allowed_insecure
-               ),
-             {:ok, new_claims} <-
-               bytes |> IO.iodata_to_binary() |> Native.extract_claims(),
+    if String.starts_with?(ref, "file://") do
+      if not config.enable_actor_from_fs do
+        {:error, "actor from local filesystem is disabled"}
+      else
+        with {:ok, binary} <- File.read(String.trim_leading(ref, "file://")),
+             {:ok, new_claims} <- Native.extract_claims(binary),
              {:ok, old_claims} <-
                HostCore.Claims.Manager.lookup_claims(lattice_prefix, new_claims.public_key),
              :ok <- validate_actor_for_update(old_claims, new_claims) do
           HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, new_claims)
-          HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, ref, new_claims.public_key)
+
+          HostCore.Refmaps.Manager.put_refmap(
+            host_id,
+            lattice_prefix,
+            ref,
+            new_claims.public_key
+          )
+
           targets = find_actor(new_claims.public_key, host_id)
 
           Logger.info("Performing live update on #{length(targets)} instances",
@@ -310,14 +268,11 @@ defmodule HostCore.Actors.ActorSupervisor do
             oci_ref: ref
           )
 
-          # Each spawned function is a new process, therefore a new root trace
-          # this is why we pass the span context so all child updates roll up
-          # to the current trace
           Enum.each(targets, fn pid ->
             ActorModule.live_update(
               config,
               pid,
-              IO.iodata_to_binary(bytes),
+              binary,
               new_claims,
               ref,
               span_ctx
@@ -328,6 +283,49 @@ defmodule HostCore.Actors.ActorSupervisor do
         else
           err -> {:error, err}
         end
+      end
+    else
+      creds = VirtualHost.get_creds(host_id, :oci, ref)
+
+      with {:ok, bytes} <-
+             Native.get_oci_bytes(
+               creds,
+               ref,
+               config.allow_latest,
+               config.allowed_insecure
+             ),
+           {:ok, new_claims} <-
+             bytes |> IO.iodata_to_binary() |> Native.extract_claims(),
+           {:ok, old_claims} <-
+             HostCore.Claims.Manager.lookup_claims(lattice_prefix, new_claims.public_key),
+           :ok <- validate_actor_for_update(old_claims, new_claims) do
+        HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, new_claims)
+        HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, ref, new_claims.public_key)
+        targets = find_actor(new_claims.public_key, host_id)
+
+        Logger.info("Performing live update on #{length(targets)} instances",
+          actor_id: new_claims.public_key,
+          oci_ref: ref
+        )
+
+        # Each spawned function is a new process, therefore a new root trace
+        # this is why we pass the span context so all child updates roll up
+        # to the current trace
+        Enum.each(targets, fn pid ->
+          ActorModule.live_update(
+            config,
+            pid,
+            IO.iodata_to_binary(bytes),
+            new_claims,
+            ref,
+            span_ctx
+          )
+        end)
+
+        :ok
+      else
+        err -> {:error, err}
+      end
     end
   end
 

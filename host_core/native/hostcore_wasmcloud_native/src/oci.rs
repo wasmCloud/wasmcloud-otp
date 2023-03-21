@@ -1,8 +1,8 @@
+use oci_distribution::secrets::RegistryAuth;
 use std::collections::HashMap;
 use std::env::{temp_dir, var};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use oci_distribution::secrets::RegistryAuth;
 use tokio::io::AsyncWriteExt;
 
 pub(crate) const OCI_VAR_REGISTRY: &str = "OCI_REGISTRY";
