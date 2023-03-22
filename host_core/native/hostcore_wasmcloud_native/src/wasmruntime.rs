@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use log::{error, trace};
 use rand::{thread_rng, Rng, RngCore};
 
-use crate::{environment::CallbackToken, TOKIO};
+use crate::environment::CallbackToken;
 use rustler::{
     env::{OwnedEnv, SavedTerm},
     resource::ResourceArc,
@@ -11,10 +11,7 @@ use rustler::{
     Binary, Encoder, Env, Error, LocalPid, NifResult, Term,
 };
 
-use std::{
-    sync::{Condvar, Mutex},
-    thread,
-};
+use std::sync::{Condvar, Mutex};
 use wascap::jwt;
 use wasmcloud::{
     capability, logging, numbergen, Actor, Handle, HostInvocation, LoggingInvocation,
@@ -206,8 +203,9 @@ pub fn start_actor<'a>(
     Ok(ResourceArc::new(ar))
 }
 
-// NOTE: wasmex uses dirtycpu here. should we use dirty IO ?
-#[rustler::nif(name = "call_actor", schedule = "DirtyCpu")]
+// This does not need to be on a dirty scheduler as it simply spawns a TOKIO
+// task and returns, never taking more than a millisecond
+#[rustler::nif(name = "call_actor")]
 pub fn call_actor<'a>(
     env: rustler::Env<'a>,
     component: ResourceArc<ActorResource>,
@@ -223,16 +221,14 @@ pub fn call_actor<'a>(
     let operation = operation.to_owned();
 
     // ref: https://github.com/tessi/wasmex/issues/256
-    // here we spawn a thread, do the work of the actor invocation,
+    // here we spawn a TOKIO task, do the work of the actor invocation,
     // and use other sync mechanisms to finish the work and send
     // the results to the caller (the `from` field)
 
-    // this sends the result of `execute_call_actor` to the pid of the server that invoked this.
-    // in turn, the thing that handles :returned_function_call should then be able to GenServer.reply
-    // to the value of from... (but that's not working right now)
-    thread::spawn(move || {
+    crate::spawn(async move {
+        let response = component.actor.call(operation, Some(payload)).await;
         thread_env.send_and_clear(&pid, |thread_env| {
-            execute_call_actor(thread_env, component, operation.to_string(), payload, from)
+            send_actor_call_response(thread_env, from, response)
         });
     });
 
@@ -241,21 +237,15 @@ pub fn call_actor<'a>(
     atoms::ok()
 }
 
-fn execute_call_actor(
+fn send_actor_call_response(
     thread_env: Env,
-    component: ResourceArc<ActorResource>,
-    operation: String,
-    payload: Vec<u8>,
     from: SavedTerm,
+    response: anyhow::Result<Result<Option<Vec<u8>>, String>>,
 ) -> Term {
     let from = from
         .load(thread_env)
         .decode::<Term>()
         .unwrap_or_else(|_| "could not load 'from' param".encode(thread_env));
-
-    // Invoke the actor within a tokio blocking spawn because the wasmCloud runtime is async
-    let response =
-        TOKIO.block_on(async { component.actor.call(operation.clone(), Some(payload)).await });
 
     match response {
         Ok(opt_data) => {
