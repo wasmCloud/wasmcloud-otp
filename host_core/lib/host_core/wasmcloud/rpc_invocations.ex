@@ -12,6 +12,7 @@ defmodule HostCore.WasmCloud.RpcInvocations do
   @chunk_threshold 900 * 1024
   @chunk_rpc_timeout 15_000
   @rpc_event_prefix "wasmbus.rpcevt"
+  @url_scheme "wasmbus"
 
   # TARGET
 
@@ -149,32 +150,91 @@ defmodule HostCore.WasmCloud.RpcInvocations do
           target: {target_type, target_key, target_subject}
         } = token
       ) do
+    content_length = byte_size(payload)
+
     timeout =
-      if byte_size(payload) > @chunk_threshold do
+      if content_length > @chunk_threshold do
         @chunk_rpc_timeout
       else
         config = VirtualHost.config(host_id)
         config.rpc_timeout_ms
       end
 
-    # generate_invocation_bytes will optionally chunk out the payload
-    # to the object store
-
     # produce a hash map containing the propagated trace context suitable for
     # storing on an invocation
+    inv_id = UUID.uuid4()
+
+    origin = %{
+      public_key: actor,
+      contract_id: "",
+      link_name: ""
+    }
+
+    target =
+      if target_type == :actor do
+        %{
+          public_key: target_key,
+          contract_id: "",
+          link_name: ""
+        }
+      else
+        %{
+          public_key: target_key,
+          contract_id: namespace,
+          link_name: binding
+        }
+      end
+
+    {:ok, {host_id, encoded_claims}} =
+      Native.encoded_claims(
+        seed,
+        inv_id,
+        "#{inv_url(target)}/#{operation}",
+        inv_url(origin),
+        payload,
+        operation
+      )
+
+    inv = %{
+      origin: origin,
+      target: target,
+      operation: operation,
+      id: inv_id,
+      encoded_claims: encoded_claims,
+      host_id: host_id,
+      content_length: content_length
+    }
+
+    inv =
+      if content_length >= @chunk_threshold do
+        Native.chunk_inv(inv_id, payload)
+        # When the invocation is chunked, we retrieve the msg bytes from the object
+        # store. The msg is disregarded and can be an empty array
+        inv
+        |> Map.put(:msg, [])
+      else
+        inv
+        |> Map.put(:msg, payload)
+      end
 
     invocation_res =
-      seed
-      |> Native.generate_invocation_bytes(
-        actor,
-        target_type,
-        target_key,
-        namespace,
-        binding,
-        operation,
-        payload
-      )
+      inv
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
       |> perform_rpc_invoke(target_subject, timeout, prefix)
+
+    # invocation_res =
+    #   seed
+    #   |> Native.generate_invocation_bytes(
+    #     actor,
+    #     target_type,
+    #     target_key,
+    #     namespace,
+    #     binding,
+    #     operation,
+    #     payload
+    #   )
+    #   |> perform_rpc_invoke(target_subject, timeout, prefix)
 
     # unpack_invocation_response will optionally de-chunk the response payload
     # from the object store
@@ -324,4 +384,17 @@ defmodule HostCore.WasmCloud.RpcInvocations do
 
   def update_tracer_status({:error, %{error: e}}), do: Tracer.set_status(:error, e)
   def update_tracer_status({:ok, _}), do: Tracer.set_status(:ok, "")
+
+  # Helper function to determine the URL of a wasmCloud entity
+  def inv_url(%{public_key: public_key, contract_id: contract_id, link_name: link_name}) do
+    if public_key |> String.upcase() |> String.starts_with?("M") do
+      "#{@url_scheme}://#{public_key}"
+    else
+      contract_id =
+        contract_id |> String.replace(":", "/") |> String.replace(" ", "_") |> String.downcase()
+
+      link_name = link_name |> String.replace(" ", "_") |> String.downcase()
+      "#{@url_scheme}://#{contract_id}/#{link_name}/#{public_key}"
+    end
+  end
 end
