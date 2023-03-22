@@ -262,7 +262,7 @@ defmodule HostCore.WasmCloud.RpcInvocations do
       Tracer.set_attribute("lattice_id", prefix)
 
       case prefix
-           |> HostCore.Nats.control_connection()
+           |> HostCore.Nats.rpc_connection()
            |> HostCore.Nats.safe_req(target_subject, inv_bytes, receive_timeout: timeout) do
         {:ok, %{body: body}} ->
           Tracer.set_status(:ok, "")
