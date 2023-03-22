@@ -52,9 +52,9 @@ defmodule HostCore.MixProject do
   defp deps do
     list = [
       {:msgpax, "~> 2.3"},
-      {:rustler, "~> 0.24.0"},
+      {:rustler, "~> 0.27.0"},
       {:timex, "~> 3.7"},
-      {:jason, "~> 1.2.2"},
+      {:jason, "~> 1.4.0"},
       {:gnat, "~> 1.6.0"},
       {:cloudevents, "~> 0.6.1"},
       {:uuid, "~> 1.1"},
