@@ -45,7 +45,6 @@ defmodule HostCore.Actors.ActorRpcServer do
 
           case GenServer.call(pid, {:handle_incoming_rpc, msg}) do
             {:ok, resp} ->
-              []
               {:reply, resp}
 
             _ ->

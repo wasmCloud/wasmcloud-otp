@@ -189,6 +189,7 @@ pub fn version(runtime_resource: ResourceArc<RuntimeResource>) -> Result<String,
 
 /// Called from the Elixir native wrapper which is in turn wrapped by the Wasmcloud.Runtime.Server GenServer
 #[rustler::nif(name = "start_actor")]
+#[allow(unused_variables)]
 pub fn start_actor<'a>(
     env: rustler::Env<'a>,
     runtime_resource: ResourceArc<RuntimeResource>,
