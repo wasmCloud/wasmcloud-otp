@@ -271,7 +271,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Determine version
-        run: echo "app-version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+        run: echo "app-version=$GITHUB_REF_NAME" > $GITHUB_ENV
 
       # Compile phoenix assets for wasmcloud_host outside of image (dart-sass doesn't support arm linux)
       - name: Install erlang and elixir
