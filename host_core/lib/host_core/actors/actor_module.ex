@@ -368,7 +368,7 @@ defmodule HostCore.Actors.ActorModule do
           | inv_res: %{
               msg: <<>>,
               invocation_id: "",
-              error: "Failked to deserialize invocation",
+              error: "Failed to deserialize invocation",
               instance_id: token.iid
             }
         }
