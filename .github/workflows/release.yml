@@ -19,11 +19,13 @@ jobs:
       working-directory: ./host_core/native/hostcore_wasmcloud_native
       artifact-name: hostcore_wasmcloud_native
     strategy:
+      fail-fast: false
       matrix:
         target:
           - x86_64-unknown-linux-gnu
           - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-gnu
+          # https://github.com/wasmCloud/wasmcloud-otp/issues/589
+          # - aarch64-unknown-linux-gnu
           - aarch64-unknown-linux-musl
           - x86_64-apple-darwin
           - x86_64-pc-windows-gnu
@@ -256,7 +258,6 @@ jobs:
   # So, sorry about the code duplication, perhaps in the future we'll find a way to make this happen
   release-wasmcloud-docker:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    needs: compile-native-nif
     name: Release Image (wasmcloud_host)
     runs-on: ubuntu-22.04
     env:
@@ -293,17 +294,6 @@ jobs:
         run: |
           make esbuild
 
-      # Download the NIF in the path that Docker expects for x86
-      - uses: actions/download-artifact@v3
-        with:
-          path: ./host_core/priv/built/x86_64
-          name: x86_64-unknown-linux-gnu
-      # Download the NIF in the path that Docker expects for aarch64
-      - uses: actions/download-artifact@v3
-        with:
-          path: ./host_core/priv/built/aarch64
-          name: aarch64-unknown-linux-gnu
-
       - name: Login to AzureCR
         uses: azure/docker-login@v1
         with:
@@ -336,8 +326,8 @@ jobs:
             SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
             MIX_ENV=release_prod
           tags: |
-            wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}
             wasmcloud.azurecr.io/${{ env.app-name }}:latest
+            wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}
             wasmcloud/${{ env.app-name }}:${{ env.app-version }}
             wasmcloud/${{ env.app-name }}:latest
       - name: Build common static image
