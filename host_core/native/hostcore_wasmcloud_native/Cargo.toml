@@ -18,7 +18,7 @@ serde = {version = "1.0.126", features = ["derive"] }
 serde_bytes = "0.11.5"
 nkeys = "0.2.0"
 futures = "0.3.27"
-wascap = "0.10.0"
+wascap = "0.10.1"
 ring = "0.16.20"
 rand = "0.8.5"
 log = "0.4.17"
