@@ -1600,7 +1600,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "uuid",
- "wascap 0.10.0",
+ "wascap 0.10.1",
  "wasmcloud",
 ]
 
@@ -3985,9 +3985,9 @@ dependencies = [
 
 [[package]]
 name = "wascap"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86d4cb21a92b02469a7586135a2f52753815ff8599992744de5a9e7db54873b3"
+checksum = "f3a85c9ab66dd6a39400cc7235b803c8819c3b76405bce83f8e6c540a8abf89a"
 dependencies = [
  "base64 0.13.1",
  "data-encoding",
@@ -4272,7 +4272,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "wascap 0.10.0",
+ "wascap 0.10.1",
  "wasi-cap-std-sync 0.0.0",
  "wasi-common 0.0.0",
  "wasmbus-rpc",
