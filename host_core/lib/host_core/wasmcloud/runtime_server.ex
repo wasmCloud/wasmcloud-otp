@@ -69,11 +69,6 @@ defmodule HostCore.WasmCloud.Runtime.Server do
     GenServer.call(pid, {:invoke_actor, actor_reference, operation, payload})
   end
 
-  @impl true
-  def handle_call(:get_version, _from, {runtime, _config} = state) do
-    {:reply, HostCore.WasmCloud.Runtime.version(runtime), state}
-  end
-
   # calls into the NIF to invoke the given operation on the indicated actor instance
   @impl true
   def handle_call({:invoke_actor, actor_reference, operation, payload}, from, state) do
@@ -94,6 +89,11 @@ defmodule HostCore.WasmCloud.Runtime.Server do
     {:reply, HostCore.WasmCloud.Runtime.start_actor(runtime, bytes), state}
   end
 
+  @impl true
+  def handle_call(:get_version, _from, {runtime, _config} = state) do
+    {:reply, HostCore.WasmCloud.Runtime.version(runtime), state}
+  end
+
   # this gets called from inside the NIF to indicate that a function call has completed
   # the `from` here is the same from (via passthrough) that came from the
   # GenServer call to `:invoke_actor`
@@ -103,7 +103,7 @@ defmodule HostCore.WasmCloud.Runtime.Server do
     # so we need to turn the second element from a vec<u8> into a << ...>> binary
     {code, bindata} = result
 
-    bindata =
+    response_data =
       cond do
         is_nil(bindata) ->
           <<>>
@@ -115,9 +115,7 @@ defmodule HostCore.WasmCloud.Runtime.Server do
           IO.iodata_to_binary(bindata)
       end
 
-    result = {code, bindata}
-
-    GenServer.reply(from, result)
+    GenServer.reply(from, {code, response_data})
 
     {:noreply, state}
   end
