@@ -561,7 +561,7 @@ defmodule HostCore.Vhost.VirtualHost do
       ProviderSupervisor.start_provider_from_ref(
         state.config.host_key,
         prov["imageReference"],
-        prov["linkeName"]
+        prov["linkName"]
       )
     end
   end
