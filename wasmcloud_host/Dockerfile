@@ -81,10 +81,6 @@ RUN apt update && \
 RUN mix local.rebar --force && \
   mix local.hex --force
 
-# Grab platform-specific NIF if building with release_prod, otherwise install rust for building the NIF manually
-RUN if [ "$MIX_ENV" = "release_prod" ] ; then cp ./host_core/priv/built/`uname -m`/libhostcore_wasmcloud_native.so ./host_core/priv/built/libhostcore_wasmcloud_native.so ; else curl https://sh.rustup.rs -sSf | bash -s -- -y ; fi
-# Ensure intermediate artifacts don't get bundled into the final release
-RUN rm -rf host_core/priv/built/aarch64 host_core/priv/built/x86_64 host_core/priv/native
 # Set PATH to include Rust toolchain
 ENV PATH="/root/.cargo/bin:${PATH}"
 
