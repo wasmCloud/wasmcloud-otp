@@ -1581,7 +1581,6 @@ dependencies = [
  "chrono",
  "chrono-humanize",
  "data-encoding",
- "env_logger 0.10.0",
  "futures",
  "lazy_static",
  "log",

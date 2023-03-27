@@ -42,14 +42,6 @@ static TOKIO: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
         .expect("Failed to start tokio runtime")
 });
 
-pub(crate) fn spawn<T>(task: T) -> JoinHandle<T::Output>
-where
-    T: Future + Send + 'static,
-    T::Output: Send + 'static,
-{
-    TOKIO.spawn(task)
-}
-
 const CHONKY_THRESHOLD_BYTES: usize = 1024 * 700; // 700KB
 
 pub(crate) const CORELABEL_ARCH: &str = "hostcore.arch";

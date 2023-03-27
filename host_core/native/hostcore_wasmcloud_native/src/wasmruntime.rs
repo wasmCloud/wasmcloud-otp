@@ -2,7 +2,6 @@ use anyhow::{self, bail, Context};
 use async_trait::async_trait;
 use log::{error, trace};
 use rand::{thread_rng, Rng, RngCore};
-use serde::Serialize;
 
 use crate::{environment::CallbackToken, TOKIO};
 use rustler::{
@@ -172,10 +171,6 @@ pub fn new<'a>(
     env: rustler::Env<'a>,
     ExRuntimeConfig { host_id }: ExRuntimeConfig,
 ) -> Result<ResourceArc<RuntimeResource>, rustler::Error> {
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
-        .format_timestamp(None)
-        .try_init();
-
     let handler: Box<dyn Handle<capability::Invocation>> = Box::new(ElixirHandler {
         pid: env.pid(),
         host_id,

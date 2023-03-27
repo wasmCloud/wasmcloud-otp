@@ -1,9 +1,6 @@
 use std::sync::{Condvar, Mutex};
 
-use rustler::{
-    resource::ResourceArc, types::tuple, Atom, Binary, Encoder, Env, Error, ListIterator,
-    MapIterator, OwnedEnv, Term,
-};
+use rustler::Env;
 
 pub struct CallbackTokenResource {
     pub token: CallbackToken,
