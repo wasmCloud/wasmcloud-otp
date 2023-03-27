@@ -21,5 +21,7 @@ rustler::atoms! {
 
     // calls to erlang processes
     returned_function_call,
-    invoke_callback
+    invoke_callback,
+
+    perform_actor_log,
 }

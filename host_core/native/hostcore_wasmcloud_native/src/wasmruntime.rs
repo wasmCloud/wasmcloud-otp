@@ -2,6 +2,7 @@ use anyhow::{self, bail, Context};
 use async_trait::async_trait;
 use log::{error, trace};
 use rand::{thread_rng, Rng, RngCore};
+use serde::Serialize;
 
 use crate::{environment::CallbackToken, TOKIO};
 use rustler::{
@@ -54,30 +55,36 @@ impl Handle<capability::Invocation> for ElixirHandler {
         binding: String,
         invocation: capability::Invocation,
     ) -> anyhow::Result<Option<Vec<u8>>> {
-        let callback_token = ResourceArc::new(CallbackTokenResource {
-            token: CallbackToken {
-                continue_signal: Condvar::new(),
-                return_value: Mutex::new(None),
-            },
-        });
-
-        // TODO: figure out if we need the caller tokens
-        //let caller_token = set_caller(...);
-        //let caller_token = 12;
-
         match invocation {
             capability::Invocation::Logging(LoggingInvocation::WriteLog { level, text }) => {
+                // note: current OTP host does not have a trace log level
                 let level = match level {
                     logging::Level::Debug => "debug",
                     logging::Level::Info => "info",
                     logging::Level::Warn => "warn",
                     logging::Level::Error => "error",
                 };
-                trace!(
-                    "actor log: host_id={} level={level} subject={} text={text}",
-                    self.host_id,
-                    claims.subject
-                );
+                let callback_token = new_callback_token();
+
+                let mut msg_env = OwnedEnv::new();
+                msg_env.send_and_clear(&self.pid.clone(), |env| {
+                    (
+                        atoms::perform_actor_log(),
+                        crate::Claims::from(claims.clone()),
+                        level,
+                        text,
+                        callback_token.clone(),
+                    )
+                        .encode(env)
+                });
+
+                let mut result = callback_token.token.return_value.lock().unwrap();
+                while result.is_none() {
+                    result = callback_token.token.continue_signal.wait(result).unwrap();
+                }
+
+                // we don't actually care about the result from the host here
+
                 Ok(None)
             }
 
@@ -109,6 +116,7 @@ impl Handle<capability::Invocation> for ElixirHandler {
                 payload,
             }) => {
                 let mut msg_env = OwnedEnv::new();
+                let callback_token = new_callback_token();
                 msg_env.send_and_clear(&self.pid.clone(), |env| {
                     (
                         atoms::invoke_callback(),
@@ -140,6 +148,17 @@ impl Handle<capability::Invocation> for ElixirHandler {
             }
         }
     }
+}
+
+// hint: make sure this is only ever called when we're going to await the condvar, otherwise we
+// could "leak" condvars
+fn new_callback_token() -> ResourceArc<CallbackTokenResource> {
+    ResourceArc::new(CallbackTokenResource {
+        token: CallbackToken {
+            continue_signal: Condvar::new(),
+            return_value: Mutex::new(None),
+        },
+    })
 }
 
 pub fn on_load(env: Env) -> bool {
