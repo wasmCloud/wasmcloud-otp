@@ -1,6 +1,7 @@
-use anyhow::{self, Context};
+use anyhow::{self, bail, Context};
 use async_trait::async_trait;
-use log::error;
+use log::{error, trace};
+use rand::{thread_rng, Rng, RngCore};
 
 use crate::{environment::CallbackToken, TOKIO};
 use rustler::{
@@ -15,7 +16,10 @@ use std::{
     thread,
 };
 use wascap::jwt;
-use wasmcloud::{Actor, Handle, HostInvocation, Runtime as WcRuntime};
+use wasmcloud::{
+    capability, logging, numbergen, Actor, Handle, HostInvocation, LoggingInvocation,
+    NumbergenInvocation, Runtime as WcRuntime,
+};
 
 use crate::{atoms, environment::CallbackTokenResource};
 
@@ -39,15 +43,16 @@ pub struct ExRuntimeConfig {
 
 pub struct ElixirHandler {
     pid: LocalPid,
+    host_id: String,
 }
 
 #[async_trait]
-impl Handle<HostInvocation> for ElixirHandler {
+impl Handle<capability::Invocation> for ElixirHandler {
     async fn handle(
         &self,
         claims: &jwt::Claims<jwt::Actor>,
         binding: String,
-        invocation: HostInvocation,
+        invocation: capability::Invocation,
     ) -> anyhow::Result<Option<Vec<u8>>> {
         let callback_token = ResourceArc::new(CallbackTokenResource {
             token: CallbackToken {
@@ -60,35 +65,78 @@ impl Handle<HostInvocation> for ElixirHandler {
         //let caller_token = set_caller(...);
         //let caller_token = 12;
 
-        let op = invocation.operation.clone();
-        let mut msg_env = OwnedEnv::new();
-        msg_env.send_and_clear(&self.pid.clone(), |env| {
-            (
-                atoms::invoke_callback(),
-                crate::Claims::from(claims.clone()),
-                binding,
-                invocation.namespace,
-                invocation.operation,
-                invocation.payload.unwrap_or_default(),
-                callback_token.clone(),
-            )
-                .encode(env)
-        });
+        match invocation {
+            capability::Invocation::Logging(LoggingInvocation::WriteLog { level, text }) => {
+                let level = match level {
+                    logging::Level::Debug => "debug",
+                    logging::Level::Info => "info",
+                    logging::Level::Warn => "warn",
+                    logging::Level::Error => "error",
+                };
+                trace!(
+                    "actor log: host_id={} level={level} subject={} text={text}",
+                    self.host_id,
+                    claims.subject
+                );
+                Ok(None)
+            }
 
-        let mut result = callback_token.token.return_value.lock().unwrap();
-        while result.is_none() {
-            result = callback_token.token.continue_signal.wait(result).unwrap();
-        }
+            capability::Invocation::Numbergen(NumbergenInvocation::GenerateGuid) => {
+                let mut buf = uuid::Bytes::default();
+                thread_rng().fill_bytes(&mut buf);
+                let guid = uuid::Builder::from_random_bytes(buf)
+                    .into_uuid()
+                    .to_string();
+                trace!("generated GUID: `{guid}`");
+                numbergen::serialize_response(&guid).map(Some)
+            }
 
-        let result: &(bool, Vec<u8>) = result
-            .as_ref()
-            .expect("expect callback token to contain a result");
-        match result {
-            (true, return_value) => Ok(Some(return_value.clone())),
-            (false, e) => {
-                // TODO: verify whether we should return none here or use an Err
-                error!("Elixir callback threw an exception.");
-                Err(anyhow::anyhow!("Host call function failed: {e:?}").into())
+            capability::Invocation::Numbergen(NumbergenInvocation::RandomInRange { min, max }) => {
+                let v = thread_rng().gen_range(min..=max);
+                trace!("generated random u32 in range [{min};{max}]: {v}");
+                numbergen::serialize_response(&v).map(Some)
+            }
+
+            capability::Invocation::Numbergen(NumbergenInvocation::Random32) => {
+                let v: u32 = thread_rng().gen();
+                trace!("generated random u32: {v}");
+                numbergen::serialize_response(&v).map(Some)
+            }
+
+            capability::Invocation::Host(HostInvocation {
+                namespace,
+                operation,
+                payload,
+            }) => {
+                let mut msg_env = OwnedEnv::new();
+                msg_env.send_and_clear(&self.pid.clone(), |env| {
+                    (
+                        atoms::invoke_callback(),
+                        crate::Claims::from(claims.clone()),
+                        binding,
+                        namespace,
+                        operation,
+                        payload.unwrap_or_default(),
+                        callback_token.clone(),
+                    )
+                        .encode(env)
+                });
+
+                let mut result = callback_token.token.return_value.lock().unwrap();
+                while result.is_none() {
+                    result = callback_token.token.continue_signal.wait(result).unwrap();
+                }
+                match result
+                    .as_ref()
+                    .expect("expect callback token to contain a result")
+                {
+                    (true, payload) => Ok(Some(payload.clone())),
+                    (false, e) => {
+                        // TODO: verify whether we should return none here or use an Err
+                        error!("Elixir callback threw an exception.");
+                        bail!("Host call function failed: {e:?}")
+                    }
+                }
             }
         }
     }
@@ -103,10 +151,17 @@ pub fn on_load(env: Env) -> bool {
 #[rustler::nif(name = "runtime_new")]
 pub fn new<'a>(
     env: rustler::Env<'a>,
-    _config: ExRuntimeConfig,
+    ExRuntimeConfig { host_id }: ExRuntimeConfig,
 ) -> Result<ResourceArc<RuntimeResource>, rustler::Error> {
-    let host_handler = ElixirHandler { pid: env.pid() };
-    let rt = WcRuntime::from_host_handler(host_handler)
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
+        .format_timestamp(None)
+        .try_init();
+
+    let handler: Box<dyn Handle<capability::Invocation>> = Box::new(ElixirHandler {
+        pid: env.pid(),
+        host_id,
+    });
+    let rt = WcRuntime::new(handler)
         .context("failed to construct runtime")
         .map_err(|e| Error::Term(Box::new(e.to_string())))?;
 
