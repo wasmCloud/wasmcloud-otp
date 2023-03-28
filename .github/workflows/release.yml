@@ -257,7 +257,7 @@ jobs:
   #
   # So, sorry about the code duplication, perhaps in the future we'll find a way to make this happen
   release-wasmcloud-docker:
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    # if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     name: Release Image (wasmcloud_host)
     runs-on: ubuntu-22.04
     env:
@@ -411,7 +411,7 @@ jobs:
           name: patrick-test
 
   release-charts:
-    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
