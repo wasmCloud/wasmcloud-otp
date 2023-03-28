@@ -7,6 +7,7 @@ defmodule HostCore.WasmCloud.Runtime.Server do
   """
   use GenServer
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   alias HostCore.WasmCloud.Runtime.Config, as: RuntimeConfig
   alias HostCore.WasmCloud.Runtime.ActorReference
@@ -63,20 +64,22 @@ defmodule HostCore.WasmCloud.Runtime.Server do
           pid :: pid(),
           actor_reference :: ActorReference.t(),
           operation :: binary(),
-          payload :: binary()
+          payload :: binary(),
+          call_context :: binary()
         ) :: {:ok, binary()} | {:error, binary()}
-  def invoke_actor(pid, actor_reference, operation, payload) do
-    GenServer.call(pid, {:invoke_actor, actor_reference, operation, payload})
+  def invoke_actor(pid, actor_reference, operation, payload, call_context) do
+    GenServer.call(pid, {:invoke_actor, actor_reference, operation, payload, call_context})
   end
 
   # calls into the NIF to invoke the given operation on the indicated actor instance
   @impl true
-  def handle_call({:invoke_actor, actor_reference, operation, payload}, from, state) do
+  def handle_call({:invoke_actor, actor_reference, operation, payload, call_context}, from, state) do
     :ok =
       HostCore.WasmCloud.Runtime.call_actor(
         actor_reference,
         operation,
         payload,
+        call_context,
         from
       )
 
@@ -122,12 +125,24 @@ defmodule HostCore.WasmCloud.Runtime.Server do
 
   @impl true
   def handle_info(
-        {:invoke_callback, claims, binding, namespace, operation, payload, token},
+        {:invoke_callback, claims, {binding, namespace, operation}, payload, call_context, token},
         {_runtime, config} = state
       ) do
     Task.Supervisor.start_child(RuntimeCallSupervisor, fn ->
       # This callback is invoked by the wasmcloud::Runtime's host call handler
       payload = payload |> IO.iodata_to_binary()
+
+      # Convert the `call_context` list of bytes to the `span_ctx` term
+      with true <- is_list(call_context),
+           ctx_binary <- :erlang.list_to_binary(call_context),
+           true <- is_binary(ctx_binary),
+           span_ctx <- :erlang.binary_to_term(ctx_binary) do
+        Tracer.set_current_span(span_ctx)
+      else
+        # If the call context didn't contain a span, that's ok and we silently ignore
+        _ ->
+          :ok
+      end
 
       {success, return_value} =
         try do

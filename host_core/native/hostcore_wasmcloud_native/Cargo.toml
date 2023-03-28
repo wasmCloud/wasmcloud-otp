@@ -10,7 +10,7 @@ path = "src/lib.rs"
 crate-type = ["dylib"]
 
 [dependencies]
-wasmcloud = { git = "https://github.com/wasmcloud/wasmcloud"}
+wasmcloud = { git = "https://github.com/wasmcloud/wasmcloud" }
 rustler = "0.27.0"
 lazy_static = "1.0"
 async-trait = "0.1.66"
