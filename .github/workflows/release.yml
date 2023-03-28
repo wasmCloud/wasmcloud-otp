@@ -373,6 +373,7 @@ jobs:
           tar -czvf ${{ env.amd-tarball-static }} ./wasmcloud_host
           cp ${{ env.amd-tarball-static }} /amd64temp/
           EOF
+          ls -lah
       - name: Upload artifact (arm64)
         uses: actions/upload-artifact@v2
         with:
@@ -390,7 +391,7 @@ jobs:
           path: ${{ env.amd-tarball-static }}
 
   github-release:
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    #if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs:
       [create-mix-releases, release-wasmcloud-docker]
     runs-on: ubuntu-latest
@@ -407,6 +408,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: false
           draft: false
+          name: patrick-test
 
   release-charts:
     if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
