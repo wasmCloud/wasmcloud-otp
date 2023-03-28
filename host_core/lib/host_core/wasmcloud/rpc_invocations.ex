@@ -13,6 +13,9 @@ defmodule HostCore.WasmCloud.RpcInvocations do
   @chunk_rpc_timeout 15_000
   @rpc_event_prefix "wasmbus.rpcevt"
 
+  @wasmcloud_logging "wasmcloud:builtin:logging"
+  @wasmcloud_numbergen "wasmcloud:builtin:numbergen"
+
   # TARGET
 
   def identify_target(token) do
@@ -79,9 +82,6 @@ defmodule HostCore.WasmCloud.RpcInvocations do
   end
 
   # LINKS
-
-  # Built-in Providers do not have link definitions
-  # their implementations are already handled either in the NIF or in wasmCloud runtime
 
   # default behavior is to allow actor-to-actor calls
   def verify_link(%{target: {:actor, _, _}} = token) do

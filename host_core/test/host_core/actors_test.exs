@@ -166,7 +166,14 @@ defmodule HostCore.ActorsTest do
           }
         )
 
-      :ok = wait_for_actor_start(evt_watcher, @kvcounter_unpriv_key)
+      # await one start for each of the 5 instances being started
+      :ok =
+        HostCoreTest.EventWatcher.wait_for_event(
+          evt_watcher,
+          :actor_started,
+          %{"public_key" => @kvcounter_unpriv_key},
+          5
+        )
 
       actors = ActorSupervisor.all_actors(config.host_key)
       kv_counters = Map.get(actors, @kvcounter_unpriv_key)

@@ -145,6 +145,24 @@ defmodule HostCore.WasmCloud.Runtime.Server do
     {:noreply, state}
   end
 
+  @impl true
+  def handle_info({:perform_actor_log, claims, level, text, token}, state) do
+    text = "[#{claims.public_key}] #{text}"
+    actor = claims.public_key
+
+    case level do
+      "error" -> Logger.error(text, actor_id: actor)
+      "info" -> Logger.info(text, actor_id: actor)
+      "warn" -> Logger.warn(text, actor_id: actor)
+      "debug" -> Logger.debug(text, actor_id: actor)
+      _ -> Logger.debug(text, actor_id: actor)
+    end
+
+    :ok = HostCore.WasmCloud.Native.instance_receive_callback_result(token, true, <<>>)
+
+    {:noreply, state}
+  end
+
   defp do_invocation(claims, binding, namespace, operation, payload, rt_config) do
     host_config = HostCore.Vhost.VirtualHost.config(rt_config.host_id)
     actor = claims.public_key
