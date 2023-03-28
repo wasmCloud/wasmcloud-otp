@@ -458,7 +458,7 @@ fn par_cache_path(
 fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
     let bytes = binary.as_slice();
 
-    let extracted = match wasm::extract_claims(&bytes) {
+    let extracted = match wasm::extract_claims(bytes) {
         Ok(Some(c)) => c,
         Ok(None) => {
             return Err(rustler::Error::Term(Box::new(

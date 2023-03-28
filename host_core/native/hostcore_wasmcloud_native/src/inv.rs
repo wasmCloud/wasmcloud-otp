@@ -364,20 +364,20 @@ mod test {
             .is_err());
 
         // Alter the payload and we should also hit the hash check
-        let mut really_bad_inv = inv.clone();
+        let mut really_bad_inv = inv;
         really_bad_inv.msg = vec![5, 4, 3, 2];
         assert!(really_bad_inv
             .validate_antiforgery(vec![hostkey.public_key()])
             .is_err());
 
         // Assert that it fails if the invocation wasn't issued by a valid issuer
-        assert!(inv
+        assert!(really_bad_inv
             .validate_antiforgery(vec!["NOTGOINGTOWORK".to_string()])
             .is_err());
 
         // And just to double-check the routing address
         assert_eq!(
-            inv.target_url(),
+            really_bad_inv.target_url(),
             "wasmbus://wasmcloud/messaging/default/Vxxx/OP_TESTING"
         );
     }

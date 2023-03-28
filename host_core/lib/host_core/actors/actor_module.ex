@@ -666,8 +666,18 @@ defmodule HostCore.Actors.ActorModule do
     runtime_pid = Agent.get(agent, fn a -> a.runtime_pid end)
     aref = Agent.get(agent, fn a -> a.actor_reference end)
 
+    call_context =
+      Tracer.current_span_ctx()
+      |> :erlang.term_to_binary()
+
     ir =
-      case HostCore.WasmCloud.Runtime.Server.invoke_actor(runtime_pid, aref, operation, payload) do
+      case HostCore.WasmCloud.Runtime.Server.invoke_actor(
+             runtime_pid,
+             aref,
+             operation,
+             payload,
+             call_context
+           ) do
         {:ok, msg} ->
           chunk_inv_response(%{
             msg: msg,

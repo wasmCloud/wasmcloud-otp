@@ -76,15 +76,17 @@ defmodule HostCore.WasmCloud.Runtime do
           HostCore.WasmCloud.Runtime.ActorReference.t(),
           binary(),
           binary(),
+          binary(),
           GenServer.from()
         ) :: :ok
   def call_actor(
         %HostCore.WasmCloud.Runtime.ActorReference{resource: actor_resource},
         operation,
         payload,
+        call_context,
         from
       ) do
-    HostCore.WasmCloud.Native.call_actor(actor_resource, operation, payload, from)
+    HostCore.WasmCloud.Native.call_actor(actor_resource, operation, payload, call_context, from)
   end
 
   defimpl Inspect, for: HostCore.WasmCloud.Runtime do

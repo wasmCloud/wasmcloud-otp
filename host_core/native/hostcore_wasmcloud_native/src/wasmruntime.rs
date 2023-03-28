@@ -39,7 +39,9 @@ pub struct ExRuntimeConfig {
 }
 
 pub struct ElixirHandler {
+    // Runtime pid
     pid: LocalPid,
+    #[allow(unused)]
     host_id: String,
 }
 
@@ -50,6 +52,7 @@ impl Handle<capability::Invocation> for ElixirHandler {
         claims: &jwt::Claims<jwt::Actor>,
         binding: String,
         invocation: capability::Invocation,
+        call_context: &Option<Vec<u8>>,
     ) -> anyhow::Result<Option<Vec<u8>>> {
         match invocation {
             capability::Invocation::Logging(LoggingInvocation::WriteLog { level, text }) => {
@@ -117,10 +120,9 @@ impl Handle<capability::Invocation> for ElixirHandler {
                     (
                         atoms::invoke_callback(),
                         crate::Claims::from(claims.clone()),
-                        binding,
-                        namespace,
-                        operation,
+                        (binding, namespace, operation),
                         payload.unwrap_or_default(),
+                        call_context.clone().unwrap_or_default(),
                         callback_token.clone(),
                     )
                         .encode(env)
@@ -164,8 +166,8 @@ pub fn on_load(env: Env) -> bool {
 }
 
 #[rustler::nif(name = "runtime_new")]
-pub fn new<'a>(
-    env: rustler::Env<'a>,
+pub fn new(
+    env: rustler::Env<'_>,
     ExRuntimeConfig { host_id }: ExRuntimeConfig,
 ) -> Result<ResourceArc<RuntimeResource>, rustler::Error> {
     let handler: Box<dyn Handle<capability::Invocation>> = Box::new(ElixirHandler {
@@ -212,6 +214,7 @@ pub fn call_actor<'a>(
     component: ResourceArc<ActorResource>,
     operation: &str,
     payload: Binary<'a>,
+    call_context: Binary<'a>,
     from: Term,
 ) -> rustler::Atom {
     let pid = env.pid();
@@ -220,6 +223,7 @@ pub fn call_actor<'a>(
     let from = thread_env.save(from);
     let payload = payload.to_vec();
     let operation = operation.to_owned();
+    let call_context = call_context.to_vec();
 
     // ref: https://github.com/tessi/wasmex/issues/256
     // here we spawn a TOKIO task, do the work of the actor invocation,
@@ -227,7 +231,10 @@ pub fn call_actor<'a>(
     // the results to the caller (the `from` field)
 
     crate::spawn(async move {
-        let response = component.actor.call(operation, Some(payload)).await;
+        let response = component
+            .actor
+            .call_with_context(operation, Some(payload), call_context)
+            .await;
         thread_env.send_and_clear(&pid, |thread_env| {
             send_actor_call_response(thread_env, from, response)
         });
@@ -288,10 +295,10 @@ fn make_error_tuple<'a>(env: &Env<'a>, reason: &str, from: Term<'a>) -> Term<'a>
 /// Part of the async plumbing. Allows the Elixir caller (NIF) to extract the result of a callback
 /// operation by way of passing back a reference to the callback token
 #[rustler::nif(name = "instance_receive_callback_result")]
-pub fn receive_callback_result<'a>(
+pub fn receive_callback_result(
     token_resource: ResourceArc<CallbackTokenResource>,
     success: bool,
-    binary_result: Binary<'a>,
+    binary_result: Binary<'_>,
 ) -> NifResult<rustler::Atom> {
     let mut result = token_resource.token.return_value.lock().unwrap();
     *result = Some((success, binary_result.to_vec()));

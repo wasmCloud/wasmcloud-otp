@@ -34,7 +34,13 @@ defmodule HostCore.Actors.ActorRpcServer do
 
       case Registry.lookup(Registry.ActorRegistry, actor_pk) do
         [] ->
-          {:error, "Actor #{actor_pk} is not running. RPC call skipped."}
+          {:reply,
+           %{
+             msg: [],
+             error: "Invocation received for actor #{actor_pk} that is not running"
+           }
+           |> Msgpax.pack!()
+           |> IO.iodata_to_binary()}
 
         actors ->
           eligible_actors =
