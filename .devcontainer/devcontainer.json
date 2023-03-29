@@ -24,6 +24,6 @@
 			}
 		}
 	},
-	"workspaceMount": "source=${localWorkspaceFolder},target=/wash,type=bind,consistency=cached",
+	"workspaceMount": "source=${localWorkspaceFolder},target=/wasmcloud-otp,type=bind,consistency=cached",
 	"workspaceFolder": "/wasmcloud-otp"
 }
