@@ -11,50 +11,9 @@ env:
   elixir-version: 1.14.3
 
 jobs:
-  compile-native-nif:
-    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    name: Compile NIFs
-    env:
-      working-directory: ./host_core/native/hostcore_wasmcloud_native
-      artifact-name: hostcore_wasmcloud_native
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          # https://github.com/wasmCloud/wasmcloud-otp/issues/589
-          # - aarch64-unknown-linux-gnu
-          - aarch64-unknown-linux-musl
-          - x86_64-apple-darwin
-          - x86_64-pc-windows-gnu
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Build native nif
-        run: |
-          wget https://github.com/cross-rs/cross/releases/download/v0.2.4/cross-x86_64-unknown-linux-gnu.tar.gz
-          tar -xf cross-x86_64-unknown-linux-gnu.tar.gz
-          chmod +x cross
-          ./cross build --release --target ${{ matrix.target }}
-        working-directory: ${{ env.working-directory }}
-
-      - name: Upload nif to GH Actions
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.target }}
-          if-no-files-found: error
-          path: |
-            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.so
-            ${{ env.working-directory }}/target/${{ matrix.target }}/release/${{ env.artifact-name }}.dll
-            ${{ env.working-directory }}/target/${{ matrix.target }}/release/lib${{ env.artifact-name }}.dylib
-
   create-mix-releases:
     # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
     if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    needs: compile-native-nif
     name: Mix release
     strategy:
       fail-fast: false
@@ -95,6 +54,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # Install Rust
+      - uses: dtolnay/rust-toolchain@stable
+
       # Install erlang/OTP and elixir
       - name: Install erlang and elixir
         if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
@@ -127,24 +89,6 @@ jobs:
           mix local.hex --force
           mix deps.get
 
-      # Download the NIF in the path that Rustler expects
-      - uses: actions/download-artifact@v3
-        with:
-          path: ./host_core/priv/built
-          name: ${{ matrix.rust-target }}
-      # Rustler looks for .so, even on Mac
-      - name: Rename NIF to shared object
-        if: ${{ startswith(matrix.os, 'macos') }}
-        working-directory: ./host_core/priv/built
-        run: |
-          mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.so
-      # Rustler looks for .dll on Windows
-      - name: Rename NIF to shared object
-        if: ${{ startswith(matrix.os, 'windows') }}
-        working-directory: ./host_core/priv/built
-        run: |
-          mv *hostcore_wasmcloud_native* libhostcore_wasmcloud_native.dll
-
       - name: Compile Elixir
         working-directory: ${{env.working-directory}}
         shell: bash
@@ -173,82 +117,81 @@ jobs:
           name: ${{ matrix.release-tarball }}
           path: ${{env.working-directory}}/${{ matrix.release-tarball }}
 
-  # release-hostcore-docker:
-  #   if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-  #   needs: compile-native-nif
-  #   name: Release Image (host_core)
-  #   runs-on: ubuntu-22.04
-  #   env:
-  #     MIX_ENV: release_prod
-  #     working-directory: wasmcloud_host
-  #     SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-  #     app-name: host_core
-  #     arm-tarball: aarch64-linux-musl-core.tar.gz
-  #     builder-image: elixir:1.13.4-alpine
-  #     release-image: alpine:3.16
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Determine version
-  #       run: echo "app-version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
+  release-hostcore-docker:
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    name: Release Image (host_core)
+    runs-on: ubuntu-22.04
+    env:
+      MIX_ENV: release_prod
+      working-directory: wasmcloud_host
+      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+      app-name: host_core
+      arm-tarball: aarch64-linux-musl-core.tar.gz
+      builder-image: elixir:1.13.4-alpine
+      release-image: alpine:3.16
+    steps:
+      - uses: actions/checkout@v3
+      - name: Determine version
+        run: echo "app-version=$(grep '@app_vsn "' ${{env.working-directory}}/mix.exs | cut -d '"' -f2)" > $GITHUB_ENV
 
-  #     # Download the NIF in the path that Docker expects for x86
-  #     - uses: actions/download-artifact@v3
-  #       with:
-  #         path: ./host_core/priv/built/x86_64
-  #         name: x86_64-unknown-linux-musl
-  #     # Download the NIF in the path that Docker expects for aarch64
-  #     - uses: actions/download-artifact@v3
-  #       with:
-  #         path: ./host_core/priv/built/aarch64
-  #         name: aarch64-unknown-linux-musl
+      # Download the NIF in the path that Docker expects for x86
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built/x86_64
+          name: x86_64-unknown-linux-musl
+      # Download the NIF in the path that Docker expects for aarch64
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./host_core/priv/built/aarch64
+          name: aarch64-unknown-linux-musl
 
-  #     - name: Login to AzureCR
-  #       uses: azure/docker-login@v1
-  #       with:
-  #         login-server: ${{ secrets.AZURECR_PUSH_URL }}
-  #         username: ${{ secrets.AZURECR_PUSH_USER }}
-  #         password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
-  #     - name: Login to DockerHub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_PUSH_USER }}
-  #         password: ${{ secrets.DOCKERHUB_PUSH_PASSWORD }}
-  #     - name: Set up QEMU
-  #       uses: docker/setup-qemu-action@v2
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v2
-  #       id: buildx-builder
-  #     - name: Build and release docker image
-  #       uses: docker/build-push-action@v3
-  #       with:
-  #         builder: ${{ steps.buildx-builder.outputs.name }}
-  #         push: false
-  #         context: ${{ env.app-name}}/
-  #         file: ${{ env.app-name}}/Dockerfile
-  #         platforms: linux/amd64,linux/arm64
-  #         build-args: |
-  #           BUILDER_IMAGE=${{ env.builder-image }}
-  #           RELEASE_IMAGE=${{ env.release-image }}
-  #           APP_NAME=${{ env.app-name }}
-  #           APP_VSN=${{ env.app-version }}
-  #           MIX_ENV=${{ env.MIX_ENV }}
-  #         tags: |
-  #           wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}
-  #           wasmcloud.azurecr.io/${{ env.app-name }}:latest
-  #           wasmcloud/${{ env.app-name }}:${{ env.app-version }}
-  #           wasmcloud/${{ env.app-name }}:latest
+      - name: Login to AzureCR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.AZURECR_PUSH_URL }}
+          username: ${{ secrets.AZURECR_PUSH_USER }}
+          password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_PUSH_USER }}
+          password: ${{ secrets.DOCKERHUB_PUSH_PASSWORD }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        id: buildx-builder
+      - name: Build and release docker image
+        uses: docker/build-push-action@v3
+        with:
+          builder: ${{ steps.buildx-builder.outputs.name }}
+          push: false
+          context: ${{ env.app-name}}/
+          file: ${{ env.app-name}}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BUILDER_IMAGE=${{ env.builder-image }}
+            RELEASE_IMAGE=${{ env.release-image }}
+            APP_NAME=${{ env.app-name }}
+            APP_VSN=${{ env.app-version }}
+            MIX_ENV=${{ env.MIX_ENV }}
+          tags: |
+            wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}
+            wasmcloud.azurecr.io/${{ env.app-name }}:latest
+            wasmcloud/${{ env.app-name }}:${{ env.app-version }}
+            wasmcloud/${{ env.app-name }}:latest
 
-  #     - name: Retrieve aarch64 tarball from Docker
-  #       run: |
-  #         docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version}} sh -s <<EOF
-  #         tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
-  #         cp ${{ env.arm-tarball }} /aarch64temp/
-  #         EOF
-  #     - name: Upload artifact
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: ${{ env.arm-tarball }}
-  #         path: ${{ env.arm-tarball }}
+      - name: Retrieve aarch64 tarball from Docker
+        run: |
+          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version}} sh -s <<EOF
+          tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
+          cp ${{ env.arm-tarball }} /aarch64temp/
+          EOF
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.arm-tarball }}
+          path: ${{ env.arm-tarball }}
 
   # Dear reviewer, you may be thinking to yourself, "hey, this looks like a great candidate for a matrix with the above"
   # I once thought so too, and to spare you some incredible pain, turns out _something_ about QEMU does
