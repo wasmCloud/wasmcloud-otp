@@ -81,8 +81,19 @@ RUN apt update && \
 RUN mix local.rebar --force && \
   mix local.hex --force
 
+#################
+# Install: Rust #
+#################
+
+# Get Rust for building NIFs (wasmex)
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+
 # Set PATH to include Rust toolchain
 ENV PATH="/root/.cargo/bin:${PATH}"
+
+#########################
+# Build: wasmcloud_host #
+#########################
 
 WORKDIR ./wasmcloud_host
 RUN mix do deps.compile, compile
