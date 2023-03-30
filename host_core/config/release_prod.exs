@@ -5,4 +5,3 @@ import Config
 config :host_core, HostCore.WasmCloud.Native,
   crate: :hostcore_wasmcloud_native,
   mode: if(Mix.env() == :dev, do: :debug, else: :release)
-
