@@ -36,6 +36,9 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
       }
     }
 
+    conn = HostCore.Nats.control_connection(prefix)
+    {:ok, _sub} = Gnat.sub(conn, self(), "wasmbus.evt.#{prefix}")
+
     PubSub.subscribe(:hostcore_pubsub, "latticeevents:#{prefix}")
     PubSub.subscribe(:hostcore_pubsub, "cacheloader:#{prefix}")
 
@@ -113,9 +116,53 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     GenServer.call(:state_monitor, :refmaps_query)
   end
 
+  # handle cloud events from HostCore PubSub
   @impl true
-  def handle_info({:lattice_event, event}, state) do
-    state = handle_event(state, event)
+  def handle_info({:lattice_event, raw_event}, state) do
+    case Cloudevents.from_json(raw_event) do
+      {:ok, event} ->
+        process_event(state, event)
+
+      # No-op
+      _ ->
+        Logger.warning("Received event that couldn't be parsed as a Cloudevent, ignoring")
+        state
+    end
+
+    {:noreply, state}
+  end
+
+  # handle cloud events from NATS
+  @impl true
+  def handle_info(
+        {:msg, %{body: body, topic: topic}},
+        state
+      ) do
+    state =
+      if String.starts_with?(topic, "wasmbus.evt.") do
+        case Cloudevents.from_json(body) do
+          {:ok, event} ->
+            {pk, _pid, _prefix} = WasmcloudHost.Application.first_host()
+
+            case event do
+              # process NATS events from other hosts
+              %Cloudevents.Format.V_1_0.Event{
+                source: source
+              }
+              when source != pk ->
+                process_event(state, event)
+
+              # ignore NATS events from this host
+              _ ->
+                state
+            end
+
+          # No-op
+          _ ->
+            Logger.warning("Received event that couldn't be parsed as a Cloudevent, ignoring")
+            state
+        end
+      end
 
     {:noreply, state}
   end
@@ -156,18 +203,6 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   def handle_info({:cacheloader, :refmap_added, refmap}, state) do
     ocirefs = add_refmap(state.refmaps, refmap.oci_url, refmap.public_key)
     {:noreply, %State{state | refmaps: ocirefs}}
-  end
-
-  defp handle_event(state, body) do
-    case Cloudevents.from_json(body) do
-      {:ok, evt} ->
-        process_event(state, evt)
-
-      # No-op
-      _ ->
-        Logger.warning("Received event that couldn't be parsed as a Cloudevent, ignoring")
-        state
-    end
   end
 
   defp process_event(
