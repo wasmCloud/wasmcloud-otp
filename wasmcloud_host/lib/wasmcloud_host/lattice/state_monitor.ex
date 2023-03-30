@@ -139,29 +139,23 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
         state
       ) do
     state =
-      if String.starts_with?(topic, "wasmbus.evt.") do
-        case Cloudevents.from_json(body) do
-          {:ok, event} ->
-            {pk, _pid, _prefix} = WasmcloudHost.Application.first_host()
+      with true <- String.starts_with?(topic, "wasmbus.evt."),
+           {:ok, event = %Cloudevents.Format.V_1_0.Event{source: source}} <-
+             Cloudevents.from_json(body),
+           {pk, _pid, _prefix} <- WasmcloudHost.Application.first_host(),
+           true <- source != pk do
+        process_event(state, event)
+      else
+        # ignoring bad topic or event from this host
+        false ->
+          state
 
-            case event do
-              # process NATS events from other hosts
-              %Cloudevents.Format.V_1_0.Event{
-                source: source
-              }
-              when source != pk ->
-                process_event(state, event)
+        {:error, _} ->
+          Logger.warning("Received event that couldn't be parsed as a Cloudevent, ignoring")
+          state
 
-              # ignore NATS events from this host
-              _ ->
-                state
-            end
-
-          # No-op
-          _ ->
-            Logger.warning("Received event that couldn't be parsed as a Cloudevent, ignoring")
-            state
-        end
+        _ ->
+          state
       end
 
     {:noreply, state}
