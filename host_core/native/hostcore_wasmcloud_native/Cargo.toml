@@ -10,7 +10,8 @@ path = "src/lib.rs"
 crate-type = ["dylib"]
 
 [dependencies]
-wasmcloud = { git = "https://github.com/wasmcloud/wasmcloud" }
+# Patched temporarily to fix TinyGo modules, branch will be removed in v0.63.0
+wasmcloud = { git = "https://github.com/wasmcloud/wasmcloud", branch = "fix/0.62-tinygo"}
 rustler = "0.27.0"
 lazy_static = "1.0"
 async-trait = "0.1.66"
