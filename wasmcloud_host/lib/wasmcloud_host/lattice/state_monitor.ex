@@ -119,7 +119,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   # handle cloud events from HostCore PubSub
   @impl true
   def handle_info({:lattice_event, raw_event}, state) do
-    case Cloudevents.from_json(raw_event) do
+    state = case Cloudevents.from_json(raw_event) do
       {:ok, event} ->
         process_event(state, event)
 
