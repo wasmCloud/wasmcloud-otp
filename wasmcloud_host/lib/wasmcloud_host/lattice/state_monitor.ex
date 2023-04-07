@@ -119,15 +119,16 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   # handle cloud events from HostCore PubSub
   @impl true
   def handle_info({:lattice_event, raw_event}, state) do
-    state = case Cloudevents.from_json(raw_event) do
-      {:ok, event} ->
-        process_event(state, event)
+    state =
+      case Cloudevents.from_json(raw_event) do
+        {:ok, event} ->
+          process_event(state, event)
 
-      # No-op
-      _ ->
-        Logger.warning("Received event that couldn't be parsed as a Cloudevent, ignoring")
-        state
-    end
+        # No-op
+        _ ->
+          Logger.warning("Received event that couldn't be parsed as a Cloudevent, ignoring")
+          state
+      end
 
     {:noreply, state}
   end
