@@ -25,6 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # Install Rust
+      - run: rustup toolchain install stable --profile minimal
+
       # Install erlang/OTP and elixir
       - name: Install erlang and elixir
         if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
