@@ -273,6 +273,7 @@ defmodule HostCore.Providers.ProviderModule do
         state.link_name,
         state.instance_id,
         state.contract_id,
+        state.annotations,
         "normal"
       )
 
@@ -345,6 +346,7 @@ defmodule HostCore.Providers.ProviderModule do
       state.link_name,
       state.instance_id,
       state.contract_id,
+      state.annotations,
       "normal"
     )
 
@@ -365,6 +367,7 @@ defmodule HostCore.Providers.ProviderModule do
       state.link_name,
       state.instance_id,
       state.contract_id,
+      state.annotations,
       "#{reason}"
     )
 
@@ -438,20 +441,22 @@ defmodule HostCore.Providers.ProviderModule do
     |> CloudEvent.publish(state.lattice_prefix)
   end
 
-  def publish_provider_stopped(
-        host_id,
-        lattice_prefix,
-        public_key,
-        link_name,
-        instance_id,
-        contract_id,
-        reason
-      ) do
+  defp publish_provider_stopped(
+         host_id,
+         lattice_prefix,
+         public_key,
+         link_name,
+         instance_id,
+         contract_id,
+         annotations,
+         reason
+       ) do
     %{
       public_key: public_key,
       link_name: link_name,
       contract_id: contract_id,
       instance_id: instance_id,
+      annotaions: annotations,
       reason: reason
     }
     |> CloudEvent.new("provider_stopped", host_id)

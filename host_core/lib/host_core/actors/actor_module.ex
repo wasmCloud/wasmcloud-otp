@@ -283,12 +283,13 @@ defmodule HostCore.Actors.ActorModule do
     instance_id = contents.instance_id
     lattice_prefix = contents.lattice_prefix
     host_id = contents.host_id
+    annotations = contents.annotations
 
     Logger.debug("Terminating instance of actor #{public_key} (#{name})",
       actor_id: public_key
     )
 
-    publish_actor_stopped(host_id, lattice_prefix, public_key, instance_id)
+    publish_actor_stopped(host_id, lattice_prefix, public_key, instance_id, annotations)
 
     # PRO TIP - if you return :normal here as the stop reason, the GenServer will NOT auto-terminate
     # all of its children. If you want all children established via start_link to be terminated here,
@@ -805,10 +806,11 @@ defmodule HostCore.Actors.ActorModule do
     |> CloudEvent.publish(prefix)
   end
 
-  def publish_actor_stopped(host_id, lattice_prefix, actor_pk, instance_id) do
+  def publish_actor_stopped(host_id, lattice_prefix, actor_pk, instance_id, annotations) do
     %{
       public_key: actor_pk,
-      instance_id: instance_id
+      instance_id: instance_id,
+      annotations: annotations
     }
     |> CloudEvent.new("actor_stopped", host_id)
     |> CloudEvent.publish(lattice_prefix)
