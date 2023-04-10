@@ -140,7 +140,10 @@ impl Handle<capability::Invocation> for ElixirHandler {
                     (false, e) => {
                         // TODO: verify whether we should return none here or use an Err
                         error!("Elixir callback threw an exception.");
-                        bail!("Host call function failed: {e:?}")
+                        let err_str = String::from_utf8(e.to_vec()).unwrap_or_else(|parse_err| {
+                            format!("failed to parse inv err: {parse_err}")
+                        });
+                        bail!("Host call function failed: {err_str}")
                     }
                 }
             }
