@@ -27,6 +27,8 @@ defmodule HostCore.Application do
     :metadata_deliver_inbox,
     :host_seed,
     :enable_structured_logging,
+    :log_level,
+    # TODO remove me once this deprecated key has been removed entirely
     :structured_log_level,
     :host_key,
     :host_config
@@ -38,6 +40,8 @@ defmodule HostCore.Application do
     config = Vapor.load!(ConfigPlan)
     config = post_process_config(config)
 
+    configure_logger(config)
+
     OpentelemetryLoggerMetadata.setup()
 
     children = mount_supervisor_tree(config)
@@ -45,23 +49,6 @@ defmodule HostCore.Application do
     opts = [strategy: :one_for_one, name: HostCore.ApplicationSupervisor]
 
     started = Supervisor.start_link(children, opts)
-
-    if config.enable_structured_logging do
-      :logger.set_primary_config(
-        :logger.get_primary_config()
-        |> Map.put(:level, config.structured_log_level)
-      )
-
-      :logger.add_handler(:structured_logger, :logger_std_h, %{
-        formatter: {HostCore.StructuredLogger.FormatterJson, %{}},
-        level: config.structured_log_level,
-        config: %{
-          type: :standard_error
-        }
-      })
-
-      :logger.remove_handler(Logger)
-    end
 
     Logger.info(
       "Started wasmCloud OTP Host Runtime",
@@ -161,6 +148,11 @@ defmodule HostCore.Application do
       |> Map.put(:host_key, host_key)
       |> Map.put(:host_seed, host_seed)
       |> Map.put(:host_config, host_config)
+
+    # fall back log_level to deprecated structured_log_level, then to mix config default
+    mix_log_level = :logger.get_primary_config() |> Map.get(:level)
+    log_level = config.log_level || config.structured_log_level || mix_log_level
+    config = Map.put(config, :log_level, log_level)
 
     config = ensure_booleans(config)
 
@@ -294,6 +286,55 @@ defmodule HostCore.Application do
       list
     else
       [item | list]
+    end
+  end
+
+  defp configure_logger(config) do
+    log_level =
+      case config.log_level do
+        # elixir doesn't have trace level logs
+        :trace ->
+          :debug
+
+        :debug ->
+          :debug
+
+        :info ->
+          :info
+
+        # elixir uses "warning", wasmCloud uses "warn"
+        :warn ->
+          :warning
+
+        :warning ->
+          :warning
+
+        :error ->
+          :error
+
+        l ->
+          Logger.warn("Unexpected log level '#{l}'. Defaulting to 'debug'")
+          :debug
+      end
+
+    if config.enable_structured_logging do
+      :logger.add_handler(:structured_logger, :logger_std_h, %{
+        formatter: {HostCore.StructuredLogger.FormatterJson, %{}},
+        level: log_level,
+        config: %{
+          type: :standard_error
+        }
+      })
+
+      :logger.remove_handler(Logger)
+      Logger.info("Configured host logs (structured) at level '#{log_level}'")
+    else
+      :logger.set_primary_config(
+        :logger.get_primary_config()
+        |> Map.put(:level, log_level)
+      )
+
+      Logger.info("Configured host logs at level '#{log_level}'")
     end
   end
 end

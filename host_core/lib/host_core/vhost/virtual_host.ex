@@ -330,7 +330,7 @@ defmodule HostCore.Vhost.VirtualHost do
       js_domain: config.js_domain,
       # In case providers want to be aware of this for their own logging
       structured_logging: config.enable_structured_logging,
-      log_level: config.structured_log_level
+      log_level: config.log_level
     })
   end
 
