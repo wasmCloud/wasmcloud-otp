@@ -149,9 +149,24 @@ defmodule HostCore.Application do
       |> Map.put(:host_seed, host_seed)
       |> Map.put(:host_config, host_config)
 
-    # fall back log_level to deprecated structured_log_level, then to mix config default
-    mix_log_level = :logger.get_primary_config() |> Map.get(:level)
-    log_level = config.log_level || config.structured_log_level || mix_log_level
+    log_level =
+      case config.log_level do
+        nil ->
+          # fall back log_level to deprecated structured_log_level, then to mix config default
+          if config.structured_log_level != nil do
+            Logger.warn(
+              "WASMCLOUD_STRUCTURED_LOG_LEVEL is deprecated. Use WASMCLOUD_LOG_LEVEL instead."
+            )
+
+            config.structured_log_level
+          else
+            :logger.get_primary_config() |> Map.get(:level)
+          end
+
+        l ->
+          l
+      end
+
     config = Map.put(config, :log_level, log_level)
 
     config = ensure_booleans(config)
