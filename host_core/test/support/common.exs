@@ -129,7 +129,7 @@ defmodule HostCoreTest.Common do
       js_domain: nil,
       config_service_enabled: false,
       enable_structured_logging: false,
-      structured_log_level: :info,
+      log_level: :info,
       enable_ipv6: false,
       enable_actor_from_fs: true,
       policy_topic: nil,
