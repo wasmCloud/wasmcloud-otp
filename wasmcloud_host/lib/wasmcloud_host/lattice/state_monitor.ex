@@ -204,14 +204,15 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
          state,
          %Cloudevents.Format.V_1_0.Event{
            data: %{
-             "public_key" => pk
+             "public_key" => pk,
+             "count" => count
            },
            source: source_host,
            datacontenttype: "application/json",
            type: "com.wasmcloud.lattice.actor_started"
          }
        ) do
-    hosts = add_actor(pk, source_host, state.hosts)
+    hosts = add_actor(pk, source_host, state.hosts, count)
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
     %State{state | hosts: hosts}
   end
@@ -229,13 +230,13 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   defp process_event(
          state,
          %Cloudevents.Format.V_1_0.Event{
-           data: %{"public_key" => public_key, "instance_id" => _instance_id},
+           data: %{"public_key" => public_key, "count" => count},
            datacontenttype: "application/json",
            source: source_host,
            type: "com.wasmcloud.lattice.actor_stopped"
          }
        ) do
-    hosts = remove_actor(public_key, source_host, state.hosts)
+    hosts = remove_actor(public_key, source_host, state.hosts, count)
     PubSub.broadcast(WasmcloudHost.PubSub, "lattice:state", {:hosts, hosts})
     %State{state | hosts: hosts}
   end
@@ -658,13 +659,13 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
   #      "status": "Healthy"
   #    },
   # }
-  def add_actor(pk, host, previous_map) do
+  def add_actor(pk, host, previous_map, additional_count) do
     # Retrieve inventory map for host
     host_map = Map.get(previous_map, host, %{})
     # Retrieve actor map, update count, update status
     actors_map = Map.get(host_map, :actors, %{})
     actor_map = Map.get(actors_map, pk, %{})
-    new_count = Map.get(actor_map, :count, 0) + 1
+    new_count = Map.get(actor_map, :count, 0) + additional_count
     actor_map = Map.put(actor_map, :count, new_count)
     actor_map = Map.put(actor_map, :status, "Awaiting")
     actors_map = Map.put(actors_map, pk, actor_map)
@@ -675,7 +676,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     Map.put(previous_map, host, host_map)
   end
 
-  def remove_actor(pk, host, previous_map) do
+  def remove_actor(pk, host, previous_map, to_remove) do
     # Retrieve host inventory
     host_map = Map.get(previous_map, host, %{})
     actors_map = Map.get(host_map, :actors, %{})
@@ -696,7 +697,7 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
 
         # Reduce actor count by 1
         _other ->
-          actor_map = Map.put(actor_map, :count, current_count - 1)
+          actor_map = Map.put(actor_map, :count, current_count - to_remove)
           Map.put(actors_map, pk, actor_map)
       end
 
