@@ -116,25 +116,37 @@ defmodule HostCore.Actors.ActorSupervisor do
       host_id: host_id
     }
 
-    Enum.reduce_while(1..count, [], fn _count, pids ->
-      case DynamicSupervisor.start_child(
-             __MODULE__,
-             {ActorModule, opts}
-           ) do
-        {:error, err} ->
-          Logger.error("Failed to start actor instance", err)
-          {:halt, {:error, "Error: #{inspect(err)}"}}
+    pids =
+      Enum.reduce_while(1..count, [], fn _count, pids ->
+        case DynamicSupervisor.start_child(
+               __MODULE__,
+               {ActorModule, opts |> Map.put(:instance_id, UUID.uuid4())}
+             ) do
+          {:error, err} ->
+            Logger.error("Failed to start actor instance", err)
+            {:halt, {:error, "Error: #{inspect(err)}"}}
 
-        {:ok, pid} ->
-          {:cont, [pid | pids]}
+          {:ok, pid} ->
+            {:cont, [pid | pids]}
 
-        {:ok, pid, _info} ->
-          {:cont, [pid | pids]}
+          {:ok, pid, _info} ->
+            {:cont, [pid | pids]}
 
-        :ignore ->
-          {:cont, pids}
-      end
-    end)
+          :ignore ->
+            {:cont, pids}
+        end
+      end)
+
+    ActorModule.publish_actor_started(
+      host_id,
+      VirtualHost.get_lattice_for_host(host_id),
+      claims,
+      1,
+      "",
+      oci,
+      annotations,
+      pids |> length()
+    )
   end
 
   def start_actor_from_ref(host_id, ref, count \\ 1, annotation \\ %{}) do
@@ -465,6 +477,14 @@ defmodule HostCore.Actors.ActorSupervisor do
         existing = get_annotations(pid),
         Map.merge(existing, annotations) == existing,
         do: ActorModule.halt(pid)
+
+    ActorModule.publish_actor_stopped(
+      host_id,
+      VirtualHost.get_lattice_for_host(host_id),
+      public_key,
+      annotations,
+      count
+    )
 
     remaining
   end

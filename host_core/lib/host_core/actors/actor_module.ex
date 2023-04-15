@@ -289,7 +289,7 @@ defmodule HostCore.Actors.ActorModule do
       actor_id: public_key
     )
 
-    publish_actor_stopped(host_id, lattice_prefix, public_key, instance_id, annotations)
+    # publish_actor_stopped(host_id, lattice_prefix, public_key, instance_id, annotations)
 
     # PRO TIP - if you return :normal here as the stop reason, the GenServer will NOT auto-terminate
     # all of its children. If you want all children established via start_link to be terminated here,
@@ -424,6 +424,7 @@ defmodule HostCore.Actors.ActorModule do
          } = token,
          _agent
        ) do
+    IO.puts("NIL")
     %{token | source_target: true}
   end
 
@@ -439,6 +440,7 @@ defmodule HostCore.Actors.ActorModule do
          } = token,
          _agent
        ) do
+    IO.inspect(token)
     %{token | source_target: true}
   end
 
@@ -629,7 +631,7 @@ defmodule HostCore.Actors.ActorModule do
         ClaimsManager.put_claims(host_id, lattice_prefix, claims)
         ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
         publish_oci_map(host_id, lattice_prefix, oci, claims.public_key)
-        publish_actor_started(host_id, lattice_prefix, claims, "n/a", iid, oci, annotations)
+        # publish_actor_started(host_id, lattice_prefix, claims, "n/a", iid, oci, annotations, 1)
 
         Agent.start_link(fn ->
           %State{
@@ -757,7 +759,8 @@ defmodule HostCore.Actors.ActorModule do
         api_version,
         instance_id,
         oci,
-        annotations
+        annotations,
+        count
       ) do
     %{
       public_key: claims.public_key,
@@ -765,6 +768,7 @@ defmodule HostCore.Actors.ActorModule do
       api_version: api_version,
       instance_id: instance_id,
       annotations: annotations,
+      count: count,
       claims: %{
         call_alias: claims.call_alias,
         caps: claims.caps,
@@ -806,11 +810,12 @@ defmodule HostCore.Actors.ActorModule do
     |> CloudEvent.publish(prefix)
   end
 
-  def publish_actor_stopped(host_id, lattice_prefix, actor_pk, instance_id, annotations) do
+  def publish_actor_stopped(host_id, lattice_prefix, actor_pk, annotations, count) do
     %{
       public_key: actor_pk,
-      instance_id: instance_id,
-      annotations: annotations
+      instance_id: "n/a",
+      annotations: annotations,
+      count: count
     }
     |> CloudEvent.new("actor_stopped", host_id)
     |> CloudEvent.publish(lattice_prefix)
