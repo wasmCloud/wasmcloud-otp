@@ -25,4 +25,12 @@ defmodule HostCore.Providers.Builtin.Numbergen do
     |> Msgpax.pack!()
     |> IO.iodata_to_binary()
   end
+
+  def invoke("NumberGen.RandomBytes", payload) do
+    bytes = Msgpax.unpack!(payload)
+
+    for(_ <- 1..bytes, do: Enum.random(0..255))
+    |> Msgpax.pack!()
+    |> IO.iodata_to_binary()
+  end
 end
