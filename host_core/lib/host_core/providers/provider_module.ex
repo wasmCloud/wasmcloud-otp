@@ -456,7 +456,7 @@ defmodule HostCore.Providers.ProviderModule do
       link_name: link_name,
       contract_id: contract_id,
       instance_id: instance_id,
-      annotaions: annotations,
+      annotations: annotations,
       reason: reason
     }
     |> CloudEvent.new("provider_stopped", host_id)
