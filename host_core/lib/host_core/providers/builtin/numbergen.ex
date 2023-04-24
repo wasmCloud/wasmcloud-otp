@@ -29,8 +29,10 @@ defmodule HostCore.Providers.Builtin.Numbergen do
   def invoke("NumberGen.RandomBytes", payload) do
     bytes = Msgpax.unpack!(payload)
 
-    for(_ <- 1..bytes, do: Enum.random(0..255))
-    |> Msgpax.pack!()
-    |> IO.iodata_to_binary()
+    # need to put a limit on this number
+    random_bytes =
+      :crypto.strong_rand_bytes(bytes)
+      |> Msgpax.pack!()
+      |> IO.iodata_to_binary()
   end
 end
