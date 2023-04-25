@@ -581,24 +581,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cbindgen"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6358dedf60f4d9b8db43ad187391afe959746101346fe51bb978126bec61dfb"
-dependencies = [
- "heck 0.4.1",
- "indexmap",
- "log",
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "syn 1.0.109",
- "tempfile",
- "toml",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -888,7 +870,7 @@ dependencies = [
  "itertools",
  "log",
  "smallvec",
- "wasmparser",
+ "wasmparser 0.102.0",
  "wasmtime-types",
 ]
 
@@ -3872,9 +3854,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.16"
+version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6176eae26dd70d0c919749377897b54a9276bd7061339665dd68777926b5a70"
+checksum = "30a651bc37f915e81f087d86e62a18eec5f79550c7faff886f7090b4ea757c77"
 dependencies = [
  "matchers",
  "nu-ansi-term",
@@ -4117,7 +4099,7 @@ dependencies = [
  "serde_json",
  "wasm-encoder",
  "wasm-gen",
- "wasmparser",
+ "wasmparser 0.102.0",
 ]
 
 [[package]]
@@ -4372,11 +4354,10 @@ dependencies = [
 [[package]]
 name = "wasmcloud"
 version = "0.1.0"
-source = "git+https://github.com/wasmcloud/wasmcloud?branch=fix/0.62-tinygo#e109949542e681c4d4388c7d44b5ae47891e5f72"
+source = "git+https://github.com/wasmcloud/wasmcloud#c3ff3d8e297832783f4ed5e4e72fa3f8f22ab7a6"
 dependencies = [
  "anyhow",
  "async-trait",
- "cbindgen",
  "futures",
  "host",
  "log",
@@ -4392,7 +4373,7 @@ dependencies = [
  "wasmbus-rpc",
  "wasmcloud-interface-logging",
  "wasmcloud-interface-numbergen",
- "wasmparser",
+ "wasmparser 0.103.0",
  "wasmtime",
  "wasmtime-wasi",
 ]
@@ -4439,13 +4420,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasmparser"
+version = "0.103.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c437373cac5ea84f1113d648d51f71751ffbe3d90c00ae67618cf20d0b5ee7b"
+dependencies = [
+ "indexmap",
+ "url",
+]
+
+[[package]]
 name = "wasmprinter"
 version = "0.2.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dc17ae63836d010a2bf001c26a5fedbb9a05e5f71117fb63e0ab878bfbe1ca3"
 dependencies = [
  "anyhow",
- "wasmparser",
+ "wasmparser 0.102.0",
 ]
 
 [[package]]
@@ -4468,7 +4459,7 @@ dependencies = [
  "rayon",
  "serde",
  "target-lexicon",
- "wasmparser",
+ "wasmparser 0.102.0",
  "wasmtime-cache",
  "wasmtime-component-macro",
  "wasmtime-component-util",
@@ -4543,7 +4534,7 @@ dependencies = [
  "object",
  "target-lexicon",
  "thiserror",
- "wasmparser",
+ "wasmparser 0.102.0",
  "wasmtime-environ",
 ]
 
@@ -4562,7 +4553,7 @@ dependencies = [
  "target-lexicon",
  "thiserror",
  "wasm-encoder",
- "wasmparser",
+ "wasmparser 0.102.0",
  "wasmprinter",
  "wasmtime-component-util",
  "wasmtime-types",
@@ -4657,7 +4648,7 @@ dependencies = [
  "cranelift-entity",
  "serde",
  "thiserror",
- "wasmparser",
+ "wasmparser 0.102.0",
 ]
 
 [[package]]
