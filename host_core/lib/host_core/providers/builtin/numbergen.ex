@@ -27,17 +27,15 @@ defmodule HostCore.Providers.Builtin.Numbergen do
   end
 
   def invoke("NumberGen.RandomBytes", payload) do
-    bytes = Msgpax.unpack!(payload)
+    params = Msgpax.unpack!(payload)
+    bytes = params["bytes"]
 
     if bytes >= 1024 do
       "bytes is too large"
     else
-      random_bytes =
         :crypto.strong_rand_bytes(bytes)
         |> Msgpax.pack!()
         |> IO.iodata_to_binary()
-
-      random_bytes
     end
   end
 end
