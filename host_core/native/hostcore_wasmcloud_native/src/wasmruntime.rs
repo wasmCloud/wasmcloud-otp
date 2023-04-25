@@ -109,8 +109,8 @@ impl Handle<capability::Invocation> for ElixirHandler {
                 numbergen::serialize_response(&v).map(Some)
             }
 
-            capability::Invocation::Numbergen(NumbergenInvocation::RandomBytes) => {
-                let v: u32 = todo!();
+            capability::Invocation::Numbergen(NumbergenInvocation::RandomBytes { bytes }) => {
+                let v: [u8; bytes] = thread_rng().gen();
                 trace!("generated random bytes: {v}");
                 numbergen::serialize_response(&v).map(Some)
             }
