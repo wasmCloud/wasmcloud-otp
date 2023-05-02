@@ -10,26 +10,66 @@ defmodule HostCore.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      rustler_crates: [
-        hostcore_wasmcloud_native: [
-          mode: if(Mix.env() == :dev, do: :debug, else: :release)
-        ]
-      ],
-      releases: [
-        host_core: [
-          steps: conditional_steps()
-        ]
-      ],
-      dialyzer: [plt_add_deps: :apps_direct]
+      dialyzer: [plt_add_deps: :apps_direct],
+      releases:
+        if Mix.env() == :prod do
+          [
+            host_core: [
+              steps: [:assemble, &Burrito.wrap/1],
+              burrito: [
+                targets: [
+                  aarch64_darwin: [
+                    os: :darwin,
+                    cpu: :aarch64,
+                    custom_erts: System.get_env("ERTS_AARCH64_DARWIN")
+                  ],
+                  aarch64_linux_gnu: [
+                    os: :linux,
+                    cpu: :aarch64,
+                    libc: :gnu,
+                    custom_erts: System.get_env("ERTS_AARCH64_LINUX_GNU")
+                  ],
+                  aarch64_linux_musl: [
+                    os: :linux,
+                    cpu: :aarch64,
+                    libc: :musl,
+                    custom_erts: System.get_env("ERTS_AARCH64_LINUX_MUSL")
+                  ],
+                  x86_64_darwin: [
+                    os: :darwin,
+                    cpu: :x86_64,
+                    custom_erts: System.get_env("ERTS_X86_64_DARWIN")
+                  ],
+                  x86_64_linux_gnu: [
+                    os: :linux,
+                    cpu: :x86_64,
+                    libc: :gnu,
+                    custom_erts: System.get_env("ERTS_X86_64_LINUX_GNU")
+                  ],
+                  x86_64_linux_musl: [
+                    os: :linux,
+                    cpu: :x86_64,
+                    libc: :musl,
+                    custom_erts: System.get_env("ERTS_X86_64_LINUX_MUSL")
+                  ],
+                  x86_64_windows: [
+                    os: :windows,
+                    cpu: :x86_64,
+                    custom_erts: System.get_env("ERTS_X86_64_WINDOWS")
+                  ]
+                ],
+                extra_steps: [
+                  patch: [
+                    pre: [HostCore.CopyNIF]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        else
+          []
+        end
     ]
-  end
-
-  # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
-  defp conditional_steps do
-    case :os.type() do
-      {:unix, _} -> [:assemble, &Bakeware.assemble/1]
-      _ -> [:assemble]
-    end
   end
 
   # In order to ensure that TLS cert check starts before the otel applications,
@@ -50,7 +90,7 @@ defmodule HostCore.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    list = [
+    [
       {:msgpax, "~> 2.3"},
       {:rustler, "~> 0.27.0"},
       {:timex, "~> 3.7"},
@@ -76,13 +116,8 @@ defmodule HostCore.MixProject do
       {:yaml_elixir, "~> 2.9.0"},
       {:toml, "~> 0.7"},
       {:benchee, "~> 1.0", only: :test},
-      {:mock, "~> 0.3.0", only: :test}
+      {:mock, "~> 0.3.0", only: :test},
+      {:burrito, github: "burrito-elixir/burrito"}
     ]
-
-    # TODO https://github.com/wasmCloud/wasmcloud-otp/issues/570
-    case :os.type() do
-      {:unix, _} -> [{:bakeware, "~> 0.2.4"} | list]
-      _ -> list
-    end
   end
 end

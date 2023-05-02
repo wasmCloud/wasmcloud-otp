@@ -22,6 +22,10 @@ config :wasmcloud_host, WasmcloudHostWeb.Endpoint,
 # Do not print debug messages in production
 config :logger, :console, level: :info
 
+config :host_core, HostCore.WasmCloud.Native,
+  mode: :release,
+  skip_compilation?: true
+
 # ## SSL Support
 #
 # To get SSL working, you will need to add the `https` key
