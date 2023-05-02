@@ -40,6 +40,7 @@ config :mime, :types, %{
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.12.18",
+  path: System.get_env("MIX_ESBUILD_PATH"),
   default: [
     args: [
       "js/app.js",
@@ -59,7 +60,8 @@ config :esbuild,
 
 # Configure Dart for scss support
 config :dart_sass,
-  version: "1.52.1"
+  version: "1.52.1",
+  path: System.get_env("MIX_SASS_PATH")
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

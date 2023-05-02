@@ -1,6 +1,8 @@
 # The directory Mix will write compiled artifacts to.
 /_build/
 _build/
+burrito_out/
+result
 
 # If you run "mix test --cover", coverage assets end up here.
 /cover/

@@ -2,380 +2,393 @@ name: WasmCloud Release
 
 on:
   push:
+    branches: [main]
     tags: ["v*"] # Push events to matching v*, i.e. v1.0, v20.15.10
   workflow_dispatch: # Allow manual creation of artifacts without a release
   pull_request:
     branches: [main]
+
 env:
-  otp-version: 25
-  elixir-version: 1.14.3
+  FALLBACK_SECRET: 3ImiTAMO0TTD7wrACHrCA+ggkzpw6zGWvE3gtQwlXE6vmnDT9yGP5/WKpLWEJ8fF
 
 jobs:
-  create-static-macos:
-    if: ${{ startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    name: Static macOS release
+  nif-darwin:
     strategy:
-      matrix: 
-        os: [macos-11]
-        include:
-          - os: macos-11
-            rust-target: x86_64-apple-darwin
-            release-tarball: x86_64-macos-static.tar.gz
-            working-directory: wasmcloud_host
-    runs-on: ${{ matrix.os }}
-    env:
-      working-directory: ${{ matrix.working-directory }}
-      MIX_ENV: release_prod
-      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - name: run macos script
-        shell: bash
-        run: |
-          bash .github/workflows/static_macos
-          tar -czvf ${{ matrix.release-tarball }} -C wasmcloud_host/_build/prod/rel/bakeware wasmcloud_host
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.release-tarball }}
-          path: ${{ matrix.release-tarball }}
-
-  create-mix-releases:
-    # Run on tag push or on manual dispatch. Release will not be created for manual dispatch
-    if: ${{ (startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && startswith(github.repository.name, 'wasmcloud') }}
-    name: Mix release
-    strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-11]
-        working-directory: [wasmcloud_host, host_core]
-        include:
-          - os: ubuntu-20.04
-            rust-target: x86_64-unknown-linux-gnu
-            release-tarball: x86_64-linux.tar.gz
-            working-directory: wasmcloud_host
-          - os: windows-2019
-            rust-target: x86_64-pc-windows-gnu
-            release-tarball: x86_64-windows.tar.gz
-            working-directory: wasmcloud_host
-          - os: macos-11
-            rust-target: x86_64-apple-darwin
-            release-tarball: x86_64-macos.tar.gz
-            working-directory: wasmcloud_host
-          - os: ubuntu-20.04
-            rust-target: x86_64-unknown-linux-gnu
-            release-tarball: x86_64-linux-core.tar.gz
-            working-directory: host_core
-          - os: windows-2019
-            rust-target: x86_64-pc-windows-gnu
-            release-tarball: x86_64-windows-core.tar.gz
-            working-directory: host_core
-          - os: macos-11
-            rust-target: x86_64-apple-darwin
-            release-tarball: x86_64-macos-core.tar.gz
-            working-directory: host_core
-    runs-on: ${{ matrix.os }}
-    env:
-      working-directory: ${{ matrix.working-directory }}
-      MIX_ENV: release_prod
-      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+        target:
+        - aarch64-apple-darwin
+        - x86_64-apple-darwin
 
+    name: nif-${{ matrix.target }}
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
+    - run: rustup toolchain install stable --profile minimal
+    - run: rustup target add ${{ matrix.target }}
+    - uses: Swatinem/rust-cache@v2
+      if: ${{ !startswith(github.ref, 'refs/tags/') }} # Do not cache on tag pushes
+      with:
+        workspaces: "host_core/native/hostcore_wasmcloud_native"
+    - name: Build NIF
+      run: |
+        cd ./host_core/native/hostcore_wasmcloud_native
+        cargo build --target ${{ matrix.target }} --release
+    - uses: actions/upload-artifact@v3
+      with:
+        name: nif-${{ matrix.target }}
+        path: ./host_core/native/hostcore_wasmcloud_native/target/${{ matrix.target }}/release/libhostcore_wasmcloud_native.dylib
+        if-no-files-found: error
 
-      # Install Rust
-      - run: rustup toolchain install stable --profile minimal
+  nif-windows:
+    name: nif-x86_64-pc-windows-msvc
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - run: rustup toolchain install stable --profile minimal
+    - uses: Swatinem/rust-cache@v2
+      if: ${{ !startswith(github.ref, 'refs/tags/') }} # Do not cache on tag pushes
+      with:
+        workspaces: "host_core/native/hostcore_wasmcloud_native"
+    - name: Build NIF
+      run: |
+        cd ./host_core/native/hostcore_wasmcloud_native
+        cargo build --release
+    - uses: actions/upload-artifact@v3
+      with:
+        name: nif-x86_64-pc-windows-msvc
+        path: host_core/native/hostcore_wasmcloud_native/target/release/hostcore_wasmcloud_native.dll
+        if-no-files-found: error
 
-      # Install erlang/OTP and elixir
-      - name: Install erlang and elixir
-        if: ${{ startswith(matrix.os, 'ubuntu') || startswith(matrix.os, 'windows') }}
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: "=${{ env.otp-version }}"
-          elixir-version: "${{ env.elixir-version }}"
-          install-hex: true
-          install-rebar: true
-      - name: Install erlang and elixir
-        if: ${{ startswith(matrix.os, 'macos') }}
-        run: |
-          brew install erlang
-          brew install elixir
+  burrito-darwin:
+    strategy:
+      matrix:
+        config:
+          - package: host_core
+            arch: aarch64
+          - package: host_core
+            arch: x86_64
 
-      - name: Retrieve Mix Dependencies Cache
-        if: ${{ !startswith(matrix.os, 'windows') }} # Windows gets angry about not owning files if you restore from cache
-        uses: actions/cache@v2
-        id: mix-cache #id to use in retrieve action
-        with:
-          path: |
-            ${{ env.working-directory }}/deps
-          key: ${{ runner.os }}-${{ env.ERLANG_VERSION }}-${{ env.ELIXIR_VERSION }}-mix-${{ hashFiles('${{ env.working-directory }}/mix.exs', '${{ env.working-directory }}/mix.lock') }}
+          - package: wasmcloud_host
+            arch: aarch64
+          - package: wasmcloud_host
+            arch: x86_64
 
-      - name: Install Mix Dependencies
-        working-directory: ${{env.working-directory}}
-        shell: bash
-        run: |
-          mix local.rebar --force
-          mix local.hex --force
-          mix deps.get
+    needs:
+    - nif-darwin
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/install-nix
+      with: 
+        cachixAuthToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-      - name: Compile Elixir
-        working-directory: ${{env.working-directory}}
-        shell: bash
-        run: |
-          mix compile
+    - uses: actions/download-artifact@v3
+      with:
+        path: /tmp/nif/lib
+        name: nif-${{ matrix.config.arch }}-apple-darwin
 
-      - name: Compile Phoenix Assets
-        if: ${{ env.working-directory == 'wasmcloud_host' }}
-        working-directory: ${{env.working-directory}}
-        shell: bash
-        run: |
-          make esbuild
+    - name: Wrap ${{ matrix.config.package }} ${{ matrix.config.arch }} Darwin burrito
+      env:
+        SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+      run: |
+        printf '%s' "${SECRET_KEY_BASE:-$FALLBACK_SECRET}" | nix build \
+          --override-input secret-key-base 'file:///dev/stdin' \
+          --override-input hostcore_wasmcloud_native-${{ matrix.config.arch }}-apple-darwin-mac /tmp/nif \
+          -L .#${{ matrix.config.package }}-burrito-${{ matrix.config.arch }}-darwin
 
-      - name: Create Mix Release
-        working-directory: ${{env.working-directory}}
-        shell: bash
-        run: |
-          mix release
-          cd _build/${{ env.MIX_ENV }}/rel/${{env.working-directory}}
-          tar -czvf ${{ matrix.release-tarball }} bin erts-* lib releases
-          mv ${{ matrix.release-tarball }} ../../../../
+    - uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.config.package }}_${{ matrix.config.arch }}_darwin
+        path: ./result/bin/${{ matrix.config.package }}_${{ matrix.config.arch }}_darwin
+        if-no-files-found: error
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.release-tarball }}
-          path: ${{env.working-directory}}/${{ matrix.release-tarball }}
+  burrito-linux:
+    strategy:
+      matrix:
+        config:
+          - package: host_core
+            arch: aarch64
+            libc: gnu
+          - package: host_core
+            arch: aarch64
+            libc: musl
+          - package: host_core
+            arch: x86_64
+            libc: gnu
+          - package: host_core
+            arch: x86_64
+            libc: musl
 
-  # release-hostcore-docker:
-  #   if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-  #   name: Release Image (host_core)
-  #   runs-on: ubuntu-22.04
-  #   env:
-  #     MIX_ENV: release_prod
-  #     working-directory: wasmcloud_host
-  #     SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-  #     app-name: host_core
-  #     arm-tarball: aarch64-linux-musl-core.tar.gz
-  #     builder-image: elixir:1.13.4-alpine
-  #     release-image: alpine:3.16
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Determine version
-  #       run: echo "app-version=${GITHUB_REF_NAME#v}" > $GITHUB_ENV
+          - package: wasmcloud_host
+            arch: aarch64
+            libc: gnu
+          - package: wasmcloud_host
+            arch: aarch64
+            libc: musl
+          - package: wasmcloud_host
+            arch: x86_64
+            libc: gnu
+          - package: wasmcloud_host
+            arch: x86_64
+            libc: musl
 
-  #     # Download the NIF in the path that Docker expects for x86
-  #     - uses: actions/download-artifact@v3
-  #       with:
-  #         path: ./host_core/priv/built/x86_64
-  #         name: x86_64-unknown-linux-musl
-  #     # Download the NIF in the path that Docker expects for aarch64
-  #     - uses: actions/download-artifact@v3
-  #       with:
-  #         path: ./host_core/priv/built/aarch64
-  #         name: aarch64-unknown-linux-musl
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/install-nix
+      with: 
+        cachixAuthToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-  #     - name: Login to AzureCR
-  #       uses: azure/docker-login@v1
-  #       with:
-  #         login-server: ${{ secrets.AZURECR_PUSH_URL }}
-  #         username: ${{ secrets.AZURECR_PUSH_USER }}
-  #         password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
-  #     - name: Login to DockerHub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_PUSH_USER }}
-  #         password: ${{ secrets.DOCKERHUB_PUSH_PASSWORD }}
-  #     - name: Set up QEMU
-  #       uses: docker/setup-qemu-action@v2
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v2
-  #       id: buildx-builder
-  #     - name: Build and release docker image
-  #       uses: docker/build-push-action@v3
-  #       with:
-  #         builder: ${{ steps.buildx-builder.outputs.name }}
-  #         push: false
-  #         context: ${{ env.app-name}}/
-  #         file: ${{ env.app-name}}/Dockerfile
-  #         platforms: linux/amd64,linux/arm64
-  #         build-args: |
-  #           BUILDER_IMAGE=${{ env.builder-image }}
-  #           RELEASE_IMAGE=${{ env.release-image }}
-  #           APP_NAME=${{ env.app-name }}
-  #           APP_VSN=${{ env.app-version }}
-  #           MIX_ENV=${{ env.MIX_ENV }}
-  #         tags: |
-  #           wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}
-  #           wasmcloud.azurecr.io/${{ env.app-name }}:latest
-  #           wasmcloud/${{ env.app-name }}:${{ env.app-version }}
-  #           wasmcloud/${{ env.app-name }}:latest
+    - name: Wrap ${{ matrix.config.package }} ${{ matrix.config.arch }} Linux ${{ matrix.config.libc }} burrito
+      env:
+        SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+      run: |
+        printf '%s' "${SECRET_KEY_BASE:-$FALLBACK_SECRET}" | nix build \
+          --override-input secret-key-base 'file:///dev/stdin' \
+          -L .#${{ matrix.config.package }}-burrito-${{ matrix.config.arch }}-linux-${{ matrix.config.libc }}
 
-  #     - name: Retrieve aarch64 tarball from Docker
-  #       run: |
-  #         docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version}} sh -s <<EOF
-  #         tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
-  #         cp ${{ env.arm-tarball }} /aarch64temp/
-  #         EOF
-  #     - name: Upload artifact
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: ${{ env.arm-tarball }}
-  #         path: ${{ env.arm-tarball }}
+    - uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.config.package }}_${{ matrix.config.arch }}_linux_${{ matrix.config.libc }}
+        path: ./result/bin/${{ matrix.config.package }}_${{ matrix.config.arch }}_linux_${{ matrix.config.libc }}
+        if-no-files-found: error
 
-  # Dear reviewer, you may be thinking to yourself, "hey, this looks like a great candidate for a matrix with the above"
-  # I once thought so too, and to spare you some incredible pain, turns out _something_ about QEMU does
-  # not work properly in a build matrix. Maybe it's due to the way GH runners use Docker, or how they
-  # handle multi-tenancy, but it absolutely _does not work_ to build with a matrix.
-  #
-  # So, sorry about the code duplication, perhaps in the future we'll find a way to make this happen
-  release-wasmcloud-docker:
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
-    name: Release Image (wasmcloud_host)
-    runs-on: ubuntu-22.04
-    env:
-      working-directory: wasmcloud_host
-      SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-      app-name: wasmcloud_host
-      arm-tarball: aarch64-linux.tar.gz
-      arm-tarball-static: aarch64-linux-static.tar.gz
-      amd-tarball-static: amd64-linux-static.tar.gz
-      builder-image: elixir:1.14.3-otp-24-slim
-      release-image: debian:bullseye-slim
+  burrito-windows:
+    strategy:
+      matrix:
+        package:
+        - host_core
+        - wasmcloud_host
+
+    needs:
+    - nif-windows
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/install-nix
+      with: 
+        cachixAuthToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+    - uses: actions/download-artifact@v3
+      with:
+        path: /tmp/nif/lib
+        name: nif-x86_64-pc-windows-msvc
+
+    - name: Wrap ${{ matrix.package }} x86_64 Windows burrito
+      env:
+        SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
+      run: |
+        printf '%s' "${SECRET_KEY_BASE:-$FALLBACK_SECRET}" | nix build \
+          --override-input secret-key-base 'file:///dev/stdin' \
+          --override-input hostcore_wasmcloud_native-x86_64-pc-windows-msvc /tmp/nif \
+          -L .#${{ matrix.package }}-burrito-x86_64-windows
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.package }}_x86_64_windows
+        path: ./result/bin/${{ matrix.package }}_x86_64_windows.exe
+        if-no-files-found: error
+
+  test-darwin:
+    runs-on: macos-latest
+    needs:
+    - burrito-darwin
+    steps:
+    - run: curl -sL 'https://github.com/nats-io/nats-server/releases/download/v2.9.16/nats-server-v2.9.16-darwin-amd64.tar.gz' | tar xzv --strip-components 1 
+    - uses: actions/download-artifact@v3
+      with:
+        name: host_core_x86_64_darwin
+    - run: chmod +x ./host_core_x86_64_darwin
+    - run: |
+        ./nats-server &
+        ./host_core_x86_64_darwin & sleep 30; kill $!
+
+    - uses: actions/download-artifact@v3
+      with:
+        name: wasmcloud_host_x86_64_darwin
+    - run: chmod +x ./wasmcloud_host_x86_64_darwin
+    - run: |
+        ./nats-server &
+        ./wasmcloud_host_x86_64_darwin & sleep 30; kill $!
+
+  test-linux:
+    runs-on: ubuntu-latest
+    needs:
+    - burrito-linux
+    services:
+      nats:
+        image: nats
+        ports:
+        - 4222:4222
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: host_core_x86_64_linux_gnu
+    - run: chmod +x ./host_core_x86_64_linux_gnu
+    - run: ./host_core_x86_64_linux_gnu & sleep 30; kill $!
+
+    - uses: actions/download-artifact@v3
+      with:
+        name: wasmcloud_host_x86_64_linux_gnu
+    - run: chmod +x ./wasmcloud_host_x86_64_linux_gnu
+    - run: ./wasmcloud_host_x86_64_linux_gnu & sleep 30; kill $!
+
+  test-windows:
+    runs-on: windows-latest
+    needs:
+    - burrito-windows
+    steps:
+    - run: curl -sLo 'nats.tar.gz' 'https://github.com/nats-io/nats-server/releases/download/v2.9.16/nats-server-v2.9.16-windows-amd64.tar.gz'
+    - run: tar xzvf nats.tar.gz --strip-components 1
+    - uses: actions/download-artifact@v3
+      with:
+        name: host_core_x86_64_windows
+    - run: |
+        Start-Process ./nats-server.exe
+        Start-Process ./host_core_x86_64_windows.exe
+        timeout /t 30
+        Taskkill /im host_core_x86_64_windows.exe /f
+
+    - uses: actions/download-artifact@v3
+      with:
+        name: wasmcloud_host_x86_64_windows
+    - run: |
+        Start-Process ./nats-server.exe
+        Start-Process ./wasmcloud_host_x86_64_windows.exe 
+        timeout /t 30
+        Taskkill /im wasmcloud_host_x86_64_windows.exe /f
+
+  release:
+    strategy:
+      matrix:
+        config:
+        - app-name: host_core
+          target: aarch64_linux_gnu
+          platform: linux/arm64
+
+        - app-name: host_core
+          target: x86_64_linux_gnu
+          platform: linux/amd64
+
+        - app-name: wasmcloud_host
+          target: aarch64_linux_gnu
+          platform: linux/arm64
+
+        - app-name: wasmcloud_host
+          target: x86_64_linux_gnu
+          platform: linux/amd64
+
+    runs-on: ubuntu-latest
+    needs:
+    - test-darwin
+    - test-linux
+    - test-windows
     steps:
       - uses: actions/checkout@v3
       - name: Determine version
         run: echo "app-version=${GITHUB_REF_NAME#v}" > $GITHUB_ENV
 
-      # Compile phoenix assets for wasmcloud_host outside of image (dart-sass doesn't support arm linux)
-      - name: Install erlang and elixir
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: "=${{ env.otp-version }}"
-          elixir-version: "${{ env.elixir-version }}"
-          install-hex: true
-          install-rebar: true
-      - name: Install Mix Dependencies
-        working-directory: ${{env.working-directory}}
-        run: |
-          mix local.rebar --force
-          mix local.hex --force
-          mix deps.get
-      - name: Compile Phoenix Assets
-        working-directory: ${{env.working-directory}}
-        shell: bash
-        run: |
-          make esbuild
-
       - name: Login to AzureCR
+        if: startswith(github.ref, 'refs/tags/') # Only run on tag push
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.AZURECR_PUSH_URL }}
           username: ${{ secrets.AZURECR_PUSH_USER }}
           password: ${{ secrets.AZURECR_PUSH_PASSWORD }}
+
       - name: Login to DockerHub
+        if: startswith(github.ref, 'refs/tags/') # Only run on tag push
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_PUSH_USER }}
           password: ${{ secrets.DOCKERHUB_PUSH_PASSWORD }}
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         id: buildx-builder
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.config.app-name }}_${{ matrix.config.target }}
+          path: ${{ matrix.config.app-name }}
+      - run: chmod +x ${{ matrix.config.app-name }}/${{ matrix.config.app-name }}_${{ matrix.config.target }}
+
       - name: Build and release docker image
         uses: docker/build-push-action@v3
         with:
           builder: ${{ steps.buildx-builder.outputs.name }}
-          push: true
-          context: .
-          file: ${{ env.app-name }}/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          push: ${{ startswith(github.ref, 'refs/tags/') }}
+          context: ${{ matrix.config.app-name }}
+          file: ${{ matrix.config.app-name }}/Dockerfile
+          platforms: ${{ matrix.config.platform }}
           build-args: |
-            BUILDER_IMAGE=${{ env.builder-image }}
-            RELEASE_IMAGE=${{ env.release-image }}
-            APP_NAME=${{ env.app-name }}
-            APP_VSN=${{ env.app-version }}
-            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-            MIX_ENV=release_prod
+            BIN=${{ matrix.config.app-name }}_${{ matrix.config.target }}
           tags: |
-            wasmcloud.azurecr.io/${{ env.app-name }}:latest
-            wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}
-            wasmcloud/${{ env.app-name }}:${{ env.app-version }}
-            wasmcloud/${{ env.app-name }}:latest
-      - name: Build common static image
-        uses: docker/build-push-action@v3
-        with:
-          builder: ${{ steps.buildx-builder.outputs.name }}
-          push: true
-          context: .
-          file: Dockerfile.localstatic
-          platforms: linux/amd64 #,linux/arm64
-          tags: |
-            wasmcloud.azurecr.io/wasmcloud_static_base:${{ env.app-version }}
-      - name: Build and release static docker image
-        uses: docker/build-push-action@v3
-        with:
-          builder: ${{ steps.buildx-builder.outputs.name }}
-          push: true
-          context: .
-          file: ${{ env.app-name }}/Dockerfile.static
-          platforms: linux/amd64 #,linux/arm64
-          build-args: |
-            BASEIMAGE=wasmcloud.azurecr.io/wasmcloud_static_base:${{ env.app-version }}
-            APP_NAME=${{ env.app-name }}
-            APP_VSN=${{ env.app-version }}
-            SECRET_KEY_BASE=${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
-            MIX_ENV=release_prod
-          tags: |
-            wasmcloud.azurecr.io/${{ env.app-name }}:${{ env.app-version }}-static
-            wasmcloud/${{ env.app-name }}:${{ env.app-version }}-static
-
-      - name: Retrieve aarch64, aarch64-static, and amd64-static tarballs from Docker
-        run: |
-          docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
-          tar -czvf ${{ env.arm-tarball }} bin erts-*/ lib/ releases/
-          cp ${{ env.arm-tarball }} /aarch64temp/
-          EOF
-          # docker run --rm --platform linux/arm64/v8 -iv ${PWD}:/aarch64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
-          # tar czvf ${{ env.arm-tarball-static }} /usr/local/bin/wasmcloud_host
-          # cp ${{ env.arm-tarball-static }} /aarch64temp/
-          # EOF
-          docker run --rm --platform linux/amd64 -iv ${PWD}:/amd64temp wasmcloud/${{ env.app-name }}:${{ env.app-version }} sh -s <<EOF
-          tar -czvf ${{ env.amd-tarball-static }} --directory /usr/local/bin wasmcloud_host
-          cp ${{ env.amd-tarball-static }} /amd64temp/
-          EOF
-      - name: Upload artifact (arm64)
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.arm-tarball }}
-          path: ${{ env.arm-tarball }}
-      # - name: Upload artifact (arm64 static)
-      #   uses: actions/upload-artifact@v2
-      #   with:
-      #     name: ${{ env.arm-tarball-static }}
-      #     path: ${{ env.arm-tarball-static }}
-      - name: Upload artifact (amd64 static)
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.amd-tarball-static }}
-          path: ${{ env.amd-tarball-static }}
+            wasmcloud.azurecr.io/${{ matrix.config.app-name }}:${{ env.app-version }}
+            wasmcloud.azurecr.io/${{ matrix.config.app-name }}:latest
+            wasmcloud/${{ matrix.config.app-name }}:${{ env.app-version }}
+            wasmcloud/${{ matrix.config.app-name }}:latest
 
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs:
-      [create-mix-releases, release-wasmcloud-docker]
+    - release
     runs-on: ubuntu-latest
     steps:
-      - name: Download Release Tarballs
-        uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
-          path: release
+          name: host_core_aarch64_darwin
+      - uses: actions/download-artifact@v3
+        with:
+          name: host_core_aarch64_linux_gnu
+      - uses: actions/download-artifact@v3
+        with:
+          name: host_core_aarch64_linux_musl
+      - uses: actions/download-artifact@v3
+        with:
+          name: host_core_x86_64_darwin
+      - uses: actions/download-artifact@v3
+        with:
+          name: host_core_x86_64_linux_gnu
+      - uses: actions/download-artifact@v3
+        with:
+          name: host_core_x86_64_linux_musl
+      - uses: actions/download-artifact@v3
+        with:
+          name: host_core_x86_64_windows
 
+      - uses: actions/download-artifact@v3
+        with:
+          name: wasmcloud_host_aarch64_darwin
+      - uses: actions/download-artifact@v3
+        with:
+          name: wasmcloud_host_aarch64_linux_gnu
+      - uses: actions/download-artifact@v3
+        with:
+          name: wasmcloud_host_aarch64_linux_musl
+      - uses: actions/download-artifact@v3
+        with:
+          name: wasmcloud_host_x86_64_darwin
+      - uses: actions/download-artifact@v3
+        with:
+          name: wasmcloud_host_x86_64_linux_gnu
+      - uses: actions/download-artifact@v3
+        with:
+          name: wasmcloud_host_x86_64_linux_musl
+      - uses: actions/download-artifact@v3
+        with:
+          name: wasmcloud_host_x86_64_windows
+
+      - run: chmod +x ./host_core_*
+      - run: chmod +x ./wasmcloud_host_*
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: release/**/*.tar.gz
+          files: |
+            ./host_core_*
+            ./wasmcloud_host_*
           token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: false
           draft: false
