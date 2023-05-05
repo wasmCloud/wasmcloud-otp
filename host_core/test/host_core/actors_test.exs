@@ -159,6 +159,7 @@ defmodule HostCore.ActorsTest do
       {:ok, _pids} =
         ActorSupervisor.start_actor_from_ref(
           config.host_key,
+          config.lattice_prefix,
           @kvcounter_unpriv_filepath,
           5,
           %{
