@@ -43,13 +43,13 @@ defmodule StartActorComponent do
         %{"count" => count},
         socket
       ) do
-    {pk, _pid, _prefix} = WasmcloudHost.Application.first_host()
+    {pk, _pid, prefix} = WasmcloudHost.Application.first_host()
 
     error_msg =
       Phoenix.LiveView.consume_uploaded_entries(socket, :actor, fn %{path: path}, _entry ->
         case File.read(path) do
           {:ok, bytes} ->
-            ActorSupervisor.start_actor(bytes, pk, "", String.to_integer(count))
+            ActorSupervisor.start_actor(bytes, pk, prefix, "", String.to_integer(count))
 
           {:error, reason} ->
             {:error, "Error #{reason}"}
@@ -75,13 +75,14 @@ defmodule StartActorComponent do
         %{"path" => path, "count" => count},
         socket
       ) do
-    {host_id, _pid, _prefix} = WasmcloudHost.Application.first_host()
+    {host_id, _pid, prefix} = WasmcloudHost.Application.first_host()
 
     case WasmcloudHost.ActorWatcher.hotwatch_actor(
            :actor_watcher,
            path,
            String.to_integer(count),
-           host_id
+           host_id,
+           prefix
          ) do
       :ok ->
         Phoenix.PubSub.broadcast(WasmcloudHost.PubSub, "frontend", :hide_modal)

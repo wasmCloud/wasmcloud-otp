@@ -10,8 +10,8 @@ defmodule WasmcloudHost.ActorWatcher do
     GenServer.start_link(__MODULE__, args, name: :actor_watcher)
   end
 
-  def hotwatch_actor(pid, path, replicas, host_id) do
-    GenServer.call(pid, {:hotwatch_actor, path, replicas, host_id}, 60_000)
+  def hotwatch_actor(pid, path, replicas, host_id, prefix) do
+    GenServer.call(pid, {:hotwatch_actor, path, replicas, host_id, prefix}, 60_000)
   end
 
   def stop_hotwatch(pid, actor_id) do
@@ -68,7 +68,7 @@ defmodule WasmcloudHost.ActorWatcher do
   def handle_info({:reload_actor, path}, state) do
     {:ok, bytes} = File.read(path)
     actor_id = state |> Map.get(path, %{}) |> Map.get(:actor_id, "")
-    {local_host_id, _pid, _prefix} = WasmcloudHost.Application.first_host()
+    {local_host_id, _pid, prefix} = WasmcloudHost.Application.first_host()
     existing_actors = ActorSupervisor.find_actor(actor_id, local_host_id)
 
     replicas = existing_actors |> Enum.count()
@@ -80,15 +80,15 @@ defmodule WasmcloudHost.ActorWatcher do
       %{}
     )
 
-    start_actor(bytes, local_host_id, replicas)
+    start_actor(bytes, local_host_id, prefix, replicas)
 
     new_actor = %{actor_id: actor_id, is_reloading: false}
     {:noreply, Map.put(state, path, new_actor)}
   end
 
-  def handle_call({:hotwatch_actor, path, replicas, host_id}, _from, state) do
+  def handle_call({:hotwatch_actor, path, replicas, host_id, prefix}, _from, state) do
     with {:ok, bytes} <- File.read(path),
-         :ok <- start_actor(bytes, host_id, replicas),
+         :ok <- start_actor(bytes, host_id, prefix, replicas),
          {:ok, claims} <- Native.extract_claims(bytes) do
       if Map.get(state, path, nil) != nil do
         # Already watching this actor, don't re-subscribe
@@ -125,10 +125,15 @@ defmodule WasmcloudHost.ActorWatcher do
     end
   end
 
-  @spec start_actor(bytes :: binary(), host_id :: binary(), replicas :: non_neg_integer()) ::
+  @spec start_actor(
+          bytes :: binary(),
+          host_id :: binary(),
+          prefix :: binary(),
+          replicas :: non_neg_integer()
+        ) ::
           :ok | {:error, any}
-  def start_actor(bytes, host_id, replicas) do
-    case ActorSupervisor.start_actor(bytes, host_id, "", replicas) do
+  def start_actor(bytes, host_id, prefix, replicas) do
+    case ActorSupervisor.start_actor(bytes, host_id, prefix, "", replicas) do
       {:ok, _pids} -> :ok
       {:error, e} -> {:error, e}
     end
