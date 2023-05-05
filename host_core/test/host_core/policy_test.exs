@@ -37,7 +37,7 @@ defmodule HostCore.PolicyTest do
     )
 
     {:ok, bytes} = File.read(@policy_path)
-    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
 
     {:ok, _pid} =
       ProviderSupervisor.start_provider_from_oci(

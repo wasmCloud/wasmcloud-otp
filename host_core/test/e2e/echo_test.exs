@@ -23,7 +23,7 @@ defmodule HostCore.E2E.EchoTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_key)
 
@@ -89,7 +89,7 @@ defmodule HostCore.E2E.EchoTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@echo_unpriv_path)
-    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @echo_unpriv_key)
 
     actor_count = actor_count(config.host_key, @echo_unpriv_key)
