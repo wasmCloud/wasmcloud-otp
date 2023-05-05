@@ -243,7 +243,8 @@ defmodule HostCore.PolicyTest do
   #   <> "Issuer was not the official wasmCloud issuer"} =
   #     ActorSupervisor.start_actor_from_oci(
   #       config.host_key,
-  #       "ghcr.io/brooksmtownsend/wadice:0.1.0"
+  #       "ghcr.io/brooksmtownsend/wadice:0.1.0",
+  #       config.lattice_prefix
   #     )
 
   #   {:error,
