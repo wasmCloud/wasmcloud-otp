@@ -40,7 +40,12 @@ defmodule HostCore.ActorsTest do
     } do
       on_exit(fn -> cleanup(pid, config) end)
 
-      {:ok, _pid} = ActorSupervisor.start_actor_from_oci(config.host_key, @echo_oci_reference)
+      {:ok, _pid} =
+        ActorSupervisor.start_actor_from_oci(
+          config.host_key,
+          @echo_oci_reference,
+          config.lattice_prefix
+        )
 
       wait_for_actor_start(evt_watcher, @echo_key)
 
@@ -58,7 +63,8 @@ defmodule HostCore.ActorsTest do
       {:ok, _pid} =
         ActorSupervisor.start_actor_from_oci(
           config.host_key,
-          @echo_old_oci_reference
+          @echo_old_oci_reference,
+          config.lattice_prefix
         )
 
       wait_for_actor_start(evt_watcher, @echo_key)
@@ -404,6 +410,7 @@ defmodule HostCore.ActorsTest do
         ActorSupervisor.start_actor_from_oci(
           config.host_key,
           @echo_oci_reference,
+          config.lattice_prefix,
           1
         )
 
@@ -538,6 +545,7 @@ defmodule HostCore.ActorsTest do
         ActorSupervisor.start_actor_from_oci(
           config.host_key,
           @echo_oci_reference,
+          config.lattice_prefix,
           1
         )
 
@@ -547,7 +555,8 @@ defmodule HostCore.ActorsTest do
       res =
         ActorSupervisor.start_actor_from_oci(
           config.host_key,
-          "wasmcloud.azurecr.io/echo:0.3.0"
+          "wasmcloud.azurecr.io/echo:0.3.0",
+          config.lattice_prefix
         )
 
       assert res ==
