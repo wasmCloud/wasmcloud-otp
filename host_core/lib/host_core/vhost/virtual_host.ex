@@ -568,6 +568,10 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   defp start_autostart_actor(actor, state) do
-    ActorSupervisor.start_actor_from_ref(state.config.host_key, actor)
+    ActorSupervisor.start_actor_from_ref(
+      state.config.host_key,
+      state.config.lattice_prefix,
+      actor
+    )
   end
 end

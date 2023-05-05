@@ -11,6 +11,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
   alias HostCore.Actors.ActorModule
   alias HostCore.Actors.ActorRpcSupervisor
+  alias HostCore.CloudEvent
   alias HostCore.Vhost.VirtualHost
   alias HostCore.WasmCloud.Native
 
@@ -28,11 +29,12 @@ defmodule HostCore.Actors.ActorSupervisor do
   @spec start_actor(
           bytes :: binary(),
           host_id :: String.t(),
+          lattice_prefix :: String.t(),
           oci :: String.t(),
           count :: integer(),
           annotations :: map()
         ) :: {:error, any} | {:ok, [pid()]}
-  def start_actor(bytes, host_id, oci \\ "", count \\ 1, annotations \\ %{})
+  def start_actor(bytes, host_id, lattice_prefix, oci \\ "", count \\ 1, annotations \\ %{})
       when is_binary(bytes) do
     Tracer.with_span "Starting Actor" do
       Tracer.set_attribute("actor_ref", oci)
@@ -45,32 +47,96 @@ defmodule HostCore.Actors.ActorSupervisor do
       with {:ok, {pid, _}} <- VirtualHost.lookup(host_id),
            config <- VirtualHost.config(pid),
            labels <- VirtualHost.labels(pid),
-           {:ok, claims} <- get_claims(bytes, oci),
-           target <- %{
-             publicKey: claims.public_key,
-             issuer: claims.issuer,
-             contractId: nil,
-             linkName: nil
-           },
-           %{permitted: true} <-
-             HostCore.Policy.Manager.evaluate_action(config, labels, source, target, @start_actor),
-           {:ok} <- check_other_oci_already_running(oci, claims.public_key, host_id),
-           pids <- start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
-        Tracer.add_event("Actor(s) Started", [])
-        Tracer.set_status(:ok, "")
-        {:ok, pids}
-      else
-        %{permitted: false, message: message, requestId: request_id} ->
-          Tracer.set_status(:error, "Policy denied starting actor, request: #{request_id}")
-          {:error, "Starting actor denied: #{message}"}
+           {:ok, claims} <- get_claims(bytes, oci) do
+        with target <- %{
+               publicKey: claims.public_key,
+               issuer: claims.issuer,
+               contractId: nil,
+               linkName: nil
+             },
+             %{permitted: true} <-
+               HostCore.Policy.Manager.evaluate_action(
+                 config,
+                 labels,
+                 source,
+                 target,
+                 @start_actor
+               ),
+             {:ok} <- check_other_oci_already_running(oci, claims.public_key, host_id),
+             pids <- start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
+          Tracer.add_event("Actor(s) Started", [])
+          Tracer.set_status(:ok, "")
 
+          publish_actors_started(
+            claims,
+            oci,
+            annotations,
+            pids |> length(),
+            host_id,
+            lattice_prefix
+          )
+
+          {:ok, pids}
+        else
+          %{permitted: false, message: message, requestId: request_id} ->
+            error = "Policy denied starting actor, request: #{request_id}"
+            Tracer.set_status(:error, error)
+
+            publish_actors_start_failed(
+              claims.public_key,
+              oci,
+              annotations,
+              host_id,
+              lattice_prefix,
+              error
+            )
+
+            {:error, "Starting actor denied: #{message}"}
+
+          {:error, err} ->
+            error = "#{inspect(err)}"
+            Tracer.set_status(:error, error)
+
+            publish_actors_start_failed(
+              claims.public_key,
+              oci,
+              annotations,
+              host_id,
+              lattice_prefix,
+              error
+            )
+
+            {:error, err}
+        end
+      else
         :error ->
-          Tracer.set_status(:error, "Host not found")
+          error = "Host not found"
+          Tracer.set_status(:error, error)
+
+          publish_actors_start_failed(
+            "N/A",
+            oci,
+            annotations,
+            host_id,
+            lattice_prefix,
+            error
+          )
+
           {:error, "Failed to find host #{host_id}"}
 
-        {:error, err} ->
-          Tracer.set_status(:error, "#{inspect(err)}")
-          {:error, err}
+        _ ->
+          error = "Failed to extract claims from actor module"
+
+          publish_actors_start_failed(
+            "N/A",
+            oci,
+            annotations,
+            host_id,
+            lattice_prefix,
+            error
+          )
+
+          {:error, error}
       end
     end
   end
@@ -106,6 +172,14 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
+  @spec start_actor_instances(
+          claims :: map(),
+          bytes :: binary(),
+          oci :: binary(),
+          annotations :: map(),
+          host_id :: binary(),
+          count :: non_neg_integer()
+        ) :: list()
   defp start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
     # Start `count` instances of this actor
     opts = %{
@@ -137,20 +211,20 @@ defmodule HostCore.Actors.ActorSupervisor do
     end)
   end
 
-  def start_actor_from_ref(host_id, ref, count \\ 1, annotation \\ %{}) do
+  def start_actor_from_ref(host_id, ref, lattice_prefix, count \\ 1, annotation \\ %{}) do
     cond do
       String.starts_with?(ref, "bindle://") ->
-        start_actor_from_bindle(host_id, ref, count, annotation)
+        start_actor_from_bindle(host_id, ref, lattice_prefix, count, annotation)
 
       String.starts_with?(ref, "file://") ->
-        start_actor_from_file(host_id, ref, count, annotation)
+        start_actor_from_file(host_id, ref, lattice_prefix, count, annotation)
 
       true ->
-        start_actor_from_oci(host_id, ref, count, annotation)
+        start_actor_from_oci(host_id, ref, lattice_prefix, count, annotation)
     end
   end
 
-  def start_actor_from_oci(host_id, ref, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_oci(host_id, ref, lattice_prefix, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from OCI", kind: :server do
       Tracer.set_attribute("host_id", host_id)
       Tracer.set_attribute("oci_ref", ref)
@@ -180,12 +254,12 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           bytes
           |> IO.iodata_to_binary()
-          |> start_actor(host_id, ref, count, annotations)
+          |> start_actor(host_id, lattice_prefix, ref, count, annotations)
       end
     end
   end
 
-  def start_actor_from_bindle(host_id, bindle_id, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_bindle(host_id, bindle_id, lattice_prefix, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from Bindle", kind: :server do
       creds = VirtualHost.get_creds(host_id, :bindle, bindle_id)
 
@@ -208,12 +282,12 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           bytes
           |> IO.iodata_to_binary()
-          |> start_actor(host_id, bindle_id, count, annotations)
+          |> start_actor(host_id, lattice_prefix, bindle_id, count, annotations)
       end
     end
   end
 
-  def start_actor_from_file(host_id, fileref, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_file(host_id, fileref, lattice_prefix, count \\ 1, annotations \\ %{}) do
     config = VirtualHost.config(host_id)
 
     if config.enable_actor_from_fs do
@@ -231,7 +305,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           {:ok, binary} ->
             binary
-            |> start_actor(host_id, fileref, count, annotations)
+            |> start_actor(host_id, lattice_prefix, fileref, count, annotations)
         end
       end
     else
@@ -389,7 +463,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   Ensures that the actor count is equal to the desired count by terminating instances
   or starting instances on the host.
   """
-  def scale_actor(host_id, public_key, desired_count, oci \\ "") do
+  def scale_actor(host_id, lattice_prefix, public_key, desired_count, oci \\ "") do
     current_instances = find_actor(public_key, host_id)
     current_count = Enum.count(current_instances)
 
@@ -420,7 +494,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       # Current count is less than desired count, start more instances
       diff < 0 && ociref != "" ->
-        start_actor_from_ref(host_id, ociref, abs(diff))
+        start_actor_from_ref(host_id, ociref, lattice_prefix, abs(diff))
 
       true ->
         Tracer.set_status(:error, "Not allowed to scale actor w/out OCI reference")
@@ -429,11 +503,19 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   # Terminate `count` instances of an actor
+  @spec terminate_actor(
+          host_id :: binary(),
+          public_key :: binary(),
+          count :: non_neg_integer(),
+          annotations :: map()
+        ) :: :ok
   def terminate_actor(host_id, public_key, count, annotations) when count > 0 do
     remaining = halt_required_actors(host_id, public_key, annotations, count)
 
+    lattice_prefix = VirtualHost.get_lattice_for_host(host_id)
+    publish_actors_stopped(host_id, public_key, lattice_prefix, count, remaining, annotations)
+
     if remaining <= 0 do
-      lattice_prefix = VirtualHost.get_lattice_for_host(host_id)
       ActorRpcSupervisor.stop_rpc_subscriber(lattice_prefix, public_key)
     end
 
@@ -470,4 +552,86 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   defp get_annotations(pid), do: ActorModule.annotations(pid)
+
+  @spec publish_actors_started(
+          claims :: %{
+            :call_alias => any,
+            :caps => any,
+            :expires_human => any,
+            :issuer => any,
+            :name => any,
+            :not_before_human => any,
+            :public_key => any,
+            :revision => any,
+            :tags => any,
+            :version => any
+          },
+          oci :: String.t(),
+          annotations :: map(),
+          count :: non_neg_integer(),
+          host_id :: String.t(),
+          lattice_prefix :: String.t()
+        ) :: :ok
+  def publish_actors_started(claims, oci, annotations, count, host_id, lattice_prefix) do
+    %{
+      public_key: claims.public_key,
+      image_ref: oci,
+      annotations: annotations,
+      host_id: host_id,
+      claims: %{
+        call_alias: claims.call_alias,
+        caps: claims.caps,
+        issuer: claims.issuer,
+        tags: claims.tags,
+        name: claims.name,
+        version: claims.version,
+        revision: claims.revision,
+        not_before_human: claims.not_before_human,
+        expires_human: claims.expires_human
+      },
+      count: count
+    }
+    |> CloudEvent.new("actors_started", host_id)
+    |> CloudEvent.publish(lattice_prefix)
+  end
+
+  @spec publish_actors_start_failed(
+          public_key :: String.t(),
+          oci :: String.t(),
+          annotations :: map(),
+          host_id :: String.t(),
+          lattice_prefix :: String.t(),
+          error :: String.t()
+        ) :: :ok
+  def publish_actors_start_failed(public_key, oci, annotations, host_id, lattice_prefix, error) do
+    %{
+      public_key: public_key,
+      image_ref: oci,
+      annotations: annotations,
+      host_id: host_id,
+      error: error
+    }
+    |> CloudEvent.new("actors_start_failed", host_id)
+    |> CloudEvent.publish(lattice_prefix)
+  end
+
+  @spec publish_actors_stopped(
+          host_id :: String.t(),
+          public_key :: String.t(),
+          lattice_prefix :: String.t(),
+          count :: non_neg_integer(),
+          remaining :: non_neg_integer(),
+          annotations :: map()
+        ) :: :ok
+  def publish_actors_stopped(host_id, public_key, lattice_prefix, count, remaining, annotations) do
+    %{
+      host_id: host_id,
+      public_key: public_key,
+      count: count,
+      remaining: remaining,
+      annotations: annotations
+    }
+    |> CloudEvent.new("actors_stopped", host_id)
+    |> CloudEvent.publish(lattice_prefix)
+  end
 end
