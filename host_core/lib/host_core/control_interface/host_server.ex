@@ -80,8 +80,6 @@ defmodule HostCore.ControlInterface.HostServer do
           Tracer.set_attribute("host_id", host_id)
           Tracer.set_attribute("lattice_id", prefix)
 
-          IO.puts("PREFIX #{prefix}")
-
           res =
             ActorSupervisor.start_actor_from_ref(host_id, actor_ref, prefix, count, annotations)
 
