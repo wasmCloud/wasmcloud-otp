@@ -34,7 +34,7 @@ defmodule HostCore.E2E.KVCounterTest do
     # :timer.sleep(6000)
 
     {:ok, bytes} = File.read(@kvcounter_path)
-    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_key)
 
@@ -141,7 +141,7 @@ defmodule HostCore.E2E.KVCounterTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@kvcounter_unpriv_path)
-    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
     :ok = HostCoreTest.EventWatcher.wait_for_actor_start(evt_watcher, @kvcounter_unpriv_key)
 
     # NOTE: Link definitions are put _before_ providers are started so that they receive

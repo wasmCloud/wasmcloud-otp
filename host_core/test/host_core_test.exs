@@ -25,7 +25,7 @@ defmodule HostCoreTest do
     on_exit(fn -> cleanup(pid, config) end)
 
     {:ok, bytes} = File.read(@echo_path)
-    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
 
     :ok =
       HostCoreTest.EventWatcher.wait_for_actor_start(

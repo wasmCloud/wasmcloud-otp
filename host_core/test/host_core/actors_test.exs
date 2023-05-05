@@ -120,7 +120,7 @@ defmodule HostCore.ActorsTest do
       {:ok, bytes} = File.read(@kvcounter_path)
 
       {:ok, _pids} =
-        ActorSupervisor.start_actor(bytes, config.host_key, "", 5, %{
+        ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix, "", 5, %{
           "is_testing" => "youbetcha"
         })
 
@@ -209,7 +209,7 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read(@echo_path)
 
-      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
       wait_for_actor_start(evt_watcher, @echo_key)
 
       req =
@@ -280,7 +280,7 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read(@echo_wasi_path)
 
-      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
       wait_for_actor_start(evt_watcher, @echo_wasi_key)
 
       req =
@@ -341,7 +341,7 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read(@echo_path)
 
-      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
       wait_for_actor_start(evt_watcher, @echo_key)
 
       seed = config.cluster_seed
@@ -472,10 +472,10 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read("test/fixtures/actors/ponger_s.wasm")
 
-      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
 
       {:ok, bytes} = File.read("test/fixtures/actors/pinger_s.wasm")
-      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
       wait_for_actor_start(evt_watcher, @pinger_key)
 
       seed = config.cluster_seed
@@ -563,7 +563,9 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read(@kvcounter_path)
-      {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", 5)
+
+      {:ok, _pids} =
+        ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix, "", 5)
 
       wait_for_actor_start(evt_watcher, @kvcounter_key)
 
@@ -592,7 +594,9 @@ defmodule HostCore.ActorsTest do
       on_exit(fn -> cleanup(pid, config) end)
 
       {:ok, bytes} = File.read(@echo_path)
-      {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", 5)
+
+      {:ok, _pids} =
+        ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix, "", 5)
 
       wait_for_actor_start(evt_watcher, @echo_key)
 
@@ -602,7 +606,7 @@ defmodule HostCore.ActorsTest do
 
       # restart actor
 
-      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
       wait_for_actor_start(evt_watcher, @echo_key)
 
       seed = config.cluster_seed
@@ -653,7 +657,7 @@ defmodule HostCore.ActorsTest do
 
       {:ok, bytes} = File.read(@randogenlogger_path)
 
-      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
+      {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
       wait_for_actor_start(evt_watcher, @randogenlogger_key)
 
       seed = config.cluster_seed
