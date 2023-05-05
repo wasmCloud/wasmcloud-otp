@@ -43,78 +43,48 @@ defmodule HostCore.Actors.ActorSupervisor do
       Logger.debug("Start actor request received for #{oci}", oci_ref: oci)
 
       source = HostCore.Policy.Manager.default_source()
+      claims_result = get_claims(bytes, oci)
 
       with {:ok, {pid, _}} <- VirtualHost.lookup(host_id),
            config <- VirtualHost.config(pid),
            labels <- VirtualHost.labels(pid),
-           {:ok, claims} <- get_claims(bytes, oci) do
-        with target <- %{
-               publicKey: claims.public_key,
-               issuer: claims.issuer,
-               contractId: nil,
-               linkName: nil
-             },
-             %{permitted: true} <-
-               HostCore.Policy.Manager.evaluate_action(
-                 config,
-                 labels,
-                 source,
-                 target,
-                 @start_actor
-               ),
-             {:ok} <- check_other_oci_already_running(oci, claims.public_key, host_id),
-             pids <- start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
-          Tracer.add_event("Actor(s) Started", [])
-          Tracer.set_status(:ok, "")
+           {:ok, claims} <- claims_result,
+           target <- %{
+             publicKey: claims.public_key,
+             issuer: claims.issuer,
+             contractId: nil,
+             linkName: nil
+           },
+           # Validate policy
+           %{permitted: true} <-
+             HostCore.Policy.Manager.evaluate_action(config, labels, source, target, @start_actor),
+           # Ensure no other OCI reference is running for this actor ID
+           {:ok} <- check_other_oci_already_running(oci, claims.public_key, host_id),
+           # Start actors
+           pids <- start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
+        Tracer.add_event("Actor(s) Started", [])
+        Tracer.set_status(:ok, "")
 
-          publish_actors_started(
-            claims,
-            oci,
-            annotations,
-            pids |> length(),
-            host_id,
-            lattice_prefix
-          )
+        publish_actors_started(
+          claims,
+          oci,
+          annotations,
+          pids |> length(),
+          host_id,
+          lattice_prefix
+        )
 
-          {:ok, pids}
-        else
-          %{permitted: false, message: message, requestId: request_id} ->
-            error = "Policy denied starting actor, request: #{request_id}"
-            Tracer.set_status(:error, error)
-
-            publish_actors_start_failed(
-              claims.public_key,
-              oci,
-              annotations,
-              host_id,
-              lattice_prefix,
-              error
-            )
-
-            {:error, "Starting actor denied: #{message}"}
-
-          {:error, err} ->
-            error = "#{inspect(err)}"
-            Tracer.set_status(:error, error)
-
-            publish_actors_start_failed(
-              claims.public_key,
-              oci,
-              annotations,
-              host_id,
-              lattice_prefix,
-              error
-            )
-
-            {:error, err}
-        end
+        {:ok, pids}
       else
+        # Could not lookup host by ID
         :error ->
           error = "Host not found"
           Tracer.set_status(:error, error)
 
+          public_key = public_key_from_claims_result(claims_result)
+
           publish_actors_start_failed(
-            "N/A",
+            public_key,
             oci,
             annotations,
             host_id,
@@ -124,11 +94,15 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           {:error, "Failed to find host #{host_id}"}
 
-        _ ->
-          error = "Failed to extract claims from actor module"
+        # Policy server denied starting actor
+        %{permitted: false, message: message, requestId: request_id} ->
+          error = "Policy denied starting actor, request: #{request_id}"
+          Tracer.set_status(:error, error)
+
+          public_key = public_key_from_claims_result(claims_result)
 
           publish_actors_start_failed(
-            "N/A",
+            public_key,
             oci,
             annotations,
             host_id,
@@ -136,7 +110,25 @@ defmodule HostCore.Actors.ActorSupervisor do
             error
           )
 
-          {:error, error}
+          {:error, "Starting actor denied: #{message}"}
+
+        # Error extracting claims or starting actor after passing validation
+        {:error, err} ->
+          error = "#{inspect(err)}"
+          Tracer.set_status(:error, error)
+
+          public_key = public_key_from_claims_result(claims_result)
+
+          publish_actors_start_failed(
+            public_key,
+            oci,
+            annotations,
+            host_id,
+            lattice_prefix,
+            error
+          )
+
+          {:error, err}
       end
     end
   end
@@ -153,6 +145,16 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       {:ok, claims} ->
         {:ok, claims}
+    end
+  end
+
+  @spec public_key_from_claims_result(
+          claims :: {:ok, claims :: map()} | {:error, error :: binary()}
+        ) :: binary()
+  defp public_key_from_claims_result(claims) do
+    case claims do
+      {:ok, claims} -> claims.public_key
+      {:error, _error} -> "N/A"
     end
   end
 
