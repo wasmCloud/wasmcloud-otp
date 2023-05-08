@@ -190,7 +190,14 @@ jobs:
         if-no-files-found: error
 
   test-darwin:
-    runs-on: macos-11
+    strategy:
+      matrix:
+        os:
+        - macos-11
+        - macos-12
+        - macos-13
+
+    runs-on: ${{ matrix.os }}
     needs:
     - burrito-darwin
     steps:
@@ -212,7 +219,13 @@ jobs:
         ./wasmcloud_host_x86_64_darwin & sleep 30; kill $!
 
   test-linux:
-    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        os:
+        - ubuntu-20.04
+        - ubuntu-22.04
+
+    runs-on: ${{ matrix.os }}
     needs:
     - burrito-linux
     services:
@@ -234,7 +247,13 @@ jobs:
     - run: ./wasmcloud_host_x86_64_linux_gnu & sleep 30; kill $!
 
   test-windows:
-    runs-on: windows-2022
+    strategy:
+      matrix:
+        os:
+        - windows-2019
+        - windows-2022
+
+    runs-on: ${{ matrix.os }}
     needs:
     - burrito-windows
     steps:
