@@ -259,6 +259,13 @@ jobs:
         Taskkill /im wasmcloud_host_x86_64_windows.exe /f
 
   release:
+    # TODO: Build on PRs and pushes to main (but do not push)
+    # This is currently blocked on the `app-version` computation, which only supports semver tags
+    # E.g.:
+    # ```
+    # Error: buildx failed with: ERROR: invalid tag "wasmcloud.azurecr.io/wasmcloud_host:616/merge": invalid reference format
+    # ```
+    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     strategy:
       matrix:
         config:
