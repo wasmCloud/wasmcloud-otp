@@ -73,12 +73,12 @@
         pkgs,
         pkgsCross ? pkgs,
       }: let
-        pkgsOld = nixpkgs-old.legacyPackages.${pkgs.stdenv.hostPlatform.system};
+        pkgsOld = nixpkgs-old.legacyPackages.${pkgs.stdenv.buildPlatform.system};
       in
         if pkgsCross.stdenv.hostPlatform.isGnu && pkgsCross.stdenv.hostPlatform.isAarch64
         then let
           cc =
-            if pkgs.stdenv.hostPlatform.isGnu && pkgs.stdenv.hostPlatform.isAarch64
+            if pkgs.stdenv.buildPlatform.isGnu && pkgs.stdenv.buildPlatform.isAarch64
             # Pull in newer gcc to enable support for aarch64 atomics (e.g. `__aarch64_ldadd4_relax`)
             then pkgsOld.gcc10Stdenv.cc
             else pkgsOld.pkgsCross.aarch64-multiplatform.gcc10Stdenv.cc;
@@ -87,7 +87,7 @@
         else if pkgsCross.stdenv.hostPlatform.isGnu && pkgsCross.stdenv.hostPlatform.isx86_64
         then let
           cc =
-            if pkgs.stdenv.hostPlatform.isGnu && pkgs.stdenv.hostPlatform.isx86_64
+            if pkgs.stdenv.buildPlatform.isGnu && pkgs.stdenv.buildPlatform.isx86_64
             then pkgsOld.stdenv.cc
             else pkgsOld.pkgsCross.gnu64.stdenv.cc;
         in
@@ -112,9 +112,17 @@
         } @ args: {
           depsBuildBuild ? [],
           buildInputs ? [],
+          CARGO_TARGET ? pkgsCross.stdenv.hostPlatform.config,
           ...
         }: let
           crossPlatform = pkgsCross.stdenv.hostPlatform;
+
+          crossStdenv = mkStdenv {
+            inherit
+              pkgs
+              pkgsCross
+              ;
+          };
         in
           {
             buildInputs =
@@ -131,16 +139,11 @@
                 pkgsCross.libiconv
               ];
           }
-          // optionalAttrs (crossPlatform.isGnu && crossPlatform.isx86_64) {
-            # TODO: Downgrade aarch64 libc
-            stdenv = mkStdenv {
-              inherit
-                pkgs
-                pkgsCross
-                ;
-            };
+          // optionalAttrs crossPlatform.isGnu {
+            "CC_${CARGO_TARGET}" = "${crossStdenv.cc}/bin/${crossStdenv.cc.targetPrefix}cc";
+            "CARGO_TARGET_${toUpper (replaceStrings ["-"] ["_"] CARGO_TARGET)}_LINKER" = "${crossStdenv.cc}/bin/${crossStdenv.cc.targetPrefix}cc";
 
-            meta.broken = crossPlatform.isGnu && pkgs.stdenv.hostPlatform.isDarwin; # downgrading glibc breaks Darwin support here
+            meta.broken = crossPlatform.isGnu && pkgs.stdenv.buildPlatform.isDarwin; # downgrading glibc breaks Darwin support here
           };
       };
 
