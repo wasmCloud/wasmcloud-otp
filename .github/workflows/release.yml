@@ -20,7 +20,7 @@ jobs:
         - x86_64-apple-darwin
 
     name: nif-${{ matrix.target }}
-    runs-on: macos-latest
+    runs-on: macos-11
     steps:
     - uses: actions/checkout@v3
     - run: rustup toolchain install stable --profile minimal
@@ -41,7 +41,7 @@ jobs:
 
   nif-windows:
     name: nif-x86_64-pc-windows-msvc
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
     - uses: actions/checkout@v3
     - run: rustup toolchain install stable --profile minimal
@@ -75,7 +75,7 @@ jobs:
 
     needs:
     - nif-darwin
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - uses: ./.github/actions/install-nix
@@ -132,7 +132,7 @@ jobs:
             arch: x86_64
             libc: musl
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - uses: ./.github/actions/install-nix
@@ -162,7 +162,7 @@ jobs:
 
     needs:
     - nif-windows
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - uses: ./.github/actions/install-nix
@@ -190,7 +190,7 @@ jobs:
         if-no-files-found: error
 
   test-darwin:
-    runs-on: macos-latest
+    runs-on: macos-11
     needs:
     - burrito-darwin
     steps:
@@ -212,7 +212,7 @@ jobs:
         ./wasmcloud_host_x86_64_darwin & sleep 30; kill $!
 
   test-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
     - burrito-linux
     services:
@@ -234,7 +234,7 @@ jobs:
     - run: ./wasmcloud_host_x86_64_linux_gnu & sleep 30; kill $!
 
   test-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs:
     - burrito-windows
     steps:
@@ -285,7 +285,7 @@ jobs:
           target: x86_64_linux_gnu
           platform: linux/amd64
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
     - test-darwin
     - test-linux
@@ -342,7 +342,7 @@ jobs:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
     needs:
     - release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/download-artifact@v3
         with:
@@ -402,7 +402,7 @@ jobs:
 
   release-charts:
     if: ${{ (startswith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && startswith(github.repository.name, 'wasmcloud') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v3
