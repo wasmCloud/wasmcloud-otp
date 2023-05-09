@@ -133,8 +133,8 @@ defmodule HostCore.Actors.ActorModule do
   Halts the actor module corresponding to the supplied process ID. This will attempt a graceful termination
   and will try and emit an `actor_stopped` event.
   """
-  def halt(pid) do
-    if Process.alive?(pid), do: GenServer.call(pid, :halt_and_cleanup)
+  def halt(pid, correlation_id) do
+    if Process.alive?(pid), do: GenServer.call(pid, {:halt_and_cleanup, correlation_id})
   end
 
   @doc """
@@ -142,8 +142,12 @@ defmodule HostCore.Actors.ActorModule do
   bytes supplied. This is a blocking operation on the actor's mailbox, so no messages/invocations will be
   handled while the module swap takes place
   """
-  def live_update(config, pid, bytes, claims, oci, span_ctx \\ nil) do
-    GenServer.call(pid, {:live_update, config, bytes, claims, oci, span_ctx}, @thirty_seconds)
+  def live_update(config, pid, bytes, claims, oci, span_ctx \\ nil, correlation_id \\ nil) do
+    GenServer.call(
+      pid,
+      {:live_update, config, bytes, claims, oci, span_ctx, correlation_id},
+      @thirty_seconds
+    )
   end
 
   @doc """
@@ -155,11 +159,12 @@ defmodule HostCore.Actors.ActorModule do
         bytes: bytes,
         oci: oci,
         annotations: annotations,
-        host_id: host_id
+        host_id: host_id,
+        correlation_id: correlation_id
       }) do
     lattice_prefix = VirtualHost.get_lattice_for_host(host_id)
 
-    case start_actor(lattice_prefix, host_id, claims, bytes, oci, annotations) do
+    case start_actor(lattice_prefix, host_id, claims, bytes, oci, annotations, correlation_id) do
       {:ok, agent} ->
         {:ok, agent, {:continue, :register_actor}}
 
@@ -182,7 +187,11 @@ defmodule HostCore.Actors.ActorModule do
     {:noreply, state}
   end
 
-  def handle_call({:live_update, config, bytes, claims, oci, span_ctx}, _from, agent) do
+  def handle_call(
+        {:live_update, config, bytes, claims, oci, span_ctx, correlation_id},
+        _from,
+        agent
+      ) do
     ctx = span_ctx || OpenTelemetry.Ctx.new()
 
     Tracer.with_span ctx, "Perform Live Update", kind: :server do
@@ -208,7 +217,8 @@ defmodule HostCore.Actors.ActorModule do
             config.host_key,
             claims.public_key,
             claims.revision,
-            instance_id
+            instance_id,
+            correlation_id
           )
 
           Agent.update(agent, fn state -> %State{state | actor_reference: aref} end)
@@ -232,7 +242,8 @@ defmodule HostCore.Actors.ActorModule do
             claims.public_key,
             claims.revision,
             instance_id,
-            inspect(e)
+            inspect(e),
+            correlation_id
           )
       end
 
@@ -275,7 +286,7 @@ defmodule HostCore.Actors.ActorModule do
   end
 
   @impl true
-  def handle_call(:halt_and_cleanup, _from, agent) do
+  def handle_call({:halt_and_cleanup, correlation_id}, _from, agent) do
     # Add cleanup if necessary here...
     contents = Agent.get(agent, fn content -> content end)
     public_key = contents.claims.public_key
@@ -289,7 +300,14 @@ defmodule HostCore.Actors.ActorModule do
       actor_id: public_key
     )
 
-    publish_actor_stopped(host_id, lattice_prefix, public_key, instance_id, annotations)
+    publish_actor_stopped(
+      host_id,
+      lattice_prefix,
+      public_key,
+      instance_id,
+      annotations,
+      correlation_id
+    )
 
     # PRO TIP - if you return :normal here as the stop reason, the GenServer will NOT auto-terminate
     # all of its children. If you want all children established via start_link to be terminated here,
@@ -610,7 +628,15 @@ defmodule HostCore.Actors.ActorModule do
     %{token | invocation: inv}
   end
 
-  defp start_actor(lattice_prefix, host_id, claims, bytes, oci, annotations) do
+  defp start_actor(
+         lattice_prefix,
+         host_id,
+         claims,
+         bytes,
+         oci,
+         annotations,
+         correlation_id
+       ) do
     Logger.metadata(
       lattice_prefix: lattice_prefix,
       host_id: host_id,
@@ -628,8 +654,18 @@ defmodule HostCore.Actors.ActorModule do
         iid = UUID.uuid4()
         ClaimsManager.put_claims(host_id, lattice_prefix, claims)
         ActorRpcSupervisor.start_or_reuse_consumer_supervisor(lattice_prefix, claims)
-        publish_oci_map(host_id, lattice_prefix, oci, claims.public_key)
-        publish_actor_started(host_id, lattice_prefix, claims, "n/a", iid, oci, annotations)
+        publish_oci_map(host_id, lattice_prefix, oci, claims.public_key, correlation_id)
+
+        publish_actor_started(
+          host_id,
+          lattice_prefix,
+          claims,
+          "n/a",
+          iid,
+          oci,
+          annotations,
+          correlation_id
+        )
 
         Agent.start_link(fn ->
           %State{
@@ -652,7 +688,8 @@ defmodule HostCore.Actors.ActorModule do
           host_id,
           lattice_prefix,
           claims.public_key,
-          inspect(e)
+          inspect(e),
+          correlation_id
         )
 
         {:error, e}
@@ -700,16 +737,16 @@ defmodule HostCore.Actors.ActorModule do
     {token, ir}
   end
 
-  def publish_oci_map(_host_id, _lattice_prefix, "", _pk) do
+  def publish_oci_map(_host_id, _lattice_prefix, "", _pk, _cid) do
     # No Op
   end
 
-  def publish_oci_map(_host_id, _lattice_prefix, nil, _pk) do
+  def publish_oci_map(_host_id, _lattice_prefix, nil, _pk, _cid) do
     # No Op
   end
 
-  def publish_oci_map(host_id, lattice_prefix, oci, pk) do
-    HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, oci, pk)
+  def publish_oci_map(host_id, lattice_prefix, oci, pk, correlation_id) do
+    HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, oci, pk, correlation_id)
   end
 
   @spec publish_invocation_result(
@@ -743,7 +780,7 @@ defmodule HostCore.Actors.ActorModule do
       operation: inv["operation"],
       bytes: Map.get(inv, "msg", "") |> IO.iodata_to_binary() |> byte_size()
     }
-    |> CloudEvent.new(evt_type, host_id)
+    |> CloudEvent.new(evt_type, host_id, nil)
     |> CloudEvent.publish(
       lattice_prefix,
       @rpc_event_prefix
@@ -757,7 +794,8 @@ defmodule HostCore.Actors.ActorModule do
         api_version,
         instance_id,
         oci,
-        annotations
+        annotations,
+        correlation_id
       ) do
     %{
       public_key: claims.public_key,
@@ -777,38 +815,53 @@ defmodule HostCore.Actors.ActorModule do
         expires_human: claims.expires_human
       }
     }
-    |> CloudEvent.new("actor_started", host_id)
+    |> CloudEvent.new("actor_started", host_id, correlation_id)
     |> CloudEvent.publish(lattice_prefix)
   end
 
-  def publish_actor_updated(prefix, host_id, actor_pk, revision, instance_id) do
+  def publish_actor_updated(prefix, host_id, actor_pk, revision, instance_id, correlation_id) do
     %{
       public_key: actor_pk,
       revision: revision,
       instance_id: instance_id
     }
-    |> CloudEvent.new("actor_updated", host_id)
+    |> CloudEvent.new("actor_updated", host_id, correlation_id)
     |> CloudEvent.publish(prefix)
   end
 
-  def publish_actor_update_failed(prefix, host_id, actor_pk, revision, instance_id, reason) do
+  def publish_actor_update_failed(
+        prefix,
+        host_id,
+        actor_pk,
+        revision,
+        instance_id,
+        reason,
+        correlation_id
+      ) do
     %{
       public_key: actor_pk,
       revision: revision,
       instance_id: instance_id,
       reason: reason
     }
-    |> CloudEvent.new("actor_update_failed", host_id)
+    |> CloudEvent.new("actor_update_failed", host_id, correlation_id)
     |> CloudEvent.publish(prefix)
   end
 
-  def publish_actor_stopped(host_id, lattice_prefix, actor_pk, instance_id, annotations) do
+  def publish_actor_stopped(
+        host_id,
+        lattice_prefix,
+        actor_pk,
+        instance_id,
+        annotations,
+        correlation_id
+      ) do
     %{
       public_key: actor_pk,
       instance_id: instance_id,
       annotations: annotations
     }
-    |> CloudEvent.new("actor_stopped", host_id)
+    |> CloudEvent.new("actor_stopped", host_id, correlation_id)
     |> CloudEvent.publish(lattice_prefix)
   end
 end

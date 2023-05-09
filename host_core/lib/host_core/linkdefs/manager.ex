@@ -81,7 +81,8 @@ defmodule HostCore.Linkdefs.Manager do
         contract_id,
         link_name,
         provider_key,
-        values
+        values,
+        correlation_id \\ nil
       ) do
     ldid = linkdef_hash(actor, contract_id, link_name)
 
@@ -104,21 +105,27 @@ defmodule HostCore.Linkdefs.Manager do
       values: values
     }
 
-    publish_link_definition(lattice_prefix, ld)
+    publish_link_definition(lattice_prefix, ld, correlation_id)
     write_linkdef_to_kv(lattice_prefix, ld)
   end
 
-  def del_link_definition_by_triple(lattice_prefix, actor_id, contract_id, link_name) do
+  def del_link_definition_by_triple(
+        lattice_prefix,
+        actor_id,
+        contract_id,
+        link_name,
+        correlation_id \\ nil
+      ) do
     case lookup_link_definition(lattice_prefix, actor_id, contract_id, link_name) do
       nil ->
         Logger.warn("No linkdef to delete for #{actor_id} - #{contract_id} - #{link_name}")
 
       %{id: ldid} ->
-        del_link_definition(lattice_prefix, ldid)
+        del_link_definition(lattice_prefix, ldid, correlation_id)
     end
   end
 
-  def del_link_definition(lattice_prefix, ldid) do
+  def del_link_definition(lattice_prefix, ldid, correlation_id) do
     case lookup_link_definition(lattice_prefix, ldid) do
       {:ok, linkdef} ->
         with [pid | _] <- LatticeSupervisor.host_pids_in_lattice(lattice_prefix),
@@ -134,7 +141,7 @@ defmodule HostCore.Linkdefs.Manager do
           HostCore.Jetstream.Client.kv_del(lattice_prefix, js_domain, "LINKDEF_#{ldid}")
         end
 
-        publish_link_definition_deleted(lattice_prefix, linkdef)
+        publish_link_definition_deleted(lattice_prefix, linkdef, correlation_id)
 
       :error ->
         Logger.warn("Attempted to remove non-existent linkdef #{ldid} (this is OK)")
@@ -143,7 +150,7 @@ defmodule HostCore.Linkdefs.Manager do
 
   # Publishes a link definition to the lattice and the applicable provider for configuration
   # This does NOT write the linkdef to the kv bucket. That's a different operation
-  def publish_link_definition(prefix, ld) do
+  def publish_link_definition(prefix, ld, correlation_id) do
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.put"
 
     %{
@@ -154,7 +161,7 @@ defmodule HostCore.Linkdefs.Manager do
       contract_id: ld.contract_id,
       values: ld.values
     }
-    |> CloudEvent.new("linkdef_set", "n/a")
+    |> CloudEvent.new("linkdef_set", "n/a", correlation_id)
     |> CloudEvent.publish(prefix)
 
     broadcast_event(:linkdef_added, ld, prefix)
@@ -191,7 +198,7 @@ defmodule HostCore.Linkdefs.Manager do
   # Publishes the removal of a link definition to the event stream and sends an indication
   # of the removal to the appropriate capability provider. Other hosts will already have been
   # informed of the deletion via key subscriptions on the bucket
-  def publish_link_definition_deleted(prefix, ld) do
+  def publish_link_definition_deleted(prefix, ld, correlation_id) do
     provider_topic = "wasmbus.rpc.#{prefix}.#{ld.provider_id}.#{ld.link_name}.linkdefs.del"
 
     %{
@@ -202,7 +209,7 @@ defmodule HostCore.Linkdefs.Manager do
       contract_id: ld.contract_id,
       values: ld.values
     }
-    |> CloudEvent.new("linkdef_deleted", "n/a")
+    |> CloudEvent.new("linkdef_deleted", "n/a", correlation_id)
     |> CloudEvent.publish(prefix)
 
     broadcast_event(:linkdef_removed, ld, prefix)

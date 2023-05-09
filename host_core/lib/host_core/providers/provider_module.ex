@@ -50,7 +50,8 @@ defmodule HostCore.Providers.ProviderModule do
                shutdown_delay: non_neg_integer(),
                oci: String.t(),
                config_json: map(),
-               annotations: map()
+               annotations: map(),
+               correlation_id: String.t()
              }}
         ) :: GenServer.on_start()
   def start_link(opts) do
@@ -117,8 +118,8 @@ defmodule HostCore.Providers.ProviderModule do
     end
   end
 
-  def halt(pid) do
-    if Process.alive?(pid), do: GenServer.call(pid, :halt_cleanup)
+  def halt(pid, correlation_id) do
+    if Process.alive?(pid), do: GenServer.call(pid, {:halt_cleanup, correlation_id})
     :ok
   end
 
@@ -135,7 +136,8 @@ defmodule HostCore.Providers.ProviderModule do
            shutdown_delay: shutdown_delay,
            oci: oci,
            config_json: config_json,
-           annotations: annotations
+           annotations: annotations,
+           correlation_id: correlation_id
          }}
       ) do
     Logger.metadata(
@@ -185,11 +187,19 @@ defmodule HostCore.Providers.ProviderModule do
       contract_id,
       instance_id,
       oci,
-      annotations
+      annotations,
+      correlation_id
     )
 
     if oci != nil && oci != "" do
-      publish_provider_oci_map(host_id, lattice_prefix, claims.public_key, link_name, oci)
+      publish_provider_oci_map(
+        host_id,
+        lattice_prefix,
+        claims.public_key,
+        link_name,
+        oci,
+        correlation_id
+      )
     end
 
     Process.send_after(self(), :do_health, 5_000)
@@ -235,7 +245,7 @@ defmodule HostCore.Providers.ProviderModule do
   end
 
   @impl true
-  def handle_call(:halt_cleanup, _from, state) do
+  def handle_call({:halt_cleanup, correlation_id}, _from, state) do
     Logger.debug("Provider termination requested manually")
 
     Tracer.with_span "Terminate provider instance", kind: :server do
@@ -274,7 +284,8 @@ defmodule HostCore.Providers.ProviderModule do
         state.instance_id,
         state.contract_id,
         state.annotations,
-        "normal"
+        "normal",
+        correlation_id
       )
 
       {:stop, :shutdown, :ok, state}
@@ -347,7 +358,8 @@ defmodule HostCore.Providers.ProviderModule do
       state.instance_id,
       state.contract_id,
       state.annotations,
-      "normal"
+      "normal",
+      nil
     )
 
     {:stop, :shutdown, state}
@@ -368,7 +380,8 @@ defmodule HostCore.Providers.ProviderModule do
       state.instance_id,
       state.contract_id,
       state.annotations,
-      "#{reason}"
+      "#{reason}",
+      nil
     )
 
     {:stop, reason, state}
@@ -411,8 +424,15 @@ defmodule HostCore.Providers.ProviderModule do
     {:noreply, state}
   end
 
-  defp publish_provider_oci_map(host_id, lattice_prefix, public_key, _link_name, oci) do
-    HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, oci, public_key)
+  defp publish_provider_oci_map(
+         host_id,
+         lattice_prefix,
+         public_key,
+         _link_name,
+         oci,
+         correlation_id
+       ) do
+    HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, oci, public_key, correlation_id)
   end
 
   defp publish_health_status(state, previous_health_check_passed) do
@@ -437,7 +457,7 @@ defmodule HostCore.Providers.ProviderModule do
       contract_id: state.contract_id,
       link_name: state.link_name
     }
-    |> CloudEvent.new(evt, state.host_id)
+    |> CloudEvent.new(evt, state.host_id, nil)
     |> CloudEvent.publish(state.lattice_prefix)
   end
 
@@ -449,7 +469,8 @@ defmodule HostCore.Providers.ProviderModule do
          instance_id,
          contract_id,
          annotations,
-         reason
+         reason,
+         correlation_id
        ) do
     %{
       public_key: public_key,
@@ -459,7 +480,7 @@ defmodule HostCore.Providers.ProviderModule do
       annotations: annotations,
       reason: reason
     }
-    |> CloudEvent.new("provider_stopped", host_id)
+    |> CloudEvent.new("provider_stopped", host_id, correlation_id)
     |> CloudEvent.publish(lattice_prefix)
   end
 
@@ -471,7 +492,8 @@ defmodule HostCore.Providers.ProviderModule do
          contract_id,
          instance_id,
          image_ref,
-         annotations
+         annotations,
+         correlation_id
        ) do
     %{
       public_key: claims.public_key,
@@ -489,7 +511,7 @@ defmodule HostCore.Providers.ProviderModule do
         expires_human: claims.expires_human
       }
     }
-    |> CloudEvent.new("provider_started", host_id)
+    |> CloudEvent.new("provider_started", host_id, correlation_id)
     |> CloudEvent.publish(lattice_prefix)
   end
 end

@@ -82,7 +82,7 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
         # * notify internal consumers via pubsub (publish)
         # * notify capability providers via RPC (publish)
         LinkdefsManager.cache_link_definition(lattice_prefix, ld)
-        LinkdefsManager.publish_link_definition(lattice_prefix, ld)
+        LinkdefsManager.publish_link_definition(lattice_prefix, ld, nil)
 
       {:error, e} ->
         Logger.error("Failed to deserialize linkdef from metadata cache: #{inspect(e)}")
@@ -93,7 +93,7 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
     Logger.debug("Removing cached reference for linkdef ID #{ldid}")
 
     case LinkdefsManager.lookup_link_definition(lattice_prefix, ldid) do
-      {:ok, ld} -> LinkdefsManager.publish_link_definition_deleted(lattice_prefix, ld)
+      {:ok, ld} -> LinkdefsManager.publish_link_definition_deleted(lattice_prefix, ld, nil)
       _ -> Logger.warn("Failed to look up link definition with ID #{ldid}")
     end
 

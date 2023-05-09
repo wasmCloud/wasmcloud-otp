@@ -334,17 +334,18 @@ defmodule HostCore.Vhost.VirtualHost do
     })
   end
 
-  def purge(pid) do
-    if Process.alive?(pid), do: GenServer.call(pid, :purge)
+  def purge(pid, correlation_id) do
+    if Process.alive?(pid), do: GenServer.call(pid, {:purge, correlation_id})
   end
 
-  defp do_purge(state) do
+  defp do_purge(state, correlation_id) do
     Logger.info(
       "Host purge requested for #{state.config.host_key}, terminating all actors and providers."
     )
 
-    ActorSupervisor.terminate_all(state.config.host_key)
-    ProviderSupervisor.terminate_all(state.config.host_key)
+    # TODO: should have correlation ID here for events but we may not
+    ActorSupervisor.terminate_all(state.config.host_key, correlation_id)
+    ProviderSupervisor.terminate_all(state.config.host_key, correlation_id)
   end
 
   # Callbacks
@@ -354,8 +355,8 @@ defmodule HostCore.Vhost.VirtualHost do
   end
 
   @impl true
-  def handle_call(:purge, _from, state) do
-    do_purge(state)
+  def handle_call({:purge, correlation_id}, _from, state) do
+    do_purge(state, correlation_id)
     {:reply, nil, state}
   end
 
@@ -428,8 +429,9 @@ defmodule HostCore.Vhost.VirtualHost do
   def terminate(reason, state) do
     Logger.debug("Host stop requested through process termination: #{inspect(reason)}")
 
-    do_purge(state)
-    publish_host_stopped(state)
+    do_purge(state, nil)
+    # TODO: should have correlation ID here, but hard to know if we can with genserver callbacks
+    publish_host_stopped(state, nil)
     :timer.sleep(300)
   end
 
@@ -540,16 +542,16 @@ defmodule HostCore.Vhost.VirtualHost do
       uptime_seconds: ut_seconds,
       version: :host_core |> Application.spec(:vsn) |> to_string()
     }
-    |> CloudEvent.new("host_started", state.config.host_key)
+    |> CloudEvent.new("host_started", state.config.host_key, nil)
     |> CloudEvent.publish(state.config.lattice_prefix)
   end
 
-  @spec publish_host_stopped(state :: State.t()) :: :ok
-  defp publish_host_stopped(state) do
+  @spec publish_host_stopped(state :: State.t(), correlation_id :: String.t() | nil) :: :ok
+  defp publish_host_stopped(state, correlation_id) do
     %{
       labels: state.labels
     }
-    |> CloudEvent.new("host_stopped", state.config.host_key)
+    |> CloudEvent.new("host_stopped", state.config.host_key, correlation_id)
     |> CloudEvent.publish(state.config.lattice_prefix)
   end
 

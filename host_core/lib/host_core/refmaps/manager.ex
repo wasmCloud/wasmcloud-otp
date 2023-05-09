@@ -27,10 +27,10 @@ defmodule HostCore.Refmaps.Manager do
     :ets.insert(rt, {oci_url, public_key})
   end
 
-  def put_refmap(host_id, lattice_prefix, oci_url, public_key) do
+  def put_refmap(host_id, lattice_prefix, oci_url, public_key, correlation_id) do
     cache_refmap(lattice_prefix, oci_url, public_key)
 
-    publish_refmap(host_id, lattice_prefix, oci_url, public_key)
+    publish_refmap(host_id, lattice_prefix, oci_url, public_key, correlation_id)
   end
 
   def ocis_for_key(lattice_prefix, public_key) when is_binary(public_key) do
@@ -41,7 +41,7 @@ defmodule HostCore.Refmaps.Manager do
     |> Enum.map(fn {ociref, _pk} -> ociref end)
   end
 
-  def publish_refmap(host_id, lattice_prefix, oci_url, public_key) do
+  def publish_refmap(host_id, lattice_prefix, oci_url, public_key, correlation_id) do
     config = VirtualHost.config(host_id)
 
     data = %{
@@ -61,7 +61,7 @@ defmodule HostCore.Refmaps.Manager do
     broadcast_event(:refmap_added, data, lattice_prefix)
 
     data
-    |> CloudEvent.new("refmap_set", host_id)
+    |> CloudEvent.new("refmap_set", host_id, correlation_id)
     |> CloudEvent.publish(lattice_prefix)
   end
 

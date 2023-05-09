@@ -16,7 +16,7 @@ defmodule HostCore.ControlInterface.HostServer do
       has_values: 2,
       success_ack: 0,
       reconstitute_trace_context: 1,
-      publish_actor_start_failed: 4
+      publish_actor_start_failed: 5
     ]
 
   def request(%{topic: topic, body: body, reply_to: reply_to} = req) do
@@ -75,13 +75,22 @@ defmodule HostCore.ControlInterface.HostServer do
         Tracer.with_span "Handle Launch Actor Request (ctl)", kind: :server do
           count = Map.get(start_actor_command, "count", 1)
           annotations = Map.get(start_actor_command, "annotations") || %{}
+          correlation_id = Map.get(start_actor_command, "correlation_id", nil)
 
           Tracer.set_attribute("count", count)
           Tracer.set_attribute("host_id", host_id)
           Tracer.set_attribute("lattice_id", prefix)
+          Tracer.set_attribute("correlation_id", correlation_id)
 
           res =
-            ActorSupervisor.start_actor_from_ref(host_id, actor_ref, prefix, count, annotations)
+            ActorSupervisor.start_actor_from_ref(
+              host_id,
+              actor_ref,
+              prefix,
+              count,
+              annotations,
+              correlation_id
+            )
 
           case res do
             {:ok, _pid} ->
@@ -99,7 +108,7 @@ defmodule HostCore.ControlInterface.HostServer do
 
               Tracer.set_status(:error, "Failed to start actor")
 
-              publish_actor_start_failed(host_id, prefix, actor_ref, inspect(e))
+              publish_actor_start_failed(host_id, prefix, actor_ref, inspect(e), correlation_id)
           end
         end
       end)
@@ -118,11 +127,14 @@ defmodule HostCore.ControlInterface.HostServer do
 
       with {:ok, stop_actor_command} <- Jason.decode(body),
            true <- has_values(stop_actor_command, ["actor_ref", "count"]) do
+        correlation_id = Map.get(stop_actor_command, "correlation_id", nil)
+
         ActorSupervisor.terminate_actor(
           host_id,
           stop_actor_command["actor_ref"],
           stop_actor_command["count"],
-          Map.get(stop_actor_command, "annotations") || %{}
+          Map.get(stop_actor_command, "annotations") || %{},
+          correlation_id
         )
 
         {:reply, success_ack()}
@@ -141,6 +153,7 @@ defmodule HostCore.ControlInterface.HostServer do
       actor_id = scale_request["actor_id"]
       actor_ref = scale_request["actor_ref"]
       count = scale_request["count"]
+      correlation_id = Map.get(scale_request, "correlation_id", nil)
 
       ctx = Tracer.current_span_ctx()
 
@@ -148,7 +161,14 @@ defmodule HostCore.ControlInterface.HostServer do
         Tracer.set_current_span(ctx)
 
         Tracer.with_span "Handle Scale Actor Request (ctl)", kind: :server do
-          case ActorSupervisor.scale_actor(host_id, prefix, actor_id, count, actor_ref) do
+          case ActorSupervisor.scale_actor(
+                 host_id,
+                 prefix,
+                 actor_id,
+                 count,
+                 actor_ref,
+                 correlation_id
+               ) do
             {:error, err} ->
               Logger.error("Error scaling actor #{actor_id}: #{err}", actor_id: actor_id)
 
@@ -171,16 +191,20 @@ defmodule HostCore.ControlInterface.HostServer do
     Tracer.with_span "Handle Live Update Request (ctl)", kind: :server do
       with {:ok, update_actor_command} <- Jason.decode(body),
            true <- has_values(update_actor_command, ["new_actor_ref"]) do
+        correlation_id = Map.get(update_actor_command, "correlation_id", nil)
+
         # Note to the curious - we can update existing actors using nothing but the new ref (e.g. we don't need the old)
         # because a precondition is that the new ref must have the same public key as the running actor
         Tracer.set_attribute("new_actor_ref", update_actor_command["new_actor_ref"])
+        Tracer.set_attribute("correlation_id", correlation_id)
         span_ctx = Tracer.current_span_ctx()
 
         response =
           case ActorSupervisor.live_update(
                  host_id,
                  update_actor_command["new_actor_ref"],
-                 span_ctx
+                 span_ctx,
+                 correlation_id
                ) do
             :ok ->
               success_ack()
@@ -211,6 +235,7 @@ defmodule HostCore.ControlInterface.HostServer do
           case VirtualHost.lookup(host_id) do
             {:ok, {pid, _prefix}} ->
               Logger.info("Received stop request for host #{host_id}")
+              # TODO: correlation
               VirtualHost.stop(pid, Map.get(stop_host_command, "timeout", 500))
 
               Tracer.set_status(:ok, "")
@@ -234,6 +259,8 @@ defmodule HostCore.ControlInterface.HostServer do
   defp handle_request({"cmd", host_id, "lp"}, body, _reply_to, prefix) do
     with {:ok, start_provider_command} <- Jason.decode(body),
          true <- has_values(start_provider_command, ["provider_ref", "link_name"]) do
+      correlation_id = Map.get(start_provider_command, "correlation_id", nil)
+
       if ProviderSupervisor.provider_running?(
            host_id,
            start_provider_command["provider_ref"],
@@ -245,7 +272,14 @@ defmodule HostCore.ControlInterface.HostServer do
 
         Logger.warn(warning)
 
-        publish_provider_start_failed(host_id, prefix, start_provider_command, warning)
+        publish_provider_start_failed(
+          host_id,
+          prefix,
+          start_provider_command,
+          warning,
+          correlation_id
+        )
+
         {:reply, failure_ack("Provider with that link name is already running on this host")}
       else
         ctx = Tracer.current_span_ctx()
@@ -256,26 +290,14 @@ defmodule HostCore.ControlInterface.HostServer do
           Tracer.with_span "Handle Launch Provider Request (ctl)", kind: :server do
             annotations = Map.get(start_provider_command, "annotations") || %{}
 
-            res =
-              if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
-                ProviderSupervisor.start_provider_from_bindle(
-                  host_id,
-                  start_provider_command["provider_ref"],
-                  start_provider_command["link_name"],
-                  Map.get(start_provider_command, "configuration", ""),
-                  annotations
-                )
-              else
-                ProviderSupervisor.start_provider_from_oci(
-                  host_id,
-                  start_provider_command["provider_ref"],
-                  start_provider_command["link_name"],
-                  Map.get(start_provider_command, "configuration", ""),
-                  annotations
-                )
-              end
-
-            case res do
+            case ProviderSupervisor.start_provider_from_ref(
+                   host_id,
+                   start_provider_command["provider_ref"],
+                   start_provider_command["link_name"],
+                   Map.get(start_provider_command, "configuration", ""),
+                   annotations,
+                   correlation_id
+                 ) do
               {:ok, _pid} ->
                 Logger.debug(
                   "Successfully started provider #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]})"
@@ -288,7 +310,13 @@ defmodule HostCore.ControlInterface.HostServer do
                   "Failed to start provider #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]}: #{inspect(e)}"
                 )
 
-                publish_provider_start_failed(host_id, prefix, start_provider_command, inspect(e))
+                publish_provider_start_failed(
+                  host_id,
+                  prefix,
+                  start_provider_command,
+                  inspect(e),
+                  correlation_id
+                )
             end
           end
         end)
@@ -309,11 +337,13 @@ defmodule HostCore.ControlInterface.HostServer do
            56 <- stop_provider_command |> Map.get("provider_ref", "") |> String.length() do
         Tracer.set_attribute("provider_ref", stop_provider_command["provider_ref"])
         Tracer.set_attribute("link_name", stop_provider_command["link_name"])
+        correlation_id = Map.get(stop_provider_command, "correlation_id", nil)
 
         ProviderSupervisor.terminate_provider(
           host_id,
           stop_provider_command["provider_ref"],
-          stop_provider_command["link_name"]
+          stop_provider_command["link_name"],
+          correlation_id
         )
 
         {:reply, success_ack()}
@@ -324,13 +354,13 @@ defmodule HostCore.ControlInterface.HostServer do
     end
   end
 
-  defp publish_provider_start_failed(host_id, prefix, command, msg) do
+  defp publish_provider_start_failed(host_id, prefix, command, msg, correlation_id) do
     %{
       provider_ref: command["provider_ref"],
       link_name: command["link_name"],
       error: msg
     }
-    |> CloudEvent.new("provider_start_failed", host_id)
+    |> CloudEvent.new("provider_start_failed", host_id, correlation_id)
     |> CloudEvent.publish(prefix)
   end
 end

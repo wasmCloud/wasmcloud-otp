@@ -7,7 +7,13 @@ defmodule HostCore.CloudEvent do
 
   require Logger
 
-  def new(data, event_type, host) do
+  @spec new(
+          data :: any(),
+          event_type :: String.t(),
+          host :: String.t(),
+          correlation_id :: String.t() | nil
+        ) :: binary()
+  def new(data, event_type, host, correlation_id) do
     stamp = DateTime.to_iso8601(DateTime.utc_now())
 
     %{
@@ -19,6 +25,14 @@ defmodule HostCore.CloudEvent do
       id: UUID.uuid4(),
       data: data
     }
+    # Include correlation ID if it's a valid string
+    |> Map.merge(
+      if correlation_id == nil do
+        %{}
+      else
+        %{correlation_id: correlation_id}
+      end
+    )
     |> Cloudevents.from_map!()
     |> Cloudevents.to_json()
   end
@@ -28,8 +42,13 @@ defmodule HostCore.CloudEvent do
   also publishes a copy of that event using Phoenix Pubsub to allow for interested parties within the same OTP
   application (such as the washboard and test suites) to monitor the events without needing a NATS subscription
   """
-  @spec publish(evt :: binary(), lattice_prefix :: String.t(), alt_prefix :: String.t()) :: :ok
-  def publish(evt, lattice_prefix, alt_prefix \\ "wasmbus.evt") when is_binary(evt) do
+  @spec publish(
+          evt :: binary(),
+          lattice_prefix :: String.t(),
+          alt_prefix :: String.t()
+        ) :: :ok
+  def publish(evt, lattice_prefix, alt_prefix \\ "wasmbus.evt")
+      when is_binary(evt) do
     lattice_prefix
     |> HostCore.Nats.control_connection()
     |> HostCore.Nats.safe_pub("#{alt_prefix}.#{lattice_prefix}", evt)

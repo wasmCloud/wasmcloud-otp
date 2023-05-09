@@ -32,9 +32,18 @@ defmodule HostCore.Actors.ActorSupervisor do
           lattice_prefix :: String.t(),
           oci :: String.t(),
           count :: integer(),
-          annotations :: map()
+          annotations :: map(),
+          correlation_id :: binary() | nil
         ) :: {:error, any} | {:ok, [pid()]}
-  def start_actor(bytes, host_id, lattice_prefix, oci \\ "", count \\ 1, annotations \\ %{})
+  def start_actor(
+        bytes,
+        host_id,
+        lattice_prefix,
+        oci \\ "",
+        count \\ 1,
+        annotations \\ %{},
+        correlation_id \\ nil
+      )
       when is_binary(bytes) do
     Tracer.with_span "Starting Actor" do
       Tracer.set_attribute("actor_ref", oci)
@@ -61,7 +70,16 @@ defmodule HostCore.Actors.ActorSupervisor do
            # Ensure no other OCI reference is running for this actor ID
            {:ok} <- check_other_oci_already_running(oci, claims.public_key, host_id),
            # Start actors
-           pids <- start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
+           pids <-
+             start_actor_instances(
+               claims,
+               bytes,
+               oci,
+               annotations,
+               host_id,
+               count,
+               correlation_id
+             ) do
         Tracer.add_event("Actor(s) Started", [])
         Tracer.set_status(:ok, "")
 
@@ -71,7 +89,8 @@ defmodule HostCore.Actors.ActorSupervisor do
           annotations,
           pids |> length(),
           host_id,
-          lattice_prefix
+          lattice_prefix,
+          correlation_id
         )
 
         {:ok, pids}
@@ -89,7 +108,8 @@ defmodule HostCore.Actors.ActorSupervisor do
             annotations,
             host_id,
             lattice_prefix,
-            error
+            error,
+            correlation_id
           )
 
           {:error, "Failed to find host #{host_id}"}
@@ -107,7 +127,8 @@ defmodule HostCore.Actors.ActorSupervisor do
             annotations,
             host_id,
             lattice_prefix,
-            error
+            error,
+            correlation_id
           )
 
           {:error, "Starting actor denied: #{message}"}
@@ -125,7 +146,8 @@ defmodule HostCore.Actors.ActorSupervisor do
             annotations,
             host_id,
             lattice_prefix,
-            error
+            error,
+            correlation_id
           )
 
           {:error, err}
@@ -180,16 +202,26 @@ defmodule HostCore.Actors.ActorSupervisor do
           oci :: binary(),
           annotations :: map(),
           host_id :: binary(),
-          count :: non_neg_integer()
+          count :: non_neg_integer(),
+          correlation_id :: binary() | nil
         ) :: list()
-  defp start_actor_instances(claims, bytes, oci, annotations, host_id, count) do
+  defp start_actor_instances(
+         claims,
+         bytes,
+         oci,
+         annotations,
+         host_id,
+         count,
+         correlation_id
+       ) do
     # Start `count` instances of this actor
     opts = %{
       claims: claims,
       bytes: bytes,
       oci: oci,
       annotations: annotations,
-      host_id: host_id
+      host_id: host_id,
+      correlation_id: correlation_id
     }
 
     Enum.reduce_while(1..count, [], fn _count, pids ->
@@ -213,20 +245,34 @@ defmodule HostCore.Actors.ActorSupervisor do
     end)
   end
 
-  def start_actor_from_ref(host_id, ref, lattice_prefix, count \\ 1, annotation \\ %{}) do
+  def start_actor_from_ref(
+        host_id,
+        ref,
+        lattice_prefix,
+        count \\ 1,
+        annotation \\ %{},
+        correlation_id \\ nil
+      ) do
     cond do
       String.starts_with?(ref, "bindle://") ->
-        start_actor_from_bindle(host_id, ref, lattice_prefix, count, annotation)
+        start_actor_from_bindle(host_id, ref, lattice_prefix, count, annotation, correlation_id)
 
       String.starts_with?(ref, "file://") ->
-        start_actor_from_file(host_id, ref, lattice_prefix, count, annotation)
+        start_actor_from_file(host_id, ref, lattice_prefix, count, annotation, correlation_id)
 
       true ->
-        start_actor_from_oci(host_id, ref, lattice_prefix, count, annotation)
+        start_actor_from_oci(host_id, ref, lattice_prefix, count, annotation, correlation_id)
     end
   end
 
-  def start_actor_from_oci(host_id, ref, lattice_prefix, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_oci(
+        host_id,
+        ref,
+        lattice_prefix,
+        count \\ 1,
+        annotations \\ %{},
+        correlation_id \\ nil
+      ) do
     Tracer.with_span "Starting Actor from OCI", kind: :server do
       Tracer.set_attribute("host_id", host_id)
       Tracer.set_attribute("oci_ref", ref)
@@ -256,12 +302,19 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           bytes
           |> IO.iodata_to_binary()
-          |> start_actor(host_id, lattice_prefix, ref, count, annotations)
+          |> start_actor(host_id, lattice_prefix, ref, count, annotations, correlation_id)
       end
     end
   end
 
-  def start_actor_from_bindle(host_id, bindle_id, lattice_prefix, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_bindle(
+        host_id,
+        bindle_id,
+        lattice_prefix,
+        count \\ 1,
+        annotations \\ %{},
+        correlation_id \\ nil
+      ) do
     Tracer.with_span "Starting Actor from Bindle", kind: :server do
       creds = VirtualHost.get_creds(host_id, :bindle, bindle_id)
 
@@ -284,12 +337,19 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           bytes
           |> IO.iodata_to_binary()
-          |> start_actor(host_id, lattice_prefix, bindle_id, count, annotations)
+          |> start_actor(host_id, lattice_prefix, bindle_id, count, annotations, correlation_id)
       end
     end
   end
 
-  def start_actor_from_file(host_id, fileref, lattice_prefix, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_file(
+        host_id,
+        fileref,
+        lattice_prefix,
+        count \\ 1,
+        annotations \\ %{},
+        correlation_id \\ nil
+      ) do
     config = VirtualHost.config(host_id)
 
     if config.enable_actor_from_fs do
@@ -307,7 +367,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           {:ok, binary} ->
             binary
-            |> start_actor(host_id, lattice_prefix, fileref, count, annotations)
+            |> start_actor(host_id, lattice_prefix, fileref, count, annotations, correlation_id)
         end
       end
     else
@@ -315,7 +375,7 @@ defmodule HostCore.Actors.ActorSupervisor do
     end
   end
 
-  def live_update(host_id, ref, span_ctx \\ nil) do
+  def live_update(host_id, ref, span_ctx \\ nil, correlation_id \\ nil) do
     {:ok, {pid, lattice_prefix}} = VirtualHost.lookup(host_id)
     config = VirtualHost.config(pid)
 
@@ -334,7 +394,8 @@ defmodule HostCore.Actors.ActorSupervisor do
             host_id,
             lattice_prefix,
             ref,
-            new_claims.public_key
+            new_claims.public_key,
+            correlation_id
           )
 
           targets = find_actor(new_claims.public_key, host_id)
@@ -351,7 +412,8 @@ defmodule HostCore.Actors.ActorSupervisor do
               binary,
               new_claims,
               ref,
-              span_ctx
+              span_ctx,
+              correlation_id
             )
           end)
 
@@ -376,7 +438,15 @@ defmodule HostCore.Actors.ActorSupervisor do
              HostCore.Claims.Manager.lookup_claims(lattice_prefix, new_claims.public_key),
            :ok <- validate_actor_for_update(old_claims, new_claims) do
         HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, new_claims)
-        HostCore.Refmaps.Manager.put_refmap(host_id, lattice_prefix, ref, new_claims.public_key)
+
+        HostCore.Refmaps.Manager.put_refmap(
+          host_id,
+          lattice_prefix,
+          ref,
+          new_claims.public_key,
+          correlation_id
+        )
+
         targets = find_actor(new_claims.public_key, host_id)
 
         Logger.info("Performing live update on #{length(targets)} instances",
@@ -394,7 +464,8 @@ defmodule HostCore.Actors.ActorSupervisor do
             IO.iodata_to_binary(bytes),
             new_claims,
             ref,
-            span_ctx
+            span_ctx,
+            correlation_id
           )
         end)
 
@@ -465,7 +536,14 @@ defmodule HostCore.Actors.ActorSupervisor do
   Ensures that the actor count is equal to the desired count by terminating instances
   or starting instances on the host.
   """
-  def scale_actor(host_id, lattice_prefix, public_key, desired_count, oci \\ "") do
+  def scale_actor(
+        host_id,
+        lattice_prefix,
+        public_key,
+        desired_count,
+        oci \\ "",
+        correlation_id \\ nil
+      ) do
     current_instances = find_actor(public_key, host_id)
     current_count = Enum.count(current_instances)
 
@@ -492,7 +570,7 @@ defmodule HostCore.Actors.ActorSupervisor do
       # Current count is greater than desired count, terminate instances
       diff > 0 ->
         # wadm won't use the scale actor call, so we don't care about annotations here
-        terminate_actor(host_id, public_key, diff, %{})
+        terminate_actor(host_id, public_key, diff, %{}, correlation_id)
 
       # Current count is less than desired count, start more instances
       diff < 0 && ociref != "" ->
@@ -509,13 +587,24 @@ defmodule HostCore.Actors.ActorSupervisor do
           host_id :: binary(),
           public_key :: binary(),
           count :: non_neg_integer(),
-          annotations :: map()
+          annotations :: map(),
+          correlation_id :: String.t() | nil
         ) :: :ok
-  def terminate_actor(host_id, public_key, count, annotations) when count > 0 do
-    remaining = halt_required_actors(host_id, public_key, annotations, count)
+  def terminate_actor(host_id, public_key, count, annotations, correlation_id \\ nil)
+      when count > 0 do
+    remaining = halt_required_actors(host_id, public_key, annotations, count, correlation_id)
 
     lattice_prefix = VirtualHost.get_lattice_for_host(host_id)
-    publish_actors_stopped(host_id, public_key, lattice_prefix, count, remaining, annotations)
+
+    publish_actors_stopped(
+      host_id,
+      public_key,
+      lattice_prefix,
+      count,
+      remaining,
+      annotations,
+      correlation_id
+    )
 
     if remaining <= 0 do
       ActorRpcSupervisor.stop_rpc_subscriber(lattice_prefix, public_key)
@@ -525,30 +614,30 @@ defmodule HostCore.Actors.ActorSupervisor do
   end
 
   # Terminate all instances of an actor
-  def terminate_actor(host_id, public_key, 0, annotations) do
+  def terminate_actor(host_id, public_key, 0, annotations, correlation_id) do
     lattice_prefix = VirtualHost.get_lattice_for_host(host_id)
     actors = find_actor(public_key, host_id)
-    halt_required_actors(host_id, public_key, annotations, length(actors))
+    halt_required_actors(host_id, public_key, annotations, length(actors), correlation_id)
 
     ActorRpcSupervisor.stop_rpc_subscriber(lattice_prefix, public_key)
 
     :ok
   end
 
-  def terminate_all(host_id) do
+  def terminate_all(host_id, correlation_id) do
     for {k, v} <- all_actors(host_id),
         count = Enum.count(v),
-        do: halt_required_actors(host_id, k, %{}, count)
+        do: halt_required_actors(host_id, k, %{}, count, correlation_id)
   end
 
-  defp halt_required_actors(host_id, public_key, annotations, count) do
+  defp halt_required_actors(host_id, public_key, annotations, count, correlation_id) do
     actors = find_actor(public_key, host_id)
     remaining = length(actors) - count
 
     for pid <- Enum.take(actors, count),
         existing = get_annotations(pid),
         Map.merge(existing, annotations) == existing,
-        do: ActorModule.halt(pid)
+        do: ActorModule.halt(pid, correlation_id)
 
     remaining
   end
@@ -572,9 +661,18 @@ defmodule HostCore.Actors.ActorSupervisor do
           annotations :: map(),
           count :: non_neg_integer(),
           host_id :: String.t(),
-          lattice_prefix :: String.t()
+          lattice_prefix :: String.t(),
+          correlation_id :: String.t() | nil
         ) :: :ok
-  def publish_actors_started(claims, oci, annotations, count, host_id, lattice_prefix) do
+  def publish_actors_started(
+        claims,
+        oci,
+        annotations,
+        count,
+        host_id,
+        lattice_prefix,
+        correlation_id
+      ) do
     %{
       public_key: claims.public_key,
       image_ref: oci,
@@ -593,7 +691,7 @@ defmodule HostCore.Actors.ActorSupervisor do
       },
       count: count
     }
-    |> CloudEvent.new("actors_started", host_id)
+    |> CloudEvent.new("actors_started", host_id, correlation_id)
     |> CloudEvent.publish(lattice_prefix)
   end
 
@@ -603,9 +701,18 @@ defmodule HostCore.Actors.ActorSupervisor do
           annotations :: map(),
           host_id :: String.t(),
           lattice_prefix :: String.t(),
-          error :: String.t()
+          error :: String.t(),
+          correlation_id :: String.t()
         ) :: :ok
-  def publish_actors_start_failed(public_key, oci, annotations, host_id, lattice_prefix, error) do
+  def publish_actors_start_failed(
+        public_key,
+        oci,
+        annotations,
+        host_id,
+        lattice_prefix,
+        error,
+        correlation_id
+      ) do
     %{
       public_key: public_key,
       image_ref: oci,
@@ -613,7 +720,7 @@ defmodule HostCore.Actors.ActorSupervisor do
       host_id: host_id,
       error: error
     }
-    |> CloudEvent.new("actors_start_failed", host_id)
+    |> CloudEvent.new("actors_start_failed", host_id, correlation_id)
     |> CloudEvent.publish(lattice_prefix)
   end
 
@@ -623,9 +730,18 @@ defmodule HostCore.Actors.ActorSupervisor do
           lattice_prefix :: String.t(),
           count :: non_neg_integer(),
           remaining :: non_neg_integer(),
-          annotations :: map()
+          annotations :: map(),
+          correlation_id :: String.t() | nil
         ) :: :ok
-  def publish_actors_stopped(host_id, public_key, lattice_prefix, count, remaining, annotations) do
+  def publish_actors_stopped(
+        host_id,
+        public_key,
+        lattice_prefix,
+        count,
+        remaining,
+        annotations,
+        correlation_id
+      ) do
     %{
       host_id: host_id,
       public_key: public_key,
@@ -633,7 +749,7 @@ defmodule HostCore.Actors.ActorSupervisor do
       remaining: remaining,
       annotations: annotations
     }
-    |> CloudEvent.new("actors_stopped", host_id)
+    |> CloudEvent.new("actors_stopped", host_id, correlation_id)
     |> CloudEvent.publish(lattice_prefix)
   end
 end

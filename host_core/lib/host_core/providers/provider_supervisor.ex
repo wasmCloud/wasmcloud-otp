@@ -22,16 +22,30 @@ defmodule HostCore.Providers.ProviderSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  def start_provider_from_ref(host_id, ref, link_name, config_json \\ "", annotations \\ %{}) do
+  def start_provider_from_ref(
+        host_id,
+        ref,
+        link_name,
+        config_json \\ "",
+        annotations \\ %{},
+        correlation_id \\ nil
+      ) do
     cond do
       String.starts_with?(ref, "bindle://") ->
-        start_provider_from_bindle(host_id, ref, link_name, config_json, annotations)
+        start_provider_from_bindle(
+          host_id,
+          ref,
+          link_name,
+          config_json,
+          annotations,
+          correlation_id
+        )
 
       String.starts_with?(ref, "file://") ->
-        start_provider_from_file(host_id, ref, link_name, annotations)
+        start_provider_from_file(host_id, ref, link_name, annotations, correlation_id)
 
       true ->
-        start_provider_from_oci(host_id, ref, link_name, config_json, annotations)
+        start_provider_from_oci(host_id, ref, link_name, config_json, annotations, correlation_id)
     end
   end
 
@@ -45,9 +59,17 @@ defmodule HostCore.Providers.ProviderSupervisor do
           ref :: String.t(),
           link_name :: String.t(),
           config_json :: String.t(),
-          annotations :: map()
+          annotations :: map(),
+          correlation_id :: String.t() | nil
         ) :: DynamicSupervisor.on_start_child()
-  def start_provider_from_oci(host_id, ref, link_name, config_json \\ "", annotations \\ %{}) do
+  def start_provider_from_oci(
+        host_id,
+        ref,
+        link_name,
+        config_json \\ "",
+        annotations \\ %{},
+        correlation_id \\ nil
+      ) do
     Tracer.with_span "Start Provider from OCI" do
       creds = VirtualHost.get_creds(host_id, :oci, ref)
       config = VirtualHost.config(host_id)
@@ -83,7 +105,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
           par.contract_id,
           ref,
           config_json,
-          annotations
+          annotations,
+          correlation_id
         )
       else
         {:error, err} ->
@@ -114,14 +137,16 @@ defmodule HostCore.Providers.ProviderSupervisor do
           bindle_id :: String.t(),
           link_name :: String.t(),
           config_json :: String.t(),
-          annotations :: map()
+          annotations :: map(),
+          correlation_id :: String.t() | nil
         ) :: DynamicSupervisor.on_start_child()
   def start_provider_from_bindle(
         host_id,
         bindle_id,
         link_name,
         config_json \\ "",
-        annotations \\ %{}
+        annotations \\ %{},
+        correlation_id \\ nil
       ) do
     Tracer.with_span "Start Provider from Bindle" do
       creds = VirtualHost.get_creds(host_id, :bindle, bindle_id)
@@ -151,7 +176,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
             par.contract_id,
             bindle_id,
             config_json,
-            annotations
+            annotations,
+            correlation_id
           )
 
         {:error, err} ->
@@ -185,14 +211,16 @@ defmodule HostCore.Providers.ProviderSupervisor do
           path :: String.t(),
           link_name :: String.t(),
           annotations :: map(),
-          provider_configuration :: String.t()
+          provider_configuration :: String.t(),
+          correlation_id :: String.t() | nil
         ) :: DynamicSupervisor.on_start_child()
   def start_provider_from_file(
         host_id,
         path,
         link_name,
         annotations \\ %{},
-        provider_configuration \\ ""
+        provider_configuration \\ "",
+        correlation_id \\ nil
       ) do
     Tracer.with_span "Start Provider from File" do
       case Native.par_from_path(path, link_name) do
@@ -210,7 +238,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
             par.contract_id,
             "",
             provider_configuration,
-            annotations
+            annotations,
+            correlation_id
           )
 
         {:error, err} ->
@@ -255,7 +284,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
          contract_id,
          oci,
          config_json,
-         annotations
+         annotations,
+         correlation_id
        ) do
     source = HostCore.Policy.Manager.default_source()
 
@@ -287,7 +317,8 @@ defmodule HostCore.Providers.ProviderSupervisor do
         config_json: config_json,
         host_id: host_id,
         shutdown_delay: full_state.config.provider_delay,
-        annotations: annotations
+        annotations: annotations,
+        correlation_id: correlation_id
       }
 
       DynamicSupervisor.start_child(
@@ -333,7 +364,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
     )
   end
 
-  def terminate_provider(host_id, public_key, link_name) do
+  def terminate_provider(host_id, public_key, link_name, correlation_id \\ nil) do
     for {pid, pk, link, _contract_id, _instance_id} <- all_providers(host_id),
         pk == public_key,
         link == link_name do
@@ -342,13 +373,13 @@ defmodule HostCore.Providers.ProviderSupervisor do
         link_name: link_name
       )
 
-      ProviderModule.halt(pid)
+      ProviderModule.halt(pid, correlation_id)
     end
   end
 
-  def terminate_all(host_id) when is_binary(host_id) do
+  def terminate_all(host_id, correlation_id) when is_binary(host_id) do
     for {pid, _pk, _link, _contract, _instance_id} <- all_providers(host_id) do
-      ProviderModule.halt(pid)
+      ProviderModule.halt(pid, correlation_id)
     end
   end
 

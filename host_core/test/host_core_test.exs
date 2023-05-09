@@ -52,7 +52,7 @@ defmodule HostCoreTest do
         httpserver_key
       )
 
-    VirtualHost.purge(pid)
+    VirtualHost.purge(pid, nil)
 
     :ok = HostCoreTest.EventWatcher.wait_for_actor_stop(evt_watcher, @echo_key)
 

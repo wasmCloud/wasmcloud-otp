@@ -250,7 +250,7 @@ defmodule HostCore.WasmCloud.RpcInvocations do
       operation: operation,
       bytes: payload_bytes
     }
-    |> CloudEvent.new(evt_type, host_id)
+    |> CloudEvent.new(evt_type, host_id, nil)
     |> CloudEvent.publish(prefix, @rpc_event_prefix)
   end
 

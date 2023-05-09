@@ -100,13 +100,16 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Linkdef Put (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
            true <- has_values(ld, ["actor_id", "contract_id", "link_name", "provider_id"]) do
+        correlation_id = Map.get(ld, "correlation_id", nil)
+
         LinkdefsManager.put_link_definition(
           prefix,
           ld["actor_id"],
           ld["contract_id"],
           ld["link_name"],
           ld["provider_id"],
-          ld["values"] || %{}
+          ld["values"] || %{},
+          correlation_id
         )
 
         {:reply, success_ack()}
@@ -121,13 +124,15 @@ defmodule HostCore.ControlInterface.LatticeServer do
     Tracer.with_span "Handle Linkdef Del (ctl)", kind: :server do
       with {:ok, ld} <- Jason.decode(body),
            true <- has_values(ld, ["actor_id", "contract_id", "link_name"]) do
+        correlation_id = Map.get(ld, "correlation_id", nil)
         # Removes linkdef from bucket and just in case we lose the subscription
         # message from the bucket, uncache it from memory
         LinkdefsManager.del_link_definition_by_triple(
           prefix,
           ld["actor_id"],
           ld["contract_id"],
-          ld["link_name"]
+          ld["link_name"],
+          correlation_id
         )
 
         {:reply, success_ack()}
@@ -249,9 +254,10 @@ defmodule HostCore.ControlInterface.LatticeServer do
           host :: String.t(),
           lattice_prefix :: String.t(),
           actor_ref :: String.t(),
-          msg :: String.t()
+          msg :: String.t(),
+          correlation_id :: String.t() | nil
         ) :: :ok
-  def publish_actor_start_failed(host, lattice_prefix, actor_ref, msg) do
+  def publish_actor_start_failed(host, lattice_prefix, actor_ref, msg, correlation_id) do
     msg =
       CloudEvent.new(
         %{
@@ -259,7 +265,8 @@ defmodule HostCore.ControlInterface.LatticeServer do
           error: msg
         },
         "actor_start_failed",
-        host
+        host,
+        correlation_id
       )
 
     topic = "wasmbus.evt.#{lattice_prefix}"

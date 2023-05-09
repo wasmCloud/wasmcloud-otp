@@ -72,7 +72,8 @@ defmodule HostCore.Vhost.Heartbeats do
         uptime_human: ut_human
       },
       "host_heartbeat",
-      config.host_key
+      config.host_key,
+      nil
     )
   end
 end
