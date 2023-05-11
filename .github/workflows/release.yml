@@ -12,6 +12,31 @@ env:
   FALLBACK_SECRET: 3ImiTAMO0TTD7wrACHrCA+ggkzpw6zGWvE3gtQwlXE6vmnDT9yGP5/WKpLWEJ8fF
 
 jobs:
+  erts-linux:
+    strategy:
+      matrix:
+        target:
+        - aarch64-unknown-linux-musl
+        - aarch64-unknown-linux-gnu
+        - x86_64-unknown-linux-musl
+        - x86_64-unknown-linux-gnu
+
+    name: erts-${{ matrix.target }}
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/install-nix
+      with: 
+        cachixAuthToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+    - name: Build ERTS
+      run: nix build -L .#erts-${{ matrix.target }}-fhs
+    - run: cp $(readlink ./result) erts.tar.gz
+    - uses: actions/upload-artifact@v3
+      with:
+        name: erts-${{ matrix.target }}
+        path: erts.tar.gz
+        if-no-files-found: error
+
   nif-darwin:
     strategy:
       matrix:
@@ -37,6 +62,30 @@ jobs:
       with:
         name: nif-${{ matrix.target }}
         path: ./host_core/native/hostcore_wasmcloud_native/target/${{ matrix.target }}/release/libhostcore_wasmcloud_native.dylib
+        if-no-files-found: error
+
+  nif-linux:
+    strategy:
+      matrix:
+        target:
+        - aarch64-unknown-linux-musl
+        - aarch64-unknown-linux-gnu
+        - x86_64-unknown-linux-musl
+        - x86_64-unknown-linux-gnu
+
+    name: nif-${{ matrix.target }}
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/install-nix
+      with: 
+        cachixAuthToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+    - name: Build NIF
+      run: nix build -L .#hostcore_wasmcloud_native-${{ matrix.target }}-fhs
+    - uses: actions/upload-artifact@v3
+      with:
+        name: nif-${{ matrix.target }}
+        path: ./result/lib/libhostcore_wasmcloud_native.so
         if-no-files-found: error
 
   nif-windows:
