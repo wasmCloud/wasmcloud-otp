@@ -56,6 +56,8 @@ defmodule HostCore.Actors.ActorSupervisor do
       labels = VirtualHost.labels(host_pid)
 
       with true <- is_pid(host_pid),
+           # Reversed boolean here so we can catch the error in one else block
+           true <- !is_nil(config),
            {:ok, claims} <- claims_result,
            target <- %{
              publicKey: claims.public_key,
@@ -84,7 +86,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
         {:ok, pids}
       else
-        # Could not lookup host by ID
+        # Could not lookup host or config by ID
         false ->
           error = "Host not found"
           Tracer.set_status(:error, error)
@@ -462,7 +464,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   Ensures that the actor count is equal to the desired count by terminating instances
   or starting instances on the host.
   """
-  def scale_actor(host_id, lattice_prefix, public_key, desired_count, oci \\ "") do
+  def scale_actor(host_id, public_key, desired_count, oci \\ "") do
     current_instances = find_actor(public_key, host_id)
     current_count = Enum.count(current_instances)
 
@@ -493,7 +495,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
       # Current count is less than desired count, start more instances
       diff < 0 && ociref != "" ->
-        start_actor_from_ref(host_id, ociref, lattice_prefix, abs(diff))
+        start_actor_from_ref(host_id, ociref, abs(diff))
 
       true ->
         Tracer.set_status(:error, "Not allowed to scale actor w/out OCI reference")
