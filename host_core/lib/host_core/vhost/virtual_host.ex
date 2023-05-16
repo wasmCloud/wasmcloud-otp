@@ -241,7 +241,7 @@ defmodule HostCore.Vhost.VirtualHost do
   to look the configuration up in the ETS cache. This function no longer makes
   a GenServer call
   """
-  @spec config(pid()) :: nil | HostCore.Vhost.Configuration.t()
+  @spec config(pid() | String.t() | nil) :: nil | HostCore.Vhost.Configuration.t()
   def config(pid) when is_pid(pid) do
     case Registry.keys(Registry.HostRegistry, pid) do
       [host_id] ->
@@ -252,7 +252,6 @@ defmodule HostCore.Vhost.VirtualHost do
     end
   end
 
-  @spec config(String.t()) :: nil | HostCore.Vhost.Configuration.t()
   def config(host_id) when is_binary(host_id) do
     case :ets.lookup(:vhost_config_table, host_id) do
       [{_, config}] ->
@@ -264,12 +263,16 @@ defmodule HostCore.Vhost.VirtualHost do
     end
   end
 
+  def config(_unknown) do
+    nil
+  end
+
   @doc """
   Returns the labels associated with the vhost by looking it up on the
   ETS cache. Does NOT make a GenServer call
   """
-  @spec labels(pid()) :: map()
-  def labels(pid) do
+  @spec labels(pid() | nil) :: map()
+  def labels(pid) when is_pid(pid) do
     case config(pid) do
       nil ->
         %{}
@@ -277,6 +280,10 @@ defmodule HostCore.Vhost.VirtualHost do
       config ->
         config.labels
     end
+  end
+
+  def labels(_unknown) do
+    nil
   end
 
   def generate_ping_reply(pid) do

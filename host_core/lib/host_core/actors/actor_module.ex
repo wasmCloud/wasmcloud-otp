@@ -779,10 +779,6 @@ defmodule HostCore.Actors.ActorModule do
     }
     |> CloudEvent.new("actor_started", host_id)
     |> CloudEvent.publish(lattice_prefix)
-
-    # topic = "#{@event_prefix}.#{lattice_prefix}"
-
-    # HostCore.Nats.safe_pub(HostCore.Nats.control_connection(lattice_prefix), topic, msg)
   end
 
   def publish_actor_updated(prefix, host_id, actor_pk, revision, instance_id) do

@@ -548,6 +548,36 @@ defmodule WasmcloudHost.Lattice.StateMonitor do
     state
   end
 
+  # No-op. No more information to gain from actors_started
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           type: "com.wasmcloud.lattice.actors_started"
+         }
+       ) do
+    state
+  end
+
+  # No-op. No more information to gain from actors_start_failed
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           type: "com.wasmcloud.lattice.actors_start_failed"
+         }
+       ) do
+    state
+  end
+
+  # No-op. No more information to gain from actors_stopped
+  defp process_event(
+         state,
+         %Cloudevents.Format.V_1_0.Event{
+           type: "com.wasmcloud.lattice.actors_stopped"
+         }
+       ) do
+    state
+  end
+
   # Fallthrough event handler to prevent errors for new events
   defp process_event(
          state,
