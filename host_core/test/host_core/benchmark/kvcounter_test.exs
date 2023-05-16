@@ -66,8 +66,7 @@ defmodule HostCore.Benchmark.KvcounterTest do
   def setup_kvcounter_test(config, evt_watcher, key, path, num_actors) do
     {:ok, bytes} = File.read(path)
 
-    {:ok, _pids} =
-      ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix, "", num_actors)
+    {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", num_actors)
 
     seed = config.cluster_seed
 

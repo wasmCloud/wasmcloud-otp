@@ -80,8 +80,7 @@ defmodule HostCore.ControlInterface.HostServer do
           Tracer.set_attribute("host_id", host_id)
           Tracer.set_attribute("lattice_id", prefix)
 
-          res =
-            ActorSupervisor.start_actor_from_ref(host_id, actor_ref, prefix, count, annotations)
+          res = ActorSupervisor.start_actor_from_ref(host_id, actor_ref, count, annotations)
 
           case res do
             {:ok, _pid} ->
@@ -135,7 +134,7 @@ defmodule HostCore.ControlInterface.HostServer do
 
   # Scale Actor
   # input: #{"actor_id" => "...", "actor_ref" => "...", "count" => 5}
-  defp handle_request({"cmd", host_id, "scale"}, body, _reply_to, prefix) do
+  defp handle_request({"cmd", host_id, "scale"}, body, _reply_to, _prefix) do
     with {:ok, scale_request} <- Jason.decode(body),
          true <- has_values(scale_request, ["actor_id", "actor_ref", "count"]) do
       actor_id = scale_request["actor_id"]
@@ -148,7 +147,7 @@ defmodule HostCore.ControlInterface.HostServer do
         Tracer.set_current_span(ctx)
 
         Tracer.with_span "Handle Scale Actor Request (ctl)", kind: :server do
-          case ActorSupervisor.scale_actor(host_id, prefix, actor_id, count, actor_ref) do
+          case ActorSupervisor.scale_actor(host_id, actor_id, count, actor_ref) do
             {:error, err} ->
               Logger.error("Error scaling actor #{actor_id}: #{err}", actor_id: actor_id)
 

@@ -29,12 +29,11 @@ defmodule HostCore.Actors.ActorSupervisor do
   @spec start_actor(
           bytes :: binary(),
           host_id :: String.t(),
-          lattice_prefix :: String.t(),
           oci :: String.t(),
           count :: integer(),
           annotations :: map()
         ) :: {:error, any} | {:ok, [pid()]}
-  def start_actor(bytes, host_id, lattice_prefix, oci \\ "", count \\ 1, annotations \\ %{})
+  def start_actor(bytes, host_id, oci \\ "", count \\ 1, annotations \\ %{})
       when is_binary(bytes) do
     Tracer.with_span "Starting Actor" do
       Tracer.set_attribute("actor_ref", oci)
@@ -45,9 +44,18 @@ defmodule HostCore.Actors.ActorSupervisor do
       source = HostCore.Policy.Manager.default_source()
       claims_result = get_claims(bytes, oci)
 
-      with {:ok, {pid, _}} <- VirtualHost.lookup(host_id),
-           config <- VirtualHost.config(pid),
-           labels <- VirtualHost.labels(pid),
+      # If we can't lookup the host ID, we can't start the actor. Shouldn't
+      # reach this point but just in case.
+      host_pid =
+        case VirtualHost.lookup(host_id) do
+          {:ok, {pid, _config}} -> pid
+          :error -> nil
+        end
+
+      config = VirtualHost.config(host_pid)
+      labels = VirtualHost.labels(host_pid)
+
+      with true <- is_pid(host_pid),
            {:ok, claims} <- claims_result,
            target <- %{
              publicKey: claims.public_key,
@@ -71,26 +79,15 @@ defmodule HostCore.Actors.ActorSupervisor do
           annotations,
           pids |> length(),
           host_id,
-          lattice_prefix
+          config.lattice_prefix
         )
 
         {:ok, pids}
       else
         # Could not lookup host by ID
-        :error ->
+        false ->
           error = "Host not found"
           Tracer.set_status(:error, error)
-
-          public_key = public_key_from_claims_result(claims_result)
-
-          publish_actors_start_failed(
-            public_key,
-            oci,
-            annotations,
-            host_id,
-            lattice_prefix,
-            error
-          )
 
           {:error, "Failed to find host #{host_id}"}
 
@@ -106,7 +103,7 @@ defmodule HostCore.Actors.ActorSupervisor do
             oci,
             annotations,
             host_id,
-            lattice_prefix,
+            config.lattice_prefix,
             error
           )
 
@@ -124,7 +121,7 @@ defmodule HostCore.Actors.ActorSupervisor do
             oci,
             annotations,
             host_id,
-            lattice_prefix,
+            config.lattice_prefix,
             error
           )
 
@@ -213,20 +210,20 @@ defmodule HostCore.Actors.ActorSupervisor do
     end)
   end
 
-  def start_actor_from_ref(host_id, ref, lattice_prefix, count \\ 1, annotation \\ %{}) do
+  def start_actor_from_ref(host_id, ref, count \\ 1, annotation \\ %{}) do
     cond do
       String.starts_with?(ref, "bindle://") ->
-        start_actor_from_bindle(host_id, ref, lattice_prefix, count, annotation)
+        start_actor_from_bindle(host_id, ref, count, annotation)
 
       String.starts_with?(ref, "file://") ->
-        start_actor_from_file(host_id, ref, lattice_prefix, count, annotation)
+        start_actor_from_file(host_id, ref, count, annotation)
 
       true ->
-        start_actor_from_oci(host_id, ref, lattice_prefix, count, annotation)
+        start_actor_from_oci(host_id, ref, count, annotation)
     end
   end
 
-  def start_actor_from_oci(host_id, ref, lattice_prefix, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_oci(host_id, ref, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from OCI", kind: :server do
       Tracer.set_attribute("host_id", host_id)
       Tracer.set_attribute("oci_ref", ref)
@@ -256,12 +253,12 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           bytes
           |> IO.iodata_to_binary()
-          |> start_actor(host_id, lattice_prefix, ref, count, annotations)
+          |> start_actor(host_id, ref, count, annotations)
       end
     end
   end
 
-  def start_actor_from_bindle(host_id, bindle_id, lattice_prefix, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_bindle(host_id, bindle_id, count \\ 1, annotations \\ %{}) do
     Tracer.with_span "Starting Actor from Bindle", kind: :server do
       creds = VirtualHost.get_creds(host_id, :bindle, bindle_id)
 
@@ -284,12 +281,12 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           bytes
           |> IO.iodata_to_binary()
-          |> start_actor(host_id, lattice_prefix, bindle_id, count, annotations)
+          |> start_actor(host_id, bindle_id, count, annotations)
       end
     end
   end
 
-  def start_actor_from_file(host_id, fileref, lattice_prefix, count \\ 1, annotations \\ %{}) do
+  def start_actor_from_file(host_id, fileref, count \\ 1, annotations \\ %{}) do
     config = VirtualHost.config(host_id)
 
     if config.enable_actor_from_fs do
@@ -307,7 +304,7 @@ defmodule HostCore.Actors.ActorSupervisor do
 
           {:ok, binary} ->
             binary
-            |> start_actor(host_id, lattice_prefix, fileref, count, annotations)
+            |> start_actor(host_id, fileref, count, annotations)
         end
       end
     else

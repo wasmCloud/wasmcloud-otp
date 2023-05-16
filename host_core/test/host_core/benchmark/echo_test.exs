@@ -70,8 +70,7 @@ defmodule HostCore.Benchmark.EchoTest do
       parallel = [1, 10]
       {:ok, bytes} = File.read(@echo_wasi_path)
 
-      {:ok, _pids} =
-        ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix, "", num_actors)
+      {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", num_actors)
 
       seed = config.cluster_seed
 
@@ -112,8 +111,7 @@ defmodule HostCore.Benchmark.EchoTest do
   def setup_echo_test(config, evt_watcher, key, path, num_actors) do
     {:ok, bytes} = File.read(path)
 
-    {:ok, _pids} =
-      ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix, "", num_actors)
+    {:ok, _pids} = ActorSupervisor.start_actor(bytes, config.host_key, "", num_actors)
 
     seed = config.cluster_seed
 

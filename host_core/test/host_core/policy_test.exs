@@ -37,7 +37,7 @@ defmodule HostCore.PolicyTest do
     )
 
     {:ok, bytes} = File.read(@policy_path)
-    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key, config.lattice_prefix)
+    {:ok, _pid} = ActorSupervisor.start_actor(bytes, config.host_key)
 
     {:ok, _pid} =
       ProviderSupervisor.start_provider_from_oci(
@@ -243,8 +243,7 @@ defmodule HostCore.PolicyTest do
   #   <> "Issuer was not the official wasmCloud issuer"} =
   #     ActorSupervisor.start_actor_from_oci(
   #       config.host_key,
-  #       "ghcr.io/brooksmtownsend/wadice:0.1.0",
-  #       config.lattice_prefix
+  #       "ghcr.io/brooksmtownsend/wadice:0.1.0"
   #     )
 
   #   {:error,
