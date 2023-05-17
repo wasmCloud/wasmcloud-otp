@@ -146,72 +146,86 @@ defmodule HostCore.Providers.ProviderModule do
       contract_id: contract_id
     )
 
-    Logger.info("Starting executable capability provider from '#{path}'",
-      provider_id: claims.public_key,
-      link_name: link_name,
-      contract_id: contract_id
-    )
-
-    instance_id = UUID.uuid4()
-
-    host_info =
-      VirtualHost.generate_hostinfo_for_provider(
-        host_id,
-        claims.public_key,
-        link_name,
-        instance_id,
-        config_json
+    if HostCore.Providers.ProviderSupervisor.is_running?(
+         claims.public_key,
+         link_name,
+         host_id
+       ) do
+      Logger.warn("Provider already running on this host, not starting rejected duplicate",
+        public_key: claims.public_key,
+        link_name: link_name,
+        host_id: host_id
       )
-      |> Base.encode64()
-      |> to_charlist()
 
-    port = Port.open({:spawn, "#{path}"}, [:binary, {:env, extract_env_vars()}])
-    Port.monitor(port)
-    Port.command(port, "#{host_info}\n")
+      :ignore
+    else
+      Logger.info("Starting executable capability provider from '#{path}'",
+        provider_id: claims.public_key,
+        link_name: link_name,
+        contract_id: contract_id
+      )
 
-    {:os_pid, pid} = Port.info(port, :os_pid)
+      instance_id = UUID.uuid4()
 
-    # Worth pointing out here that this process doesn't need to subscribe to
-    # the provider's NATS topic. The provider subscribes to that directly
-    # when it starts.
+      host_info =
+        VirtualHost.generate_hostinfo_for_provider(
+          host_id,
+          claims.public_key,
+          link_name,
+          instance_id,
+          config_json
+        )
+        |> Base.encode64()
+        |> to_charlist()
 
-    HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, claims)
+      port = Port.open({:spawn, "#{path}"}, [:binary, {:env, extract_env_vars()}])
+      Port.monitor(port)
+      Port.command(port, "#{host_info}\n")
 
-    publish_provider_started(
-      host_id,
-      lattice_prefix,
-      claims,
-      link_name,
-      contract_id,
-      instance_id,
-      oci,
-      annotations
-    )
+      {:os_pid, pid} = Port.info(port, :os_pid)
 
-    if oci != nil && oci != "" do
-      publish_provider_oci_map(host_id, lattice_prefix, claims.public_key, link_name, oci)
+      # Worth pointing out here that this process doesn't need to subscribe to
+      # the provider's NATS topic. The provider subscribes to that directly
+      # when it starts.
+
+      HostCore.Claims.Manager.put_claims(host_id, lattice_prefix, claims)
+
+      publish_provider_started(
+        host_id,
+        lattice_prefix,
+        claims,
+        link_name,
+        contract_id,
+        instance_id,
+        oci,
+        annotations
+      )
+
+      if oci != nil && oci != "" do
+        publish_provider_oci_map(host_id, lattice_prefix, claims.public_key, link_name, oci)
+      end
+
+      Process.send_after(self(), :do_health, 5_000)
+      :timer.send_interval(@thirty_seconds, self(), :do_health)
+
+      {:ok,
+       %State{
+         os_port: port,
+         os_pid: pid,
+         public_key: claims.public_key,
+         link_name: link_name,
+         contract_id: contract_id,
+         instance_id: instance_id,
+         shutdown_delay: shutdown_delay,
+         lattice_prefix: lattice_prefix,
+         executable_path: path,
+         annotations: annotations,
+         host_id: host_id,
+         # until we prove otherwise
+         healthy: false,
+         ociref: oci
+       }, {:continue, :register_provider}}
     end
-
-    Process.send_after(self(), :do_health, 5_000)
-    :timer.send_interval(@thirty_seconds, self(), :do_health)
-
-    {:ok,
-     %State{
-       os_port: port,
-       os_pid: pid,
-       public_key: claims.public_key,
-       link_name: link_name,
-       contract_id: contract_id,
-       instance_id: instance_id,
-       shutdown_delay: shutdown_delay,
-       lattice_prefix: lattice_prefix,
-       executable_path: path,
-       annotations: annotations,
-       host_id: host_id,
-       # until we prove otherwise
-       healthy: false,
-       ociref: oci
-     }, {:continue, :register_provider}}
   end
 
   @impl true

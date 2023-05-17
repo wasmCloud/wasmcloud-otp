@@ -280,6 +280,11 @@ defmodule HostCore.ControlInterface.HostServer do
                   "Successfully started provider #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]})"
                 )
 
+              :ignore ->
+                Logger.debug(
+                  "Provider #{start_provider_command["provider_ref"]} (#{start_provider_command["link_name"]}) ignored - already running"
+                )
+
               {:error, e} ->
                 Tracer.set_status(:error, inspect(e))
 
