@@ -151,7 +151,7 @@ defmodule HostCore.Providers.ProviderModule do
          link_name,
          host_id
        ) do
-      Logger.warn("Provider already registered, halting duplicate",
+      Logger.warn("Provider already running on this host, not starting rejected duplicate",
         public_key: claims.public_key,
         link_name: link_name,
         host_id: host_id
