@@ -159,7 +159,6 @@ defmodule HostCore.Providers.ProviderModule do
 
       :ignore
     else
-
       Logger.info("Starting executable capability provider from '#{path}'",
         provider_id: claims.public_key,
         link_name: link_name,
@@ -210,34 +209,34 @@ defmodule HostCore.Providers.ProviderModule do
       :timer.send_interval(@thirty_seconds, self(), :do_health)
 
       {:ok,
-      %State{
-        os_port: port,
-        os_pid: pid,
-        public_key: claims.public_key,
-        link_name: link_name,
-        contract_id: contract_id,
-        instance_id: instance_id,
-        shutdown_delay: shutdown_delay,
-        lattice_prefix: lattice_prefix,
-        executable_path: path,
-        annotations: annotations,
-        host_id: host_id,
-        # until we prove otherwise
-        healthy: false,
-        ociref: oci
-      }, {:continue, :register_provider}}
-      end
+       %State{
+         os_port: port,
+         os_pid: pid,
+         public_key: claims.public_key,
+         link_name: link_name,
+         contract_id: contract_id,
+         instance_id: instance_id,
+         shutdown_delay: shutdown_delay,
+         lattice_prefix: lattice_prefix,
+         executable_path: path,
+         annotations: annotations,
+         host_id: host_id,
+         # until we prove otherwise
+         healthy: false,
+         ociref: oci
+       }, {:continue, :register_provider}}
+    end
   end
 
   @impl true
   def handle_continue(:register_provider, state) do
-      Registry.register(
-        Registry.ProviderRegistry,
-        {state.public_key, state.link_name},
-        state.host_id
-      )
+    Registry.register(
+      Registry.ProviderRegistry,
+      {state.public_key, state.link_name},
+      state.host_id
+    )
 
-      {:noreply, state}
+    {:noreply, state}
   end
 
   @propagated_env_vars ["OTEL_TRACES_EXPORTER", "OTEL_EXPORTER_OTLP_ENDPOINT"]
