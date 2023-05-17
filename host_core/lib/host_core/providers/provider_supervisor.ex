@@ -322,9 +322,9 @@ defmodule HostCore.Providers.ProviderSupervisor do
     end
   end
 
-  defp is_running?(key, _, _) when byte_size(key) == 0, do: false
+  def is_running?(key, _, _) when byte_size(key) == 0, do: false
 
-  defp is_running?(key, link_name, host_id) do
+  def is_running?(key, link_name, host_id) do
     Enum.any?(
       all_providers(host_id),
       fn {_pid, public_key, ln, _contract_id, _instance_id} ->
