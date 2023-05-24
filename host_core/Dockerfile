@@ -1,11 +1,20 @@
-FROM debian:bullseye-slim
+FROM debian:bullseye-slim AS base
+
+FROM base AS base-amd64
+ARG BIN_AMD64
+ARG BIN=$BIN_AMD64
+
+FROM base AS base-arm64
+ARG BIN_ARM64
+ARG BIN=$BIN_ARM64
+
+FROM base-$TARGETARCH
 
 # Install runtime dependencies
 RUN apt update && \
   apt install -y --no-install-recommends ca-certificates && \
   rm -rf /var/lib/apt/lists/*
 
-ARG BIN
 COPY ${BIN} /usr/local/bin/host_core
 
 RUN host_core maintenance install
