@@ -333,25 +333,12 @@ jobs:
     # ```
     # Error: buildx failed with: ERROR: invalid tag "wasmcloud.azurecr.io/wasmcloud_host:616/merge": invalid reference format
     # ```
-    if: startswith(github.ref, 'refs/tags/') # Only run on tag push
+    if: startswith(github.ref, 'refs/tags/')
     strategy:
       matrix:
-        config:
-        - app-name: host_core
-          target: aarch64_linux_gnu
-          platform: linux/arm64
-
-        - app-name: host_core
-          target: x86_64_linux_gnu
-          platform: linux/amd64
-
-        - app-name: wasmcloud_host
-          target: aarch64_linux_gnu
-          platform: linux/arm64
-
-        - app-name: wasmcloud_host
-          target: x86_64_linux_gnu
-          platform: linux/amd64
+        app-name:
+          - host_core
+          - wasmcloud_host
 
     runs-on: ubuntu-22.04
     needs:
@@ -386,25 +373,32 @@ jobs:
 
       - uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.config.app-name }}_${{ matrix.config.target }}
-          path: ${{ matrix.config.app-name }}
-      - run: chmod +x ${{ matrix.config.app-name }}/${{ matrix.config.app-name }}_${{ matrix.config.target }}
+          name: ${{ matrix.app-name }}_aarch64_linux_gnu
+          path: ${{ matrix.app-name }}
+      - run: chmod +x ${{ matrix.app-name }}/${{ matrix.app-name }}_aarch64_linux_gnu
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.app-name }}_x86_64_linux_gnu
+          path: ${{ matrix.app-name }}
+      - run: chmod +x ${{ matrix.app-name }}/${{ matrix.app-name }}_x86_64_linux_gnu
 
       - name: Build and release docker image
         uses: docker/build-push-action@v3
         with:
           builder: ${{ steps.buildx-builder.outputs.name }}
           push: ${{ startswith(github.ref, 'refs/tags/') }}
-          context: ${{ matrix.config.app-name }}
-          file: ${{ matrix.config.app-name }}/Dockerfile
-          platforms: ${{ matrix.config.platform }}
+          context: ${{ matrix.app-name }}
+          file: ${{ matrix.app-name }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
           build-args: |
-            BIN=${{ matrix.config.app-name }}_${{ matrix.config.target }}
+            BIN_ARM64=${{ matrix.app-name }}_aarch64_linux_gnu
+            BIN_AMD64=${{ matrix.app-name }}_x86_64_linux_gnu
           tags: |
-            wasmcloud.azurecr.io/${{ matrix.config.app-name }}:${{ env.app-version }}
-            wasmcloud.azurecr.io/${{ matrix.config.app-name }}:latest
-            wasmcloud/${{ matrix.config.app-name }}:${{ env.app-version }}
-            wasmcloud/${{ matrix.config.app-name }}:latest
+            wasmcloud.azurecr.io/${{ matrix.app-name }}:${{ env.app-version }}
+            wasmcloud/${{ matrix.app-name }}:${{ env.app-version }}
+            wasmcloud.azurecr.io/${{ matrix.app-name }}:latest
+            wasmcloud/${{ matrix.app-name }}:latest
 
   github-release:
     if: startswith(github.ref, 'refs/tags/') # Only run on tag push
