@@ -63,7 +63,7 @@ defmodule HostCore.Jetstream.MetadataCacheLoader do
 
       {:error, e} ->
         Logger.error(
-          "Key added (claioms) handler failed. Failed to deserialize claims from metadata cache: #{inspect(e)}"
+          "Key added (claims) handler failed. Failed to deserialize claims from metadata cache: #{inspect(e)}"
         )
     end
   end
