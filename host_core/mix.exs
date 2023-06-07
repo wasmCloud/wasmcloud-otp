@@ -60,7 +60,8 @@ defmodule HostCore.MixProject do
                 ],
                 extra_steps: [
                   patch: [
-                    pre: [HostCore.CopyNIF]
+                    pre: [HostCore.CopyNIF],
+                    post: [HostCore.RemoveNixStoreRefs]
                   ]
                 ]
               ]
