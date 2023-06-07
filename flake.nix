@@ -40,8 +40,6 @@
   inputs.hostcore_wasmcloud_native-x86_64-apple-darwin-mac.url = file:/dev/null;
   inputs.hostcore_wasmcloud_native-x86_64-pc-windows-msvc.flake = false;
   inputs.hostcore_wasmcloud_native-x86_64-pc-windows-msvc.url = file:/dev/null;
-  inputs.secret-key-base.flake = false;
-  inputs.secret-key-base.url = file:/dev/null;
 
   outputs = {
     self,
@@ -57,7 +55,6 @@
     nixify,
     nixlib,
     nixpkgs-old,
-    secret-key-base,
     ...
   }:
     with nixlib.lib;
@@ -449,7 +446,7 @@
         src,
         version,
       } @ args: {
-        "${pname}-burrito" = args;
+        "${pname}-burrito" = mkBurrito args;
         "${pname}-burrito-aarch64-darwin" = mkBurrito (args
           // {
             BURRITO_TARGET = "aarch64_darwin";
@@ -716,7 +713,12 @@
           wasmcloudPkgs = let
             src = ./.;
             pname = "wasmcloud_host";
-            SECRET_KEY_BASE = readFile secret-key-base;
+            SECRET_KEY_BASE = let
+              secret = getEnv "SECRET_KEY_BASE";
+            in
+              if secret == ""
+              then warn "`SECRET_KEY_BASE` not set (do not forget to use `--impure`), using insecure default key" "3ImiTAMO0TTD7wrACHrCA+ggkzpw6zGWvE3gtQwlXE6vmnDT9yGP5/WKpLWEJ8fF"
+              else throw "'${secret}'";
             mixFodDeps = mkMixDeps {
               inherit
                 pkgs
@@ -914,8 +916,8 @@
               out=''${1:-_nix/out}
               mkdir -p $out
 
-              printf '%s' "''${SECRET_KEY_BASE}" | nix build -L \
-                  --override-input secret-key-base "file:///dev/stdin" \
+              nix build -L \
+                  --impure \
                   --override-input hostcore_wasmcloud_native-aarch64-apple-darwin-mac "$HOSTCORE_WASMCLOUD_NATIVE_AARCH64_APPLE_DARWIN" \
                   --override-input hostcore_wasmcloud_native-x86_64-apple-darwin-mac "$HOSTCORE_WASMCLOUD_NATIVE_X86_64_APPLE_DARWIN" \
                   --override-input hostcore_wasmcloud_native-x86_64-pc-windows-msvc "$HOSTCORE_WASMCLOUD_NATIVE_X86_64_PC_WINDOWS_MSVC" \
@@ -937,15 +939,14 @@
 
             ''
             + concatMapStringsSep "\n" (target: ''
-              printf '%s' "''${SECRET_KEY_BASE}" | nix build -L \
-                  --override-input secret-key-base "file:///dev/stdin" \
+              nix build -L \
                   --override-input hostcore_wasmcloud_native-aarch64-apple-darwin-mac "$HOSTCORE_WASMCLOUD_NATIVE_AARCH64_APPLE_DARWIN" \
                   --override-input hostcore_wasmcloud_native-x86_64-apple-darwin-mac "$HOSTCORE_WASMCLOUD_NATIVE_X86_64_APPLE_DARWIN" \
                   --override-input hostcore_wasmcloud_native-x86_64-pc-windows-msvc "$HOSTCORE_WASMCLOUD_NATIVE_X86_64_PC_WINDOWS_MSVC" \
                   ${self}\#host_core-burrito-${target} -o $out/host_core-burrito-${target}
 
-              printf '%s' "''${SECRET_KEY_BASE}" | nix build -L \
-                  --override-input secret-key-base "file:///dev/stdin" \
+              nix build -L \
+                  --impure \
                   --override-input hostcore_wasmcloud_native-aarch64-apple-darwin-mac "$HOSTCORE_WASMCLOUD_NATIVE_AARCH64_APPLE_DARWIN" \
                   --override-input hostcore_wasmcloud_native-x86_64-apple-darwin-mac "$HOSTCORE_WASMCLOUD_NATIVE_X86_64_APPLE_DARWIN" \
                   --override-input hostcore_wasmcloud_native-x86_64-pc-windows-msvc "$HOSTCORE_WASMCLOUD_NATIVE_X86_64_PC_WINDOWS_MSVC" \

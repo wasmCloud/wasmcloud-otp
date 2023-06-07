@@ -362,8 +362,7 @@
         "nixify": "nixify",
         "nixlib": "nixlib_2",
         "nixpkgs": "nixpkgs_2",
-        "nixpkgs-old": "nixpkgs-old",
-        "secret-key-base": "secret-key-base"
+        "nixpkgs-old": "nixpkgs-old"
       }
     },
     "rust-analyzer-src": {
@@ -431,18 +430,6 @@
         "owner": "oxalica",
         "repo": "rust-overlay",
         "type": "github"
-      }
-    },
-    "secret-key-base": {
-      "flake": false,
-      "locked": {
-        "narHash": "sha256-d6xi4mKdjkX2JFicDIv5niSzpyI0m/Hnm8GGAIU04kY=",
-        "type": "file",
-        "url": "file:/dev/null"
-      },
-      "original": {
-        "type": "file",
-        "url": "file:/dev/null"
       }
     },
     "systems": {
