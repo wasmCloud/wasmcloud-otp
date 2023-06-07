@@ -8,9 +8,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  FALLBACK_SECRET: 3ImiTAMO0TTD7wrACHrCA+ggkzpw6zGWvE3gtQwlXE6vmnDT9yGP5/WKpLWEJ8fF
-
 jobs:
   erts-linux:
     strategy:
@@ -140,8 +137,8 @@ jobs:
       env:
         SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
       run: |
-        printf '%s' "${SECRET_KEY_BASE:-$FALLBACK_SECRET}" | nix build \
-          --override-input secret-key-base 'file:///dev/stdin' \
+        nix build \
+          --impure \
           --override-input hostcore_wasmcloud_native-${{ matrix.config.arch }}-apple-darwin-mac /tmp/nif \
           -L .#${{ matrix.config.package }}-burrito-${{ matrix.config.arch }}-darwin
 
@@ -192,8 +189,8 @@ jobs:
       env:
         SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
       run: |
-        printf '%s' "${SECRET_KEY_BASE:-$FALLBACK_SECRET}" | nix build \
-          --override-input secret-key-base 'file:///dev/stdin' \
+        nix build \
+          --impure \
           -L .#${{ matrix.config.package }}-burrito-${{ matrix.config.arch }}-linux-${{ matrix.config.libc }}
 
     - uses: actions/upload-artifact@v3
@@ -227,8 +224,8 @@ jobs:
       env:
         SECRET_KEY_BASE: ${{ secrets.WASMCLOUD_HOST_SECRET_KEY_BASE }}
       run: |
-        printf '%s' "${SECRET_KEY_BASE:-$FALLBACK_SECRET}" | nix build \
-          --override-input secret-key-base 'file:///dev/stdin' \
+        nix build \
+          --impure \
           --override-input hostcore_wasmcloud_native-x86_64-pc-windows-msvc /tmp/nif \
           -L .#${{ matrix.package }}-burrito-x86_64-windows
 
