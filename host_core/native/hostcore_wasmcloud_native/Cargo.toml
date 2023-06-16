@@ -10,15 +10,15 @@ path = "src/lib.rs"
 crate-type = ["dylib"]
 
 [dependencies]
-wasmcloud = { git = "https://github.com/wasmcloud/wasmcloud" }
+wasmcloud = { git = "https://github.com/wasmcloud/wasmcloud", branch = "wasmcloud-otp" }
 rustler = "0.27.0"
 lazy_static = "1.0"
 async-trait = "0.1.66"
 serde = {version = "1.0.126", features = ["derive"] }
 serde_bytes = "0.11.5"
-nkeys = "0.2.0"
+nkeys = "0.3.0"
 futures = "0.3.27"
-wascap = "0.10.1"
+wascap = "0.11.0"
 ring = "0.16.20"
 rand = "0.8.5"
 log = "0.4.17"
@@ -27,7 +27,7 @@ data-encoding = "2.3.2"
 rmp = "0.8.10"
 rmp-serde = "1.0.0"
 oci-distribution = { version = "0.9.1", default-features = false, features = ["rustls-tls"] }
-provider-archive = "0.6.0"
+provider-archive = "0.7.0"
 tokio = {version = "1.26.0", features = ["rt", "rt-multi-thread"] }
 once_cell = "1.2.0"
 chrono-humanize = "0.2.1"
