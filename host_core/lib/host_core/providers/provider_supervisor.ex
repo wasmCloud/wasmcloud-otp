@@ -211,7 +211,7 @@ defmodule HostCore.Providers.ProviderSupervisor do
               Map.put(par.claims, :contract_id, par.contract_id),
               link_name,
               par.contract_id,
-              "",
+              path,
               provider_configuration,
               annotations
             )
