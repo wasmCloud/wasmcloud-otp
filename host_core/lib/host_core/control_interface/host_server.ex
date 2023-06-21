@@ -256,23 +256,13 @@ defmodule HostCore.ControlInterface.HostServer do
             annotations = Map.get(start_provider_command, "annotations") || %{}
 
             res =
-              if String.starts_with?(start_provider_command["provider_ref"], "bindle://") do
-                ProviderSupervisor.start_provider_from_bindle(
-                  host_id,
-                  start_provider_command["provider_ref"],
-                  start_provider_command["link_name"],
-                  Map.get(start_provider_command, "configuration", ""),
-                  annotations
-                )
-              else
-                ProviderSupervisor.start_provider_from_oci(
-                  host_id,
-                  start_provider_command["provider_ref"],
-                  start_provider_command["link_name"],
-                  Map.get(start_provider_command, "configuration", ""),
-                  annotations
-                )
-              end
+              ProviderSupervisor.start_provider_from_ref(
+                host_id,
+                start_provider_command["provider_ref"],
+                start_provider_command["link_name"],
+                Map.get(start_provider_command, "configuration", ""),
+                annotations
+              )
 
             case res do
               {:ok, _pid} ->

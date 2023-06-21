@@ -291,7 +291,7 @@ defmodule HostCore.Actors.ActorSupervisor do
   def start_actor_from_file(host_id, fileref, count \\ 1, annotations \\ %{}) do
     config = VirtualHost.config(host_id)
 
-    if config.enable_actor_from_fs do
+    if config.enable_start_from_fs do
       Tracer.with_span "Starting Actor from file", kind: :server do
         case File.read(String.trim_leading(fileref, "file://")) do
           {:error, err} ->
@@ -319,7 +319,7 @@ defmodule HostCore.Actors.ActorSupervisor do
     config = VirtualHost.config(pid)
 
     if String.starts_with?(ref, "file://") do
-      if not config.enable_actor_from_fs do
+      if not config.enable_start_from_fs do
         {:error, "actor from local filesystem is disabled"}
       else
         with {:ok, binary} <- File.read(String.trim_leading(ref, "file://")),
