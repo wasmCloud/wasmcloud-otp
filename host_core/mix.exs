@@ -104,6 +104,7 @@ defmodule HostCore.MixProject do
       {:opentelemetry_exporter, "~> 1.3", application: false},
       {:opentelemetry_logger_metadata, "~> 0.1.0"},
       {:phoenix_pubsub, "~> 2.1.1"},
+      {:tls_certificate_check, "~> 1.18.1"},
 
       # {:vapor, "~> 0.10.0"},
       # TODO: switch to new version of vapor once PR is merged
