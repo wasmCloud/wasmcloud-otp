@@ -99,7 +99,7 @@ defmodule HostCore.Application do
        strategy: :one_for_one,
        allow_latest: config.allow_latest,
        allowed_insecure: config.allowed_insecure,
-       enable_actor_from_fs: config.enable_actor_from_fs},
+       enable_start_from_fs: config.enable_start_from_fs},
       {HostCore.Actors.CallCounter, nil},
       {HostCore.Lattice.LatticeRoot, nil},
       {HostCore.Vhost.VirtualHost, config}
@@ -265,7 +265,7 @@ defmodule HostCore.Application do
   end
 
   defp ensure_booleans(config) do
-    bool_keys = [:config_service_enabled, :ctl_tls, :rpc_tls, :enable_ipv6, :enable_actor_from_fs]
+    bool_keys = [:config_service_enabled, :ctl_tls, :rpc_tls, :enable_ipv6, :enable_start_from_fs]
 
     Enum.reduce(bool_keys, config, fn key, config ->
       old = Map.get(config, key, nil)

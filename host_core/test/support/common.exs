@@ -131,7 +131,7 @@ defmodule HostCoreTest.Common do
       enable_structured_logging: false,
       log_level: :info,
       enable_ipv6: false,
-      enable_actor_from_fs: true,
+      enable_start_from_fs: true,
       policy_topic: nil,
       policy_changes_topic: nil,
       policy_timeout_ms: 1_000

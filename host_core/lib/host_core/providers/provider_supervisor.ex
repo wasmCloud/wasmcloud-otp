@@ -195,31 +195,37 @@ defmodule HostCore.Providers.ProviderSupervisor do
         provider_configuration \\ ""
       ) do
     Tracer.with_span "Start Provider from File" do
-      case Native.par_from_path(path, link_name) do
-        {:ok, par} ->
-          start_executable_provider(
-            host_id,
-            Native.par_cache_path(
-              par.claims.public_key,
-              par.claims.revision,
+      config = VirtualHost.config(host_id)
+
+      if config.enable_start_from_fs do
+        case Native.par_from_path(String.trim_leading(path, "file://"), link_name) do
+          {:ok, par} ->
+            start_executable_provider(
+              host_id,
+              Native.par_cache_path(
+                par.claims.public_key,
+                par.claims.revision,
+                par.contract_id,
+                link_name
+              ),
+              Map.put(par.claims, :contract_id, par.contract_id),
+              link_name,
               par.contract_id,
-              link_name
-            ),
-            Map.put(par.claims, :contract_id, par.contract_id),
-            link_name,
-            par.contract_id,
-            "",
-            provider_configuration,
-            annotations
-          )
+              path,
+              provider_configuration,
+              annotations
+            )
 
-        {:error, err} ->
-          Logger.error("Error starting provider from file: #{err}", link_name: link_name)
-          {:error, err}
+          {:error, err} ->
+            Logger.error("Error starting provider from file: #{err}", link_name: link_name)
+            {:error, err}
 
-        err ->
-          Logger.error("Error starting provider from file: #{err}", link_name: link_name)
-          {:error, err}
+          err ->
+            Logger.error("Error starting provider from file: #{err}", link_name: link_name)
+            {:error, err}
+        end
+      else
+        {:error, "provider file loading is disabled"}
       end
     end
   end
