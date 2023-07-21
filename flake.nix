@@ -718,7 +718,7 @@
             in
               if secret == ""
               then warn "`SECRET_KEY_BASE` not set (do not forget to use `--impure`), using insecure default key" "3ImiTAMO0TTD7wrACHrCA+ggkzpw6zGWvE3gtQwlXE6vmnDT9yGP5/WKpLWEJ8fF"
-              else throw "'${secret}'";
+              else secret;
             mixFodDeps = mkMixDeps {
               inherit
                 pkgs
