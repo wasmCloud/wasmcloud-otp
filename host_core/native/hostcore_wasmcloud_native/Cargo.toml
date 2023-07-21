@@ -11,7 +11,7 @@ crate-type = ["dylib"]
 
 [dependencies]
 wasmcloud = { git = "https://github.com/wasmcloud/wasmcloud", branch = "wasmcloud-otp" }
-rustler = "0.27.0"
+rustler = "0.29"
 lazy_static = "1.0"
 async-trait = "0.1.66"
 serde = {version = "1.0.126", features = ["derive"] }
