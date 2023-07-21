@@ -205,7 +205,7 @@ dependencies = [
  "itertools",
  "itoa",
  "lazy_static",
- "nkeys",
+ "nkeys 0.2.0",
  "nuid 0.3.2",
  "once_cell",
  "regex",
@@ -1648,7 +1648,7 @@ dependencies = [
  "lazy_static",
  "log",
  "nats",
- "nkeys",
+ "nkeys 0.3.0",
  "oci-distribution",
  "once_cell",
  "provider-archive",
@@ -1663,7 +1663,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "uuid",
- "wascap 0.10.1",
+ "wascap 0.11.0",
  "wasmcloud",
 ]
 
@@ -2172,7 +2172,7 @@ dependencies = [
  "libc",
  "log",
  "memchr",
- "nkeys",
+ "nkeys 0.2.0",
  "nuid 0.3.2",
  "once_cell",
  "parking_lot 0.12.1",
@@ -2208,6 +2208,21 @@ name = "nkeys"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e66a7cd1358277b2a6f77078e70aea7315ff2f20db969cc61153103ec162594"
+dependencies = [
+ "byteorder 1.4.3",
+ "data-encoding",
+ "ed25519-dalek",
+ "getrandom 0.2.8",
+ "log",
+ "rand 0.8.5",
+ "signatory",
+]
+
+[[package]]
+name = "nkeys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2d151f6ece2f3d1077f6c779268de2516653d8344ddde65addd785cce764fe5"
 dependencies = [
  "byteorder 1.4.3",
  "data-encoding",
@@ -4070,7 +4085,7 @@ dependencies = [
  "humantime",
  "lazy_static",
  "log",
- "nkeys",
+ "nkeys 0.2.0",
  "nuid 0.3.2",
  "parity-wasm",
  "ring",
@@ -4081,9 +4096,9 @@ dependencies = [
 
 [[package]]
 name = "wascap"
-version = "0.10.1"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3a85c9ab66dd6a39400cc7235b803c8819c3b76405bce83f8e6c540a8abf89a"
+checksum = "c38c03de923f80027cb62281f520bd97245a38eeb85a53f435a110509d044551"
 dependencies = [
  "base64 0.13.1",
  "data-encoding",
@@ -4091,15 +4106,15 @@ dependencies = [
  "humantime",
  "lazy_static",
  "log",
- "nkeys",
+ "nkeys 0.3.0",
  "nuid 0.4.1",
  "ring",
  "serde",
  "serde_derive",
  "serde_json",
- "wasm-encoder",
+ "wasm-encoder 0.29.0",
  "wasm-gen",
- "wasmparser 0.102.0",
+ "wasmparser 0.107.0",
 ]
 
 [[package]]
@@ -4280,6 +4295,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-encoder"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18c41dbd92eaebf3612a39be316540b8377c871cb9bde6b064af962984912881"
+dependencies = [
+ "leb128",
+]
+
+[[package]]
 name = "wasm-gen"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4331,7 +4355,7 @@ dependencies = [
  "lazy_static",
  "minicbor 0.17.1",
  "minicbor-ser",
- "nkeys",
+ "nkeys 0.2.0",
  "once_cell",
  "rmp-serde",
  "serde",
@@ -4354,7 +4378,7 @@ dependencies = [
 [[package]]
 name = "wasmcloud"
 version = "0.1.0"
-source = "git+https://github.com/wasmcloud/wasmcloud#c3ff3d8e297832783f4ed5e4e72fa3f8f22ab7a6"
+source = "git+https://github.com/wasmcloud/wasmcloud?branch=wasmcloud-otp#eaa7181f04b05a231d732d923820dbbc0e751f0e"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4367,7 +4391,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "wascap 0.10.1",
+ "wascap 0.11.0",
  "wasi-cap-std-sync 0.0.0",
  "wasi-common 0.0.0",
  "wasmbus-rpc",
@@ -4427,6 +4451,16 @@ checksum = "2c437373cac5ea84f1113d648d51f71751ffbe3d90c00ae67618cf20d0b5ee7b"
 dependencies = [
  "indexmap",
  "url",
+]
+
+[[package]]
+name = "wasmparser"
+version = "0.107.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29e3ac9b780c7dda0cac7a52a5d6d2d6707cc6e3451c9db209b6c758f40d7acb"
+dependencies = [
+ "indexmap",
+ "semver",
 ]
 
 [[package]]
@@ -4552,7 +4586,7 @@ dependencies = [
  "serde",
  "target-lexicon",
  "thiserror",
- "wasm-encoder",
+ "wasm-encoder 0.25.0",
  "wasmparser 0.102.0",
  "wasmprinter",
  "wasmtime-component-util",
@@ -4692,7 +4726,7 @@ dependencies = [
  "leb128",
  "memchr",
  "unicode-width",
- "wasm-encoder",
+ "wasm-encoder 0.25.0",
 ]
 
 [[package]]
