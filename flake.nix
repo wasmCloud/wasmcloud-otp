@@ -697,7 +697,7 @@
                 src
                 version
                 ;
-              sha256 = "sha256-JsYht6LlamYLvlIkDfHo35a4BWQd62iPO3NwtUF1gUo=";
+              sha256 = "sha256-19an3Oh5VRcgXCh8nlo0hhhRc/a2hmnUe0nIJUR0fSU=";
             };
           in
             mkBurritoPackages {
@@ -727,7 +727,7 @@
                 src
                 version
                 ;
-              sha256 = "sha256-b8Fg0IhAzsjT1kvp7yzg0kPZM7sO/HBlcuFalDITjqA=";
+              sha256 = "sha256-278V/aNbMeTRguIqFiwZnZwFcaOCbJELgxboqApIk9E=";
               installPhase = ''
                 runHook preInstall
 
