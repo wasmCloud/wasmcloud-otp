@@ -78,6 +78,7 @@ pub struct Claims {
     caps: Option<Vec<String>>,
     expires_human: String,
     not_before_human: String,
+    config_schema: Option<String>
 }
 
 impl From<wascap::jwt::Claims<wascap::jwt::CapabilityProvider>> for crate::Claims {
@@ -511,6 +512,7 @@ fn extract_claims(binary: Binary) -> Result<(Atom, Claims), Error> {
         tags: m.tags,
         expires_human: v.expires_human,
         not_before_human: v.not_before_human,
+        config_schema: None
     };
 
     Ok((atoms::ok(), out))

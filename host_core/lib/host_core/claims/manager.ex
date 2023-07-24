@@ -16,7 +16,8 @@ defmodule HostCore.Claims.Manager do
           tags: String.t(),
           version: String.t(),
           sub: String.t(),
-          contract_id: String.t() | nil
+          contract_id: String.t() | nil,
+          config_schema: String.t() | nil
         }
 
   @spec lookup_claims(lattice_prefix :: String.t(), public_key :: String.t()) ::
@@ -51,7 +52,7 @@ defmodule HostCore.Claims.Manager do
   def put_claims(host_id, lattice_prefix, claims) do
     public_key = claims.public_key
 
-    claims = %{
+    newclaims = %{
       call_alias:
         if claims.call_alias == nil do
           ""
@@ -88,8 +89,15 @@ defmodule HostCore.Claims.Manager do
       contract_id: Map.get(claims, :contract_id) || ""
     }
 
-    cache_claims(lattice_prefix, public_key, claims)
-    publish_claims(host_id, lattice_prefix, claims)
+    newclaims =
+      if claims.config_schema != nil do
+        Map.put(newclaims, :config_schema, claims.config_schema)
+      else
+        newclaims
+      end
+
+    cache_claims(lattice_prefix, public_key, newclaims)
+    publish_claims(host_id, lattice_prefix, newclaims)
   end
 
   def claims_table_atom(lattice_prefix) do

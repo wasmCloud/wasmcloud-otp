@@ -34,6 +34,8 @@ pub(crate) fn extract_claims(par: &ProviderArchive) -> Result<crate::Claims, Err
                 tags: None,
                 version: metadata.ver,
                 name: metadata.name,
+                // the unwrap here is safe because we know it's a valid JSON value
+                config_schema: metadata.config_schema.map(|s| serde_json::to_string(&s).unwrap()),
                 expires_human: stamp_to_human(c.expires).unwrap_or_else(|| "never".to_string()),
                 not_before_human: stamp_to_human(c.not_before)
                     .unwrap_or_else(|| "immediately".to_string()),
