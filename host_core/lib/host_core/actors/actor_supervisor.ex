@@ -298,7 +298,7 @@ defmodule HostCore.Actors.ActorSupervisor do
             Tracer.add_event("file read failed", reason: "#{inspect(err)}")
 
             Logger.error(
-              "Failed to read actor file from ${fileref}: #{inspect(err)}",
+              "Failed to read actor file from #{fileref}: #{inspect(err)}",
               fileref: fileref
             )
 
