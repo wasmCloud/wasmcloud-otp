@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> This host is now **deprecated** and is not receiving feature updates. For the latest wasmCloud features, use the [primary host runtime](https://github.com/wasmCloud/wasmCloud/tree/main/crates/host).
+
 ![wasmCloud logo](https://raw.githubusercontent.com/wasmCloud/branding/main/02.Horizontal%20Version/Pixel/PNG/Wasmcloud.Logo-Hrztl_Color.png)
 
 [![wasmcloud_host build status](https://img.shields.io/github/actions/workflow/status/wasmcloud/wasmcloud-otp/wasmcloud_host.yml?branch=main)](https://github.com/wasmCloud/wasmcloud-otp/actions/workflows/wasmcloud_host.yml)
